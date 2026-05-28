@@ -15,26 +15,28 @@
 
 ## 現在地
 
-- ✅ **Phase 0 着手** (v1, v2) — exifr で DateTimeOriginal / GPS を読む最小HTML作成済み
-- ⏸ **Phase 0 検証待ち** — スマホで実際に20〜30枚投げて日時取得率を確認する段階
-  - v2 でスマホ対応の修正 (UMD 化・可視 input・起動ログ) 投入済み
-  - スマホからアクセスする手段の選択がまだ (GitHub Pages 有効化案あり)
+- ✅ **Phase 0 クローズ** (v1〜v3) — スマホ実機で日時/GPS/HEIC が読めることを確認、**Go 判定**
+- ▶ **Phase 1 着手前** — IndexedDB / サムネ / ランダム3枚 / 連想展開 に進める状態
 
 ---
 
-## Phase 0 — 前提検証（先に30分）
+## Phase 0 — 前提検証（クローズ済み）
 
 - [x] 最小HTMLに `<input type="file" multiple accept="image/*">` を置く
 - [x] 選んだ写真を exifr で読み、**DateTimeOriginal** と **GPS** がコンソール/画面に出るか確認
 - [x] スマホ対応 (UMD + 可視 input + 起動ログ)
-- [ ] **スマホからアクセスする手段を決める** (GitHub Pages 有効化 / ローカルサーバー+LAN / Cloudflare Pages など)
-- [ ] **自分の写真を20〜30枚投げて、日時取得率と GPS 取得率を数える**
-- [ ] HEIC が混じるか確認、混じってたら heic2any で JPEG 変換できるか確認
+- [x] スマホからアクセスする手段を決める → **GitHub Pages** (リポ public 化、`https://yutsutke.github.io/photo-memory-spike/`)
+- [x] 自分の写真で日時取得率と GPS 取得率を数える → 日時 100% / GPS (元画像にあれば) 100%
+- [x] HEIC が混じった時の挙動 → **exifr full ビルド単体で EXIF 抽出 OK**、heic2any は不要
 
-**Go / No-Go：**
-- 日時がほぼ100% → **Go**（時間軸だけでも本機構は成立）
-- 日時すら取れない極端な低取得率 → ここで止めて報告（想定外）
-- GPS は無くてもOK。あれば place-related 展開が効くだけ。
+**判定: Go** — 日時もGPSも完全に読める。Phase 1 へ進む。
+
+**Phase 0 で固まった選定:**
+- **exifr は full ビルド固定** (mini は parse(f, true) で JFIF 欠如エラー)
+- **HEIC は exifr 直読みでEXIF抽出**。heic2any は Phase 1 のサムネ描画で必要なら導入
+- iOS Safari は HTML を強烈にキャッシュ → HTML に no-cache メタ必須
+- iOS Safari のフォトピッカーは HEIC を JPEG 変換して渡す → HEIC を HEIC のまま渡したい時は「ファイル」アプリ経由で選ぶ
+- iOS のフォトピッカー経由でも GPS は保持される (元画像に GPS があれば)。strip はしていない
 
 ---
 
