@@ -14,6 +14,7 @@
   body { margin: 0; padding: 0; background: #111; color: #eee; min-height: 100vh; }
   header { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #111; z-index: 10; }
   header h1 { font-size: 15px; margin: 0; flex: 1; }
+  header h1 .ver { font-size: 10px; color: #666; font-weight: normal; margin-left: 6px; letter-spacing: 0.5px; }
   header .count { font-size: 12px; color: #8bf; margin-right: 4px; }
   header button { padding: 6px 10px; font-size: 12px; background: #333; color: #eee; border: 0; border-radius: 6px; cursor: pointer; }
   header button:active { background: #555; }
@@ -70,7 +71,7 @@
 <body>
 
 <header>
-  <h1>写真思い出</h1>
+  <h1>写真思い出 <span class="ver" id="ver"></span></h1>
   <span class="count" id="count">— 枚</span>
   <button id="btnAdd" title="追加">+</button>
   <button id="btnExport" title="エクスポート">⇩</button>
@@ -91,6 +92,12 @@
 
 <script>
 "use strict";
+
+// ============================================================
+// バージョン (キャッシュ問題切り分け用に画面に表示する)
+// commit するたびに上げること
+// ============================================================
+const BUILD = 'phase1.1 · 2026-05-28';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -351,6 +358,10 @@ const $count  = document.getElementById('count');
 const $picker = document.getElementById('picker');
 const $importer = document.getElementById('importer');
 const $log    = document.getElementById('log');
+
+// バージョン表示 (画面ですぐ確認できるように)
+document.getElementById('ver').textContent = BUILD;
+console.log(`[photo-memory-spike] build=${BUILD}`);
 
 function logErr(msg) {
   const div = document.createElement('div');
