@@ -7,125 +7,582 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>写真思い出スパイク — Phase 0</title>
+<title>写真思い出</title>
 <style>
   :root { font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; }
-  body { margin: 0; padding: 16px; background: #111; color: #eee; }
-  h1 { font-size: 18px; margin: 0 0 12px; }
-  .desc { font-size: 13px; color: #aaa; margin: 0 0 16px; line-height: 1.6; }
-  .picker-wrap { display: flex; flex-direction: column; gap: 10px; }
-  /* file input を視覚的に隠さない (iOS で display:none だと挙動が不安定) */
-  input[type=file] { width: 100%; padding: 10px; border: 2px dashed #555; border-radius: 8px; background: #222; color: #eee; font-size: 14px; }
-  button { padding: 12px 16px; border: 0; border-radius: 8px; background: #2a6; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
-  button.secondary { background: #444; }
-  .boot { margin: 12px 0; font-size: 12px; color: #888; }
-  .boot.ok { color: #9f9; }
-  .boot.err { color: #f88; }
-  .stats { margin: 16px 0 8px; font-size: 13px; color: #ddd; }
-  .stats b { color: #8bf; }
-  .log { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 11px; background: #000; border: 1px solid #333; border-radius: 6px; padding: 8px; max-height: 50vh; overflow: auto; white-space: pre-wrap; word-break: break-all; }
-  .row { padding: 4px 0; border-bottom: 1px solid #1a1a1a; }
-  .row.ok { color: #9f9; }
-  .row.warn { color: #fc6; }
-  .row.err { color: #f88; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 0; background: #111; color: #eee; min-height: 100vh; }
+  header { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #111; z-index: 10; }
+  header h1 { font-size: 15px; margin: 0; flex: 1; }
+  header .count { font-size: 12px; color: #8bf; margin-right: 4px; }
+  header button { padding: 6px 10px; font-size: 12px; background: #333; color: #eee; border: 0; border-radius: 6px; cursor: pointer; }
+  header button:active { background: #555; }
+  main { padding: 14px; }
+
+  button.primary { padding: 12px 18px; border: 0; border-radius: 8px; background: #2a6; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+  button.secondary { padding: 10px 14px; border: 0; border-radius: 8px; background: #444; color: #eee; font-size: 13px; cursor: pointer; }
+  button:active { opacity: 0.8; }
+
+  /* empty state */
+  .empty { display: flex; flex-direction: column; gap: 14px; max-width: 420px; margin: 40px auto; text-align: center; }
+  .empty h2 { font-size: 16px; margin: 0; }
+  .empty p { color: #aaa; font-size: 13px; line-height: 1.7; margin: 0; }
+
+  /* import progress */
+  .progress { padding: 14px; background: #1a1a1a; border-radius: 8px; margin: 12px auto; max-width: 420px; }
+  .progress .text { font-size: 13px; color: #ddd; }
+  .progress .bar { height: 6px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .progress .bar > div { height: 100%; background: #2a6; transition: width 0.2s; }
+
+  /* random 3 cards */
+  .cards { display: grid; gap: 14px; grid-template-columns: 1fr; max-width: 420px; margin: 0 auto; }
+  @media (min-width: 720px) { .cards { grid-template-columns: 1fr 1fr 1fr; max-width: 1100px; } }
+  .card { background: #1a1a1a; border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.08s; }
+  .card:active { transform: scale(0.98); }
+  .card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; background: #000; }
+  .card .meta { padding: 9px 12px 11px; }
+  .card .meta .date { color: #eee; font-weight: 600; font-size: 13px; }
+  .card .meta .place { color: #8bf; font-size: 11px; margin-top: 3px; }
+
+  /* explore */
+  .center-card { background: #1a1a1a; border-radius: 12px; overflow: hidden; margin: 0 auto 14px; max-width: 600px; }
+  .center-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; background: #000; }
+  .center-card .meta { padding: 10px 14px 12px; }
+  .center-card .meta .date { font-size: 14px; font-weight: 600; }
+  .center-card .meta .place { font-size: 12px; color: #8bf; margin-top: 3px; }
+
+  .neighbor-label { text-align: center; color: #888; font-size: 12px; margin: 6px 0 10px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 600px; margin: 0 auto; }
+  .grid .thumb { aspect-ratio: 1; background: #1a1a1a; border-radius: 8px; overflow: hidden; cursor: pointer; position: relative; }
+  .grid .thumb:active { opacity: 0.7; }
+  .grid .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .grid .thumb .lbl { position: absolute; bottom: 0; left: 0; right: 0; padding: 6px 6px 4px; font-size: 10px; background: linear-gradient(transparent, rgba(0,0,0,0.85)); color: #fff; }
+
+  .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 22px auto; max-width: 600px; }
+
+  /* error/log overlay (起動時/取り込みエラーだけ) */
+  .log { position: fixed; bottom: 0; left: 0; right: 0; max-height: 28vh; overflow: auto; background: #200; border-top: 1px solid #500; padding: 6px 10px; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 10px; color: #f88; display: none; }
+  .log.show { display: block; }
+
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 
-<h1>写真思い出スパイク — Phase 0（前提検証）</h1>
-<p class="desc">
-  写真を選んで <b>DateTimeOriginal</b> と <b>GPS</b> が読めるか確認する。
-  日時取得率がほぼ100%なら Phase 1 に進む。
-</p>
+<header>
+  <h1>写真思い出</h1>
+  <span class="count" id="count">— 枚</span>
+  <button id="btnAdd" title="追加">+</button>
+  <button id="btnExport" title="エクスポート">⇩</button>
+  <button id="btnImport" title="インポート">⇧</button>
+  <button id="btnClear" title="全削除">🗑</button>
+</header>
 
-<div class="picker-wrap">
-  <input id="picker" type="file" multiple accept="image/*">
-  <button id="pickBtn">📷 写真を選ぶ</button>
-</div>
+<main id="main"></main>
 
-<div class="boot" id="boot">起動中…</div>
-<div class="stats" id="stats">未選択</div>
+<input id="picker" class="hidden" type="file" multiple accept="image/*,.heic,.heif">
+<input id="importer" class="hidden" type="file" accept="application/json">
+
 <div class="log" id="log"></div>
 
-<!-- UMD 版 exifr (full = JPEG/HEIC/TIFF + EXIF/IPTC/XMP/ICC/JFIF まで全部入り)
-     mini は JFIF パーサーが入っていないので parse(f, true) で落ちる → full に固定 -->
+<!-- CDN: exifr full (HEIC EXIF まで読める), heic2any (HEIC→JPEG 描画用) -->
 <script src="https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 
 <script>
-  const $picker = document.getElementById('picker');
-  const $pickBtn = document.getElementById('pickBtn');
-  const $boot   = document.getElementById('boot');
-  const $stats  = document.getElementById('stats');
-  const $log    = document.getElementById('log');
+"use strict";
 
-  function row(cls, text) {
-    const div = document.createElement('div');
-    div.className = 'row ' + cls;
-    div.textContent = text;
-    $log.appendChild(div);
-  }
+// ============================================================
+// IndexedDB ラッパー (素の API、薄く)
+// ============================================================
+const DB_NAME = 'photo-memory-spike';
+const DB_VERSION = 1;
+const STORE = 'photos';
 
-  // 起動確認: exifr がロードされてるか
-  if (typeof exifr === 'undefined') {
-    $boot.className = 'boot err';
-    $boot.textContent = '❌ exifr (CDN) がロードできない。ネット接続を確認してください。';
-  } else {
-    $boot.className = 'boot ok';
-    $boot.textContent = '✅ exifr OK (UA: ' + navigator.userAgent.slice(0, 60) + '…)';
-  }
-
-  // ボタンからも明示的に開けるように (input display:none を避けつつ tap target を確保)
-  $pickBtn.addEventListener('click', () => $picker.click());
-
-  $picker.addEventListener('change', async (e) => {
-    const files = Array.from(e.target.files || []);
-    // change が発火したことを即座に表示 (parse 前)
-    $stats.innerHTML = `📥 change 発火: <b>${files.length}</b> 件選択`;
-    $log.innerHTML = '';
-    if (!files.length) { $stats.textContent = '未選択 (files.length=0)'; return; }
-
-    let withDate = 0, withGPS = 0, errors = 0, heic = 0;
-
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      const isHeic = /\.hei[cf]$/i.test(f.name) || /hei[cf]/i.test(f.type);
-      if (isHeic) heic++;
-
-      try {
-        // 全セグメント取りに行く (mini ビルドでも tiff/exif/gps/ifd0 全部 true で広めに拾う)
-        const meta = await exifr.parse(f, true);
-        const dto = meta?.DateTimeOriginal || meta?.CreateDate || meta?.ModifyDate || null;
-        const lat = meta?.latitude ?? null;
-        const lng = meta?.longitude ?? null;
-        if (dto) withDate++;
-        if (lat != null && lng != null) withGPS++;
-
-        const tag = isHeic ? '[HEIC]' : '';
-        const cls = dto ? 'ok' : 'warn';
-        const dtoStr = dto instanceof Date ? dto.toISOString() : (dto ?? '—');
-        const metaKeys = meta ? Object.keys(meta).slice(0, 12).join(',') : '(null)';
-        row(cls, `${tag} ${f.name}  date=${dtoStr}  gps=${lat != null ? `${lat.toFixed(4)},${lng.toFixed(4)}` : '—'}  size=${(f.size/1024).toFixed(0)}KB`);
-        row('warn', `   meta keys=[${metaKeys}]`);
-      } catch (err) {
-        errors++;
-        row('err', `[ERR] ${f.name}  ${err && err.message ? err.message : String(err)}  type=${f.type || '?'}`);
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        const s = db.createObjectStore(STORE, { keyPath: 'id' });
+        s.createIndex('datetime', 'datetime');
+        s.createIndex('dedup', 'dedup', { unique: false });
       }
-      $stats.textContent = `読み込み中… ${i+1} / ${files.length}`;
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbGetAll() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbPut(record) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(record);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function dbHasDedup(key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readonly').objectStore(STORE).index('dedup').get(key);
+    req.onsuccess = () => resolve(!!req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbClear() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ============================================================
+// 取り込み
+// ============================================================
+async function readMeta(file) {
+  const m = await exifr.parse(file, true);
+  const dto = m?.DateTimeOriginal || m?.CreateDate || m?.ModifyDate || null;
+  return {
+    datetime: dto instanceof Date ? dto : (dto ? new Date(dto) : null),
+    lat: m?.latitude ?? null,
+    lng: m?.longitude ?? null,
+  };
+}
+
+async function toJpegBlob(file) {
+  const isHeic = /\.hei[cf]$/i.test(file.name) || /hei[cf]/i.test(file.type);
+  if (!isHeic) return file;
+  if (typeof heic2any === 'undefined') throw new Error('heic2any not loaded');
+  const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
+  return Array.isArray(converted) ? converted[0] : converted;
+}
+
+// サムネ生成 (orientation 補正は createImageBitmap の imageOrientation で)
+async function makeThumb(jpegBlob, maxPx) {
+  const bitmap = await createImageBitmap(jpegBlob, { imageOrientation: 'from-image' });
+  const ratio = Math.min(maxPx / bitmap.width, maxPx / bitmap.height, 1);
+  const w = Math.max(1, Math.round(bitmap.width * ratio));
+  const h = Math.max(1, Math.round(bitmap.height * ratio));
+
+  if (typeof OffscreenCanvas !== 'undefined') {
+    const canvas = new OffscreenCanvas(w, h);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+    return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+  bitmap.close?.();
+  return await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+}
+
+async function importOne(file) {
+  const { datetime, lat, lng } = await readMeta(file);
+  if (!datetime) return { skipped: 'no-datetime' };
+
+  const dedup = `${file.name}|${file.size}|${datetime.getTime()}`;
+  if (await dbHasDedup(dedup)) return { skipped: 'duplicate' };
+
+  const jpegBlob = await toJpegBlob(file);
+  // 200〜400px の間で迷うが、TODO 通り 200px から始める (粗ければ調整)
+  const thumb = await makeThumb(jpegBlob, 300);
+
+  await dbPut({
+    id: crypto.randomUUID(),
+    name: file.name,
+    datetime,
+    lat, lng,
+    blob: jpegBlob,
+    thumb,
+    dedup,
+    importedAt: new Date(),
+  });
+  return { ok: true };
+}
+
+// ============================================================
+// 連想展開ロジック
+// ============================================================
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+// 中心写真の時空近傍を最大 limit 枚返す
+// 優先順位: GPS 5km以内 → 同日 → ±3日 → ±7日
+// 各レイヤー内では中心からの時間差が近い順
+function neighbors(center, all, limit = 6) {
+  const t = center.datetime.getTime();
+  const others = all.filter(p => p.id !== center.id);
+  const hasGPS = center.lat != null && center.lng != null;
+
+  const layers = [
+    hasGPS
+      ? others.filter(p => p.lat != null && p.lng != null && haversine(center.lat, center.lng, p.lat, p.lng) <= 5000)
+      : [],
+    others.filter(p => isSameDay(p.datetime, center.datetime)),
+    others.filter(p => Math.abs(p.datetime.getTime() - t) <= 3 * 86400000),
+    others.filter(p => Math.abs(p.datetime.getTime() - t) <= 7 * 86400000),
+  ];
+
+  const seen = new Set();
+  const result = [];
+  for (const layer of layers) {
+    layer.sort((a, b) => Math.abs(a.datetime - t) - Math.abs(b.datetime - t));
+    for (const p of layer) {
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      result.push(p);
+      if (result.length >= limit) return result;
+    }
+  }
+  return result;
+}
+
+// ============================================================
+// エクスポート / インポート (JSON + base64)
+// ============================================================
+function blobToB64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+async function b64ToBlob(dataUrl) {
+  return (await fetch(dataUrl)).blob();
+}
+
+async function exportAll() {
+  const all = await dbGetAll();
+  if (!all.length) { alert('エクスポートする写真がありません'); return; }
+  const out = { version: 1, exportedAt: new Date().toISOString(), photos: [] };
+  for (const p of all) {
+    out.photos.push({
+      id: p.id, name: p.name,
+      datetime: p.datetime.toISOString(),
+      lat: p.lat, lng: p.lng,
+      blob: await blobToB64(p.blob),
+      thumb: await blobToB64(p.thumb),
+      dedup: p.dedup,
+      importedAt: p.importedAt?.toISOString?.() || null,
+    });
+  }
+  const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `photo-memory-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  alert(`${all.length} 枚をエクスポートしました`);
+}
+
+async function importBackup(file) {
+  const data = JSON.parse(await file.text());
+  if (data.version !== 1) throw new Error(`未知のバックアップバージョン: ${data.version}`);
+  let imported = 0, dup = 0;
+  for (const p of data.photos) {
+    if (p.dedup && await dbHasDedup(p.dedup)) { dup++; continue; }
+    await dbPut({
+      id: p.id || crypto.randomUUID(),
+      name: p.name,
+      datetime: new Date(p.datetime),
+      lat: p.lat, lng: p.lng,
+      blob: await b64ToBlob(p.blob),
+      thumb: await b64ToBlob(p.thumb),
+      dedup: p.dedup,
+      importedAt: p.importedAt ? new Date(p.importedAt) : new Date(),
+    });
+    imported++;
+  }
+  return { imported, dup };
+}
+
+// ============================================================
+// 表示
+// ============================================================
+let state = 'loading';      // loading | empty | importing | random | explore
+let allPhotos = [];          // 全件キャッシュ
+let currentRandom = [];      // ランダム3枚
+let currentCenter = null;    // explore の中心写真
+
+// thumbnail を毎回 createObjectURL するとリークするので URL を録っておいて再利用 + 画面遷移時に開放
+const thumbUrls = new Map(); // photo.id -> object URL
+function thumbUrl(photo) {
+  if (!thumbUrls.has(photo.id)) thumbUrls.set(photo.id, URL.createObjectURL(photo.thumb));
+  return thumbUrls.get(photo.id);
+}
+function revokeAllThumbUrls() {
+  for (const url of thumbUrls.values()) URL.revokeObjectURL(url);
+  thumbUrls.clear();
+}
+
+const $main   = document.getElementById('main');
+const $count  = document.getElementById('count');
+const $picker = document.getElementById('picker');
+const $importer = document.getElementById('importer');
+const $log    = document.getElementById('log');
+
+function logErr(msg) {
+  const div = document.createElement('div');
+  div.textContent = msg;
+  $log.appendChild(div);
+  $log.classList.add('show');
+}
+
+window.addEventListener('error', e => logErr(`[err] ${e.message} @ ${e.filename}:${e.lineno}`));
+window.addEventListener('unhandledrejection', e => logErr(`[reject] ${e.reason?.message || String(e.reason)}`));
+
+function fmtDate(d) {
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function fmtShortDate(d) {
+  return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function fmtPlace(lat, lng) {
+  return (lat == null || lng == null) ? '' : `📍 ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+}
+
+function makeCard(photo, onClick) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `<img src="${thumbUrl(photo)}" loading="lazy">
+    <div class="meta">
+      <div class="date">${fmtDate(photo.datetime)}</div>
+      ${fmtPlace(photo.lat, photo.lng) ? `<div class="place">${fmtPlace(photo.lat, photo.lng)}</div>` : ''}
+    </div>`;
+  card.addEventListener('click', onClick);
+  return card;
+}
+
+function makeThumb(photo, onClick) {
+  const t = document.createElement('div');
+  t.className = 'thumb';
+  t.innerHTML = `<img src="${thumbUrl(photo)}" loading="lazy"><div class="lbl">${fmtShortDate(photo.datetime)}</div>`;
+  t.addEventListener('click', onClick);
+  return t;
+}
+
+function render() {
+  $main.innerHTML = '';
+  $count.textContent = allPhotos.length > 0 ? `${allPhotos.length} 枚` : '— 枚';
+
+  if (state === 'loading') {
+    $main.innerHTML = `<p style="text-align:center;color:#888;margin-top:40px;">読み込み中…</p>`;
+    return;
+  }
+
+  if (state === 'empty') {
+    $main.innerHTML = `
+      <div class="empty">
+        <h2>写真を取り込んで始める</h2>
+        <p>選んだ写真は端末から出ません (IndexedDB に保存)。<br>
+        まず 20〜30 枚くらい入れて感触を見るのが目安です。</p>
+        <button class="primary" id="emptyAdd">📷 写真を選ぶ</button>
+      </div>`;
+    document.getElementById('emptyAdd').addEventListener('click', () => $picker.click());
+    return;
+  }
+
+  if (state === 'importing') {
+    $main.innerHTML = `
+      <div class="progress">
+        <div class="text" id="prog-text">読み込み開始…</div>
+        <div class="bar"><div id="prog-bar" style="width:0%"></div></div>
+      </div>`;
+    return;
+  }
+
+  if (state === 'random') {
+    if (currentRandom.length === 0) {
+      $main.innerHTML = `<p style="text-align:center;color:#888;margin-top:40px;">写真がありません</p>`;
+      return;
+    }
+    const cards = document.createElement('div');
+    cards.className = 'cards';
+    currentRandom.forEach(p => cards.appendChild(makeCard(p, () => showExplore(p))));
+    $main.appendChild(cards);
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    actions.innerHTML = `<button class="primary" id="reroll">🎲 もう一度引く</button>`;
+    $main.appendChild(actions);
+    document.getElementById('reroll').addEventListener('click', drawRandom);
+    return;
+  }
+
+  if (state === 'explore') {
+    const center = currentCenter;
+    const ns = neighbors(center, allPhotos, 6);
+
+    const centerEl = document.createElement('div');
+    centerEl.className = 'center-card';
+    centerEl.innerHTML = `<img src="${thumbUrl(center)}">
+      <div class="meta">
+        <div class="date">${fmtDate(center.datetime)}</div>
+        ${fmtPlace(center.lat, center.lng) ? `<div class="place">${fmtPlace(center.lat, center.lng)}</div>` : ''}
+      </div>`;
+    $main.appendChild(centerEl);
+
+    const label = document.createElement('div');
+    label.className = 'neighbor-label';
+    label.textContent = ns.length > 0 ? `この時空の近く ${ns.length} 枚` : '近傍に写真がありません';
+    $main.appendChild(label);
+
+    if (ns.length > 0) {
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      ns.forEach(p => grid.appendChild(makeThumb(p, () => showExplore(p))));
+      $main.appendChild(grid);
     }
 
-    const pctDate = ((withDate / files.length) * 100).toFixed(0);
-    const pctGPS  = ((withGPS  / files.length) * 100).toFixed(0);
-    $stats.innerHTML = `<b>${files.length}枚</b>  日時取得 <b>${withDate} (${pctDate}%)</b>  GPS取得 <b>${withGPS} (${pctGPS}%)</b>  HEIC <b>${heic}</b>  エラー <b>${errors}</b>`;
-  });
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    actions.innerHTML = `<button class="secondary" id="backRandom">← ランダム3枚に戻る</button>`;
+    $main.appendChild(actions);
+    document.getElementById('backRandom').addEventListener('click', drawRandom);
+    return;
+  }
+}
 
-  // 念のためグローバルエラーもログに出す (スマホで console 見れない時用)
-  window.addEventListener('error', (e) => {
-    row('err', `[window error] ${e.message}  at ${e.filename}:${e.lineno}`);
-  });
-  window.addEventListener('unhandledrejection', (e) => {
-    row('err', `[promise rejection] ${e.reason && e.reason.message ? e.reason.message : String(e.reason)}`);
-  });
+// ============================================================
+// 画面遷移
+// ============================================================
+async function importFiles(files) {
+  state = 'importing';
+  render();
+  const $text = document.getElementById('prog-text');
+  const $bar  = document.getElementById('prog-bar');
+
+  let ok = 0, dup = 0, noDate = 0, err = 0;
+  for (let i = 0; i < files.length; i++) {
+    try {
+      const r = await importOne(files[i]);
+      if (r.ok) ok++;
+      else if (r.skipped === 'duplicate') dup++;
+      else if (r.skipped === 'no-datetime') noDate++;
+    } catch (e) {
+      err++;
+      logErr(`取込失敗: ${files[i].name}: ${e.message}`);
+    }
+    if ($text) $text.textContent = `${i+1} / ${files.length}  (取込${ok} 重複${dup} 日時なし${noDate} 失敗${err})`;
+    if ($bar)  $bar.style.width = `${((i+1)/files.length*100).toFixed(0)}%`;
+  }
+
+  revokeAllThumbUrls();
+  allPhotos = await dbGetAll();
+  if (allPhotos.length === 0) { state = 'empty'; render(); }
+  else await drawRandom();
+}
+
+async function drawRandom() {
+  if (allPhotos.length === 0) { state = 'empty'; render(); return; }
+  const pool = allPhotos.slice();
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  currentRandom = pool.slice(0, Math.min(3, pool.length));
+  state = 'random';
+  render();
+}
+
+function showExplore(photo) {
+  currentCenter = photo;
+  state = 'explore';
+  render();
+}
+
+// ============================================================
+// イベント
+// ============================================================
+document.getElementById('btnAdd').addEventListener('click', () => $picker.click());
+document.getElementById('btnExport').addEventListener('click', async () => {
+  try { await exportAll(); }
+  catch (e) { logErr(`export failed: ${e.message}`); alert(`エクスポート失敗: ${e.message}`); }
+});
+document.getElementById('btnImport').addEventListener('click', () => $importer.click());
+document.getElementById('btnClear').addEventListener('click', async () => {
+  if (!confirm('IndexedDB の全写真を削除します。続行?')) return;
+  await dbClear();
+  revokeAllThumbUrls();
+  allPhotos = [];
+  state = 'empty';
+  render();
+});
+
+$picker.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if (files.length) await importFiles(files);
+});
+
+$importer.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const { imported, dup } = await importBackup(file);
+    revokeAllThumbUrls();
+    allPhotos = await dbGetAll();
+    alert(`インポート完了: 新規 ${imported} 枚 / 重複スキップ ${dup} 枚`);
+    if (allPhotos.length > 0) await drawRandom();
+    else { state = 'empty'; render(); }
+  } catch (err) {
+    logErr(`インポート失敗: ${err.message}`);
+    alert(`インポート失敗: ${err.message}`);
+  }
+});
+
+// ============================================================
+// 起動
+// ============================================================
+(async () => {
+  if (typeof exifr === 'undefined') {
+    logErr('exifr ロード失敗 (CDN 到達不可)');
+    state = 'empty'; render(); return;
+  }
+  if (typeof heic2any === 'undefined') {
+    logErr('heic2any ロード失敗 (HEIC が混じると失敗します)');
+  }
+  try {
+    allPhotos = await dbGetAll();
+    if (allPhotos.length === 0) { state = 'empty'; render(); }
+    else await drawRandom();
+  } catch (e) {
+    logErr(`起動失敗: ${e.message}`);
+    state = 'empty'; render();
+  }
+})();
 </script>
-
 </body>
 </html>
