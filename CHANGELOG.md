@@ -5,6 +5,53 @@
 
 ---
 
+## v4 — Phase 1 MVP 完成 + 条件付ランダム (2026-05-28)
+
+**背景**
+- Phase 0 で前提検証 (日時/GPS/HEIC 読める) が済んだので Phase 1 本体に着手。
+- TODO のゴール定義「開く→3枚→1枚タップ→時空近傍→さらに連想ウォーク→閉じても保持」を達成して、reminiscence の手触りが本当に気持ちいいかを確かめるのが目的。
+- 触ってる中で「条件付ランダムが欲しい」(6月ごろ / 10年前 / 遠く / 近く) が自然発生したので同セッションで拡張。
+
+**設計判断**
+- **取り込み**: exifr full ビルドで EXIF (日時/GPS/Orientation) を読む。HEIC は heic2any で JPEG 変換 (EXIF 抽出は exifr が直接読めるので変換は描画のため)。サムネは 300px、orientation は EXIF 値を canvas transform で補正。
+- **サムネ生成は `createImageBitmap` を使わない** — iOS Safari の特定バージョンで TypeError を投げる。古典的な `<img>` + `<canvas>` + `URL.createObjectURL` 方式に。
+- **IndexedDB スキーマ**: `{id, name, datetime, lat, lng, blob (フル JPEG), thumb (300px JPEG), dedup, importedAt}`。重複検出は `name|size|datetime` の dedup インデックス。
+- **近傍ロジック**: GPS 5km以内 → 同日 → ±3日 → ±7日 の優先順位、各レイヤー内は時間差順。上位 6 枚で打ち切り。
+- **連想ウォークの戻る**: 履歴スタックは持たず「ランダム3枚に戻る」のみ (シンプル化)。
+- **エクスポート**: JSON + base64 inline。TODO の「最初から入れる」指定通り。圧縮しない単純構造。
+- **キャッシュ問題対策**:
+  - HTML に no-cache メタタグ (iOS Safari の HTML キャッシュ強烈問題)
+  - ヘッダに **BUILD バージョン文字列** を表示 (`phase1.X · YYYY-MM-DD`)。画面を見て新旧が一目で分かる。commit のたびに上げる運用。
+- **条件付ランダム (フィルタチップ)**: デフォルト経験 (完全ランダム) を壊さないため、ランダム3枚画面の上にチップ1行を追加。
+  - 時間軸: 全期間 / この時季 / 1年前 / 10年前 / 久しぶり / たくさん撮った日
+  - 場所軸: 近場📍 / 遠出📍 (写真の GPS 重心からの距離 30km 閾値、Geolocation 不要)
+  - チップ下に母数脚注を表示 (`12 枚から`、`48 枚から (GPS付き 48/135 枚)`)
+  - 「久しぶり」=撮影日が古い 20% プール、「たくさん撮った日」=同日5枚以上の日プール (チューニング値は鉛筆書きで定数化)
+
+**結果**
+- 取り込み・連想ウォーク・永続化すべて動作。**135 枚で動作確認 OK**。
+- 「情報量が少なくて写真に意識が向く」「めっちゃいい」のフィードバック (UI minimalism が刺さった、memory に保存)。
+- 触ってる中で「6月ごろ / 10年前 / 遠く / 近く」が自然発生 → 同セッションで実装、「久しぶり」「たくさん撮った日」も追加。
+
+**ハマったところ (実機検証で潰した順)**
+1. **関数名衝突**: 画像処理用 `makeThumb` と DOM 生成用 `makeThumb` が両方定義されていた。JS は後ろ勝ちなので importOne が呼ぶ `makeThumb(blob, 300)` は DOM 版に解決され、内部の `URL.createObjectURL(blob.thumb=undefined)` で TypeError @ createObjectURL@[native code]。画像処理用を `createThumbnail` に改名して解決。**phase1.0 〜 phase1.5 で原因を追い続けた最大の犯人**。
+2. **createImageBitmap が iOS Safari で TypeError** — `imageOrientation: 'from-image'` オプションが原因の説。`<img>` + canvas 古典方式に書き換え、orientation は exifr で読んで canvas transform で適用。
+3. **iOS Safari の HTML キャッシュ強烈** — push しても古い HTML が返り続けた。no-cache メタタグ + URL バージョンクエリ + 画面表示 BUILD で運用。
+4. **iOS のフォトピッカーは HEIC を JPEG 変換して渡す** — HEIC のまま検証するには「ファイル」アプリ経由が必要 (Phase 0 で記録済み)。
+
+**教訓**
+- spike でも一画面に 2 つの関数を同名で書くのは事故。検索しても気付きにくい (両方ヒットする)。短くても**異なる責務には異なる名前**。
+- iOS Safari の `createImageBitmap` は信用しない。古典 `<img>+canvas` の方が堅い。
+- 画面上の BUILD バージョン表示は iOS Safari キャッシュ問題のデバッグに必須。spike 初期から入れるべきだった。
+- 「ユーザーが触ってる中で出てきた要望」は spike の最強 signal。デフォルト経験を壊さない形なら同セッションで応える価値あり。
+
+**残課題 / 次の方向**
+- Phase 1.5 (色彩トーン展開) — ユーザーがじっくり考えた追加仕様の最初。AI なしで「夕焼け→夕焼け」「緑→緑」のワープを試す。
+- Phase 1.8 (Progressive Indexing) → Phase 2 (CLIP) は Phase 1.5 のあとに別セッションで。
+- 動作未確認: フル画像表示 (拡大、ロングタップ) — ゴール定義外なので後回し継続。
+
+---
+
 ## v3 — Phase 0 クローズ: スマホ実機で日時/GPS/HEIC 読めること確認 (2026-05-28)
 
 **背景**
