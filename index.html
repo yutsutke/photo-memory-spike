@@ -87,8 +87,9 @@
       if (isHeic) heic++;
 
       try {
-        const meta = await exifr.parse(f, { gps: true });
-        const dto = meta?.DateTimeOriginal || meta?.CreateDate || null;
+        // 全セグメント取りに行く (mini ビルドでも tiff/exif/gps/ifd0 全部 true で広めに拾う)
+        const meta = await exifr.parse(f, true);
+        const dto = meta?.DateTimeOriginal || meta?.CreateDate || meta?.ModifyDate || null;
         const lat = meta?.latitude ?? null;
         const lng = meta?.longitude ?? null;
         if (dto) withDate++;
@@ -97,7 +98,9 @@
         const tag = isHeic ? '[HEIC]' : '';
         const cls = dto ? 'ok' : 'warn';
         const dtoStr = dto instanceof Date ? dto.toISOString() : (dto ?? '—');
-        row(cls, `${tag} ${f.name}  date=${dtoStr}  gps=${lat != null ? `${lat.toFixed(4)},${lng.toFixed(4)}` : '—'}  size=${(f.size/1024).toFixed(0)}KB type=${f.type || '?'}`);
+        const metaKeys = meta ? Object.keys(meta).slice(0, 12).join(',') : '(null)';
+        row(cls, `${tag} ${f.name}  date=${dtoStr}  gps=${lat != null ? `${lat.toFixed(4)},${lng.toFixed(4)}` : '—'}  size=${(f.size/1024).toFixed(0)}KB`);
+        row('warn', `   meta keys=[${metaKeys}]`);
       } catch (err) {
         errors++;
         row('err', `[ERR] ${f.name}  ${err && err.message ? err.message : String(err)}  type=${f.type || '?'}`);
