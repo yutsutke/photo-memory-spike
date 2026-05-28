@@ -5,6 +5,41 @@
 
 ---
 
+## v7 — Phase 1.8: Progressive Indexing (取り込み待ち時間ゼロ化) (2026-05-29)
+
+**背景**
+- 実機の痛点: 数十枚選んで ☑ を押してから「取り込み中」画面に変わるまでが長く、その間に連打すると先に進まなくなる (詰まる)。
+- 原因は 2 つ: (1) iOS が Done 後にファイル準備 (HEIC→JPEG 変換等) で数秒かかり、その間 `change` が発火せず画面が変わらない。(2) その隙に再タップ → 多重 `change` / picker 再オープンで共有 state が壊れる。
+- TODO の Phase 1.8 (大量投入でも待ち時間ゼロでメインに入る) に合致するので、ここで対処。
+
+**設計判断**
+- **picker を開いた瞬間に画面を切り替える** — `openPicker()` で即 `state='preparing'` (「📷 写真を読み込んでいます…」) に。iOS の準備ギャップ中も画面が変わって見える。ユーザー要望「押したらすぐ別画面に」に直接応える。
+- **連打詰まり対策は 2 段ガード** — `importBusy` (picker open〜完了/キャンセル、多重 open 防止) + `importingNow` (実処理中、多重 change 弾き)。詰まりの根本 (多重 change の同時実行) を断つ。
+- **キャンセル復帰は 2 重化** — ネイティブ `cancel` イベント (Safari 16.4+) + preparing 画面の「やめる」ボタン。古い環境で `cancel` が来なくても恒久ロックしない保険。
+- **フェーズA/B分割 (Progressive)** — 先頭 `FAST_TRACK_COUNT=6` 枚だけ進捗バーで処理 → 即 random 画面へ。残りは `enqueueBackground` でキュー化、1本のループが `BG_IMPORT_DELAY=120ms` 間隔で低優先消化。完了で `🌀 12/30` インジケータが消える。
+- **背景処理は並行でなく直列** — TODO 案は「先頭を並行処理」だったが、iOS の canvas/Blob メモリ脆弱性 (CHANGELOG v5) を踏まえ HEIC 変換の同時実行を避け直列に。fast-track を 6 に絞ることで体感速度を確保。
+- **再インポートはキューに積むだけ** — 多重バックグラウンドループを作らず、走行中なら `bgQueue.push` で合流。
+
+**ハマったところ**
+- **`nextPaint()` (二重 rAF) がハング** — 進捗画面を確実に描画させてから重い処理に入る狙いで `requestAnimationFrame` 二重待ちを入れたが、preview のヘッドレス環境 (および背景タブ) では rAF が発火せず Promise が永久に解決しない → importFiles 全体が固まる。対処: `setTimeout(finish, 100)` の保険を併設して rAF が来なくても進む。
+- **背景処理中に `revokeAllThumbUrls()` してはいけない** — 表示中の random サムネ URL を壊して ?化する (v5 と同じ罠)。背景取り込みは新規 record を `allPhotos.push` で in-memory 追加するだけにし、URL は表示時 lazy 生成。フェーズA の遷移時 (まだ何も表示してない) だけ revoke。
+
+**結果 / 観察**
+- preview の synthetic test (importOne を stub 化) で確認: 10枚投入 → fast 6 で即 random、背景 4 枚 (重複1スキップ) を消化して最終 9 枚、`🌀` インジケータが出て完了で消える、count も追従。
+- 連打ガード: preparing 中に `openPicker` を連打しても `$picker.click()` は 1 回のみ。キャンセルで元画面に復帰。
+- 実機での体感 (待ち時間が本当に減ったか/詰まらなくなったか) は次回確認。
+
+**教訓**
+- preview のヘッドレス環境では **`requestAnimationFrame` が発火しない**。rAF に依存した待ちは必ずタイムアウト保険を付ける (テスト可能性 + 背景タブ堅牢性の両取り)。
+- 同環境では **`setTimeout` が ~1000ms にスロットル** される (非表示タブ)。背景ループの所要時間テストはこれを織り込む (120ms 設計でも実測 ~1s/枚に見える)。
+- iOS picker の「準備ギャップ」は `change` 前なので JS から潰せない。**picker を開く側で先に画面を変える**のが唯一効く手。
+
+**残課題 / 次の方向**
+- 実機で数十〜百枚投入し、fast-track 枚数 (6) と背景遅延 (120ms) を体感チューニング。
+- Phase 2 (CLIP) はこの背景パイプラインに embedding 抽出を相乗りさせる前提が整った。
+
+---
+
 ## v6 — Phase 1 残課題クローズ: 長押しでフル画像表示 (2026-05-29)
 
 **背景**

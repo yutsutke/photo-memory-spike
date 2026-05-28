@@ -94,6 +94,7 @@
 <header>
   <h1>写真思い出 <span class="ver" id="ver"></span></h1>
   <span class="count" id="count">— 枚</span>
+  <span class="count hidden" id="bgStatus"></span>
   <button id="btnAdd" title="追加">+</button>
   <button id="btnExport" title="エクスポート">⇩</button>
   <button id="btnImport" title="インポート">⇧</button>
@@ -118,7 +119,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.12 (full-image) · 2026-05-29';
+const BUILD = 'phase1.13 (progressive) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -340,7 +341,7 @@ async function importOne(file) {
     const { thumb, color } = await createThumbnail(jpegBlob, 300, orientation);
 
     stage = 'put';
-    await dbPut({
+    const record = {
       id: crypto.randomUUID(),
       name: file.name,
       datetime,
@@ -350,8 +351,9 @@ async function importOne(file) {
       color,
       dedup,
       importedAt: new Date(),
-    });
-    return { ok: true };
+    };
+    await dbPut(record);
+    return { ok: true, record };
   } catch (e) {
     // stage 情報を残してから rethrow (importFiles 側で詳細ログ)
     const wrapped = new Error(`[${stage}] ${e.name || ''} ${e.message || e}`);
@@ -578,13 +580,21 @@ async function importBackup(file) {
 // ============================================================
 // 表示
 // ============================================================
-let state = 'loading';        // loading | empty | importing | random | explore
+let state = 'loading';        // loading | empty | preparing | importing | random | explore
 let allPhotos = [];            // 全件キャッシュ
 let currentRandom = [];        // ランダム3枚
 let currentCenter = null;      // explore の中心写真
 let currentFilter = 'all';     // ランダム引きの条件 (FILTERS の key)
 let exploreMode = 'spacetime'; // 連想モード: 'spacetime' | 'color'
 let backfillStatus = null;     // {done, total} or null. 起動時 color バックフィル進捗
+
+// 取り込みフロー (待ち時間ゼロ化 + 連打詰まり対策)
+let importBusy = false;            // picker を開いてから完了/キャンセルまで true (多重 open/change 防止)
+let importingNow = false;          // 実際に importFiles 実行中 (change 後)
+let prevStateBeforePicker = 'empty'; // preparing キャンセル時に戻す先
+let importStatus = null;           // {done, total} or null. バックグラウンド取り込み進捗
+let bgQueue = [];                  // バックグラウンド取り込み待ちの File
+let bgRunning = false;             // バックグラウンドループ稼働中
 
 // thumbnail を毎回 createObjectURL するとリークするので URL を録っておいて再利用 + 画面遷移時に開放
 const thumbUrls = new Map(); // photo.id -> object URL
@@ -735,7 +745,18 @@ function render() {
         まず 20〜30 枚くらい入れて感触を見るのが目安です。</p>
         <button class="primary" id="emptyAdd">📷 写真を選ぶ</button>
       </div>`;
-    document.getElementById('emptyAdd').addEventListener('click', () => $picker.click());
+    document.getElementById('emptyAdd').addEventListener('click', openPicker);
+    return;
+  }
+
+  // picker を開いた瞬間〜change が来るまで (iOS のファイル準備ギャップ中もこれが見える)
+  if (state === 'preparing') {
+    $main.innerHTML = `
+      <div class="progress">
+        <div class="text">📷 写真を読み込んでいます…</div>
+      </div>
+      <div class="actions"><button class="secondary" id="cancelPrep">やめる</button></div>`;
+    document.getElementById('cancelPrep').addEventListener('click', cancelPicker);
     return;
   }
 
@@ -882,35 +903,109 @@ function render() {
 // ============================================================
 // 画面遷移
 // ============================================================
+// Progressive Indexing (Phase 1.8):
+//   フェーズA = 先頭 FAST_TRACK_COUNT 枚だけ処理 → 即メイン画面へ (待ち時間ここで終了)
+//   フェーズB = 残りをバックグラウンドキューで低優先処理 (ユーザーは裏で遊べる)
+// 大量投入でも「数枚処理したら遊べる」状態に最速で入る。
+const FAST_TRACK_COUNT = 6;     // ランダム3枚 + 予備。これだけ処理したら遊べる
+const BG_IMPORT_DELAY  = 120;   // バックグラウンド1枚ごとの間 (ms、低優先化)
+
+// render() 後に1フレーム描画させてから重い処理に入る (進捗画面が見えるように)。
+// rAF が発火しない環境 (背景タブ等) でハングしないよう setTimeout の保険を併設。
+function nextPaint() {
+  return new Promise(r => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; r(); } };
+    requestAnimationFrame(() => requestAnimationFrame(finish));
+    setTimeout(finish, 100);
+  });
+}
+
 async function importFiles(files) {
   state = 'importing';
   render();
+  await nextPaint();
   const $text = document.getElementById('prog-text');
   const $bar  = document.getElementById('prog-bar');
 
-  let ok = 0, dup = 0, noDate = 0, err = 0;
-  for (let i = 0; i < files.length; i++) {
+  // --- フェーズA: 先頭を処理して即メイン画面へ ---
+  const fast = files.slice(0, FAST_TRACK_COUNT);
+  const rest = files.slice(FAST_TRACK_COUNT);
+
+  for (let i = 0; i < fast.length; i++) {
     try {
-      const r = await importOne(files[i]);
-      if (r.ok) ok++;
-      else if (r.skipped === 'duplicate') dup++;
-      else if (r.skipped === 'no-datetime') noDate++;
+      await importOne(fast[i]);
     } catch (e) {
-      err++;
-      // スマホで console 開けないので、stack 先頭行も画面に出す
       const stackTop = (e.stack || '').split('\n').find(l => l.trim()) || '';
-      logErr(`取込失敗: ${files[i].name}: ${e.message}  @ ${stackTop.slice(0, 80)}`);
+      logErr(`取込失敗: ${fast[i].name}: ${e.message}  @ ${stackTop.slice(0, 80)}`);
     }
-    if ($text) $text.textContent = `${i+1} / ${files.length}  (取込${ok} 重複${dup} 日時なし${noDate} 失敗${err})`;
-    if ($bar)  $bar.style.width = `${((i+1)/files.length*100).toFixed(0)}%`;
+    if ($text) $text.textContent = `読み込み中… ${i+1} / ${fast.length}`;
+    if ($bar)  $bar.style.width = `${((i+1)/fast.length*100).toFixed(0)}%`;
   }
 
+  // メイン画面へ遷移 (この時点では何も表示していないので revoke は安全)
   revokeAllThumbUrls();
   allPhotos = await dbGetAll();
   if (allPhotos.length === 0) { state = 'empty'; render(); }
   else await drawRandom();
-  // 新規取り込み分は color が入っているが、過去レコードに無いものがあれば付与
+
+  // --- フェーズB: 残りはバックグラウンドへ (await しない=ユーザーに制御を返す) ---
+  if (rest.length) enqueueBackground(rest);
+  else backfillColors().catch(e => logErr(`backfill: ${e.message}`));
+}
+
+// バックグラウンド取り込み: キューに積んで1本のループで低優先消化。
+// 再インポートが来たらキューに足すだけ (多重ループを作らない)。
+function enqueueBackground(files) {
+  bgQueue.push(...files);
+  if (!bgRunning) runBackgroundImport();
+}
+
+async function runBackgroundImport() {
+  bgRunning = true;
+  let processed = 0;
+  importStatus = { done: 0, total: bgQueue.length };
+  updateBgStatus();
+
+  while (bgQueue.length) {
+    const file = bgQueue.shift();
+    try {
+      const r = await importOne(file);
+      if (r.ok && r.record) {
+        // 表示中の thumb URL を壊さないため revokeAllThumbUrls はしない。
+        // 新規レコードだけ in-memory で足す (URL は表示時に lazy 生成される)。
+        allPhotos.push(r.record);
+        // まだ empty 画面なら最初の1枚で random へ
+        if (state === 'empty') await drawRandom();
+      }
+    } catch (e) {
+      logErr(`取込失敗(裏): ${file.name}: ${e.message}`);
+    }
+    processed++;
+    importStatus = { done: processed, total: processed + bgQueue.length };
+    updateBgStatus();
+    await new Promise(r => setTimeout(r, BG_IMPORT_DELAY));
+  }
+
+  bgRunning = false;
+  importStatus = null;
+  updateBgStatus();
+  // 新規分は color 付き。古い color 無しレコードがあれば backfill。
   backfillColors().catch(e => logErr(`backfill: ${e.message}`));
+}
+
+// ヘッダの控えめな進捗 (🌀 12/30)。完了で消える。枚数表示も同時更新。
+function updateBgStatus() {
+  const el = document.getElementById('bgStatus');
+  if (el) {
+    if (importStatus) {
+      el.textContent = `🌀 ${importStatus.done}/${importStatus.total}`;
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+    }
+  }
+  $count.textContent = allPhotos.length > 0 ? `${allPhotos.length} 枚` : '— 枚';
 }
 
 // 既存写真で color フィールドが無いものに、保存済み thumb から色彩特徴を計算して付与する。
@@ -993,10 +1088,27 @@ function showExplore(photo) {
   render();
 }
 
+// picker を開く共通入口。開いた瞬間に「読み込み中」画面へ切り替え、連打を弾く。
+// iOS は Done 後にファイル準備で数秒かかる (HEIC 変換等) → その間も画面が変わって見える。
+function openPicker() {
+  if (importBusy) return;  // 準備中/取り込み中の連打を無視 (多重 open / 多重 change で詰まるのを防ぐ)
+  importBusy = true;
+  prevStateBeforePicker = state;
+  state = 'preparing';
+  render();
+  $picker.click();
+}
+
+// picker キャンセル時 (ネイティブ cancel イベント or 「やめる」ボタン) に元の画面へ戻す
+function cancelPicker() {
+  importBusy = false;
+  if (state === 'preparing') { state = prevStateBeforePicker; render(); }
+}
+
 // ============================================================
 // イベント
 // ============================================================
-document.getElementById('btnAdd').addEventListener('click', () => $picker.click());
+document.getElementById('btnAdd').addEventListener('click', openPicker);
 document.getElementById('btnExport').addEventListener('click', async () => {
   try { await exportAll(); }
   catch (e) { logErr(`export failed: ${e.message}`); alert(`エクスポート失敗: ${e.message}`); }
@@ -1011,14 +1123,23 @@ document.getElementById('btnClear').addEventListener('click', async () => {
   render();
 });
 
+// ネイティブ picker のキャンセル (Safari 16.4+ / Chrome 113+)。
+// これが来ない古い環境向けに preparing 画面に「やめる」ボタンも併設している。
+$picker.addEventListener('cancel', cancelPicker);
+
 $picker.addEventListener('change', async (e) => {
   const files = Array.from(e.target.files || []);
   // 注意: iOS Safari では e.target.value = '' を await 前に呼ぶと
   // File 参照が無効化される疑いがある (createObjectURL で TypeError) → 後始末は finally で
-  if (!files.length) { e.target.value = ''; return; }
+  if (!files.length) { e.target.value = ''; cancelPicker(); return; }
+  if (importingNow) { e.target.value = ''; return; }  // 多重 change を弾く
+  importingNow = true;
   try {
     await importFiles(files);
   } finally {
+    // フェーズA 完了で制御を返す (フェーズB は裏で継続)。連打ガードもここで解除。
+    importingNow = false;
+    importBusy = false;
     e.target.value = '';
   }
 });
