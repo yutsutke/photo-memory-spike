@@ -97,7 +97,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.2 · 2026-05-28';
+const BUILD = 'phase1.3 · 2026-05-28';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -170,6 +170,10 @@ async function readMeta(file) {
     datetime: dto instanceof Date ? dto : (dto ? new Date(dto) : null),
     lat: m?.latitude ?? null,
     lng: m?.longitude ?? null,
+    // EXIF Orientation (1-8)。canvas で transform を当てて補正する。
+    // exifr full ビルドは Orientation を「Top-left」のような文字列で返すことがあるので
+    // 数値で正規化する手間が要る。spike では文字列が来た場合は 1 にフォールバック。
+    orientation: typeof m?.Orientation === 'number' ? m.Orientation : 1,
   };
 }
 
@@ -181,32 +185,59 @@ async function toJpegBlob(file) {
   return Array.isArray(converted) ? converted[0] : converted;
 }
 
-// サムネ生成 (orientation 補正は createImageBitmap の imageOrientation で)
-async function makeThumb(jpegBlob, maxPx) {
-  const bitmap = await createImageBitmap(jpegBlob, { imageOrientation: 'from-image' });
-  const ratio = Math.min(maxPx / bitmap.width, maxPx / bitmap.height, 1);
-  const w = Math.max(1, Math.round(bitmap.width * ratio));
-  const h = Math.max(1, Math.round(bitmap.height * ratio));
-
-  if (typeof OffscreenCanvas !== 'undefined') {
-    const canvas = new OffscreenCanvas(w, h);
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    bitmap.close?.();
-    return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+// EXIF Orientation (1-8) を canvas transform に変換して当てる
+// w, h は canvas のサイズ (= 回転後の表示サイズ)
+function applyExifTransform(ctx, orientation, w, h) {
+  switch (orientation) {
+    case 2: ctx.transform(-1, 0, 0,  1, w, 0); break;  // 水平反転
+    case 3: ctx.transform(-1, 0, 0, -1, w, h); break;  // 180度
+    case 4: ctx.transform( 1, 0, 0, -1, 0, h); break;  // 垂直反転
+    case 5: ctx.transform( 0, 1, 1,  0, 0, 0); break;  // 90度 + 反転
+    case 6: ctx.transform( 0, 1,-1,  0, h, 0); break;  // 右90度
+    case 7: ctx.transform( 0,-1,-1,  0, h, w); break;  // 270度 + 反転
+    case 8: ctx.transform( 0,-1, 1,  0, 0, w); break;  // 左90度
+    // 1: そのまま
   }
-  const canvas = document.createElement('canvas');
-  canvas.width = w; canvas.height = h;
-  canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
-  bitmap.close?.();
-  return await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+}
+
+// サムネ生成。<img> + <canvas> 古典方式 (createImageBitmap は iOS Safari で
+// TypeError を投げるバージョンがあるため避ける)。orientation は exifr で
+// 読んだ値を渡してもらい canvas で補正する。
+async function makeThumb(jpegBlob, maxPx, orientation = 1) {
+  const url = URL.createObjectURL(jpegBlob);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = () => reject(new Error('image load failed'));
+      im.src = url;
+    });
+    const rotated = orientation >= 5 && orientation <= 8;
+    const sw = img.naturalWidth, sh = img.naturalHeight;
+    const dw = rotated ? sh : sw;
+    const dh = rotated ? sw : sh;
+    const ratio = Math.min(maxPx / dw, maxPx / dh, 1);
+    const w = Math.max(1, Math.round(dw * ratio));
+    const h = Math.max(1, Math.round(dh * ratio));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    applyExifTransform(ctx, orientation, w, h);
+    // rotated 時は transform 後の座標系で「未回転サイズ」で描く必要があるので h,w を swap
+    ctx.drawImage(img, 0, 0, rotated ? h : w, rotated ? w : h);
+
+    return await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 async function importOne(file) {
   // stage を持たせておくと、エラー時にどの段階で落ちたか分かる
   let stage = 'meta';
   try {
-    const { datetime, lat, lng } = await readMeta(file);
+    const { datetime, lat, lng, orientation } = await readMeta(file);
     if (!datetime) return { skipped: 'no-datetime' };
 
     stage = 'dedup';
@@ -217,7 +248,7 @@ async function importOne(file) {
     const jpegBlob = await toJpegBlob(file);
 
     stage = 'thumb';
-    const thumb = await makeThumb(jpegBlob, 300);
+    const thumb = await makeThumb(jpegBlob, 300, orientation);
 
     stage = 'put';
     await dbPut({
