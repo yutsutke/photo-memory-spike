@@ -61,6 +61,13 @@
 
   .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 22px auto; max-width: 600px; }
 
+  /* フィルタチップ (ランダム3枚画面の上に並ぶ) */
+  .filter-chips { display: flex; gap: 6px; overflow-x: auto; padding: 0 0 12px; max-width: 600px; margin: 0 auto 8px; -webkit-overflow-scrolling: touch; }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; padding: 6px 12px; border: 1px solid #444; border-radius: 999px; background: transparent; color: #aaa; font-size: 12px; white-space: nowrap; cursor: pointer; }
+  .chip:active { opacity: 0.7; }
+  .chip.selected { background: #2a6; color: #fff; border-color: #2a6; font-weight: 600; }
+
   /* error/log overlay (起動時/取り込みエラーだけ) */
   .log { position: fixed; bottom: 0; left: 0; right: 0; max-height: 28vh; overflow: auto; background: #200; border-top: 1px solid #500; padding: 6px 10px; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 10px; color: #f88; display: none; }
   .log.show { display: block; }
@@ -97,7 +104,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.5 · 2026-05-28';
+const BUILD = 'phase1.6 · 2026-05-28';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -338,6 +345,66 @@ function neighbors(center, all, limit = 6) {
 }
 
 // ============================================================
+// フィルタ (条件付ランダム)
+// 「触っている中で出てきた要望」のキャプチャ。完全ランダムを壊さないよう
+// デフォルトは 'all'。
+// ============================================================
+const FILTERS = [
+  { key: 'all',    label: '全期間' },
+  { key: 'season', label: 'この時季' },
+  { key: '1y',     label: '1年前' },
+  { key: '10y',    label: '10年前' },
+  { key: 'near',   label: '近場' },
+  { key: 'far',    label: '遠出' },
+];
+
+// 月日のみの差 (日数)。年は問わない。31日換算の簡易計算で十分。
+function monthDayDistance(a, b) {
+  const aDay = a.getMonth() * 31 + a.getDate();
+  const bDay = b.getMonth() * 31 + b.getDate();
+  const d = Math.abs(aDay - bDay);
+  return Math.min(d, 372 - d);  // 年をまたぐ近さも考慮
+}
+
+// 全 GPS つき写真の重心。「近場/遠出」の基準にする (Geolocation 不要で即動かす)
+function gpsCentroid(all) {
+  const withGPS = all.filter(p => p.lat != null && p.lng != null);
+  if (!withGPS.length) return null;
+  const lat = withGPS.reduce((s, p) => s + p.lat, 0) / withGPS.length;
+  const lng = withGPS.reduce((s, p) => s + p.lng, 0) / withGPS.length;
+  return { lat, lng };
+}
+
+// 現在のフィルタ key を見て allPhotos から候補を絞る
+function pickPool(filterKey, all) {
+  if (!filterKey || filterKey === 'all') return all;
+  const now = new Date();
+
+  if (filterKey === 'season') {
+    // 今の MM/DD ±15日 (年は問わない)
+    return all.filter(p => monthDayDistance(p.datetime, now) <= 15);
+  }
+  if (filterKey === '1y' || filterKey === '10y') {
+    const years = filterKey === '1y' ? 1 : 10;
+    const widthDays = filterKey === '1y' ? 15 : 60;  // 10年前はサンプル薄いので幅広く
+    const target = new Date(now);
+    target.setFullYear(now.getFullYear() - years);
+    return all.filter(p => Math.abs(p.datetime.getTime() - target.getTime()) <= widthDays * 86400000);
+  }
+  if (filterKey === 'near' || filterKey === 'far') {
+    const c = gpsCentroid(all);
+    if (!c) return [];  // GPS つき写真ゼロなら該当無し
+    const threshold = 30000;  // 30km
+    return all.filter(p => {
+      if (p.lat == null || p.lng == null) return false;
+      const d = haversine(c.lat, c.lng, p.lat, p.lng);
+      return filterKey === 'near' ? d <= threshold : d > threshold;
+    });
+  }
+  return all;
+}
+
+// ============================================================
 // エクスポート / インポート (JSON + base64)
 // ============================================================
 function blobToB64(blob) {
@@ -406,6 +473,7 @@ let state = 'loading';      // loading | empty | importing | random | explore
 let allPhotos = [];          // 全件キャッシュ
 let currentRandom = [];      // ランダム3枚
 let currentCenter = null;    // explore の中心写真
+let currentFilter = 'all';   // ランダム引きの条件 (FILTERS の key)
 
 // thumbnail を毎回 createObjectURL するとリークするので URL を録っておいて再利用 + 画面遷移時に開放
 const thumbUrls = new Map(); // photo.id -> object URL
@@ -499,14 +567,36 @@ function render() {
   }
 
   if (state === 'random') {
-    if (currentRandom.length === 0) {
-      $main.innerHTML = `<p style="text-align:center;color:#888;margin-top:40px;">写真がありません</p>`;
-      return;
+    // フィルタチップ (デフォルト 'all' で従来通り完全ランダム)
+    const chips = document.createElement('div');
+    chips.className = 'filter-chips';
+    for (const f of FILTERS) {
+      const btn = document.createElement('button');
+      btn.className = 'chip' + (currentFilter === f.key ? ' selected' : '');
+      btn.textContent = f.label;
+      btn.addEventListener('click', () => {
+        if (currentFilter === f.key) return;  // 同じチップ再タップは無視
+        currentFilter = f.key;
+        drawRandom();
+      });
+      chips.appendChild(btn);
     }
-    const cards = document.createElement('div');
-    cards.className = 'cards';
-    currentRandom.forEach(p => cards.appendChild(makeCard(p, () => showExplore(p))));
-    $main.appendChild(cards);
+    $main.appendChild(chips);
+
+    if (currentRandom.length === 0) {
+      const msg = document.createElement('p');
+      msg.style.cssText = 'text-align:center;color:#888;margin:40px 0;';
+      const f = FILTERS.find(x => x.key === currentFilter);
+      msg.textContent = currentFilter === 'all'
+        ? '写真がありません'
+        : `「${f.label}」に該当する写真がありません`;
+      $main.appendChild(msg);
+    } else {
+      const cards = document.createElement('div');
+      cards.className = 'cards';
+      currentRandom.forEach(p => cards.appendChild(makeCard(p, () => showExplore(p))));
+      $main.appendChild(cards);
+    }
 
     const actions = document.createElement('div');
     actions.className = 'actions';
@@ -584,12 +674,17 @@ async function importFiles(files) {
 
 async function drawRandom() {
   if (allPhotos.length === 0) { state = 'empty'; render(); return; }
-  const pool = allPhotos.slice();
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+  const filtered = pickPool(currentFilter, allPhotos);
+  if (filtered.length === 0) {
+    currentRandom = [];  // 該当無し → render(random) 内で専用メッセージ
+  } else {
+    const pool = filtered.slice();
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    currentRandom = pool.slice(0, Math.min(3, pool.length));
   }
-  currentRandom = pool.slice(0, Math.min(3, pool.length));
   state = 'random';
   render();
 }
