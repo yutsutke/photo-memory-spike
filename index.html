@@ -62,11 +62,12 @@
   .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 22px auto; max-width: 600px; }
 
   /* フィルタチップ (ランダム3枚画面の上に並ぶ) */
-  .filter-chips { display: flex; gap: 6px; overflow-x: auto; padding: 0 0 12px; max-width: 600px; margin: 0 auto 8px; -webkit-overflow-scrolling: touch; }
+  .filter-chips { display: flex; gap: 6px; overflow-x: auto; padding: 0 0 6px; max-width: 600px; margin: 0 auto 4px; -webkit-overflow-scrolling: touch; }
   .filter-chips::-webkit-scrollbar { display: none; }
   .chip { flex: 0 0 auto; padding: 6px 12px; border: 1px solid #444; border-radius: 999px; background: transparent; color: #aaa; font-size: 12px; white-space: nowrap; cursor: pointer; }
   .chip:active { opacity: 0.7; }
   .chip.selected { background: #2a6; color: #fff; border-color: #2a6; font-weight: 600; }
+  .filter-note { text-align: center; color: #777; font-size: 11px; max-width: 600px; margin: 0 auto 14px; padding: 0 12px; }
 
   /* error/log overlay (起動時/取り込みエラーだけ) */
   .log { position: fixed; bottom: 0; left: 0; right: 0; max-height: 28vh; overflow: auto; background: #200; border-top: 1px solid #500; padding: 6px 10px; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 10px; color: #f88; display: none; }
@@ -104,7 +105,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.6 · 2026-05-28';
+const BUILD = 'phase1.7 · 2026-05-28';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -354,8 +355,9 @@ const FILTERS = [
   { key: 'season', label: 'この時季' },
   { key: '1y',     label: '1年前' },
   { key: '10y',    label: '10年前' },
-  { key: 'near',   label: '近場' },
-  { key: 'far',    label: '遠出' },
+  // 📍 は GPS つき写真が対象という示唆 (脚注で母数を出すのでこれ単独の役割は副次的)
+  { key: 'near',   label: '近場 📍', needsGPS: true },
+  { key: 'far',    label: '遠出 📍', needsGPS: true },
 ];
 
 // 月日のみの差 (日数)。年は問わない。31日換算の簡易計算で十分。
@@ -575,7 +577,7 @@ function render() {
       btn.className = 'chip' + (currentFilter === f.key ? ' selected' : '');
       btn.textContent = f.label;
       btn.addEventListener('click', () => {
-        if (currentFilter === f.key) return;  // 同じチップ再タップは無視
+        if (currentFilter === f.key) return;
         currentFilter = f.key;
         drawRandom();
       });
@@ -583,13 +585,30 @@ function render() {
     }
     $main.appendChild(chips);
 
+    // 母数の脚注 (どのフィルタでも何枚から引いているかを見える化)
+    // 副次的に「近場/遠出 は GPS つき写真のみ対象」が自然に伝わる
+    const currentFilterObj = FILTERS.find(x => x.key === currentFilter);
+    const filtered = pickPool(currentFilter, allPhotos);
+    const gpsCount = allPhotos.filter(p => p.lat != null && p.lng != null).length;
+    const note = document.createElement('div');
+    note.className = 'filter-note';
+    if (currentFilterObj?.needsGPS) {
+      note.textContent = `${filtered.length} 枚から (GPS付き ${gpsCount} / ${allPhotos.length} 枚)`;
+    } else {
+      note.textContent = `${filtered.length} 枚から`;
+    }
+    $main.appendChild(note);
+
     if (currentRandom.length === 0) {
       const msg = document.createElement('p');
       msg.style.cssText = 'text-align:center;color:#888;margin:40px 0;';
-      const f = FILTERS.find(x => x.key === currentFilter);
-      msg.textContent = currentFilter === 'all'
-        ? '写真がありません'
-        : `「${f.label}」に該当する写真がありません`;
+      if (currentFilter === 'all') {
+        msg.textContent = '写真がありません';
+      } else if (currentFilterObj?.needsGPS && gpsCount === 0) {
+        msg.innerHTML = `GPS情報を持つ写真がありません<br><span style="font-size:11px;color:#666;">「${currentFilterObj.label}」は位置情報がある写真から引きます</span>`;
+      } else {
+        msg.textContent = `「${currentFilterObj.label}」に該当する写真がありません`;
+      }
       $main.appendChild(msg);
     } else {
       const cards = document.createElement('div');
