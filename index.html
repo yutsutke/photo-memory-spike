@@ -53,6 +53,13 @@
   .center-card .meta .place { font-size: 12px; color: #8bf; margin-top: 3px; }
 
   .neighbor-label { text-align: center; color: #888; font-size: 12px; margin: 6px 0 10px; }
+
+  /* explore 画面の「時空/カラー」モードトグル */
+  .mode-toggle { display: flex; gap: 6px; justify-content: center; margin: 8px 0 10px; }
+  .mode-toggle button { padding: 6px 14px; border: 1px solid #444; border-radius: 999px; background: transparent; color: #aaa; font-size: 12px; cursor: pointer; }
+  .mode-toggle button:active { opacity: 0.7; }
+  .mode-toggle button.selected { background: #2a6; color: #fff; border-color: #2a6; font-weight: 600; }
+  .backfill-note { text-align: center; color: #666; font-size: 10px; margin: 4px 0 0; }
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 600px; margin: 0 auto; }
   .grid .thumb { aspect-ratio: 1; background: #1a1a1a; border-radius: 8px; overflow: hidden; cursor: pointer; position: relative; }
   .grid .thumb:active { opacity: 0.7; }
@@ -105,7 +112,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.8 · 2026-05-28';
+const BUILD = 'phase1.9 (color) · 2026-05-28';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -193,6 +200,48 @@ async function toJpegBlob(file) {
   return Array.isArray(converted) ? converted[0] : converted;
 }
 
+// ============================================================
+// 色彩特徴 (Phase 1.5)
+// canvas を NxN グリッドに分けて各セルの平均 RGB を取る → N*N*3 次元
+// ユークリッド距離で「色が近い」を判定。AI なしで「夕焼け→夕焼け」「緑→緑」
+// のワープを試す土台。
+// ============================================================
+const COLOR_GRID = 4;
+const COLOR_DIM  = COLOR_GRID * COLOR_GRID * 3;  // 48
+
+function extractColorFeature(ctx, w, h) {
+  const feat = new Float32Array(COLOR_DIM);
+  let idx = 0;
+  for (let gy = 0; gy < COLOR_GRID; gy++) {
+    for (let gx = 0; gx < COLOR_GRID; gx++) {
+      const x = Math.floor(gx * w / COLOR_GRID);
+      const y = Math.floor(gy * h / COLOR_GRID);
+      const cw = Math.max(1, Math.floor((gx + 1) * w / COLOR_GRID) - x);
+      const ch = Math.max(1, Math.floor((gy + 1) * h / COLOR_GRID) - y);
+      const data = ctx.getImageData(x, y, cw, ch).data;
+      let r = 0, g = 0, b = 0;
+      const pxN = data.length / 4;
+      for (let i = 0; i < data.length; i += 4) {
+        r += data[i]; g += data[i+1]; b += data[i+2];
+      }
+      feat[idx++] = (r / pxN) / 255;
+      feat[idx++] = (g / pxN) / 255;
+      feat[idx++] = (b / pxN) / 255;
+    }
+  }
+  return feat;
+}
+
+function colorDistance(a, b) {
+  if (!a || !b || a.length !== b.length) return Infinity;
+  let s = 0;
+  for (let i = 0; i < a.length; i++) {
+    const d = a[i] - b[i];
+    s += d * d;
+  }
+  return Math.sqrt(s);
+}
+
 // EXIF Orientation (1-8) を canvas transform に変換して当てる
 // w, h は canvas のサイズ (= 回転後の表示サイズ)
 function applyExifTransform(ctx, orientation, w, h) {
@@ -248,10 +297,15 @@ async function createThumbnail(jpegBlob, maxPx, orientation = 1) {
     applyExifTransform(ctx, orientation, w, h);
     ctx.drawImage(img, 0, 0, rotated ? h : w, rotated ? w : h);
 
+    // 色彩特徴を抽出 (描画済み canvas のピクセルから、変換を一旦リセットして読む)
+    s = 'color';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);  // transform をリセットして getImageData は canvas 座標で
+    const color = extractColorFeature(ctx, w, h);
+
     s = 'toBlob';
-    const out = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
-    if (!out) throw new Error('toBlob returned null');
-    return out;
+    const thumb = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+    if (!thumb) throw new Error('toBlob returned null');
+    return { thumb, color };
   } catch (e) {
     // どの段階で落ちたかを上に伝える
     const wrap = new Error(`thumb.${s}: ${e.name || ''} ${e.message || e}`);
@@ -277,7 +331,7 @@ async function importOne(file) {
     const jpegBlob = await toJpegBlob(file);
 
     stage = 'thumb';
-    const thumb = await createThumbnail(jpegBlob, 300, orientation);
+    const { thumb, color } = await createThumbnail(jpegBlob, 300, orientation);
 
     stage = 'put';
     await dbPut({
@@ -287,6 +341,7 @@ async function importOne(file) {
       lat, lng,
       blob: jpegBlob,
       thumb,
+      color,
       dedup,
       importedAt: new Date(),
     });
@@ -317,7 +372,7 @@ function isSameDay(a, b) {
 // 中心写真の時空近傍を最大 limit 枚返す
 // 優先順位: GPS 5km以内 → 同日 → ±3日 → ±7日
 // 各レイヤー内では中心からの時間差が近い順
-function neighbors(center, all, limit = 6) {
+function spacetimeNeighbors(center, all, limit) {
   const t = center.datetime.getTime();
   const others = all.filter(p => p.id !== center.id);
   const hasGPS = center.lat != null && center.lng != null;
@@ -343,6 +398,24 @@ function neighbors(center, all, limit = 6) {
     }
   }
   return result;
+}
+
+// 色彩近傍: TODO 通り 時空候補を広めに集めて (上位 30 枚) 色距離で並べ替えて上位 6 枚
+// 時空候補が少なすぎる時は全件 (color 持ち) に拡大して色順
+function colorNeighbors(center, all, limit) {
+  if (!center.color) return [];
+  const others = all.filter(p => p.id !== center.id);
+  const stCandidates = spacetimeNeighbors(center, all, 30);
+  const pool = (stCandidates.length >= limit ? stCandidates : others).filter(p => p.color);
+  const scored = pool.map(p => ({ p, d: colorDistance(center.color, p.color) }));
+  scored.sort((a, b) => a.d - b.d);
+  return scored.slice(0, limit).map(x => x.p);
+}
+
+// dispatcher: exploreMode に応じて切替
+function neighbors(center, all, limit = 6) {
+  if (exploreMode === 'color') return colorNeighbors(center, all, limit);
+  return spacetimeNeighbors(center, all, limit);
 }
 
 // ============================================================
@@ -460,6 +533,7 @@ async function exportAll() {
       lat: p.lat, lng: p.lng,
       blob: await blobToB64(p.blob),
       thumb: await blobToB64(p.thumb),
+      color: p.color ? Array.from(p.color) : null,  // Float32Array は JSON 化できないので Array に
       dedup: p.dedup,
       importedAt: p.importedAt?.toISOString?.() || null,
     });
@@ -487,6 +561,7 @@ async function importBackup(file) {
       lat: p.lat, lng: p.lng,
       blob: await b64ToBlob(p.blob),
       thumb: await b64ToBlob(p.thumb),
+      color: Array.isArray(p.color) ? new Float32Array(p.color) : null,  // 復元
       dedup: p.dedup,
       importedAt: p.importedAt ? new Date(p.importedAt) : new Date(),
     });
@@ -498,11 +573,13 @@ async function importBackup(file) {
 // ============================================================
 // 表示
 // ============================================================
-let state = 'loading';      // loading | empty | importing | random | explore
-let allPhotos = [];          // 全件キャッシュ
-let currentRandom = [];      // ランダム3枚
-let currentCenter = null;    // explore の中心写真
-let currentFilter = 'all';   // ランダム引きの条件 (FILTERS の key)
+let state = 'loading';        // loading | empty | importing | random | explore
+let allPhotos = [];            // 全件キャッシュ
+let currentRandom = [];        // ランダム3枚
+let currentCenter = null;      // explore の中心写真
+let currentFilter = 'all';     // ランダム引きの条件 (FILTERS の key)
+let exploreMode = 'spacetime'; // 連想モード: 'spacetime' | 'color'
+let backfillStatus = null;     // {done, total} or null. 起動時 color バックフィル進捗
 
 // thumbnail を毎回 createObjectURL するとリークするので URL を録っておいて再利用 + 画面遷移時に開放
 const thumbUrls = new Map(); // photo.id -> object URL
@@ -654,7 +731,6 @@ function render() {
 
   if (state === 'explore') {
     const center = currentCenter;
-    const ns = neighbors(center, allPhotos, 6);
 
     const centerEl = document.createElement('div');
     centerEl.className = 'center-card';
@@ -665,16 +741,55 @@ function render() {
       </div>`;
     $main.appendChild(centerEl);
 
-    const label = document.createElement('div');
-    label.className = 'neighbor-label';
-    label.textContent = ns.length > 0 ? `この時空の近く ${ns.length} 枚` : '近傍に写真がありません';
-    $main.appendChild(label);
+    // モードトグル (時空 / カラー)
+    const toggle = document.createElement('div');
+    toggle.className = 'mode-toggle';
+    const mkBtn = (mode, label) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      if (exploreMode === mode) b.classList.add('selected');
+      b.addEventListener('click', () => {
+        if (exploreMode === mode) return;
+        exploreMode = mode;
+        render();
+      });
+      return b;
+    };
+    toggle.appendChild(mkBtn('spacetime', '⏳ 時空'));
+    toggle.appendChild(mkBtn('color', '🎨 カラー'));
+    $main.appendChild(toggle);
 
-    if (ns.length > 0) {
-      const grid = document.createElement('div');
-      grid.className = 'grid';
-      ns.forEach(p => grid.appendChild(makeThumb(p, () => showExplore(p))));
-      $main.appendChild(grid);
+    // バックフィル中の注釈 (カラー優先で中心に color が無いケースなど)
+    if (backfillStatus && backfillStatus.done < backfillStatus.total) {
+      const note = document.createElement('div');
+      note.className = 'backfill-note';
+      note.textContent = `🌀 色情報を準備中… ${backfillStatus.done} / ${backfillStatus.total}`;
+      $main.appendChild(note);
+    }
+
+    // ラベル + グリッド
+    if (exploreMode === 'color' && !center.color) {
+      const label = document.createElement('div');
+      label.className = 'neighbor-label';
+      label.textContent = 'この写真の色情報がまだありません';
+      $main.appendChild(label);
+    } else {
+      const ns = neighbors(center, allPhotos, 6);
+      const label = document.createElement('div');
+      label.className = 'neighbor-label';
+      if (ns.length === 0) {
+        label.textContent = exploreMode === 'color' ? '色の近傍が見つかりません' : '近傍に写真がありません';
+      } else {
+        label.textContent = exploreMode === 'color' ? `色の近く ${ns.length} 枚` : `この時空の近く ${ns.length} 枚`;
+      }
+      $main.appendChild(label);
+
+      if (ns.length > 0) {
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        ns.forEach(p => grid.appendChild(makeThumb(p, () => showExplore(p))));
+        $main.appendChild(grid);
+      }
     }
 
     const actions = document.createElement('div');
@@ -716,6 +831,58 @@ async function importFiles(files) {
   allPhotos = await dbGetAll();
   if (allPhotos.length === 0) { state = 'empty'; render(); }
   else await drawRandom();
+  // 新規取り込み分は color が入っているが、過去レコードに無いものがあれば付与
+  backfillColors().catch(e => logErr(`backfill: ${e.message}`));
+}
+
+// 既存写真で color フィールドが無いものに、保存済み thumb から色彩特徴を計算して付与する。
+// 低優先度ループ (1枚 50ms 程度の待ちを挟む) でメイン操作を止めない。
+// 二重実行を避けるためフラグを持つ。
+let backfillRunning = false;
+async function backfillColors() {
+  if (backfillRunning) return;
+  const missing = allPhotos.filter(p => !p.color);
+  if (!missing.length) { backfillStatus = null; return; }
+
+  backfillRunning = true;
+  backfillStatus = { done: 0, total: missing.length };
+  // explore 表示中ならインジケータを更新
+  if (state === 'explore') render();
+
+  for (const p of missing) {
+    let url = null;
+    try {
+      url = URL.createObjectURL(p.thumb);
+      const img = await new Promise((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error('thumb load failed'));
+        im.src = url;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || 1;
+      canvas.height = img.naturalHeight || 1;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const color = extractColorFeature(ctx, canvas.width, canvas.height);
+      const updated = { ...p, color };
+      await dbPut(updated);
+      const idx = allPhotos.findIndex(x => x.id === p.id);
+      if (idx >= 0) allPhotos[idx] = updated;
+    } catch (e) {
+      console.warn(`[backfill] ${p.name}: ${e.message}`);
+    } finally {
+      if (url) URL.revokeObjectURL(url);
+    }
+    backfillStatus.done++;
+    // 50ms 休む = メイン操作を妨げない (135枚で約 7秒、500枚で約 25秒)
+    await new Promise(r => setTimeout(r, 50));
+  }
+
+  backfillStatus = null;
+  backfillRunning = false;
+  // 完了時、explore 表示中で center に color が付いたなら再描画
+  if (state === 'explore') render();
 }
 
 async function drawRandom() {
@@ -782,6 +949,7 @@ $importer.addEventListener('change', async (e) => {
     alert(`インポート完了: 新規 ${imported} 枚 / 重複スキップ ${dup} 枚`);
     if (allPhotos.length > 0) await drawRandom();
     else { state = 'empty'; render(); }
+    backfillColors().catch(e => logErr(`backfill: ${e.message}`));
   } catch (err) {
     logErr(`インポート失敗: ${err.message}`);
     alert(`インポート失敗: ${err.message}`);
@@ -807,6 +975,8 @@ $importer.addEventListener('change', async (e) => {
     logErr(`起動失敗: ${e.message}`);
     state = 'empty'; render();
   }
+  // 起動完了後、color が無い既存レコードに非同期でバックフィル
+  backfillColors().catch(e => logErr(`backfill: ${e.message}`));
 })();
 </script>
 </body>
