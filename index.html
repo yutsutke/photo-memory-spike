@@ -47,8 +47,9 @@
 <div class="stats" id="stats">未選択</div>
 <div class="log" id="log"></div>
 
-<!-- UMD 版 exifr (mini = JPEG + HEIC EXIF 対応, ESM より対応ブラウザが広い) -->
-<script src="https://cdn.jsdelivr.net/npm/exifr@7/dist/mini.umd.js"></script>
+<!-- UMD 版 exifr (full = JPEG/HEIC/TIFF + EXIF/IPTC/XMP/ICC/JFIF まで全部入り)
+     mini は JFIF パーサーが入っていないので parse(f, true) で落ちる → full に固定 -->
+<script src="https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js"></script>
 
 <script>
   const $picker = document.getElementById('picker');
