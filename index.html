@@ -112,7 +112,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.9 (color) · 2026-05-28';
+const BUILD = 'phase1.10 (color, mem-safe) · 2026-05-28';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -849,6 +849,15 @@ async function backfillColors() {
   // explore 表示中ならインジケータを更新
   if (state === 'explore') render();
 
+  // メモリ抑制: thumb を 16x16 に縮小して描画してから getImageData。
+  // 4x4 グリッド平均と精度ほぼ同じで、 iOS Safari の Blob ストア圧迫を避ける。
+  // (300x300 の thumb をそのまま getImageData だと 135枚 × 90,000px = 1200万ピクセル分のバッファ)
+  const TINY = 16;
+  const tinyCanvas = document.createElement('canvas');
+  tinyCanvas.width = TINY;
+  tinyCanvas.height = TINY;
+  const tinyCtx = tinyCanvas.getContext('2d');
+
   for (const p of missing) {
     let url = null;
     try {
@@ -859,12 +868,9 @@ async function backfillColors() {
         im.onerror = () => reject(new Error('thumb load failed'));
         im.src = url;
       });
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth || 1;
-      canvas.height = img.naturalHeight || 1;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const color = extractColorFeature(ctx, canvas.width, canvas.height);
+      tinyCtx.clearRect(0, 0, TINY, TINY);
+      tinyCtx.drawImage(img, 0, 0, TINY, TINY);
+      const color = extractColorFeature(tinyCtx, TINY, TINY);
       const updated = { ...p, color };
       await dbPut(updated);
       const idx = allPhotos.findIndex(x => x.id === p.id);
@@ -875,14 +881,15 @@ async function backfillColors() {
       if (url) URL.revokeObjectURL(url);
     }
     backfillStatus.done++;
-    // 50ms 休む = メイン操作を妨げない (135枚で約 7秒、500枚で約 25秒)
     await new Promise(r => setTimeout(r, 50));
   }
 
+  // 後始末: iOS Safari がバックフィル中に古い thumb URL を解放してしまっていても
+  // 復活させるため、URL キャッシュを破棄して画面を再描画 (?マーク防止)
+  revokeAllThumbUrls();
   backfillStatus = null;
   backfillRunning = false;
-  // 完了時、explore 表示中で center に color が付いたなら再描画
-  if (state === 'explore') render();
+  if (state === 'random' || state === 'explore') render();
 }
 
 async function drawRandom() {
