@@ -97,7 +97,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.4 · 2026-05-28';
+const BUILD = 'phase1.5 · 2026-05-28';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -200,10 +200,13 @@ function applyExifTransform(ctx, orientation, w, h) {
   }
 }
 
-// サムネ生成。<img> + <canvas> 古典方式 (createImageBitmap は iOS Safari で
+// サムネ Blob 生成。<img> + <canvas> 古典方式 (createImageBitmap は iOS Safari で
 // TypeError を投げるバージョンがあるため避ける)。orientation は exifr で
 // 読んだ値を渡してもらい canvas で補正する。
-async function makeThumb(jpegBlob, maxPx, orientation = 1) {
+// 注: 後ろで定義している DOM 要素生成関数 makeThumb と名前が衝突しないよう
+//     こちらは createThumbnail という名前にする (前は両方 makeThumb で
+//     後ろ勝ちのため importOne が DOM 版を呼んでしまい TypeError していた)
+async function createThumbnail(jpegBlob, maxPx, orientation = 1) {
   // 入力の Blob 性を最初に検査して、failed at native code の謎を消す
   if (jpegBlob == null) throw new Error(`blob is ${jpegBlob}`);
   if (!(jpegBlob instanceof Blob)) throw new Error(`not a Blob: ${typeof jpegBlob} ${Object.prototype.toString.call(jpegBlob)}`);
@@ -266,7 +269,7 @@ async function importOne(file) {
     const jpegBlob = await toJpegBlob(file);
 
     stage = 'thumb';
-    const thumb = await makeThumb(jpegBlob, 300, orientation);
+    const thumb = await createThumbnail(jpegBlob, 300, orientation);
 
     stage = 'put';
     await dbPut({
