@@ -76,6 +76,12 @@
   .chip.selected { background: #2a6; color: #fff; border-color: #2a6; font-weight: 600; }
   .filter-note { text-align: center; color: #777; font-size: 11px; max-width: 600px; margin: 0 auto 14px; padding: 0 12px; }
 
+  /* フル画像表示 (長押しで開く、タップで閉じる) */
+  .full-overlay { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; align-items: center; justify-content: center; }
+  .full-overlay img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  /* iOS のロングタップで出る画像メニューを抑止 (これが出ると長押し検知も奪われる) */
+  .card img, .thumb img, .center-card img, .full-overlay img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
   /* error/log overlay (起動時/取り込みエラーだけ) */
   .log { position: fixed; bottom: 0; left: 0; right: 0; max-height: 28vh; overflow: auto; background: #200; border-top: 1px solid #500; padding: 6px 10px; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 10px; color: #f88; display: none; }
   .log.show { display: block; }
@@ -112,7 +118,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.11 (pure-color) · 2026-05-28';
+const BUILD = 'phase1.12 (full-image) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -621,6 +627,77 @@ function fmtPlace(lat, lng) {
   return (lat == null || lng == null) ? '' : `📍 ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
 }
 
+// ============================================================
+// 長押し → フル画像表示 (タップで閉じる、ESC でも閉じる)
+// pointerdown で 500ms タイマー、threshold 超の move でキャンセル。
+// 長押し中に出した click は didLongPress フラグで navigation を抑止する。
+// iOS Safari: <img> の長押しは「画像をコピー/保存」メニューを開いて
+// gesture を奪う → -webkit-touch-callout: none + contextmenu preventDefault。
+// ============================================================
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_MOVE_THRESHOLD = 10;
+
+function attachPhotoGestures(el, photo, onTap) {
+  let timer = null;
+  let startX = 0, startY = 0;
+  let didLongPress = false;
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+
+  el.addEventListener('pointerdown', (e) => {
+    didLongPress = false;
+    startX = e.clientX; startY = e.clientY;
+    cancel();
+    timer = setTimeout(() => {
+      timer = null;
+      didLongPress = true;
+      showFullImage(photo);
+    }, LONG_PRESS_MS);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!timer) return;
+    if (Math.abs(e.clientX - startX) > LONG_PRESS_MOVE_THRESHOLD ||
+        Math.abs(e.clientY - startY) > LONG_PRESS_MOVE_THRESHOLD) cancel();
+  });
+  el.addEventListener('pointerup', cancel);
+  el.addEventListener('pointercancel', cancel);
+  el.addEventListener('pointerleave', cancel);
+
+  if (onTap) {
+    el.addEventListener('click', () => {
+      if (didLongPress) { didLongPress = false; return; }
+      onTap();
+    });
+  }
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+let fullImageState = null;
+function showFullImage(photo) {
+  if (fullImageState) closeFullImage();
+  // 原画 blob を表示 (サムネではなく)。閉じるときに必ず revoke。
+  const url = URL.createObjectURL(photo.blob);
+  const overlay = document.createElement('div');
+  overlay.className = 'full-overlay';
+  overlay.innerHTML = `<img src="${url}">`;
+  document.body.appendChild(overlay);
+  // 長押し解除直後の click が即閉じを起こさないよう少し遅らせる
+  const openedAt = Date.now();
+  overlay.addEventListener('click', () => {
+    if (Date.now() - openedAt < 200) return;
+    closeFullImage();
+  });
+  fullImageState = { el: overlay, url };
+}
+function closeFullImage() {
+  if (!fullImageState) return;
+  URL.revokeObjectURL(fullImageState.url);
+  fullImageState.el.remove();
+  fullImageState = null;
+}
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && fullImageState) closeFullImage();
+});
+
 function makeCard(photo, onClick) {
   const card = document.createElement('div');
   card.className = 'card';
@@ -629,7 +706,7 @@ function makeCard(photo, onClick) {
       <div class="date">${fmtDate(photo.datetime)}</div>
       ${fmtPlace(photo.lat, photo.lng) ? `<div class="place">${fmtPlace(photo.lat, photo.lng)}</div>` : ''}
     </div>`;
-  card.addEventListener('click', onClick);
+  attachPhotoGestures(card, photo, onClick);
   return card;
 }
 
@@ -637,7 +714,7 @@ function makeThumb(photo, onClick) {
   const t = document.createElement('div');
   t.className = 'thumb';
   t.innerHTML = `<img src="${thumbUrl(photo)}" loading="lazy"><div class="lbl">${fmtShortDate(photo.datetime)}</div>`;
-  t.addEventListener('click', onClick);
+  attachPhotoGestures(t, photo, onClick);
   return t;
 }
 
@@ -738,6 +815,8 @@ function render() {
         <div class="date">${fmtDate(center.datetime)}</div>
         ${fmtPlace(center.lat, center.lng) ? `<div class="place">${fmtPlace(center.lat, center.lng)}</div>` : ''}
       </div>`;
+    // 中心カードは tap action なし、長押しでフル画像のみ
+    attachPhotoGestures(centerEl, center, null);
     $main.appendChild(centerEl);
 
     // モードトグル (時空 / カラー)

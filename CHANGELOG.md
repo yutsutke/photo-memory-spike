@@ -5,6 +5,38 @@
 
 ---
 
+## v6 — Phase 1 残課題クローズ: 長押しでフル画像表示 (2026-05-29)
+
+**背景**
+- Phase 1 で唯一未着手だった「拡大表示 (フル画像)」を回収。TODO L70-73、「サムネをロングタップまたは別ジェスチャでフル画像表示」。
+- v5 までは表示が常にサムネ (300px)。元画は IndexedDB の `blob` に入っているが、見る手段が無かった。
+- 軽量で完結する範囲なので、Phase 1.8 / 2 に進む前に拾った。
+
+**設計判断**
+- **ジェスチャは長押し (500ms)**。「ボタン追加」案より `ui-minimalism-works` 尊重 — UI は増やさず、必要な時だけ広がる形に倒す。iOS Photos の peek と同じ手触り。
+- **対象は 3 種類すべて** — ランダム3枚カード / explore 中心カード / explore グリッドサムネ。中心カードだけ通常タップ動作なし (長押し専用)。
+- **共通の `attachPhotoGestures(el, photo, onTap)` に集約**。click 抑止フラグ (`didLongPress`) を持って、長押し発火後の click は onTap を呼ばない。これで navigation との競合を回避。
+- **オーバレイは fixed inset:0 / object-fit:contain**。pinch zoom はスコープ外、画面に収める。タップで閉じる + ESC でも閉じる (desktop)。
+- **長押し離した直後の click でオーバレイが即閉じる問題** → オーバレイの click は 200ms グレースを置く。
+- **iOS の画像長押しメニュー (画像をコピー/保存) はジェスチャを奪う** → CSS `-webkit-touch-callout: none` + `contextmenu` の preventDefault。
+- **10px 超の pointermove で長押しキャンセル** → スクロールを邪魔しない。
+
+**ハマったところ** (未然回避)
+- iOS の `-webkit-touch-callout` を忘れると、500ms 経過時に OS のメニューが出て自前タイマが意味を失う。CSS の rule set に最初から入れた。
+- 原画 blob URL は `createObjectURL` の都度生成 + closeFullImage 時に必ず revoke。サムネ URL のように長期キャッシュしない。
+
+**結果 / 観察**
+- preview の synthetic event テストで 5 経路 (長押し開く / ESC 閉じる / 長押し後 tap 抑止 / 短タップは navigate / move でキャンセル) 全て通過。
+- 実機での「色味の確認」は次回触り込み時に確認。
+
+**教訓**
+- click 抑止の仕組みを capture phase + stopImmediatePropagation でやるより、**フラグ + 通常 listener で順序依存を消す**ほうが堅い。makeCard 側の onTap 配線と attachPhotoGestures 内の click 配線が同一クロージャでフラグを共有する形に。
+
+**残課題 / 次の方向**
+- Phase 1 は完全クローズ。次は Phase 1.8 (Progressive Indexing) か Phase 2 (CLIP) か、あるいは触り込み観察。
+
+---
+
 ## v5 — Phase 1.5 クローズ: 色彩トーン展開 (純粋色モードが刺さった) (2026-05-28)
 
 **背景**
