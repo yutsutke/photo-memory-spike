@@ -112,7 +112,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.10 (color, mem-safe) · 2026-05-28';
+const BUILD = 'phase1.11 (pure-color) · 2026-05-28';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -400,13 +400,12 @@ function spacetimeNeighbors(center, all, limit) {
   return result;
 }
 
-// 色彩近傍: TODO 通り 時空候補を広めに集めて (上位 30 枚) 色距離で並べ替えて上位 6 枚
-// 時空候補が少なすぎる時は全件 (color 持ち) に拡大して色順
+// 色彩近傍: 時空を無視して全件 (color 持ち) から中心との色距離で並べ替え、上位 6 枚
+// → 「夕焼け→別の日の別の場所の夕焼け」のような色ワープが出る
+// TODO の検証問い「色の近傍 vs 意味の近傍、どちらが reminiscence を刺激するか」に直結
 function colorNeighbors(center, all, limit) {
   if (!center.color) return [];
-  const others = all.filter(p => p.id !== center.id);
-  const stCandidates = spacetimeNeighbors(center, all, 30);
-  const pool = (stCandidates.length >= limit ? stCandidates : others).filter(p => p.color);
+  const pool = all.filter(p => p.id !== center.id && p.color);
   const scored = pool.map(p => ({ p, d: colorDistance(center.color, p.color) }));
   scored.sort((a, b) => a.d - b.d);
   return scored.slice(0, limit).map(x => x.p);
