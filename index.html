@@ -105,7 +105,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.7 · 2026-05-28';
+const BUILD = 'phase1.8 · 2026-05-28';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -351,14 +351,21 @@ function neighbors(center, all, limit = 6) {
 // デフォルトは 'all'。
 // ============================================================
 const FILTERS = [
-  { key: 'all',    label: '全期間' },
-  { key: 'season', label: 'この時季' },
-  { key: '1y',     label: '1年前' },
-  { key: '10y',    label: '10年前' },
+  { key: 'all',      label: '全期間' },
+  { key: 'season',   label: 'この時季' },
+  { key: '1y',       label: '1年前' },
+  { key: '10y',      label: '10年前' },
+  { key: 'oldest',   label: '久しぶり' },        // 撮影日が古い側のプール
+  { key: 'eventDay', label: 'たくさん撮った日' }, // 同日に N枚以上ある日のプール
   // 📍 は GPS つき写真が対象という示唆 (脚注で母数を出すのでこれ単独の役割は副次的)
-  { key: 'near',   label: '近場 📍', needsGPS: true },
-  { key: 'far',    label: '遠出 📍', needsGPS: true },
+  { key: 'near',     label: '近場 📍', needsGPS: true },
+  { key: 'far',      label: '遠出 📍', needsGPS: true },
 ];
+
+// 「久しぶり」「たくさん撮った日」のチューニングパラメータ (鉛筆書き、触ってから調整)
+const OLDEST_POOL_RATIO = 0.2;   // 古い側 20% をプール
+const OLDEST_POOL_MIN   = 10;    // ただし最低10枚は確保
+const EVENT_DAY_MIN     = 5;     // 1日に5枚以上撮ってたら「イベント感ある日」と見なす
 
 // 月日のみの差 (日数)。年は問わない。31日換算の簡易計算で十分。
 function monthDayDistance(a, b) {
@@ -392,6 +399,26 @@ function pickPool(filterKey, all) {
     const target = new Date(now);
     target.setFullYear(now.getFullYear() - years);
     return all.filter(p => Math.abs(p.datetime.getTime() - target.getTime()) <= widthDays * 86400000);
+  }
+  if (filterKey === 'oldest') {
+    // 撮影日が古い順から ratio (もしくは min) のプール → そこからランダム
+    const sorted = all.slice().sort((a, b) => a.datetime - b.datetime);
+    const n = Math.min(sorted.length, Math.max(OLDEST_POOL_MIN, Math.ceil(all.length * OLDEST_POOL_RATIO)));
+    return sorted.slice(0, n);
+  }
+  if (filterKey === 'eventDay') {
+    // 同じ日 (yyyy-mm-dd) に EVENT_DAY_MIN 枚以上ある日の写真をまとめてプールに
+    const byDay = new Map();
+    for (const p of all) {
+      const k = `${p.datetime.getFullYear()}-${p.datetime.getMonth()}-${p.datetime.getDate()}`;
+      if (!byDay.has(k)) byDay.set(k, []);
+      byDay.get(k).push(p);
+    }
+    const result = [];
+    for (const group of byDay.values()) {
+      if (group.length >= EVENT_DAY_MIN) result.push(...group);
+    }
+    return result;
   }
   if (filterKey === 'near' || filterKey === 'far') {
     const c = gpsCentroid(all);
