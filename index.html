@@ -83,6 +83,11 @@
   /* フル画像表示 (長押しで開く、タップで閉じる) */
   .full-overlay { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; align-items: center; justify-content: center; }
   .full-overlay img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  /* v24: フル表示の下部キャプション。日時 (純正写真アプリで辿る鍵) + 写真アプリ動線 */
+  .full-cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 101; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.72)); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .full-cap .dt { color: #fff; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+  .full-cap .dt small { color: #9a9a9a; font-size: 11px; margin-left: 8px; }
+  .full-cap .to-photos { background: #2a2a2a; color: #e0e0e0; border: 1px solid #4a4a4a; border-radius: 999px; padding: 9px 20px; font-size: 14px; }
   /* iOS のロングタップで出る画像メニューを抑止 (これが出ると長押し検知も奪われる) */
   .card img, .thumb img, .center-card img, .full-overlay img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 
@@ -149,7 +154,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (1万枚対応) · 2026-05-29';
+const BUILD = 'phase2 (写真app動線) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -793,6 +798,28 @@ function showFullImage(photo) {
   const overlay = document.createElement('div');
   overlay.className = 'full-overlay';
   overlay.innerHTML = `<img src="${url}">`;
+
+  // v24: ここ=「鮮明に見たい」瞬間。原画は持たないので、日時 (純正写真アプリで辿る鍵) を大きく出し、
+  // タップでコピー + 写真アプリ起動を試みる動線を置く。Web は写真アプリの特定写真を直接開けない
+  // (識別子を持てず、写真へのディープリンク URL も無い) → 日時で自分で辿ってもらう。
+  const dtStr = photo.datetime ? fmtDate(photo.datetime) : '日時不明';
+  const cap = document.createElement('div');
+  cap.className = 'full-cap';
+  cap.innerHTML =
+    `<div class="dt">📅 ${dtStr}<small>タップでコピー</small></div>` +
+    `<button class="to-photos">📷 写真アプリで開く</button>`;
+  cap.addEventListener('click', e => e.stopPropagation());  // キャプション操作で overlay を閉じない
+  const $small = cap.querySelector('.dt small');
+  cap.querySelector('.dt').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(dtStr); if ($small) $small.textContent = 'コピーしました'; }
+    catch { if ($small) $small.textContent = '長押しでコピー'; }
+  });
+  cap.querySelector('.to-photos').addEventListener('click', () => {
+    // 写真アプリを開く (非公式スキーム、特定写真までは飛べない)。開けなければ無反応。
+    try { window.location.href = 'photos-redirect://'; } catch {}
+  });
+  overlay.appendChild(cap);
+
   document.body.appendChild(overlay);
   // 長押し解除直後の click が即閉じを起こさないよう少し遅らせる
   const openedAt = Date.now();
