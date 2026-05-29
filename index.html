@@ -160,7 +160,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (ダミー削除を堅牢化) · 2026-05-29';
+const BUILD = 'phase2 (WakeLockで継続) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -260,7 +260,7 @@ async function collectDummyKeys() {
 async function dbDeleteDummies() {
   const keys = await collectDummyKeys();
   const db = await openDB();
-  const CH = 1000;
+  const CH = 2000;   // v33: チャンクを増やして完了を速く (画面スリープに捕まりにくく)
   for (let i = 0; i < keys.length; i += CH) {
     const slice = keys.slice(i, i + CH);
     await new Promise((resolve, reject) => {
@@ -1820,7 +1820,7 @@ if (location.hash.toLowerCase().includes('dev')) {
       if (!confirm(`${n.toLocaleString()} 枚のダミーを生成します。完了後リロードします。`)) return;
       devBusy = true;
       try {
-        await devGenerate(n);
+        await withWakeLock(() => devGenerate(n));
         alert(`生成完了 (${n.toLocaleString()} 枚)。リロードします。`);
         location.reload();
       } catch (e) {
@@ -1838,7 +1838,7 @@ if (location.hash.toLowerCase().includes('dev')) {
       if (!confirm('ダミー (dummy-*) だけ削除します。本物の写真は残ります。続行?')) return;
       devBusy = true;
       try {
-        const removed = await dbDeleteDummies();
+        const removed = await withWakeLock(() => dbDeleteDummies());
         alert(`ダミー ${removed.toLocaleString()} 枚を削除しました。リロードします。`);
         location.reload();
       } catch (e) {
@@ -1906,6 +1906,17 @@ async function devGenerate(count) {
     await new Promise(r => setTimeout(r, 0));   // 1フレーム譲る
   }
   importStatus = null; updateBgStatus();
+}
+
+// 長時間処理 (dev 生成/削除) の間だけ画面スリープを抑止する (v33)。
+// iOS は画面が暗くなると setTimeout を止める → チャンク処理が中断する。Wake Lock で点灯維持。
+// 非対応・失敗時は何もせず処理続行 (削除は冪等で再開可能なので安全網はある)。
+async function withWakeLock(fn) {
+  let sentinel = null;
+  try { if (navigator.wakeLock && navigator.wakeLock.request) sentinel = await navigator.wakeLock.request('screen'); }
+  catch (e) { console.warn('[wakeLock] 取得失敗', e); }
+  try { return await fn(); }
+  finally { try { if (sentinel) await sentinel.release(); } catch {} }
 }
 
 async function requestPersistentStorage() {
