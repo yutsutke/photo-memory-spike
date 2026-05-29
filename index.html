@@ -131,7 +131,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.19 (exclude) · 2026-05-29';
+const BUILD = 'phase1.20 (refill) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -900,7 +900,8 @@ function render() {
     }
     $main.appendChild(note);
 
-    const visibleRandom = currentRandom.filter(p => !p.excluded);
+    // 表示は除外を除いた先頭3枚。除外で次が繰り上がり、取り消しで元に戻る (他の2枚は不動)
+    const visibleRandom = currentRandom.filter(p => !p.excluded).slice(0, 3);
     if (currentRandom.length === 0) {
       const msg = document.createElement('p');
       msg.style.cssText = 'text-align:center;color:#888;margin:40px 0;';
@@ -915,7 +916,7 @@ function render() {
     } else if (visibleRandom.length === 0) {
       const msg = document.createElement('p');
       msg.style.cssText = 'text-align:center;color:#888;margin:40px 0;';
-      msg.textContent = 'この3枚は除外しました。引き直してください。';
+      msg.textContent = '全部除外されています。引き直すかフィルタを変えてください。';
       $main.appendChild(msg);
     } else {
       const cards = document.createElement('div');
@@ -999,7 +1000,7 @@ function render() {
       label.textContent = 'この写真の色情報がまだありません';
       $main.appendChild(label);
     } else {
-      const ns = currentNeighbors.filter(p => !p.excluded);
+      const ns = currentNeighbors.filter(p => !p.excluded).slice(0, 6);
       const label = document.createElement('div');
       label.className = 'neighbor-label';
       if (ns.length === 0) {
@@ -1207,7 +1208,7 @@ async function drawRandom() {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    currentRandom = pool.slice(0, Math.min(3, pool.length));
+    currentRandom = pool;  // 全候補を保持。表示は先頭3枚、除外すると次が繰り上がる (取り消しで戻る)
   }
   state = 'random';
   render();
@@ -1225,10 +1226,11 @@ function showExplore(photo) {
 function refreshNeighbors() {
   const c = currentCenter;
   if (!c) { currentNeighbors = []; return; }
+  // 表示は6枚だが、除外時に繰り上げる候補を確保するため 12 枚キャッシュする
   const active = allPhotos.filter(p => !p.excluded);
-  if (exploreMode === 'spacetime') currentNeighbors = spacetimeNeighbors(c, active, 6);
-  else if (exploreMode === 'color') currentNeighbors = colorNeighbors(c, active, 6);
-  else currentNeighbors = mixedNeighbors(c, active, 6);
+  if (exploreMode === 'spacetime') currentNeighbors = spacetimeNeighbors(c, active, 12);
+  else if (exploreMode === 'color') currentNeighbors = colorNeighbors(c, active, 12);
+  else currentNeighbors = mixedNeighbors(c, active, 12);
 }
 
 function saveModePrefs() {
