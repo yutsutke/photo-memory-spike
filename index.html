@@ -160,7 +160,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (WakeLockで継続) · 2026-05-29';
+const BUILD = 'phase2 (取込ガイド) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1140,6 +1140,7 @@ function render() {
         <div class="spinner"></div>
         <div class="text">📷 写真を読み込んでいます…</div>
         <div class="text" style="color:#888;font-size:11px;margin-top:6px;">写真が多いと選択後の準備に数十秒かかることがあります</div>
+        <div class="text" id="prep-hint" style="color:#e6a23c;font-size:11px;margin-top:8px;"></div>
         <div class="privacy-line">🔒 アップロードではありません。この端末内だけで処理しています</div>
       </div>
       <div class="actions"><button class="secondary" id="cancelPrep">やめる</button></div>`;
@@ -1384,6 +1385,7 @@ function showImportSummary() {
 }
 
 async function importFiles(files) {
+  clearTimeout(prepareHintTimer);  // 取り込みに入ったら準備ガイドは不要 (v34)
   importStats = { added: 0, dup: 0, skipped: 0, failed: 0 };  // この取り込みセッションの差分集計 (v22)
   state = 'importing';
   render();
@@ -1732,6 +1734,7 @@ function saveModePrefs() {
 
 // picker を開く共通入口。開いた瞬間に「読み込み中」画面へ切り替え、連打を弾く。
 // iOS は Done 後にファイル準備で数秒かかる (HEIC 変換等) → その間も画面が変わって見える。
+let prepareHintTimer = null;   // 準備が長い時のガイド表示タイマー (v34)
 function openPicker() {
   if (importBusy) return;  // 準備中/取り込み中の連打を無視 (多重 open / 多重 change で詰まるのを防ぐ)
   importBusy = true;
@@ -1739,10 +1742,20 @@ function openPicker() {
   state = 'preparing';
   render();
   $picker.click();
+  // v34: OS 側の準備が長い (古い端末で多数選択時など) と無言で回り続けるので、
+  // しばらくしたら「少なめに分けて」とガイドを出す (本体処理ではなく iOS 側の待ちなので分割が効く)。
+  clearTimeout(prepareHintTimer);
+  prepareHintTimer = setTimeout(() => {
+    const el = document.getElementById('prep-hint');
+    if (state === 'preparing' && el) {
+      el.textContent = '準備が長いときは選んだ枚数が多すぎるかも。一度「やめる」で閉じ、10〜20枚ずつに分けると安定します（古い端末で起きやすい）';
+    }
+  }, 25000);
 }
 
 // picker キャンセル時 (ネイティブ cancel イベント or 「やめる」ボタン) に元の画面へ戻す
 function cancelPicker() {
+  clearTimeout(prepareHintTimer);
   importBusy = false;
   if (state === 'preparing') { state = prevStateBeforePicker; render(); }
 }
