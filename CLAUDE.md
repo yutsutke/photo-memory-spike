@@ -80,6 +80,23 @@ README.md               # 外向き説明、ほぼ更新しない
 
 ---
 
+## 🚀 commit → push まで基本やる (デフォルト)
+
+実装が一段落したら、**毎回明示依頼を待たずに commit → `git push` まで通す**。
+
+理由: spike を GitHub Pages (`https://yutsutke.github.io/photo-memory-spike/`) で実機 (iPhone Safari) 確認する運用。push されないとスマホで触れない = push がワークフローの一部。
+
+順序:
+1. TODO.md / CHANGELOG.md 更新 (上述の必須ルール)
+2. BUILD バージョン文字列を上げる (上述)
+3. `git add` (個別ファイル指定、`-A` は避ける) → `git commit` → `git push` を一気通貫
+
+コミットメッセージは日本語、既存スタイル (`feat(scope): ...` / `fix(...)` / `docs(vN): ...` / `change(...)`) に合わせる。
+
+**例外 (明示確認が必要)**: force push、`reset --hard`、ブランチ削除、`--no-verify` などの破壊的・規約外操作。通常の main への push は確認不要。
+
+---
+
 ## 🚨 iOS Safari のハマりどころ (過去にハマった)
 
 - **HTML キャッシュ強烈**: HTML に no-cache メタタグ必須。URL `?v=N` で強制リフレッシュも併用
