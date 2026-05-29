@@ -28,7 +28,8 @@
   .empty { display: flex; flex-direction: column; gap: 14px; max-width: 420px; margin: 40px auto; text-align: center; }
   .empty h2 { font-size: 16px; margin: 0; }
   .empty p { color: #aaa; font-size: 13px; line-height: 1.7; margin: 0; }
-  .empty p.caveat { color: #777; font-size: 11px; line-height: 1.6; }
+  /* 取り込み待ちの注意書き (ランダム画面上部、ヘッダ + の下) */
+  .caveat { color: #777; font-size: 11px; line-height: 1.6; text-align: center; max-width: 600px; margin: 2px auto 12px; padding: 0 12px; }
 
   /* import progress */
   .progress { padding: 14px; background: #1a1a1a; border-radius: 8px; margin: 12px auto; max-width: 420px; }
@@ -122,7 +123,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.16 (loading) · 2026-05-29';
+const BUILD = 'phase1.17 (caveat) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -747,7 +748,6 @@ function render() {
         <p>選んだ写真は端末から出ません (IndexedDB に保存)。<br>
         まず 20〜30 枚くらい入れて感触を見るのが目安です。</p>
         <button class="primary" id="emptyAdd">📷 写真を選ぶ</button>
-        <p class="caveat">※ 写真を多く選ぶほど、選んだ後の端末側の準備に時間がかかります（百枚規模で数十秒）。準備が終われば裏で読み込みながらすぐ使えます。</p>
       </div>`;
     document.getElementById('emptyAdd').addEventListener('click', openPicker);
     return;
@@ -778,6 +778,12 @@ function render() {
   }
 
   if (state === 'random') {
+    // 取り込み待ちの注意書き (ヘッダ + の下 = この画面の最上部)
+    const caveat = document.createElement('div');
+    caveat.className = 'caveat';
+    caveat.textContent = '※ 写真を多く選ぶほど、選んだ後の端末側の準備に時間がかかります（百枚規模で数十秒）。準備が終われば裏で読み込みながらすぐ使えます。';
+    $main.appendChild(caveat);
+
     // フィルタチップ (デフォルト 'all' で従来通り完全ランダム)
     const chips = document.createElement('div');
     chips.className = 'filter-chips';
