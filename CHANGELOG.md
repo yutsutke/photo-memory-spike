@@ -20,6 +20,7 @@
 **結果 / 観察**
 - preview 検証: `accept='image/*'`。type 優先判定 (JPEG型+.HEIC名→false / image/heic→true / 空type+.heic→true / jpg→false)。`toJpegBlob` は JPEG型の .HEIC ファイルを heic2any 通さず素通し。サマリは heic>0 で「(うち HEIC変換 N)」、heic=0 で非表示。全 pass。
 - 実機: iPad で 47枚+ が通るか、サマリの「HEIC変換 N」が 0 になるか次回。
+- **実機結果 (確定)**: iPad で 5枚→「✓ 新規 5枚」(HEIC変換の表示なし=0)。→ **heic2any は呼ばれておらず無実、accept 変更は成功**。だが 47枚は依然 OOM (即落ち) → **iPad の真因は raw な JPEG デコード (full-res→サムネ) のメモリ**で、3GB 端末のハード限界。コードで簡単に消せるバグではないと確定。**結論: メインは iPhone (問題なし)、iPad は 20枚以下の小バッチ運用。iPad の深追いはここで打ち切り** (spike の目的は iPhone で達成済)。深追いするなら createImageBitmap 縮小デコードだが iOS で不安定なので保留。診断カウンタ (HEIC変換 N) で実機の数字を見て犯人を切り分けられたのが収穫。
 
 **教訓**
 - **重いネイティブ処理 (HEIC デコード) は OS に任せ、JS ライブラリ (heic2any) は最後の手段**。`accept` 属性が iOS のファイル受け渡し挙動を変える (HEIC を入れると原本が来る) ことを忘れない。
