@@ -138,6 +138,7 @@
   <button id="btnExport" title="エクスポート">⇩</button>
   <button id="btnImport" title="インポート">⇧</button>
   <button id="btnClear" title="全削除">🗑</button>
+  <button id="btnInfo" title="使い方・注意">ℹ️</button>
   <button id="btnDev" class="hidden" title="開発: ダミー大量生成 (#dev)">🧪</button>
   <button id="btnDevDel" class="hidden" title="開発: ダミーだけ削除 (本物は残す)">🧹</button>
 </header>
@@ -160,7 +161,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (HEIC変換回避) · 2026-05-29';
+const BUILD = 'phase2 (使い方まとめ) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1043,6 +1044,49 @@ function hideToast() {
   if (toastEl) { toastEl.remove(); toastEl = null; }
 }
 
+// 使い方・注意モーダル (v38)。散らばっていた注意書きを 1 箇所にまとめる。
+// reminiscence 画面は汚さず、ℹ️ を押した時だけ開く ([[ui-minimalism-works]])。
+function openInfoModal()  { infoModalOpen = true;  render(); }
+function closeInfoModal() { infoModalOpen = false; render(); }
+
+function renderInfoModal() {
+  const old = document.getElementById('infoModal');
+  if (old) old.remove();
+  if (!infoModalOpen) return;
+
+  const modal = document.createElement('div');
+  modal.className = 'ai-modal';   // overlay スタイルを流用
+  modal.id = 'infoModal';
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeInfoModal(); });
+
+  const card = document.createElement('div');
+  card.className = 'ai-modal-card';
+  card.innerHTML = `
+    <h2>ℹ️ 使い方・注意</h2>
+    <div style="text-align:left;font-size:13px;line-height:1.7;color:#ccc;">
+      <p style="margin:.4em 0;color:#9f9;">🔒 <b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。AI 解析も端末内で行います。</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">📥 取り込み</p>
+      <p style="margin:.2em 0;">「+」で写真を選ぶ。<b>同じ写真を選び直しても重複は自動でスキップ</b>（差分取り込み）。たくさん入れる時・古い端末では <b>10〜20枚ずつ</b>に分けると安定します。</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時</p>
+      <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
+      <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（取り消し可）。</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
+      <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
+    </div>`;
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '閉じる';
+  closeBtn.addEventListener('click', closeInfoModal);
+  actions.appendChild(closeBtn);
+  card.appendChild(actions);
+
+  modal.appendChild(card);
+  document.body.appendChild(modal);
+}
+
 // AI モーダル (Phase 2 pilot エントリ)。document.body に独立 overlay として出す。
 // state には依存しない (任意の画面から開閉できる)。
 function openAIModal()  { aiModalOpen = true;  render(); }
@@ -1133,7 +1177,8 @@ function render() {
   $main.innerHTML = '';
   const activeCount = allPhotos.reduce((n, p) => n + (p.excluded ? 0 : 1), 0);
   $count.textContent = activeCount > 0 ? `${activeCount} 枚` : '— 枚';
-  renderAIModal();  // モーダルは独立 (state に依存しない overlay)
+  renderAIModal();    // モーダルは独立 (state に依存しない overlay)
+  renderInfoModal();  // 使い方・注意モーダル (v38)
 
   if (state === 'loading') {
     $main.innerHTML = `<p style="text-align:center;color:#888;margin-top:40px;">読み込み中…</p>`;
@@ -1180,11 +1225,7 @@ function render() {
   }
 
   if (state === 'random') {
-    // 取り込み待ちの注意書き (ヘッダ + の下 = この画面の最上部)
-    const caveat = document.createElement('div');
-    caveat.className = 'caveat';
-    caveat.textContent = '※ 写真を多く選ぶほど、選んだ後の端末側の準備に時間がかかります（百枚規模で数十秒）。準備が終われば裏で読み込みながらすぐ使えます。';
-    $main.appendChild(caveat);
+    // v38: 常時表示していた取り込み注意書きは ℹ️「使い方・注意」へ集約。reminiscence 画面は写真に集中。
 
     // フィルタチップ (デフォルト 'all' で従来通り完全ランダム)
     const chips = document.createElement('div');
@@ -1590,6 +1631,7 @@ let aiCancel = false;         // 抽出の中断要求
 let aiStatus = null;          // { phase: 'dl'|'extract', done, total, msg }
 let aiModalOpen = false;      // モーダル表示中フラグ
 let aiLastError = null;       // 直近のエラー (モーダルに出す)
+let infoModalOpen = false;    // 「使い方・注意」モーダル表示中フラグ (v38)
 
 async function loadAIPipeline() {
   if (aiExtractor) return aiExtractor;
@@ -1787,6 +1829,7 @@ function cancelPicker() {
 // ============================================================
 document.getElementById('btnAdd').addEventListener('click', openPicker);
 document.getElementById('btnAI').addEventListener('click', openAIModal);
+document.getElementById('btnInfo').addEventListener('click', openInfoModal);
 document.getElementById('btnExport').addEventListener('click', async () => {
   try { await exportAll(); }
   catch (e) { logErr(`export failed: ${e.message}`); alert(`エクスポート失敗: ${e.message}`); }
