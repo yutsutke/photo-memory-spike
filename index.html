@@ -147,7 +147,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (mix 合流) · 2026-05-29';
+const BUILD = 'phase2 (新規も自動解析) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1222,8 +1222,10 @@ async function importFiles(files) {
   else await drawRandom();
 
   // --- フェーズB: 残りはバックグラウンドへ (await しない=ユーザーに制御を返す) ---
+  // 残りがあれば runBackgroundImport の末尾で backfill→自動 embedding を回す。
+  // fast-track だけ (rest 無し) の時はここで色 backfill → AI opt-in 済なら自動 embedding 抽出。
   if (rest.length) enqueueBackground(rest);
-  else backfillColors().catch(e => logErr(`backfill: ${e.message}`));
+  else backfillColors().then(maybeAutoExtractEmbeddings).catch(e => logErr(`backfill: ${e?.message || e}`));
 }
 
 // バックグラウンド取り込み: キューに積んで1本のループで低優先消化。
@@ -1262,8 +1264,9 @@ async function runBackgroundImport() {
   bgRunning = false;
   importStatus = null;
   updateBgStatus();
-  // 新規分は color 付き。古い color 無しレコードがあれば backfill。
-  backfillColors().catch(e => logErr(`backfill: ${e.message}`));
+  // 新規分は color 付き。古い color 無しレコードがあれば backfill → その後 AI opt-in 済なら
+  // 新規写真の embedding を自動抽出 (mix の意味軸を生かし続ける、v20)。
+  backfillColors().then(maybeAutoExtractEmbeddings).catch(e => logErr(`backfill: ${e?.message || e}`));
 }
 
 // ヘッダの控えめな進捗 (🌀 12/30 取り込み / 🧠 40/300 AI 解析)。完了で消える。
@@ -1451,6 +1454,19 @@ async function runEmbeddingExtraction(limit) {
 
 function aiEmbeddedCount() {
   return allPhotos.reduce((n, p) => n + (p.embedding ? 1 : 0), 0);
+}
+
+// 新規取り込み後の自動 embedding 抽出 (v20)。
+// mix の意味軸 ([[mix-walk-works]] v19 で「混ざったほうがおもしろい」と確定) を新しい写真でも生かし続ける。
+// ゲート: AI を一度でも使った人 (embedding を 1 枚以上持つ) だけ自動起動。
+//   未 opt-in (embedding ゼロ) には一切何もしない = 100MB DL を強制しない (UI 最小干渉の原則)。
+// 色 backfill の後にチェーンして呼ぶ (色計算と CLIP 推論を同時に走らせず iOS のメモリ/発熱を抑える)。
+// モデルは初回 opt-in 時に DL 済 → Cache Storage から高速復元 (meaning-walk-works の性能 signal)。
+async function maybeAutoExtractEmbeddings() {
+  if (aiExtracting) return;                                       // 既に解析中なら任せる (多重起動しない)
+  if (aiEmbeddedCount() === 0) return;                            // AI 未 opt-in → 何もしない
+  if (!allPhotos.some(p => !p.excluded && !p.embedding)) return;  // 未解析の新規写真なし
+  await runEmbeddingExtraction();                                 // limit なし = 未解析の全件 (中断は header 経由では不可、import 規模は通常小さい)
 }
 
 async function drawRandom() {
