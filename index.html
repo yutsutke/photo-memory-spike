@@ -99,6 +99,21 @@
   /* 除外の取り消しトースト */
   .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #222; color: #eee; border: 1px solid #444; border-radius: 999px; padding: 9px 14px 9px 18px; font-size: 13px; display: flex; gap: 14px; align-items: center; z-index: 200; box-shadow: 0 6px 20px rgba(0,0,0,0.55); }
   .toast button { background: none; border: 0; color: #8bf; font-weight: 700; font-size: 13px; cursor: pointer; padding: 4px; }
+
+  /* AI 試行モーダル (β) */
+  .ai-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 18px; }
+  .ai-modal-card { background: #1a1a1a; border-radius: 12px; padding: 20px 22px; max-width: 460px; width: 100%; max-height: 90vh; overflow-y: auto; }
+  .ai-modal-card h2 { font-size: 15px; margin: 0 0 12px; }
+  .ai-modal-card p { font-size: 12px; color: #bbb; line-height: 1.7; margin: 0 0 10px; }
+  .ai-modal-card .stat { font-size: 12px; color: #8bf; margin: 8px 0; }
+  .ai-modal-card .bar { height: 6px; background: #333; border-radius: 3px; overflow: hidden; margin: 6px 0 12px; }
+  .ai-modal-card .bar > div { height: 100%; background: #2a6; transition: width 0.2s; }
+  .ai-modal-card .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+  .ai-modal-card button { padding: 8px 14px; border: 1px solid #444; border-radius: 6px; background: #222; color: #ddd; font-size: 13px; cursor: pointer; }
+  .ai-modal-card button.primary { background: #2a6; border-color: #2a6; color: #fff; font-weight: 600; }
+  .ai-modal-card button:disabled { opacity: 0.45; cursor: default; }
+  /* AI 進捗 (ヘッダ右の控えめ表示、🌀 と同列) */
+  .ai-bg { color: #c9a; }
 </style>
 </head>
 <body>
@@ -108,6 +123,7 @@
   <span class="count" id="count">— 枚</span>
   <span class="count hidden" id="bgStatus"></span>
   <button id="btnAdd" title="追加">+</button>
+  <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠</button>
   <button id="btnExport" title="エクスポート">⇩</button>
   <button id="btnImport" title="インポート">⇧</button>
   <button id="btnClear" title="全削除">🗑</button>
@@ -131,7 +147,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.22 (undo-fix) · 2026-05-29';
+const BUILD = 'phase2-pilot (50枚) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -451,6 +467,22 @@ function mixedNeighbors(center, all, limit) {
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
   return pool.slice(0, limit);
+}
+
+// 意味近傍 (Phase 2 pilot): CLIP embedding のコサイン類似度で上位 limit 枚。
+// embedding は normalize 済み前提なので内積 = コサイン類似度。
+// 中心 or プールに embedding が無いものは弾く (sparse 対応)。
+function meaningNeighbors(center, all, limit) {
+  if (!center.embedding) return [];
+  const pool = all.filter(p => p.id !== center.id && p.embedding && p.embedding.length === center.embedding.length);
+  const dim = center.embedding.length;
+  const scored = pool.map(p => {
+    let dot = 0;
+    for (let i = 0; i < dim; i++) dot += center.embedding[i] * p.embedding[i];
+    return { p, sim: dot };
+  });
+  scored.sort((a, b) => b.sim - a.sim);
+  return scored.slice(0, limit).map(x => x.p);
 }
 
 // ============================================================
@@ -832,10 +864,86 @@ function hideToast() {
   if (toastEl) { toastEl.remove(); toastEl = null; }
 }
 
+// AI モーダル (Phase 2 pilot エントリ)。document.body に独立 overlay として出す。
+// state には依存しない (任意の画面から開閉できる)。
+function openAIModal()  { aiModalOpen = true;  render(); }
+function closeAIModal() { aiModalOpen = false; render(); }
+
+function renderAIModal() {
+  // 既存のモーダルがあれば一旦消す (再描画のたびに作り直す)
+  const old = document.getElementById('aiModal');
+  if (old) old.remove();
+  if (!aiModalOpen) return;
+
+  const total = allPhotos.length;
+  const done = aiEmbeddedCount();
+  const remain = allPhotos.filter(p => !p.excluded && !p.embedding).length;
+
+  const modal = document.createElement('div');
+  modal.className = 'ai-modal';
+  modal.id = 'aiModal';
+  // 背景タップで閉じる (進行中は閉じない=誤タップ救済)
+  modal.addEventListener('click', (e) => { if (e.target === modal && !aiExtracting && !aiLoading) closeAIModal(); });
+
+  const card = document.createElement('div');
+  card.className = 'ai-modal-card';
+
+  let body = `<h2>🧠 AI で「意味の近傍」を試す (β)</h2>`;
+
+  if (aiLoading || aiExtracting) {
+    // 進行中
+    const pct = aiStatus && aiStatus.total ? Math.round(100 * aiStatus.done / aiStatus.total) : 0;
+    body += `
+      <p>${aiStatus?.msg || '処理中…'}</p>
+      <div class="stat">${aiStatus?.done ?? 0} / ${aiStatus?.total ?? '?'}</div>
+      <div class="bar"><div style="width:${pct}%"></div></div>
+      <p style="font-size:11px;color:#888;">画面を閉じても処理は続きます。タブを背景にすると iOS は処理を遅らせます。</p>
+    `;
+  } else {
+    // 待機 / 完了
+    body += `
+      <p>「色」「時空」と並ぶ 3 つ目の連想軸として、CLIP モデルで写真の <b>意味</b> (被写体・シーン) を埋め込み、コサイン類似で近傍を引きます。</p>
+      <p>これは <b>価値検証 pilot</b>: 一度に ${PHASE2_BATCH} 枚だけ解析して、explore で「🧠 意味」モードを試せるようにします。刺されば全件 backfill、刺さらなければ撤退 (🗑 全削除で消える)。</p>
+      <div class="stat">解析済み: ${done} / ${total} 枚 ${remain > 0 ? `(未解析 ${remain})` : '(全件解析済)'}</div>
+      ${done > 0 ? `<p style="font-size:11px;color:#888;">explore で写真をタップ → モード「🧠 意味」で確認。</p>` : ''}
+      ${aiLastError ? `<p style="color:#f88;font-size:11px;">エラー: ${aiLastError}</p>` : ''}
+      <p style="font-size:11px;color:#888;">初回はモデル DL (~100MB)。Wi-Fi 推奨。写真は端末から出ません。</p>
+    `;
+  }
+
+  card.innerHTML = body;
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  if (aiLoading || aiExtracting) {
+    // 進行中は閉じるだけ (キャンセル機能は将来)
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '閉じる (処理は続く)';
+    closeBtn.addEventListener('click', closeAIModal);
+    actions.appendChild(closeBtn);
+  } else {
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '閉じる';
+    closeBtn.addEventListener('click', closeAIModal);
+    const runBtn = document.createElement('button');
+    runBtn.className = 'primary';
+    runBtn.textContent = done === 0 ? `${PHASE2_BATCH} 枚を解析` : remain > 0 ? `さらに ${Math.min(PHASE2_BATCH, remain)} 枚を解析` : '解析完了';
+    runBtn.disabled = (remain === 0);
+    runBtn.addEventListener('click', () => { runValidationBatch(); });
+    actions.appendChild(closeBtn);
+    actions.appendChild(runBtn);
+  }
+  card.appendChild(actions);
+
+  modal.appendChild(card);
+  document.body.appendChild(modal);
+}
+
 function render() {
   $main.innerHTML = '';
   const activeCount = allPhotos.reduce((n, p) => n + (p.excluded ? 0 : 1), 0);
   $count.textContent = activeCount > 0 ? `${activeCount} 枚` : '— 枚';
+  renderAIModal();  // モーダルは独立 (state に依存しない overlay)
 
   if (state === 'loading') {
     $main.innerHTML = `<p style="text-align:center;color:#888;margin-top:40px;">読み込み中…</p>`;
@@ -978,7 +1086,8 @@ function render() {
     modeBar.appendChild(opener);
     $main.appendChild(modeBar);
 
-    // 展開時のみ ミックス / 時空 / カラー を出す
+    // 展開時のみ ミックス / 時空 / カラー / 意味 を出す
+    // 意味モードは embedding を持つ写真が ≥3 枚ある時だけ表示 (Phase 2 pilot)
     if (modeToggleVisible) {
       const toggle = document.createElement('div');
       toggle.className = 'mode-toggle';
@@ -998,6 +1107,7 @@ function render() {
       toggle.appendChild(mkBtn('mix', '🎲 ミックス'));
       toggle.appendChild(mkBtn('spacetime', '⏳ 時空'));
       toggle.appendChild(mkBtn('color', '🎨 カラー'));
+      if (aiEmbeddedCount() >= 3) toggle.appendChild(mkBtn('meaning', '🧠 意味'));
       $main.appendChild(toggle);
     }
 
@@ -1015,6 +1125,11 @@ function render() {
       label.className = 'neighbor-label';
       label.textContent = 'この写真の色情報がまだありません';
       $main.appendChild(label);
+    } else if (exploreMode === 'meaning' && !center.embedding) {
+      const label = document.createElement('div');
+      label.className = 'neighbor-label';
+      label.textContent = 'この写真はまだ AI 解析されていません (🧠 から追加解析)';
+      $main.appendChild(label);
     } else {
       const ns = currentNeighbors.filter(p => !p.excluded).slice(0, 6);
       const label = document.createElement('div');
@@ -1025,6 +1140,8 @@ function render() {
         label.textContent = `色の近く ${ns.length} 枚`;
       } else if (exploreMode === 'spacetime') {
         label.textContent = `この時空の近く ${ns.length} 枚`;
+      } else if (exploreMode === 'meaning') {
+        label.textContent = `意味の近く ${ns.length} 枚`;
       } else {
         label.textContent = `この写真のまわり ${ns.length} 枚`;
       }
@@ -1213,6 +1330,108 @@ async function backfillColors() {
   if (state === 'random' || state === 'explore') render();
 }
 
+// ============================================================
+// Phase 2 pilot: CLIP embedding (opt-in、検証用に少量だけ)
+// 「色ジャンプ vs 意味ワープ」の手触り比較が目的。撤退できる構造で。
+// ============================================================
+const PHASE2_MODEL = 'Xenova/clip-vit-base-patch32';
+const PHASE2_CDN   = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/dist/transformers.min.js';
+const PHASE2_BATCH = 50;  // 1 回の「もっと解析」で増やす枚数 (validation サイズ)
+
+let aiExtractor = null;       // transformers pipeline インスタンス (lazy)
+let aiLoading   = false;      // モデル DL or init 中
+let aiExtracting = false;     // embedding 抽出ループ中
+let aiStatus = null;          // { phase: 'dl'|'extract', done, total, msg }
+let aiModalOpen = false;      // モーダル表示中フラグ
+let aiLastError = null;       // 直近のエラー (モーダルに出す)
+
+async function loadAIPipeline() {
+  if (aiExtractor) return aiExtractor;
+  aiLoading = true;
+  aiStatus = { phase: 'dl', done: 0, total: 100, msg: 'AI モデル DL 中…' };
+  if (aiModalOpen) render();
+  try {
+    const tx = await import(PHASE2_CDN);
+    const { pipeline } = tx;
+    aiExtractor = await pipeline('image-feature-extraction', PHASE2_MODEL, {
+      progress_callback: (data) => {
+        // data: { status, name, file, progress, loaded, total }
+        if (data?.status === 'progress' && typeof data.progress === 'number') {
+          aiStatus = { phase: 'dl', done: Math.round(data.progress), total: 100, msg: `モデル DL ${data.file || ''} ${Math.round(data.progress)}%` };
+          if (aiModalOpen) render();
+        }
+      }
+    });
+    return aiExtractor;
+  } finally {
+    aiLoading = false;
+  }
+}
+
+async function extractEmbeddingForPhoto(p) {
+  const url = URL.createObjectURL(p.thumb);
+  try {
+    const result = await aiExtractor(url, { pooling: 'mean', normalize: true });
+    // Float32Array(512) を期待、Tensor の場合は .data
+    return result?.data || result;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// 検証バッチ: 未解析の写真からランダム PHASE2_BATCH 枚を解析
+async function runValidationBatch() {
+  if (aiExtracting) return;
+  const candidates = allPhotos.filter(p => !p.excluded && !p.embedding);
+  if (!candidates.length) { aiStatus = null; if (aiModalOpen) render(); return; }
+
+  // シャッフルして上位 PHASE2_BATCH 枚
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+  const target = candidates.slice(0, PHASE2_BATCH);
+
+  try {
+    await loadAIPipeline();
+  } catch (e) {
+    aiLastError = e?.message || String(e);
+    aiStatus = null;
+    if (aiModalOpen) render();
+    return;
+  }
+
+  aiExtracting = true;
+  aiLastError = null;
+  aiStatus = { phase: 'extract', done: 0, total: target.length, msg: '🧠 解析中…' };
+  if (aiModalOpen) render();
+
+  for (const p of target) {
+    try {
+      const embedding = await extractEmbeddingForPhoto(p);
+      const updated = { ...p, embedding };
+      await dbPut(updated);
+      const idx = allPhotos.findIndex(x => x.id === p.id);
+      if (idx >= 0) allPhotos[idx] = updated;
+    } catch (e) {
+      console.warn(`[ai-extract] ${p.name}: ${e?.message || e}`);
+    }
+    aiStatus.done++;
+    if (aiStatus.done % 3 === 0 && aiModalOpen) render();
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  aiExtracting = false;
+  aiStatus = null;
+  try { localStorage.setItem('pms-phase2-tried', '1'); } catch {}
+  if (aiModalOpen) render();
+  updateBgStatus();
+}
+
+function aiEmbeddedCount() {
+  return allPhotos.reduce((n, p) => n + (p.embedding ? 1 : 0), 0);
+}
+
 async function drawRandom() {
   if (allPhotos.length === 0) { state = 'empty'; render(); return; }
   const filtered = pickPool(currentFilter, allPhotos.filter(p => !p.excluded));
@@ -1246,6 +1465,7 @@ function refreshNeighbors() {
   const active = allPhotos.filter(p => !p.excluded);
   if (exploreMode === 'spacetime') currentNeighbors = spacetimeNeighbors(c, active, 12);
   else if (exploreMode === 'color') currentNeighbors = colorNeighbors(c, active, 12);
+  else if (exploreMode === 'meaning') currentNeighbors = meaningNeighbors(c, active, 12);
   else currentNeighbors = mixedNeighbors(c, active, 12);
 }
 
@@ -1277,6 +1497,7 @@ function cancelPicker() {
 // イベント
 // ============================================================
 document.getElementById('btnAdd').addEventListener('click', openPicker);
+document.getElementById('btnAI').addEventListener('click', openAIModal);
 document.getElementById('btnExport').addEventListener('click', async () => {
   try { await exportAll(); }
   catch (e) { logErr(`export failed: ${e.message}`); alert(`エクスポート失敗: ${e.message}`); }

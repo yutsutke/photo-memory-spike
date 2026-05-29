@@ -5,6 +5,39 @@
 
 ---
 
+## v17 — Phase 2 pilot: 「意味の近傍」を 50 枚スケールで価値検証 (2026-05-29)
+
+**背景**
+- v5 の色ジャンプが「夜祭と夜景」級の刺さりを出し、v12 で mix が「より歩きたくなる」に到達。
+- Phase 2 (CLIP) は「意味ワープ」を足せるが、本実装はモデル DL ~100MB + 全件 backfill (CPU/WebGPU でかなり重い) + 検証問い「色 vs 意味どちらが報酬系に効くか」が未確定。
+- → **本実装前に opt-in で 50 枚だけ embedding を抽出し、explore の「🧠 意味」モードで手触り比較**する pilot を組む方針 (ユーザー合意)。
+
+**設計判断**
+- **完全 opt-in**: ヘッダに 🧠 ボタン + 専用モーダル。デフォルト体験ゼロ干渉 ([[ui-minimalism-works]] 遵守)。試さなければ Phase 1 と同じ挙動・同じ通信量。
+- **モデルは `Xenova/clip-vit-base-patch32` (~100MB)** を採用。理由: 「pilot で意味ワープが弱かった時に『モデルが弱かったせい』を切り分けたい」→ 標準モデルで判定する。lighter (MobileCLIP s0 etc.) は本実装の最適化フェーズで検討。
+- **ESM 動的 import** (`await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/dist/transformers.min.js')`) を opt-in ハンドラ内で。v2 教訓の「ESM 動的 import 不安定」は app 起動時の話 → 機能ハンドラ内ならリスク許容。
+- **50 枚 / 1 バッチ** (`PHASE2_BATCH=50`) ランダムサンプル。「もっと解析」ボタンで追加 50 枚ずつ増やせる。最初から全件 backfill しない理由: pilot は **撤退可能** を死守、刺さらなければ 🗑 全削除で消える状態を維持。
+- **IDB スキーマ**: 既存 record に `embedding: Float32Array(512)` を append (sparse)。色 backfill と同じ「持ってる人だけ」方式。スキーマ version は上げない (既存 record 互換)。
+- **explore モード切替に「🧠 意味」を追加**するが、`aiEmbeddedCount() >= 3` の時だけ出現。pilot 未試行ユーザーには見えない。
+- **中心が embedding 未保持** → 「この写真はまだ AI 解析されていません (🧠 から追加解析)」と説明的に degrade (color モードと同じ pattern)。
+- **cosine 類似度**: embedding を `normalize: true` で抽出しているので内積 = cosine。`meaningNeighbors` は単純 dot product で済む (512 dim × 50 photos = 26K mul / tap、ms 以下)。
+
+**結果 / 観察**
+- preview synthetic test (Float32Array(8) を 7 枚に sin で生成して類似度判定): meaningNeighbors の並び順が seed の近さと一致、mode toggle に 🧠 意味 が embedding ≥3 で出現、no-embedding center で fallback ラベル、aiEmbeddedCount 正しく追従、モーダルが btnAI / 背景タップで開閉。
+- 実機での「pilot を回した時の体感」「色 vs 意味の刺さり比較」は次回検証。
+
+**教訓**
+- pilot は「撤退可能」を最初から組み込んでおくと心理的負荷が下がる (「ダメだったら消せばいい」)。spike の「捨ててよい」精神を機能粒度に適用。
+- モード追加 (mix / 時空 / 色 / 意味) も「特定条件で出現」にすれば、未使用ユーザーへの UI 干渉ゼロを保てる ([[ui-minimalism-works]])。
+
+**残課題 / 次の方向**
+- 実機で 50 枚解析 → 「意味」モードを 1 回触って手触り判定。所要時間 (DL 数分 + 解析数分?) も測る。
+- 撤退する場合の「embedding だけ消す」ボタンが無い (今は 🗑 全削除のみ) → pilot が刺さらなかった時に追加検討。
+- WebGPU vs WASM の自動切替は transformers.js デフォルトに任せている。iOS 18+ で WebGPU が効くはず。実機 console で確認余地。
+- mix への合流は本実装時 (pilot 段階では分離したまま比較する方が判定しやすい)。
+
+---
+
 ## v16 — 取り消しで赤エラー固定化のバグ修正 (2026-05-29)
 
 **背景**
