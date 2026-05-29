@@ -158,7 +158,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (ローカル明示) · 2026-05-29';
+const BUILD = 'phase2 (意味解析を間引き) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -940,6 +940,9 @@ function renderAIModal() {
   const total = allPhotos.length;
   const done = aiEmbeddedCount();
   const remain = allPhotos.filter(p => !p.excluded && !p.embedding).length;
+  const room = Math.max(0, MEANING_SAMPLE_CAP - done);   // 標本上限までの残り枠 (v27)
+  const toAnalyze = Math.min(remain, room);              // 次に解析する枚数 (上限超えはランダム間引き)
+  const capped = total > MEANING_SAMPLE_CAP;             // 上限を超える規模か (間引きが効く)
 
   const modal = document.createElement('div');
   modal.className = 'ai-modal';
@@ -965,7 +968,8 @@ function renderAIModal() {
     // 待機 / 完了
     body += `
       <p>「色」「時空」と並ぶ 3 つ目の連想軸として、CLIP モデルで写真の <b>意味</b> (被写体・シーン) を埋め込み、コサイン類似で近傍を引きます。explore のモード切替に「🧠 意味」が出ます。</p>
-      <div class="stat">解析済み: ${done} / ${total} 枚 ${remain > 0 ? `(未解析 ${remain})` : '(全件解析済)'}</div>
+      <div class="stat">解析済み: ${done.toLocaleString()} 枚 ${capped ? `/ 標本上限 ${MEANING_SAMPLE_CAP.toLocaleString()} (全 ${total.toLocaleString()} 枚中)` : `/ ${total} 枚 ${remain > 0 ? `(未解析 ${remain})` : '(全件解析済)'}`}</div>
+      ${capped ? `<p style="font-size:11px;color:#888;">枚数が多いので意味解析は <b>${MEANING_SAMPLE_CAP.toLocaleString()} 枚のランダム標本</b>に間引きます (発熱・時間対策)。色・時空・ランダム引きは全 ${total.toLocaleString()} 枚を使います。</p>` : ''}
       ${done > 0 ? `<p style="font-size:11px;color:#888;">explore で写真をタップ → モード「🧠 意味」で確認。</p>` : ''}
       ${aiLastError ? `<p style="color:#f88;font-size:11px;">エラー: ${aiLastError}</p>` : ''}
       <p style="font-size:11px;color:#888;">初回はモデル DL (~100MB)。Wi-Fi 推奨。抽出自体は速いです。</p>
@@ -995,9 +999,10 @@ function renderAIModal() {
     closeBtn.addEventListener('click', closeAIModal);
     const runBtn = document.createElement('button');
     runBtn.className = 'primary';
-    runBtn.textContent = remain > 0 ? `${remain} 枚を解析` : '解析完了';
-    runBtn.disabled = (remain === 0);
-    runBtn.addEventListener('click', () => { runEmbeddingExtraction(); });  // limit 無し = 全件
+    // v27: 解析対象は「標本上限までの残り枠」。上限超え分は間引く (= toAnalyze)。
+    runBtn.textContent = toAnalyze > 0 ? `${toAnalyze.toLocaleString()} 枚を解析` : (room === 0 ? '標本上限に到達' : '解析完了');
+    runBtn.disabled = (toAnalyze === 0);
+    runBtn.addEventListener('click', () => { runEmbeddingExtraction(room); });  // room 枠だけ (シャッフル済=ランダム標本)
     actions.appendChild(closeBtn);
     actions.appendChild(runBtn);
   }
@@ -1557,6 +1562,13 @@ function aiEmbeddedCount() {
   return allPhotos.reduce((n, p) => n + (p.embedding ? 1 : 0), 0);
 }
 
+// 意味解析 (CLIP) のサンプル上限 (v27, ユーザー案「1万超えたらランダム間引き」)。
+// embedding 抽出は最大この枚数の「ランダム標本」で止める (runEmbeddingExtraction はシャッフル済)。
+// 重い CLIP だけを代表標本に絞り、発熱・時間が青天井にならないようにする。
+// 色 / 時空 / ランダム引き / フィルタは O(N) でも激安なので全件のまま → 「枚数=満足度」は保たれる。
+// (これは間引いていいのは "重い処理 = embedding だけ" という切り分けに基づく。)
+const MEANING_SAMPLE_CAP = 10000;
+
 // 新規取り込み後の自動 embedding 抽出 (v20)。
 // mix の意味軸 ([[mix-walk-works]] v19 で「混ざったほうがおもしろい」と確定) を新しい写真でも生かし続ける。
 // ゲート: AI を一度でも使った人 (embedding を 1 枚以上持つ) だけ自動起動。
@@ -1566,8 +1578,10 @@ function aiEmbeddedCount() {
 async function maybeAutoExtractEmbeddings() {
   if (aiExtracting) return;                                       // 既に解析中なら任せる (多重起動しない)
   if (aiEmbeddedCount() === 0) return;                            // AI 未 opt-in → 何もしない
+  const room = MEANING_SAMPLE_CAP - aiEmbeddedCount();
+  if (room <= 0) return;                                          // 間引き: サンプル上限に達したら自動解析しない (v27)
   if (!allPhotos.some(p => !p.excluded && !p.embedding)) return;  // 未解析の新規写真なし
-  await runEmbeddingExtraction();                                 // limit なし = 未解析の全件 (中断は header 経由では不可、import 規模は通常小さい)
+  await runEmbeddingExtraction(room);                             // 残り枠だけ。シャッフル済なのでランダム標本になる
 }
 
 async function drawRandom() {
