@@ -139,6 +139,7 @@
   <button id="btnImport" title="インポート">⇧</button>
   <button id="btnClear" title="全削除">🗑</button>
   <button id="btnDev" class="hidden" title="開発: ダミー大量生成 (#dev)">🧪</button>
+  <button id="btnDevDel" class="hidden" title="開発: ダミーだけ削除 (本物は残す)">🧹</button>
 </header>
 
 <main id="main"></main>
@@ -159,7 +160,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (dummy生成#dev) · 2026-05-29';
+const BUILD = 'phase2 (ダミーだけ削除) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -226,6 +227,29 @@ async function dbPutMany(records) {
     const store = tx.objectStore(STORE);
     for (const r of records) store.put(r);
     tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error('IDB transaction aborted'));
+    tx.onabort = () => reject(tx.error || new Error('IDB transaction aborted'));
+  });
+}
+
+// dev ダミー (name が 'dummy-' で始まる) だけをカーソルで削除。本物の写真には触れない (v31)。
+// 全削除 (dbClear) は本物も消すので、ダミー掃除にはこちらを使う。削除件数を返す。
+async function dbDeleteDummies() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    let deleted = 0;
+    const req = store.openCursor();
+    req.onsuccess = () => {
+      const cur = req.result;
+      if (!cur) return;  // 走査完了 → tx.oncomplete で resolve
+      const v = cur.value;
+      if (v && typeof v.name === 'string' && v.name.startsWith('dummy-')) { cur.delete(); deleted++; }
+      cur.continue();
+    };
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => resolve(deleted);
     tx.onerror = () => reject(tx.error || new Error('IDB transaction aborted'));
     tx.onabort = () => reject(tx.error || new Error('IDB transaction aborted'));
   });
@@ -1758,7 +1782,7 @@ $importer.addEventListener('change', async (e) => {
   }
 });
 
-// 開発用 (#dev): ダミー大量生成ボタン 🧪 を出す (通常は隠し)。30k スケール検証用 (v30)。
+// 開発用 (#dev): ダミー生成 🧪 / ダミーだけ削除 🧹 を出す (通常は隠し)。30k スケール検証用 (v30-31)。
 if (location.hash.toLowerCase().includes('dev')) {
   const dev = document.getElementById('btnDev');
   if (dev) {
@@ -1776,6 +1800,22 @@ if (location.hash.toLowerCase().includes('dev')) {
       } catch (e) {
         logErr(`dev生成失敗: ${e?.message || e}`);
         alert(`生成失敗: ${e?.message || e}`);
+      }
+    });
+  }
+  const devDel = document.getElementById('btnDevDel');
+  if (devDel) {
+    devDel.classList.remove('hidden');
+    devDel.addEventListener('click', async () => {
+      // 本物 (= name が 'dummy-' で始まらない) は残す。全削除 (🗑) と違って安全。
+      if (!confirm('ダミー (dummy-*) だけ削除します。本物の写真は残ります。続行?')) return;
+      try {
+        const removed = await dbDeleteDummies();
+        alert(`ダミー ${removed.toLocaleString()} 枚を削除しました。リロードします。`);
+        location.reload();
+      } catch (e) {
+        logErr(`dev削除失敗: ${e?.message || e}`);
+        alert(`削除失敗: ${e?.message || e}`);
       }
     });
   }
