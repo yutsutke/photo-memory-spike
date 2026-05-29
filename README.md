@@ -29,7 +29,7 @@ python -m http.server 5273
 - **🧠 AI で意味の近傍**: opt-in で CLIP を lazy load (~100MB、初回のみ)、未解析の全件に embedding 付与 → explore で「意味ワープ」(中断可・端末から出ない)
 - **エクスポート / インポート**（JSON バックアップ）
 
-Phase 0〜1.8 + curation + Phase 2 (意味の近傍) までクローズ。次は新規取り込みへの embedding 相乗り / mix への意味合流。詳細は TODO.md / CHANGELOG.md。
+Phase 0〜2 (意味の近傍 / mix への意味合流 / 新規取り込みへの embedding 相乗り) までクローズ。**spike は手触り検証を終え卒業 → 次はネイティブアプリ化 (App Store / Google Play)。プロダクト化の方針は Notion に集約** (コア「偶然よみがえった久しぶりの記憶」/ Capacitor / iOS 先行 / ローカル完結)。spike としての詳細は TODO.md / CHANGELOG.md。
 
 ## スコープの境界
 - 作るのは「ランダム引き＋連想展開」。地図ビューも、プラットフォームの器も作らない
