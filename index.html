@@ -160,7 +160,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (取込ガイド) · 2026-05-29';
+const BUILD = 'phase2 (取込タイムアウト) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -320,6 +320,18 @@ async function toJpegBlob(file) {
   if (typeof heic2any === 'undefined') throw new Error('heic2any not loaded');
   const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
   return Array.isArray(converted) ? converted[0] : converted;
+}
+
+// 1枚の処理 (HEIC 変換 / サムネ生成) が古い端末の Safari で固まると importFiles が返らず、
+// importingNow が立ったまま詰まって以降の取り込みが全部ブロックされる (iPad 第8世代で観測, v35)。
+// → 各 importOne にタイムアウトを掛け、固まった写真はスキップ (失敗カウント) して全体を前へ進める。
+const IMPORT_TIMEOUT_MS = 30000;
+function withTimeout(promise, ms, label) {
+  let t;
+  const timeout = new Promise((_, reject) => {
+    t = setTimeout(() => reject(new Error(`timeout ${ms}ms${label ? ' @' + label : ''}`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
 }
 
 // ============================================================
@@ -1400,7 +1412,7 @@ async function importFiles(files) {
   const fastAdded = [];
   for (let i = 0; i < fast.length; i++) {
     try {
-      const r = await importOne(fast[i]);
+      const r = await withTimeout(importOne(fast[i]), IMPORT_TIMEOUT_MS, fast[i].name);
       tallyImport(r);
       if (r?.ok && r.record) fastAdded.push(r.record);
     } catch (e) {
@@ -1445,7 +1457,7 @@ async function runBackgroundImport() {
   while (bgQueue.length) {
     const file = bgQueue.shift();
     try {
-      const r = await importOne(file);
+      const r = await withTimeout(importOne(file), IMPORT_TIMEOUT_MS, file.name);
       tallyImport(r);
       if (r.ok && r.record) {
         // 表示中の thumb URL を壊さないため revokeAllThumbUrls はしない。

@@ -5,6 +5,30 @@
 
 ---
 
+## v35 — 取り込みに per-photo タイムアウト (「3枚でもダメ」= 詰まり解消) (2026-05-29)
+
+**背景**
+- v34 (枚数ガイド) の後、ユーザー: **「3枚でも UP できない」**。これで「枚数が多い→OS 準備が遅い」説は否定。3枚でダメ = 別問題。
+- 症状の流れ「iPad で最初10枚OK→以降は何枚でもダメ」から **wedge (詰まり)** と判断: **1枚の処理 (heic2any の HEIC→JPEG 変換、または `<img>`+canvas のサムネ生成) が古い iPad の Safari で固まって `importFiles` が return しない** → 後始末の `finally` (`importingNow=false`) が走らず **`importingNow` が立ったまま** → 以降 `$picker` の change ハンドラが「処理中」と即 return → **何枚選んでも取り込めない**。再読込すると JS 状態が消えて一時回復するが、また固まると再発。
+
+**設計判断**
+- **各 `importOne` を `withTimeout(30s)` でラップ** (fast-track と background 両ループ)。固まった写真はタイムアウト → catch で失敗カウント → ループ続行 → **`importFiles` が必ず完走 → `importingNow` がリセット**され詰まらない。固まった1枚は「失敗 N」に出る (heic2any が原因なら、その写真だけ落ちて他は入る)。
+- `withTimeout` は `Promise.race` + `setTimeout`、決着時に `clearTimeout` (遅延発火の dangling 防止)。reject はそのまま透過 (本物のエラーを潰さない)。30s は通常処理 (<数秒) を誤爆せず、無限ハングだけ救う値。
+
+**結果 / 観察**
+- preview 検証: `withTimeout` は 速い promise→値 / 固まる promise→`timeout` reject / reject promise→そのまま透過。`IMPORT_TIMEOUT_MS=30000`、import 系関数も定義 (構文OK)。pass。
+- 実機: まず iPad を最新 (`取込タイムアウト`) に更新 → 3枚→数枚で安定するか。HEIC が原因なら「失敗 N」が出るはず (→ 次の手の手がかり)。
+
+**教訓**
+- **1個の await が固まると全体が詰まる経路 (ここでは importFiles→importingNow→change) には必ずタイムアウト**。特に古い端末 + heic2any のような重い/不安定な変換。「失敗しても全体を止めない」を直列パイプラインの既定に。
+- 症状の差分 (「10枚OK」→「3枚もダメ」) が原因切り分けの鍵だった。枚数ではなく**順序 (一度詰まると以降全部)** に注目すると wedge が見えた。
+
+**残課題 / 次の方向**
+- 実機で 🆗 確認。もし「失敗 N」が HEIC で多発するなら、古い iPad の heic2any が遅い/不安定 → (a) ピッカーが返す JPEG をそのまま使う (HEIC のまま渡さない) か (b) タイムアウト値調整 (c) 「ファイル」アプリ経由を案内。
+- そもそも heic2any 依存を減らせるか (iOS ピッカーは通常 JPEG 変換して渡すので、HEIC 判定が誤検出している可能性も要確認)。
+
+---
+
 ## v34 — 取り込み準備が長い時のガイド (古い端末対策) (2026-05-29)
 
 **背景**
