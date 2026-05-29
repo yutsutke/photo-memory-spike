@@ -160,7 +160,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (ダミーだけ削除) · 2026-05-29';
+const BUILD = 'phase2 (ダミー削除を堅牢化) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -232,27 +232,50 @@ async function dbPutMany(records) {
   });
 }
 
-// dev ダミー (name が 'dummy-' で始まる) だけをカーソルで削除。本物の写真には触れない (v31)。
-// 全削除 (dbClear) は本物も消すので、ダミー掃除にはこちらを使う。削除件数を返す。
-async function dbDeleteDummies() {
+// dev ダミーの primaryKey を集める (v31→v32)。dedup インデックスの 'dummy-' 範囲だけを
+// openKeyCursor で走査するので、全件 (本物含む数万件) を読まない = 速くて確実。値もロードしない。
+async function collectDummyKeys() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    const store = tx.objectStore(STORE);
-    let deleted = 0;
-    const req = store.openCursor();
+    const keys = [];
+    const tx = db.transaction(STORE, 'readonly');
+    const idx = tx.objectStore(STORE).index('dedup');
+    const range = IDBKeyRange.bound('dummy-', 'dummy-￿');  // dedup が 'dummy-...' のものだけ
+    const req = idx.openKeyCursor(range);
     req.onsuccess = () => {
       const cur = req.result;
-      if (!cur) return;  // 走査完了 → tx.oncomplete で resolve
-      const v = cur.value;
-      if (v && typeof v.name === 'string' && v.name.startsWith('dummy-')) { cur.delete(); deleted++; }
+      if (!cur) return;            // 走査完了 → tx.oncomplete
+      keys.push(cur.primaryKey);   // 値は読まず primaryKey だけ
       cur.continue();
     };
     req.onerror = () => reject(req.error);
-    tx.oncomplete = () => resolve(deleted);
-    tx.onerror = () => reject(tx.error || new Error('IDB transaction aborted'));
+    tx.oncomplete = () => resolve(keys);
     tx.onabort = () => reject(tx.error || new Error('IDB transaction aborted'));
   });
+}
+
+// dev ダミーだけ削除 (v32)。本物には触れない。削除件数を返す。
+// iOS で「全件1トランザクションのカーソル削除」が 3万件規模で不安定 (完了せず消えない) だった →
+// (1) インデックス範囲でダミーのキーだけ集め (2) 1000件ずつの小トランザクションで delete に変更。
+async function dbDeleteDummies() {
+  const keys = await collectDummyKeys();
+  const db = await openDB();
+  const CH = 1000;
+  for (let i = 0; i < keys.length; i += CH) {
+    const slice = keys.slice(i, i + CH);
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      const store = tx.objectStore(STORE);
+      for (const k of slice) store.delete(k);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('IDB transaction aborted'));
+      tx.onabort = () => reject(tx.error || new Error('IDB transaction aborted'));
+    });
+    importStatus = { done: Math.min(i + CH, keys.length), total: keys.length }; updateBgStatus();
+    await new Promise(r => setTimeout(r, 0));
+  }
+  importStatus = null; updateBgStatus();
+  return keys.length;
 }
 
 async function dbHasDedup(key) {
@@ -1782,17 +1805,20 @@ $importer.addEventListener('change', async (e) => {
   }
 });
 
-// 開発用 (#dev): ダミー生成 🧪 / ダミーだけ削除 🧹 を出す (通常は隠し)。30k スケール検証用 (v30-31)。
+// 開発用 (#dev): ダミー生成 🧪 / ダミーだけ削除 🧹 を出す (通常は隠し)。30k スケール検証用 (v30-32)。
 if (location.hash.toLowerCase().includes('dev')) {
+  let devBusy = false;   // 生成/削除の多重起動ガード (「OKしてもしても」連打対策, v32)
   const dev = document.getElementById('btnDev');
   if (dev) {
     dev.classList.remove('hidden');
     dev.addEventListener('click', async () => {
+      if (devBusy) { alert('処理中です。完了までお待ちください。'); return; }
       const ans = prompt('ダミーを何枚生成しますか? (IndexedDB に直接生成 → 完了後リロード)', '30000');
       if (ans == null) return;
       const n = Math.max(1, Math.min(100000, parseInt(ans, 10) || 0));
       if (!n) return;
       if (!confirm(`${n.toLocaleString()} 枚のダミーを生成します。完了後リロードします。`)) return;
+      devBusy = true;
       try {
         await devGenerate(n);
         alert(`生成完了 (${n.toLocaleString()} 枚)。リロードします。`);
@@ -1800,15 +1826,17 @@ if (location.hash.toLowerCase().includes('dev')) {
       } catch (e) {
         logErr(`dev生成失敗: ${e?.message || e}`);
         alert(`生成失敗: ${e?.message || e}`);
-      }
+      } finally { devBusy = false; }
     });
   }
   const devDel = document.getElementById('btnDevDel');
   if (devDel) {
     devDel.classList.remove('hidden');
     devDel.addEventListener('click', async () => {
-      // 本物 (= name が 'dummy-' で始まらない) は残す。全削除 (🗑) と違って安全。
+      if (devBusy) { alert('処理中です。完了までお待ちください。'); return; }
+      // 本物 (dedup が 'dummy-' で始まらない) は残す。全削除 (🗑) と違って安全。
       if (!confirm('ダミー (dummy-*) だけ削除します。本物の写真は残ります。続行?')) return;
+      devBusy = true;
       try {
         const removed = await dbDeleteDummies();
         alert(`ダミー ${removed.toLocaleString()} 枚を削除しました。リロードします。`);
@@ -1816,7 +1844,7 @@ if (location.hash.toLowerCase().includes('dev')) {
       } catch (e) {
         logErr(`dev削除失敗: ${e?.message || e}`);
         alert(`削除失敗: ${e?.message || e}`);
-      }
+      } finally { devBusy = false; }
     });
   }
 }
