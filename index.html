@@ -42,7 +42,7 @@
   /* random 3 cards */
   .cards { display: grid; gap: 14px; grid-template-columns: 1fr; max-width: 420px; margin: 0 auto; }
   @media (min-width: 720px) { .cards { grid-template-columns: 1fr 1fr 1fr; max-width: 1100px; } }
-  .card { background: #1a1a1a; border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.08s; }
+  .card { background: #1a1a1a; border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.08s; position: relative; }
   .card:active { transform: scale(0.98); }
   .card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; background: #000; }
   .card .meta { padding: 9px 12px 11px; }
@@ -50,7 +50,7 @@
   .card .meta .place { color: #8bf; font-size: 11px; margin-top: 3px; }
 
   /* explore */
-  .center-card { background: #1a1a1a; border-radius: 12px; overflow: hidden; margin: 0 auto 14px; max-width: 600px; }
+  .center-card { background: #1a1a1a; border-radius: 12px; overflow: hidden; margin: 0 auto 14px; max-width: 600px; position: relative; }
   .center-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; background: #000; }
   .center-card .meta { padding: 10px 14px 12px; }
   .center-card .meta .date { font-size: 14px; font-weight: 600; }
@@ -91,6 +91,14 @@
   .log.show { display: block; }
 
   .hidden { display: none !important; }
+
+  /* ワンタップ除外ボタン (各写真の右上)。控えめな半透明、押下で赤 */
+  .exclude-btn { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,0.45); color: #fff; font-size: 12px; line-height: 1; cursor: pointer; z-index: 3; display: flex; align-items: center; justify-content: center; }
+  .exclude-btn:active { background: rgba(210,50,50,0.9); }
+
+  /* 除外の取り消しトースト */
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #222; color: #eee; border: 1px solid #444; border-radius: 999px; padding: 9px 14px 9px 18px; font-size: 13px; display: flex; gap: 14px; align-items: center; z-index: 200; box-shadow: 0 6px 20px rgba(0,0,0,0.55); }
+  .toast button { background: none; border: 0; color: #8bf; font-weight: 700; font-size: 13px; cursor: pointer; padding: 4px; }
 </style>
 </head>
 <body>
@@ -123,7 +131,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.18 (mix) · 2026-05-29';
+const BUILD = 'phase1.19 (exclude) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -559,6 +567,7 @@ async function exportAll() {
       blob: await blobToB64(p.blob),
       thumb: await blobToB64(p.thumb),
       color: p.color ? Array.from(p.color) : null,  // Float32Array は JSON 化できないので Array に
+      excluded: p.excluded || false,
       dedup: p.dedup,
       importedAt: p.importedAt?.toISOString?.() || null,
     });
@@ -587,6 +596,7 @@ async function importBackup(file) {
       blob: await b64ToBlob(p.blob),
       thumb: await b64ToBlob(p.thumb),
       color: Array.isArray(p.color) ? new Float32Array(p.color) : null,  // 復元
+      excluded: p.excluded || false,
       dedup: p.dedup,
       importedAt: p.importedAt ? new Date(p.importedAt) : new Date(),
     });
@@ -730,6 +740,20 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && fullImageState) closeFullImage();
 });
 
+// ワンタップ除外ボタン (✕)。親カードの tap/長押しと衝突しないよう pointer 系を止める。
+function makeExcludeBtn(photo) {
+  const x = document.createElement('button');
+  x.className = 'exclude-btn';
+  x.textContent = '✕';
+  x.title = '二度と表示しない';
+  const stop = e => e.stopPropagation();
+  x.addEventListener('pointerdown', stop);
+  x.addEventListener('pointermove', stop);
+  x.addEventListener('pointerup', stop);
+  x.addEventListener('click', (e) => { e.stopPropagation(); excludePhoto(photo); });
+  return x;
+}
+
 function makeCard(photo, onClick) {
   const card = document.createElement('div');
   card.className = 'card';
@@ -739,6 +763,7 @@ function makeCard(photo, onClick) {
       ${fmtPlace(photo.lat, photo.lng) ? `<div class="place">${fmtPlace(photo.lat, photo.lng)}</div>` : ''}
     </div>`;
   attachPhotoGestures(card, photo, onClick);
+  card.appendChild(makeExcludeBtn(photo));
   return card;
 }
 
@@ -747,12 +772,54 @@ function makeThumb(photo, onClick) {
   t.className = 'thumb';
   t.innerHTML = `<img src="${thumbUrl(photo)}" loading="lazy"><div class="lbl">${fmtShortDate(photo.datetime)}</div>`;
   attachPhotoGestures(t, photo, onClick);
+  t.appendChild(makeExcludeBtn(photo));
   return t;
+}
+
+// 除外: excluded フラグを立てて永続化 (非破壊、blob は残す)。表示は filter で消える。
+// 直後にトーストで取り消し可能。
+async function excludePhoto(photo) {
+  photo.excluded = true;
+  try { await dbPut(photo); } catch (e) { logErr(`除外保存失敗: ${e.message}`); }
+  showUndoToast(photo);
+  if (state === 'explore' && currentCenter && currentCenter.id === photo.id) {
+    drawRandom();  // 中心を除外 → 別の3枚へ
+  } else {
+    render();      // 除外写真は filter で消える
+  }
+}
+
+async function undoExclude(photo) {
+  photo.excluded = false;
+  try { await dbPut(photo); } catch (e) { logErr(`取消保存失敗: ${e.message}`); }
+  render();
+}
+
+let toastEl = null, toastTimer = null;
+function showUndoToast(photo) {
+  hideToast();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  const span = document.createElement('span');
+  span.textContent = '1枚を除外しました';
+  const btn = document.createElement('button');
+  btn.textContent = '取り消す';
+  btn.addEventListener('click', () => { hideToast(); undoExclude(photo); });
+  t.appendChild(span);
+  t.appendChild(btn);
+  document.body.appendChild(t);
+  toastEl = t;
+  toastTimer = setTimeout(hideToast, 5000);
+}
+function hideToast() {
+  if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+  if (toastEl) { toastEl.remove(); toastEl = null; }
 }
 
 function render() {
   $main.innerHTML = '';
-  $count.textContent = allPhotos.length > 0 ? `${allPhotos.length} 枚` : '— 枚';
+  const activeCount = allPhotos.reduce((n, p) => n + (p.excluded ? 0 : 1), 0);
+  $count.textContent = activeCount > 0 ? `${activeCount} 枚` : '— 枚';
 
   if (state === 'loading') {
     $main.innerHTML = `<p style="text-align:center;color:#888;margin-top:40px;">読み込み中…</p>`;
@@ -821,8 +888,9 @@ function render() {
     // 母数の脚注 (どのフィルタでも何枚から引いているかを見える化)
     // 副次的に「近場/遠出 は GPS つき写真のみ対象」が自然に伝わる
     const currentFilterObj = FILTERS.find(x => x.key === currentFilter);
-    const filtered = pickPool(currentFilter, allPhotos);
-    const gpsCount = allPhotos.filter(p => p.lat != null && p.lng != null).length;
+    const active = allPhotos.filter(p => !p.excluded);
+    const filtered = pickPool(currentFilter, active);
+    const gpsCount = active.filter(p => p.lat != null && p.lng != null).length;
     const note = document.createElement('div');
     note.className = 'filter-note';
     if (currentFilterObj?.needsGPS) {
@@ -832,6 +900,7 @@ function render() {
     }
     $main.appendChild(note);
 
+    const visibleRandom = currentRandom.filter(p => !p.excluded);
     if (currentRandom.length === 0) {
       const msg = document.createElement('p');
       msg.style.cssText = 'text-align:center;color:#888;margin:40px 0;';
@@ -843,10 +912,15 @@ function render() {
         msg.textContent = `「${currentFilterObj.label}」に該当する写真がありません`;
       }
       $main.appendChild(msg);
+    } else if (visibleRandom.length === 0) {
+      const msg = document.createElement('p');
+      msg.style.cssText = 'text-align:center;color:#888;margin:40px 0;';
+      msg.textContent = 'この3枚は除外しました。引き直してください。';
+      $main.appendChild(msg);
     } else {
       const cards = document.createElement('div');
       cards.className = 'cards';
-      currentRandom.forEach(p => cards.appendChild(makeCard(p, () => showExplore(p))));
+      visibleRandom.forEach(p => cards.appendChild(makeCard(p, () => showExplore(p))));
       $main.appendChild(cards);
     }
 
@@ -870,6 +944,7 @@ function render() {
       </div>`;
     // 中心カードは tap action なし、長押しでフル画像のみ
     attachPhotoGestures(centerEl, center, null);
+    centerEl.appendChild(makeExcludeBtn(center));
     $main.appendChild(centerEl);
 
     // モード切替の開閉 opener (普段は隠し、必要時に展開して軸を固定)
@@ -924,7 +999,7 @@ function render() {
       label.textContent = 'この写真の色情報がまだありません';
       $main.appendChild(label);
     } else {
-      const ns = currentNeighbors;
+      const ns = currentNeighbors.filter(p => !p.excluded);
       const label = document.createElement('div');
       label.className = 'neighbor-label';
       if (ns.length === 0) {
@@ -1060,7 +1135,8 @@ function updateBgStatus() {
       el.classList.add('hidden');
     }
   }
-  $count.textContent = allPhotos.length > 0 ? `${allPhotos.length} 枚` : '— 枚';
+  const activeCount = allPhotos.reduce((n, p) => n + (p.excluded ? 0 : 1), 0);
+  $count.textContent = activeCount > 0 ? `${activeCount} 枚` : '— 枚';
 }
 
 // 既存写真で color フィールドが無いものに、保存済み thumb から色彩特徴を計算して付与する。
@@ -1122,7 +1198,7 @@ async function backfillColors() {
 
 async function drawRandom() {
   if (allPhotos.length === 0) { state = 'empty'; render(); return; }
-  const filtered = pickPool(currentFilter, allPhotos);
+  const filtered = pickPool(currentFilter, allPhotos.filter(p => !p.excluded));
   if (filtered.length === 0) {
     currentRandom = [];  // 該当無し → render(random) 内で専用メッセージ
   } else {
@@ -1149,9 +1225,10 @@ function showExplore(photo) {
 function refreshNeighbors() {
   const c = currentCenter;
   if (!c) { currentNeighbors = []; return; }
-  if (exploreMode === 'spacetime') currentNeighbors = spacetimeNeighbors(c, allPhotos, 6);
-  else if (exploreMode === 'color') currentNeighbors = colorNeighbors(c, allPhotos, 6);
-  else currentNeighbors = mixedNeighbors(c, allPhotos, 6);
+  const active = allPhotos.filter(p => !p.excluded);
+  if (exploreMode === 'spacetime') currentNeighbors = spacetimeNeighbors(c, active, 6);
+  else if (exploreMode === 'color') currentNeighbors = colorNeighbors(c, active, 6);
+  else currentNeighbors = mixedNeighbors(c, active, 6);
 }
 
 function saveModePrefs() {
