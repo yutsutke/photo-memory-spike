@@ -28,6 +28,10 @@
   .empty { display: flex; flex-direction: column; gap: 14px; max-width: 420px; margin: 40px auto; text-align: center; }
   .empty h2 { font-size: 16px; margin: 0; }
   .empty p { color: #aaa; font-size: 13px; line-height: 1.7; margin: 0; }
+  /* プライバシー注意書き (取り込みの瞬間だけ。reminiscence 画面には出さない) */
+  .privacy { background: #0e1f14; border: 1px solid #1f5c38; border-radius: 10px; padding: 10px 13px; color: #8fe0ab; font-size: 12.5px; line-height: 1.65; text-align: left; }
+  .privacy b { color: #b8f2cb; }
+  .privacy-line { color: #6fce92; font-size: 11px; margin-top: 8px; }
   /* 取り込み待ちの注意書き (ランダム画面上部、ヘッダ + の下) */
   .caveat { color: #777; font-size: 11px; line-height: 1.6; text-align: center; max-width: 600px; margin: 2px auto 12px; padding: 0 12px; }
 
@@ -154,7 +158,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (日付コピー) · 2026-05-29';
+const BUILD = 'phase2 (ローカル明示) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -964,7 +968,8 @@ function renderAIModal() {
       <div class="stat">解析済み: ${done} / ${total} 枚 ${remain > 0 ? `(未解析 ${remain})` : '(全件解析済)'}</div>
       ${done > 0 ? `<p style="font-size:11px;color:#888;">explore で写真をタップ → モード「🧠 意味」で確認。</p>` : ''}
       ${aiLastError ? `<p style="color:#f88;font-size:11px;">エラー: ${aiLastError}</p>` : ''}
-      <p style="font-size:11px;color:#888;">初回はモデル DL (~100MB)。Wi-Fi 推奨。抽出自体は速いです。写真は端末から出ません。</p>
+      <p style="font-size:11px;color:#888;">初回はモデル DL (~100MB)。Wi-Fi 推奨。抽出自体は速いです。</p>
+      <p style="font-size:11px;color:#6fce92;">🔒 解析も端末内。写真はどこにもアップロード・送信されません (DL するのは AI モデルだけ)。</p>
     `;
   }
 
@@ -1017,8 +1022,8 @@ function render() {
     $main.innerHTML = `
       <div class="empty">
         <h2>写真を取り込んで始める</h2>
-        <p>選んだ写真は端末から出ません (IndexedDB に保存)。<br>
-        まず 20〜30 枚くらい入れて感触を見るのが目安です。</p>
+        <div class="privacy">🔒 <b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。すべてブラウザ内 (IndexedDB) に保存され、AI 解析も端末内で行います。</div>
+        <p>まず 20〜30 枚くらい入れて感触を見るのが目安です。</p>
         <button class="primary" id="emptyAdd">📷 写真を選ぶ</button>
       </div>`;
     document.getElementById('emptyAdd').addEventListener('click', openPicker);
@@ -1034,6 +1039,7 @@ function render() {
         <div class="spinner"></div>
         <div class="text">📷 写真を読み込んでいます…</div>
         <div class="text" style="color:#888;font-size:11px;margin-top:6px;">写真が多いと選択後の準備に数十秒かかることがあります</div>
+        <div class="privacy-line">🔒 アップロードではありません。この端末内だけで処理しています</div>
       </div>
       <div class="actions"><button class="secondary" id="cancelPrep">やめる</button></div>`;
     document.getElementById('cancelPrep').addEventListener('click', cancelPicker);
@@ -1045,6 +1051,7 @@ function render() {
       <div class="progress">
         <div class="text" id="prog-text">読み込み開始…</div>
         <div class="bar"><div id="prog-bar" style="width:0%"></div></div>
+        <div class="privacy-line" style="text-align:center;">🔒 写真はアップロードされません（端末内で処理）</div>
       </div>`;
     return;
   }
