@@ -5,6 +5,29 @@
 
 ---
 
+## v21 — AI 自動解析後にサムネが「?」化するバグ修正 (2026-05-29)
+
+**背景**
+- v20 の自動 embedding 抽出を実機投入。🌀 (色) → 🧠 (AI) が自動で回ることは確認できたが、**解析後に explore のサムネの一部 (中心含む) が青い「?」(broken image) になる**症状をユーザーが報告 (スクショ)。
+- ユーザーの問い「これは除外した画像?」→ **No**。除外写真は `filter(p => !p.excluded)` で表示候補から外れるのでカードごと出ない。出ているのに「?」= 別問題。
+
+**設計判断 (原因と対処)**
+- **原因**: `thumbUrls` Map がキャッシュする blob URL を、**CLIP の重い推論中に iOS Safari が巻き込んで無効化**する (CHANGELOG v5/v7 と同じ「canvas/Blob のメモリ管理が緩い」罠)。`backfillColors` は完了時に `revokeAllThumbUrls()` + 再描画で新 URL を発行しこれを回避していたが、**`runEmbeddingExtraction` にはこの後始末が無かった** → 無効化された URL が `<img src>` に残り「?」になる。
+- **対処**: `runEmbeddingExtraction` 完了時に `revokeAllThumbUrls()` を呼び、`state==='explore'` なら `refreshNeighbors()`、そして**常に `render()`** して新しい blob URL で描き直す。`render()` は `renderAIModal()` も呼ぶのでモーダル表示中も同時に更新される (旧コードの `if (aiModalOpen) render()` 分岐は無条件 render に統合)。
+
+**結果 / 観察**
+- preview smoke (iOS 固有の無効化はデスクトップでは再現しないため構文・配線確認): スクリプトが構文エラーなくロード (全関数定義済)、`runEmbeddingExtraction` のソースに `revokeAllThumbUrls()` → `render()` の後始末が入ったことを確認。
+- 実機での「解析後も全サムネが正しく描かれる」確認は次回。
+- 補足: 解析ループ中 (完了前) は、モーダルを閉じて explore を見ていると mid-loop 再描画が走らない (`% 3` 描画は `aiModalOpen` 時のみ) ため一時的に「?」が出うる。完了時の後始末で必ず復旧する。backfill と同じ「重い処理中は許容、完了時に必ず描き直す」方針。
+
+**教訓**
+- **重い画像処理 (色 backfill / CLIP 推論) を足したら、完了時の `revokeAllThumbUrls()` + 再描画はセットで必ず付ける**。iOS の blob URL 無効化は「重い処理を新しく足すたびに再発する」類の罠。新しい重処理パスを追加する時のチェックリスト項目にする。
+
+**残課題 / 次の方向**
+- 実機で v21 を確認 → 「?」が消えること。もし特定写真だけ「?」が残るなら、それは thumb blob 自体の破損 (別問題) として個別調査。
+
+---
+
 ## v20 — 新規取り込み時に embedding を自動抽出 (2026-05-29)
 
 **背景**

@@ -147,7 +147,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (新規も自動解析) · 2026-05-29';
+const BUILD = 'phase2 (サムネ?化修正) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1446,9 +1446,12 @@ async function runEmbeddingExtraction(limit) {
   aiCancel = false;
   aiStatus = null;
   try { localStorage.setItem('pms-phase2-tried', '1'); } catch {}
-  if (aiModalOpen) render();
-  // 解析が進んで意味モードが使えるようになったら explore を更新
-  if (state === 'explore') { refreshNeighbors(); render(); }
+  // 後始末: iOS Safari は CLIP の重い推論中に「表示中サムネの blob URL」を巻き込んで無効化することがある
+  // (? 化, CHANGELOG v5/v7 と同じ罠)。backfillColors と同様に URL キャッシュを破棄し、新しい URL で
+  // 描き直す。これをしないと解析後に一部サムネが ? のまま残る。
+  revokeAllThumbUrls();
+  if (state === 'explore') refreshNeighbors();  // 新しい embedding を mix/意味の近傍に反映
+  render();                                      // 常に再描画 (modal も renderAIModal で同時に更新される)
   updateBgStatus();
 }
 
