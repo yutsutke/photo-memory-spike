@@ -147,7 +147,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (全件解析) · 2026-05-29';
+const BUILD = 'phase2 (mix 合流) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -449,15 +449,18 @@ function colorNeighbors(center, all, limit) {
   return scored.slice(0, limit).map(x => x.p);
 }
 
-// ミックス (デフォルト): 時空近傍と色近傍を1プールに混ぜ、重複排除 → シャッフル → 上位 limit 枚。
-// 「割合は固定しない」= 時空/色の比率は引くたびにランダム (純シャッフル)。
-// 中心に色が無ければ色近傍は空 → 自然に時空のみになる。
+// ミックス (デフォルト): 時空近傍・色近傍・意味近傍を1プールに混ぜ、重複排除 → シャッフル → 上位 limit 枚。
+// 「割合は固定しない」= 時空/色/意味の比率は引くたびにランダム (純シャッフル, [[mix-walk-works]])。
+// 中心に色が無ければ色近傍は空、embedding が無ければ意味近傍は空 → 自然に持っている軸だけで混ざる。
+// v19: 意味軸 (CLIP) を合流。Phase 2 検証問い「AI が完璧すぎると標準アプリの AI アルバムと
+//   既視感が出ないか → 時空/色のノイズを混ぜると連想がドライブするか」を mix そのもので試す。
 function mixedNeighbors(center, all, limit) {
   const st = spacetimeNeighbors(center, all, limit);
   const co = colorNeighbors(center, all, limit);
+  const me = meaningNeighbors(center, all, limit);
   const seen = new Set();
   const pool = [];
-  for (const p of [...st, ...co]) {
+  for (const p of [...st, ...co, ...me]) {
     if (seen.has(p.id)) continue;
     seen.add(p.id);
     pool.push(p);
