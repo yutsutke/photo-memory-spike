@@ -154,7 +154,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (写真app動線) · 2026-05-29';
+const BUILD = 'phase2 (日付コピー) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -802,16 +802,22 @@ function showFullImage(photo) {
   // v24: ここ=「鮮明に見たい」瞬間。原画は持たないので、日時 (純正写真アプリで辿る鍵) を大きく出し、
   // タップでコピー + 写真アプリ起動を試みる動線を置く。Web は写真アプリの特定写真を直接開けない
   // (識別子を持てず、写真へのディープリンク URL も無い) → 日時で自分で辿ってもらう。
-  const dtStr = photo.datetime ? fmtDate(photo.datetime) : '日時不明';
+  // 表示は時刻まで (同じ日に複数枚ある時、純正アプリで目視特定する手がかり)。
+  // ただし v25: コピーは「日付のみ」。純正写真アプリの検索は日付では効くが時刻を入れると不一致になる
+  // (実機確認)。和暦形式 (2021年6月5日) が日本語端末の写真検索に通りやすい。
+  const d = photo.datetime;
+  const dtStr = d ? fmtDate(d) : '日時不明';
+  const dateOnly = d ? `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日` : '';
   const cap = document.createElement('div');
   cap.className = 'full-cap';
   cap.innerHTML =
-    `<div class="dt">📅 ${dtStr}<small>タップでコピー</small></div>` +
+    `<div class="dt">📅 ${dtStr}<small>タップで日付をコピー</small></div>` +
     `<button class="to-photos">📷 写真アプリで開く</button>`;
   cap.addEventListener('click', e => e.stopPropagation());  // キャプション操作で overlay を閉じない
   const $small = cap.querySelector('.dt small');
   cap.querySelector('.dt').addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(dtStr); if ($small) $small.textContent = 'コピーしました'; }
+    if (!dateOnly) return;
+    try { await navigator.clipboard.writeText(dateOnly); if ($small) $small.textContent = `「${dateOnly}」をコピー`; }
     catch { if ($small) $small.textContent = '長押しでコピー'; }
   });
   cap.querySelector('.to-photos').addEventListener('click', () => {
