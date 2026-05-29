@@ -138,6 +138,7 @@
   <button id="btnExport" title="エクスポート">⇩</button>
   <button id="btnImport" title="インポート">⇧</button>
   <button id="btnClear" title="全削除">🗑</button>
+  <button id="btnDev" class="hidden" title="開発: ダミー大量生成 (#dev)">🧪</button>
 </header>
 
 <main id="main"></main>
@@ -158,7 +159,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (初期ランダム) · 2026-05-29';
+const BUILD = 'phase2 (dummy生成#dev) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -212,6 +213,19 @@ async function dbPut(record) {
     tx.objectStore(STORE).put(record);
     tx.oncomplete = () => resolve();
     // iOS Safari は tx.error が null で onerror が来ることがある → 必ず Error を渡す
+    tx.onerror = () => reject(tx.error || new Error('IDB transaction aborted'));
+    tx.onabort = () => reject(tx.error || new Error('IDB transaction aborted'));
+  });
+}
+
+// 複数レコードを1トランザクションでまとめて put (dev ダミー大量生成用, v30)。
+async function dbPutMany(records) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    for (const r of records) store.put(r);
+    tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error || new Error('IDB transaction aborted'));
     tx.onabort = () => reject(tx.error || new Error('IDB transaction aborted'));
   });
@@ -1744,11 +1758,88 @@ $importer.addEventListener('change', async (e) => {
   }
 });
 
+// 開発用 (#dev): ダミー大量生成ボタン 🧪 を出す (通常は隠し)。30k スケール検証用 (v30)。
+if (location.hash.toLowerCase().includes('dev')) {
+  const dev = document.getElementById('btnDev');
+  if (dev) {
+    dev.classList.remove('hidden');
+    dev.addEventListener('click', async () => {
+      const ans = prompt('ダミーを何枚生成しますか? (IndexedDB に直接生成 → 完了後リロード)', '30000');
+      if (ans == null) return;
+      const n = Math.max(1, Math.min(100000, parseInt(ans, 10) || 0));
+      if (!n) return;
+      if (!confirm(`${n.toLocaleString()} 枚のダミーを生成します。完了後リロードします。`)) return;
+      try {
+        await devGenerate(n);
+        alert(`生成完了 (${n.toLocaleString()} 枚)。リロードします。`);
+        location.reload();
+      } catch (e) {
+        logErr(`dev生成失敗: ${e?.message || e}`);
+        alert(`生成失敗: ${e?.message || e}`);
+      }
+    });
+  }
+}
+
 // ============================================================
 // 起動
 // ============================================================
 // v23: 大量 (数千〜1万枚) のサムネを抱えても Safari に消去されにくくする (best-effort)。
 // 失敗しても通常動作には影響しない。usage/quota も console に出して実機で容量を見られるように。
+// ============================================================
+// 開発用: ダミー大量生成 (#dev でヘッダに 🧪)。30k スケール検証用 (v30)。
+// 日時/色/GPS/色つきサムネを持つダミーを IndexedDB に直接生成 → リロードで実起動経路を実数検証。
+// 中身はダミー (色の四角+日付) = 機械 (起動/段階読み込み/回転/フィルタ/色・時空連想/メモリ) の検証用。
+// 実写真の「思い出しの感じ」とは別。ネット画像は EXIF 日時が無く入らないのでこの方が確実。
+// ============================================================
+function hslToRgb(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
+}
+
+async function devGenerate(count) {
+  // 色つきサムネを HUES 種だけ先に作って使い回す (生成を速く・色軸が hue でクラスタするように)
+  const HUES = 24;
+  const thumbs = [];
+  for (let h = 0; h < HUES; h++) {
+    const [r, g, b] = hslToRgb(Math.round(360 * h / HUES), 55, 55);
+    const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+    const ctx = c.getContext('2d'); ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fillRect(0, 0, 64, 64);
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.8));
+    const color = new Float32Array(48);  // 4x4 グリッド平均 = 全セル同色
+    for (let k = 0; k < 16; k++) { color[k*3] = r; color[k*3+1] = g; color[k*3+2] = b; }
+    thumbs.push({ blob, color });
+  }
+  const baseLat = 35.68, baseLng = 139.76;        // 東京あたりを「近場」基準に
+  const span = 12 * 365 * 86400000;               // 直近 ~12年に日時を散らす (各フィルタにデータが乗る)
+  const nowMs = Date.now();
+  const BATCH = 1000;
+  let made = 0;
+  importStatus = { done: 0, total: count }; updateBgStatus();
+  for (let s = 0; s < count; s += BATCH) {
+    const n = Math.min(BATCH, count - s);
+    const recs = [];
+    for (let i = 0; i < n; i++) {
+      const t = thumbs[Math.floor(Math.random() * HUES)];
+      const dt = new Date(nowMs - Math.random() * span);
+      let lat = null, lng = null;
+      const g = Math.random();
+      if (g < 0.7) { lat = baseLat + (Math.random() - 0.5) * 0.6; lng = baseLng + (Math.random() - 0.5) * 0.6; }  // 近場 70%
+      else if (g < 0.9) { lat = Math.random() * 180 - 90; lng = Math.random() * 360 - 180; }                      // 遠出 20% (残り 10% は GPS なし)
+      const id = crypto.randomUUID();
+      recs.push({ id, name: `dummy-${s+i}`, datetime: dt, lat, lng, blob: null, thumb: t.blob, color: t.color, dedup: `dummy-${id}`, importedAt: new Date() });
+    }
+    await dbPutMany(recs);
+    made += n;
+    importStatus = { done: made, total: count }; updateBgStatus();
+    await new Promise(r => setTimeout(r, 0));   // 1フレーム譲る
+  }
+  importStatus = null; updateBgStatus();
+}
+
 async function requestPersistentStorage() {
   try {
     if (navigator.storage?.persist) {
