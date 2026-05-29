@@ -123,7 +123,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.17 (caveat) · 2026-05-29';
+const BUILD = 'phase1.18 (mix) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -423,10 +423,24 @@ function colorNeighbors(center, all, limit) {
   return scored.slice(0, limit).map(x => x.p);
 }
 
-// dispatcher: exploreMode に応じて切替
-function neighbors(center, all, limit = 6) {
-  if (exploreMode === 'color') return colorNeighbors(center, all, limit);
-  return spacetimeNeighbors(center, all, limit);
+// ミックス (デフォルト): 時空近傍と色近傍を1プールに混ぜ、重複排除 → シャッフル → 上位 limit 枚。
+// 「割合は固定しない」= 時空/色の比率は引くたびにランダム (純シャッフル)。
+// 中心に色が無ければ色近傍は空 → 自然に時空のみになる。
+function mixedNeighbors(center, all, limit) {
+  const st = spacetimeNeighbors(center, all, limit);
+  const co = colorNeighbors(center, all, limit);
+  const seen = new Set();
+  const pool = [];
+  for (const p of [...st, ...co]) {
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    pool.push(p);
+  }
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, limit);
 }
 
 // ============================================================
@@ -589,7 +603,11 @@ let allPhotos = [];            // 全件キャッシュ
 let currentRandom = [];        // ランダム3枚
 let currentCenter = null;      // explore の中心写真
 let currentFilter = 'all';     // ランダム引きの条件 (FILTERS の key)
-let exploreMode = 'spacetime'; // 連想モード: 'spacetime' | 'color'
+// 連想モード: 'mix' (時空+色をランダム混合, デフォルト) | 'spacetime' | 'color'。localStorage で永続
+let exploreMode = (() => { try { return localStorage.getItem('pms-exploreMode') || 'mix'; } catch { return 'mix'; } })();
+// モード切替トグルを展開表示するか。普段は隠し (小さな opener のみ)、必要時に展開
+let modeToggleVisible = (() => { try { return localStorage.getItem('pms-modeToggleVisible') === '1'; } catch { return false; } })();
+let currentNeighbors = [];     // explore で表示中の近傍 (mix のシャッフルを再描画ごとに変えないようキャッシュ)
 let backfillStatus = null;     // {done, total} or null. 起動時 color バックフィル進捗
 
 // 取り込みフロー (待ち時間ゼロ化 + 連打詰まり対策)
@@ -854,23 +872,42 @@ function render() {
     attachPhotoGestures(centerEl, center, null);
     $main.appendChild(centerEl);
 
-    // モードトグル (時空 / カラー)
-    const toggle = document.createElement('div');
-    toggle.className = 'mode-toggle';
-    const mkBtn = (mode, label) => {
-      const b = document.createElement('button');
-      b.textContent = label;
-      if (exploreMode === mode) b.classList.add('selected');
-      b.addEventListener('click', () => {
-        if (exploreMode === mode) return;
-        exploreMode = mode;
-        render();
-      });
-      return b;
-    };
-    toggle.appendChild(mkBtn('spacetime', '⏳ 時空'));
-    toggle.appendChild(mkBtn('color', '🎨 カラー'));
-    $main.appendChild(toggle);
+    // モード切替の開閉 opener (普段は隠し、必要時に展開して軸を固定)
+    const modeBar = document.createElement('div');
+    modeBar.className = 'mode-toggle';
+    const opener = document.createElement('button');
+    opener.textContent = modeToggleVisible ? 'モード ▲' : 'モード ▼';
+    opener.style.cssText = 'border-color:#333;color:#888;';
+    opener.addEventListener('click', () => {
+      modeToggleVisible = !modeToggleVisible;
+      saveModePrefs();
+      render();
+    });
+    modeBar.appendChild(opener);
+    $main.appendChild(modeBar);
+
+    // 展開時のみ ミックス / 時空 / カラー を出す
+    if (modeToggleVisible) {
+      const toggle = document.createElement('div');
+      toggle.className = 'mode-toggle';
+      const mkBtn = (mode, label) => {
+        const b = document.createElement('button');
+        b.textContent = label;
+        if (exploreMode === mode) b.classList.add('selected');
+        b.addEventListener('click', () => {
+          if (exploreMode === mode) return;
+          exploreMode = mode;
+          saveModePrefs();
+          refreshNeighbors();
+          render();
+        });
+        return b;
+      };
+      toggle.appendChild(mkBtn('mix', '🎲 ミックス'));
+      toggle.appendChild(mkBtn('spacetime', '⏳ 時空'));
+      toggle.appendChild(mkBtn('color', '🎨 カラー'));
+      $main.appendChild(toggle);
+    }
 
     // バックフィル中の注釈 (カラー優先で中心に color が無いケースなど)
     if (backfillStatus && backfillStatus.done < backfillStatus.total) {
@@ -887,13 +924,17 @@ function render() {
       label.textContent = 'この写真の色情報がまだありません';
       $main.appendChild(label);
     } else {
-      const ns = neighbors(center, allPhotos, 6);
+      const ns = currentNeighbors;
       const label = document.createElement('div');
       label.className = 'neighbor-label';
       if (ns.length === 0) {
-        label.textContent = exploreMode === 'color' ? '色の近傍が見つかりません' : '近傍に写真がありません';
+        label.textContent = '近くに写真がありません';
+      } else if (exploreMode === 'color') {
+        label.textContent = `色の近く ${ns.length} 枚`;
+      } else if (exploreMode === 'spacetime') {
+        label.textContent = `この時空の近く ${ns.length} 枚`;
       } else {
-        label.textContent = exploreMode === 'color' ? `色の近く ${ns.length} 枚` : `この時空の近く ${ns.length} 枚`;
+        label.textContent = `この写真のまわり ${ns.length} 枚`;
       }
       $main.appendChild(label);
 
@@ -1098,8 +1139,26 @@ async function drawRandom() {
 
 function showExplore(photo) {
   currentCenter = photo;
+  refreshNeighbors();
   state = 'explore';
   render();
+}
+
+// currentCenter + exploreMode から近傍を計算してキャッシュ。
+// 中心/モードが変わった時だけ呼ぶ (再描画のたびに mix が再シャッフルされるのを防ぐ)。
+function refreshNeighbors() {
+  const c = currentCenter;
+  if (!c) { currentNeighbors = []; return; }
+  if (exploreMode === 'spacetime') currentNeighbors = spacetimeNeighbors(c, allPhotos, 6);
+  else if (exploreMode === 'color') currentNeighbors = colorNeighbors(c, allPhotos, 6);
+  else currentNeighbors = mixedNeighbors(c, allPhotos, 6);
+}
+
+function saveModePrefs() {
+  try {
+    localStorage.setItem('pms-exploreMode', exploreMode);
+    localStorage.setItem('pms-modeToggleVisible', modeToggleVisible ? '1' : '0');
+  } catch {}
 }
 
 // picker を開く共通入口。開いた瞬間に「読み込み中」画面へ切り替え、連打を弾く。
