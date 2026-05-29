@@ -147,7 +147,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2-pilot (50枚) · 2026-05-29';
+const BUILD = 'phase2 (全件解析) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -888,7 +888,7 @@ function renderAIModal() {
   const card = document.createElement('div');
   card.className = 'ai-modal-card';
 
-  let body = `<h2>🧠 AI で「意味の近傍」を試す (β)</h2>`;
+  let body = `<h2>🧠 AI で「意味の近傍」を引く</h2>`;
 
   if (aiLoading || aiExtracting) {
     // 進行中
@@ -897,17 +897,16 @@ function renderAIModal() {
       <p>${aiStatus?.msg || '処理中…'}</p>
       <div class="stat">${aiStatus?.done ?? 0} / ${aiStatus?.total ?? '?'}</div>
       <div class="bar"><div style="width:${pct}%"></div></div>
-      <p style="font-size:11px;color:#888;">画面を閉じても処理は続きます。タブを背景にすると iOS は処理を遅らせます。</p>
+      <p style="font-size:11px;color:#888;">画面を閉じても処理は続きます (ヘッダに 🧠 進捗)。タブを背景にすると iOS は処理を遅らせます。</p>
     `;
   } else {
     // 待機 / 完了
     body += `
-      <p>「色」「時空」と並ぶ 3 つ目の連想軸として、CLIP モデルで写真の <b>意味</b> (被写体・シーン) を埋め込み、コサイン類似で近傍を引きます。</p>
-      <p>これは <b>価値検証 pilot</b>: 一度に ${PHASE2_BATCH} 枚だけ解析して、explore で「🧠 意味」モードを試せるようにします。刺されば全件 backfill、刺さらなければ撤退 (🗑 全削除で消える)。</p>
+      <p>「色」「時空」と並ぶ 3 つ目の連想軸として、CLIP モデルで写真の <b>意味</b> (被写体・シーン) を埋め込み、コサイン類似で近傍を引きます。explore のモード切替に「🧠 意味」が出ます。</p>
       <div class="stat">解析済み: ${done} / ${total} 枚 ${remain > 0 ? `(未解析 ${remain})` : '(全件解析済)'}</div>
       ${done > 0 ? `<p style="font-size:11px;color:#888;">explore で写真をタップ → モード「🧠 意味」で確認。</p>` : ''}
       ${aiLastError ? `<p style="color:#f88;font-size:11px;">エラー: ${aiLastError}</p>` : ''}
-      <p style="font-size:11px;color:#888;">初回はモデル DL (~100MB)。Wi-Fi 推奨。写真は端末から出ません。</p>
+      <p style="font-size:11px;color:#888;">初回はモデル DL (~100MB)。Wi-Fi 推奨。抽出自体は速いです。写真は端末から出ません。</p>
     `;
   }
 
@@ -916,20 +915,26 @@ function renderAIModal() {
   const actions = document.createElement('div');
   actions.className = 'actions';
   if (aiLoading || aiExtracting) {
-    // 進行中は閉じるだけ (キャンセル機能は将来)
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '閉じる (処理は続く)';
     closeBtn.addEventListener('click', closeAIModal);
     actions.appendChild(closeBtn);
+    if (aiExtracting) {
+      // 中断ボタン (DL 中は中断できない、抽出ループ中のみ)
+      const cancelBtn = document.createElement('button');
+      cancelBtn.textContent = '中断';
+      cancelBtn.addEventListener('click', () => { aiCancel = true; });
+      actions.appendChild(cancelBtn);
+    }
   } else {
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '閉じる';
     closeBtn.addEventListener('click', closeAIModal);
     const runBtn = document.createElement('button');
     runBtn.className = 'primary';
-    runBtn.textContent = done === 0 ? `${PHASE2_BATCH} 枚を解析` : remain > 0 ? `さらに ${Math.min(PHASE2_BATCH, remain)} 枚を解析` : '解析完了';
+    runBtn.textContent = remain > 0 ? `${remain} 枚を解析` : '解析完了';
     runBtn.disabled = (remain === 0);
-    runBtn.addEventListener('click', () => { runValidationBatch(); });
+    runBtn.addEventListener('click', () => { runEmbeddingExtraction(); });  // limit 無し = 全件
     actions.appendChild(closeBtn);
     actions.appendChild(runBtn);
   }
@@ -1258,15 +1263,20 @@ async function runBackgroundImport() {
   backfillColors().catch(e => logErr(`backfill: ${e.message}`));
 }
 
-// ヘッダの控えめな進捗 (🌀 12/30)。完了で消える。枚数表示も同時更新。
+// ヘッダの控えめな進捗 (🌀 12/30 取り込み / 🧠 40/300 AI 解析)。完了で消える。
 function updateBgStatus() {
   const el = document.getElementById('bgStatus');
   if (el) {
     if (importStatus) {
       el.textContent = `🌀 ${importStatus.done}/${importStatus.total}`;
+      el.classList.remove('hidden', 'ai-bg');
+    } else if (aiExtracting && aiStatus && aiStatus.phase === 'extract') {
+      el.textContent = `🧠 ${aiStatus.done}/${aiStatus.total}`;
       el.classList.remove('hidden');
+      el.classList.add('ai-bg');
     } else {
       el.classList.add('hidden');
+      el.classList.remove('ai-bg');
     }
   }
   const activeCount = allPhotos.reduce((n, p) => n + (p.excluded ? 0 : 1), 0);
@@ -1331,16 +1341,17 @@ async function backfillColors() {
 }
 
 // ============================================================
-// Phase 2 pilot: CLIP embedding (opt-in、検証用に少量だけ)
-// 「色ジャンプ vs 意味ワープ」の手触り比較が目的。撤退できる構造で。
+// Phase 2: CLIP embedding による意味の近傍 (opt-in)
+// pilot で「意味での手触り最高」と実機検証 → 全件 backfill を主に。
+// モデル DL (~100MB) 後の抽出は速い、~300枚まで待ち許容 (実機 signal)。
 // ============================================================
 const PHASE2_MODEL = 'Xenova/clip-vit-base-patch32';
 const PHASE2_CDN   = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/dist/transformers.min.js';
-const PHASE2_BATCH = 50;  // 1 回の「もっと解析」で増やす枚数 (validation サイズ)
 
 let aiExtractor = null;       // transformers pipeline インスタンス (lazy)
 let aiLoading   = false;      // モデル DL or init 中
 let aiExtracting = false;     // embedding 抽出ループ中
+let aiCancel = false;         // 抽出の中断要求
 let aiStatus = null;          // { phase: 'dl'|'extract', done, total, msg }
 let aiModalOpen = false;      // モーダル表示中フラグ
 let aiLastError = null;       // 直近のエラー (モーダルに出す)
@@ -1379,18 +1390,19 @@ async function extractEmbeddingForPhoto(p) {
   }
 }
 
-// 検証バッチ: 未解析の写真からランダム PHASE2_BATCH 枚を解析
-async function runValidationBatch() {
+// embedding 抽出。limit 未指定なら未解析の全件 (実機検証で ~300枚まで待ち許容と確認)。
+// 中断可能 (aiCancel)。閉じても処理継続 (ヘッダ 🧠 N/M で進捗)。
+async function runEmbeddingExtraction(limit) {
   if (aiExtracting) return;
   const candidates = allPhotos.filter(p => !p.excluded && !p.embedding);
   if (!candidates.length) { aiStatus = null; if (aiModalOpen) render(); return; }
 
-  // シャッフルして上位 PHASE2_BATCH 枚
+  // シャッフル: 途中で中断しても満遍なく解析されているように
   for (let i = candidates.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
   }
-  const target = candidates.slice(0, PHASE2_BATCH);
+  const target = (limit && limit < candidates.length) ? candidates.slice(0, limit) : candidates;
 
   try {
     await loadAIPipeline();
@@ -1402,11 +1414,14 @@ async function runValidationBatch() {
   }
 
   aiExtracting = true;
+  aiCancel = false;
   aiLastError = null;
   aiStatus = { phase: 'extract', done: 0, total: target.length, msg: '🧠 解析中…' };
   if (aiModalOpen) render();
+  updateBgStatus();
 
   for (const p of target) {
+    if (aiCancel) break;
     try {
       const embedding = await extractEmbeddingForPhoto(p);
       const updated = { ...p, embedding };
@@ -1417,14 +1432,17 @@ async function runValidationBatch() {
       console.warn(`[ai-extract] ${p.name}: ${e?.message || e}`);
     }
     aiStatus.done++;
-    if (aiStatus.done % 3 === 0 && aiModalOpen) render();
+    if (aiStatus.done % 3 === 0) { if (aiModalOpen) render(); updateBgStatus(); }
     await new Promise(r => setTimeout(r, 0));
   }
 
   aiExtracting = false;
+  aiCancel = false;
   aiStatus = null;
   try { localStorage.setItem('pms-phase2-tried', '1'); } catch {}
   if (aiModalOpen) render();
+  // 解析が進んで意味モードが使えるようになったら explore を更新
+  if (state === 'explore') { refreshNeighbors(); render(); }
   updateBgStatus();
 }
 
