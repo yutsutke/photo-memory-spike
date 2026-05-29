@@ -158,7 +158,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (段階読み込み) · 2026-05-29';
+const BUILD = 'phase2 (初期ランダム) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1769,8 +1769,9 @@ async function loadRestInBackground() {
   if (restLoading) return;
   restLoading = true;
   try {
-    // Phase 1 直後は allPhotos が UUID 昇順 → 末尾 id が「読んだ最大キー」。以降をチャンクで取る。
-    let lastKey = allPhotos.length ? allPhotos[allPhotos.length - 1].id : null;
+    // v29: Phase 1 はランダム開始点なので、Phase 2 は先頭から全件を walk し、
+    // 既に読んだ分 (~INITIAL_LOAD) は addPhotos の id 重複で弾く (再読込 ~10% は許容)。
+    let lastKey = null;
     while (true) {
       const range = (lastKey != null) ? IDBKeyRange.lowerBound(lastKey, true) : null;
       const chunk = await dbGetSome(range, REST_CHUNK);
@@ -1801,9 +1802,16 @@ async function loadRestInBackground() {
   }
   requestPersistentStorage();  // await しない (起動を遅らせない)
   try {
-    // Phase 1 (v28): まず先頭 INITIAL_LOAD 件 (UUID順=全期間からのランダム代表) だけ読んで即 UI。
-    // これで数万枚あっても「起動時に全件読む待ち」が出ない。
-    resetPhotos(await dbGetSome(null, INITIAL_LOAD));
+    // Phase 1 (v28→v29): UUID 空間の「ランダムな開始点」から INITIAL_LOAD 件読んで即 UI。
+    // v28 は先頭固定で毎回同じ初期プールだった (ユーザー指摘) → 毎起動でランダムに回す。
+    // id は UUID なのでキー順=撮影日と無相関 → ランダム開始点以降の N 件 = 全期間の代表サンプル、かつ毎回違う。
+    // 開始点が後ろ寄りで N 件に満たなければ先頭から補う (UUID リングを回す)。
+    const startKey = crypto.randomUUID();
+    resetPhotos([]);
+    addPhotos(await dbGetSome(IDBKeyRange.lowerBound(startKey), INITIAL_LOAD));
+    if (allPhotos.length < INITIAL_LOAD) {
+      addPhotos(await dbGetSome(IDBKeyRange.upperBound(startKey, true), INITIAL_LOAD - allPhotos.length));
+    }
     if (allPhotos.length === 0) { state = 'empty'; render(); }
     else await drawRandom();
   } catch (e) {
