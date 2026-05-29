@@ -149,7 +149,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (差分取り込み) · 2026-05-29';
+const BUILD = 'phase2 (1万枚対応) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -355,6 +355,14 @@ async function createThumbnail(jpegBlob, maxPx, orientation = 1) {
   }
 }
 
+// v23: 1万枚スケール対応。原画 (3〜5MB/枚) を IndexedDB に保存すると 1万枚で ~30GB →
+// iOS の quota 超過/消去リスク。保存は thumb のみに倒す (10k で数百MB に収まる)。
+// THUMB_PX を 512 に上げ、グリッド表示と「長押し拡大」を 1 枚の thumb で兼用する
+// (原画を持たないので拡大もこれ)。512px は phone のフルスクリーンで実用品質、10k で ~500MB。
+// 注意: 大量取り込み後にこの値を変えると 1万枚の再処理が要る (thumb サイズは sticky) → bulk 前に確定。
+const THUMB_PX = 512;
+const KEEP_ORIGINAL = false;  // true で原画も保存 (小規模で原画拡大を最優先したい時用、容量と引き換え)
+
 async function importOne(file) {
   // stage を持たせておくと、エラー時にどの段階で落ちたか分かる
   let stage = 'meta';
@@ -370,7 +378,7 @@ async function importOne(file) {
     const jpegBlob = await toJpegBlob(file);
 
     stage = 'thumb';
-    const { thumb, color } = await createThumbnail(jpegBlob, 300, orientation);
+    const { thumb, color } = await createThumbnail(jpegBlob, THUMB_PX, orientation);
 
     stage = 'put';
     const record = {
@@ -378,7 +386,7 @@ async function importOne(file) {
       name: file.name,
       datetime,
       lat, lng,
-      blob: jpegBlob,
+      blob: KEEP_ORIGINAL ? jpegBlob : null,  // v23: 原画は捨てて thumb のみ保存 (容量優先)
       thumb,
       color,
       dedup,
@@ -611,7 +619,7 @@ async function exportAll() {
       id: p.id, name: p.name,
       datetime: p.datetime.toISOString(),
       lat: p.lat, lng: p.lng,
-      blob: await blobToB64(p.blob),
+      blob: p.blob ? await blobToB64(p.blob) : null,  // v23: 原画は無いことがある
       thumb: await blobToB64(p.thumb),
       color: p.color ? Array.from(p.color) : null,  // Float32Array は JSON 化できないので Array に
       excluded: p.excluded || false,
@@ -640,7 +648,7 @@ async function importBackup(file) {
       name: p.name,
       datetime: new Date(p.datetime),
       lat: p.lat, lng: p.lng,
-      blob: await b64ToBlob(p.blob),
+      blob: p.blob ? await b64ToBlob(p.blob) : null,  // v23: 原画は無いことがある
       thumb: await b64ToBlob(p.thumb),
       color: Array.isArray(p.color) ? new Float32Array(p.color) : null,  // 復元
       excluded: p.excluded || false,
@@ -778,8 +786,10 @@ function attachPhotoGestures(el, photo, onTap) {
 let fullImageState = null;
 function showFullImage(photo) {
   if (fullImageState) closeFullImage();
-  // 原画 blob を表示 (サムネではなく)。閉じるときに必ず revoke。
-  const url = URL.createObjectURL(photo.blob);
+  // v23: 原画を保存しなくなったので、blob があればそれを、無ければ thumb (512px) を拡大表示。
+  // thumb はやや粗いが「原画を持たない代わりに 1万枚入る」容量優先の tradeoff。閉じる時に必ず revoke。
+  const src = photo.blob || photo.thumb;
+  const url = URL.createObjectURL(src);
   const overlay = document.createElement('div');
   overlay.className = 'full-overlay';
   overlay.innerHTML = `<img src="${url}">`;
@@ -1642,6 +1652,21 @@ $importer.addEventListener('change', async (e) => {
 // ============================================================
 // 起動
 // ============================================================
+// v23: 大量 (数千〜1万枚) のサムネを抱えても Safari に消去されにくくする (best-effort)。
+// 失敗しても通常動作には影響しない。usage/quota も console に出して実機で容量を見られるように。
+async function requestPersistentStorage() {
+  try {
+    if (navigator.storage?.persist) {
+      const granted = await navigator.storage.persist();
+      console.log(`[storage] persistent=${granted}`);
+    }
+    if (navigator.storage?.estimate) {
+      const { usage, quota } = await navigator.storage.estimate();
+      console.log(`[storage] usage=${Math.round((usage || 0) / 1e6)}MB / quota=${Math.round((quota || 0) / 1e6)}MB`);
+    }
+  } catch (e) { console.warn('[storage] persist/estimate failed', e); }
+}
+
 (async () => {
   if (typeof exifr === 'undefined') {
     logErr('exifr ロード失敗 (CDN 到達不可)');
@@ -1650,6 +1675,7 @@ $importer.addEventListener('change', async (e) => {
   if (typeof heic2any === 'undefined') {
     logErr('heic2any ロード失敗 (HEIC が混じると失敗します)');
   }
+  requestPersistentStorage();  // await しない (起動を遅らせない)
   try {
     allPhotos = await dbGetAll();
     if (allPhotos.length === 0) { state = 'empty'; render(); }

@@ -5,6 +5,34 @@
 
 ---
 
+## v23 — 1万枚スケール対応 (原画を捨て thumb のみ保存) (2026-05-29)
+
+**背景**
+- ユーザー要望「数回使った人が、多少時間かかってもいいから 1万枚を一括 UP したい」。時間は許容、本当の壁は **保存容量**。
+- 現状 `importOne` は原画 JPEG (`blob`) も IndexedDB に保存 (拡大表示用)。1万枚 × 3〜5MB ≈ **30GB** → iOS Safari の quota 超過、または Safari による非永続ストレージ消去でデータ喪失リスク。
+
+**設計判断**
+- **原画保存をやめ thumb のみに倒す** (`KEEP_ORIGINAL = false`、`blob: null`)。10k でも数百MB に収まる。ユーザーが AskUserQuestion で「full画像の保存をやめ thumb のみ / 長押し原画拡大が使えなくなる tradeoff」を明示選択済み。
+- **`THUMB_PX` を 300 → 512 に**。原画を持たない以上「長押し拡大」も thumb を使う → グリッド表示と拡大を 1 枚で兼用。512px は phone のフルスクリーンで実用品質、10k で ~500MB。**thumb サイズは sticky** (大量取り込み後に変えると 1万枚再処理) なので bulk 前に確定する判断。色特徴は 4x4 平均なので 300→512 でも既存写真との比較互換あり。
+- **`showFullImage` は `photo.blob || photo.thumb`** にフォールバック。既存写真 (原画あり) は従来どおり鮮明、新規 (thumb のみ) は 512px 拡大。
+- **export/import を null-safe に** (`p.blob ? ... : null`)。原画が無くてもバックアップが壊れない (かつ軽くなる)。
+- **起動時に `navigator.storage.persist()`** を best-effort 要求 (大量サムネの消去耐性)。`estimate()` の usage/quota も console 出力し実機で容量を見られるように。await しない (起動を遅らせない)。
+
+**結果 / 観察**
+- preview smoke: 構文 OK (全関数定義)、`THUMB_PX=512` / `KEEP_ORIGINAL=false`、`showFullImage({blob:null, thumb})` が thumb で blob URL を作り overlay 開閉まで成功 (落ちない)、`requestPersistentStorage()` 例外なし。
+- 実機での 1万枚: 取り込み所要・発熱・実 quota・消去有無・thumb 512 の体感品質は次回計測。
+
+**教訓**
+- 「大量対応」の本丸は速度より **容量と eviction**。Web の IndexedDB はサイズ無制限ではなく、非永続だと OS が消す → `persist()` と「原画を持たない」の両輪。
+- 解像度パラメータが **取り込み時に焼き込まれる (sticky)** 場合、後から変えると全件再処理。大量投入の前にこそ「後で変えたくない値」を決めきる。
+
+**残課題 / 次の方向**
+- 実機計測 → 重ければ: dedup を一括 `getAllKeys('dedup')` で Set 化 (10k で 10k トランザクションを回避) / CLIP 自動抽出に低優先間隔 / thumb 品質再検討。
+- **別 gap (今回対象外)**: export/import が `embedding` を含まない → バックアップで意味軸が失われる。10k のバックアップは thumb base64 だけで巨大になるため backup は元々小規模向け、という整理。
+- 触り込みフェーズ: 1万枚で連想の手触りがどう変わるか (リッチ化 vs ノイズ増) を検証問いに追加。
+
+---
+
 ## v22 — 差分取り込みフィードバック (2026-05-29)
 
 **背景**
