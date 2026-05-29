@@ -144,7 +144,7 @@
 
 <main id="main"></main>
 
-<input id="picker" class="hidden" type="file" multiple accept="image/*,.heic,.heif">
+<input id="picker" class="hidden" type="file" multiple accept="image/*">
 <input id="importer" class="hidden" type="file" accept="application/json">
 
 <div class="log" id="log"></div>
@@ -160,7 +160,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (取込メモリ改善) · 2026-05-29';
+const BUILD = 'phase2 (HEIC変換回避) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -315,8 +315,13 @@ async function readMeta(file) {
 }
 
 async function toJpegBlob(file) {
-  const isHeic = /\.hei[cf]$/i.test(file.name) || /hei[cf]/i.test(file.type);
+  // v37: type を優先で判定。iOS フォトピッカーは通常 HEIC を JPEG に変換して渡す (type=image/jpeg)。
+  // ファイル名が .HEIC でも中身が JPEG なら heic2any は不要 — 呼ぶと無駄に重く、古い iPad の OOM 要因。
+  // HEIC とみなすのは type が heic/heif、または type 不明 (空) で拡張子が .heic の時だけ。
+  const t = (file.type || '').toLowerCase();
+  const isHeic = /hei[cf]/.test(t) || (t === '' && /\.hei[cf]$/i.test(file.name));
   if (!isHeic) return file;
+  if (importStats) importStats.heic = (importStats.heic || 0) + 1;  // 診断: heic2any を呼んだ枚数
   if (typeof heic2any === 'undefined') throw new Error('heic2any not loaded');
   const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
   return Array.isArray(converted) ? converted[0] : converted;
@@ -1385,7 +1390,7 @@ function tallyImport(r) {
 // 「アプリを開くと自動で差分 UP」は web では不可能 → ピッカーで選び直す → 既存はスキップ、を見える化する。
 function showImportSummary() {
   if (!importStats) return;
-  const { added, dup, skipped, failed } = importStats;
+  const { added, dup, skipped, failed, heic } = importStats;
   let msg;
   if (added === 0 && dup > 0 && skipped === 0 && failed === 0) {
     msg = `✓ 新規なし — 選んだ ${dup} 枚はすべて取り込み済みでした`;
@@ -1396,13 +1401,14 @@ function showImportSummary() {
     if (failed)  parts.push(`失敗 ${failed}`);
     msg = parts.join(' / ');
   }
+  if (heic) msg += ` (うち HEIC変換 ${heic})`;  // v37 診断: heic2any を呼んだ枚数 (0 なら表示なし)
   logInfo(msg);
   importStats = null;
 }
 
 async function importFiles(files) {
   clearTimeout(prepareHintTimer);  // 取り込みに入ったら準備ガイドは不要 (v34)
-  importStats = { added: 0, dup: 0, skipped: 0, failed: 0 };  // この取り込みセッションの差分集計 (v22)
+  importStats = { added: 0, dup: 0, skipped: 0, failed: 0, heic: 0 };  // 差分集計 (v22) + heic2any 呼出数 (v37 診断)
   state = 'importing';
   render();
   await nextPaint();

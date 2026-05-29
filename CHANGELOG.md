@@ -5,6 +5,32 @@
 
 ---
 
+## v37 — HEIC 変換を OS に任せて heic2any を回避 (iPad メモリ本命) (2026-05-29)
+
+**背景**
+- v36 (早期解放 + ペース) でも **iPad 47枚でまた落ちた**。メモリ天井の本命は別 → **heic2any (JS の HEIC→JPEG 変換) が最大のメモリ食い**と判断。
+- 仮説: `<input accept="image/*,.heic,.heif">` に `.heic` を含めると iOS が **HEIC 原本**を渡してくる → それを JS の heic2any でデコード (重い)。3GB iPad で 47枚分の HEIC デコードが OOM。iPhone14 は余力で通っていた。
+
+**設計判断**
+- **`accept` から `.heic,.heif` を外す** (`accept="image/*"`)。iOS フォトピッカーは HEIC を **OS 側で JPEG に変換して渡す** (ネイティブ=軽い) → heic2any 不要に。GPS は JPEG でも保持 (Phase 0 で確認済)。
+- **`isHeic` を type 優先に**: `type` が heic/heif、または type 空で拡張子 .heic の時だけ HEIC とみなす。**ファイル名が .HEIC でも type が image/jpeg なら heic2any を呼ばない** (誤検出で JPEG に heic2any を呼んでいた可能性を断つ)。
+- **診断**: 取り込みサマリに「(うち HEIC変換 N)」を表示 (`importStats.heic`)。heic2any が実際に呼ばれた枚数が見える → N=0 なら OS 変換に乗れている証拠。原因究明をユーザーの目視で確定できるようにした。
+- heic2any 自体は「ファイル app から HEIC 原本」等の保険として残す (呼ばれなくなるだけ)。
+
+**結果 / 観察**
+- preview 検証: `accept='image/*'`。type 優先判定 (JPEG型+.HEIC名→false / image/heic→true / 空type+.heic→true / jpg→false)。`toJpegBlob` は JPEG型の .HEIC ファイルを heic2any 通さず素通し。サマリは heic>0 で「(うち HEIC変換 N)」、heic=0 で非表示。全 pass。
+- 実機: iPad で 47枚+ が通るか、サマリの「HEIC変換 N」が 0 になるか次回。
+
+**教訓**
+- **重いネイティブ処理 (HEIC デコード) は OS に任せ、JS ライブラリ (heic2any) は最後の手段**。`accept` 属性が iOS のファイル受け渡し挙動を変える (HEIC を入れると原本が来る) ことを忘れない。
+- 原因が不確かな時は**実際に呼ばれた回数を可視化** (HEIC変換 N) して、実機で犯人を確定できるようにする。推測の連鎖を切る。
+
+**残課題 / 次の方向**
+- iPad で 47枚→通るか + 「HEIC変換 0」を確認。**もし N>0 のまま** (iOS が依然 HEIC を渡す) なら、別策: 取り込み前に各 File を一旦 `createImageBitmap`/縮小 decode で JPEG 化する、または「一度に N枚」ソフト上限。
+- 通れば iPad もスケール検証可能に。
+
+---
+
 ## v36 — 取り込みのメモリ改善 (iPad 47枚でタブ再読込クラッシュ) (2026-05-29)
 
 **背景**
