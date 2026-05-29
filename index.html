@@ -131,7 +131,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase1.20 (refill) · 2026-05-29';
+const BUILD = 'phase1.22 (undo-fix) · 2026-05-29';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -171,7 +171,9 @@ async function dbPut(record) {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).put(record);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    // iOS Safari は tx.error が null で onerror が来ることがある → 必ず Error を渡す
+    tx.onerror = () => reject(tx.error || new Error('IDB transaction aborted'));
+    tx.onabort = () => reject(tx.error || new Error('IDB transaction aborted'));
   });
 }
 
@@ -459,7 +461,9 @@ function mixedNeighbors(center, all, limit) {
 const FILTERS = [
   { key: 'all',      label: '全期間' },
   { key: 'season',   label: 'この時季' },
+  { key: '3m',       label: '3ヶ月前' },
   { key: '1y',       label: '1年前' },
+  { key: '3y',       label: '3年前' },
   { key: '10y',      label: '10年前' },
   { key: 'oldest',   label: '久しぶり' },        // 撮影日が古い側のプール
   { key: 'eventDay', label: 'たくさん撮った日' }, // 同日に N枚以上ある日のプール
@@ -499,9 +503,15 @@ function pickPool(filterKey, all) {
     // 今の MM/DD ±15日 (年は問わない)
     return all.filter(p => monthDayDistance(p.datetime, now) <= 15);
   }
-  if (filterKey === '1y' || filterKey === '10y') {
-    const years = filterKey === '1y' ? 1 : 10;
-    const widthDays = filterKey === '1y' ? 15 : 60;  // 10年前はサンプル薄いので幅広く
+  if (filterKey === '3m') {
+    const target = new Date(now);
+    target.setMonth(now.getMonth() - 3);
+    return all.filter(p => Math.abs(p.datetime.getTime() - target.getTime()) <= 15 * 86400000);
+  }
+  if (filterKey === '1y' || filterKey === '3y' || filterKey === '10y') {
+    const years = filterKey === '1y' ? 1 : filterKey === '3y' ? 3 : 10;
+    // 古いほどサンプル薄くなる想定で幅を広げる
+    const widthDays = filterKey === '1y' ? 15 : filterKey === '3y' ? 30 : 60;
     const target = new Date(now);
     target.setFullYear(now.getFullYear() - years);
     return all.filter(p => Math.abs(p.datetime.getTime() - target.getTime()) <= widthDays * 86400000);
@@ -655,9 +665,14 @@ function logErr(msg) {
   $log.appendChild(div);
   $log.classList.add('show');
 }
+// タップで閉じる (居座らせない)。重要なら console に残るので開発時は devtools で確認。
+$log.addEventListener('click', () => {
+  $log.innerHTML = '';
+  $log.classList.remove('show');
+});
 
-window.addEventListener('error', e => logErr(`[err] ${e.message} @ ${e.filename}:${e.lineno}`));
-window.addEventListener('unhandledrejection', e => logErr(`[reject] ${e.reason?.message || String(e.reason)}`));
+window.addEventListener('error', e => logErr(`[err] ${e?.message || 'unknown'} @ ${e?.filename || '?'}:${e?.lineno || '?'}`));
+window.addEventListener('unhandledrejection', e => logErr(`[reject] ${e?.reason?.message || String(e?.reason)}`));
 
 function fmtDate(d) {
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
@@ -778,21 +793,22 @@ function makeThumb(photo, onClick) {
 
 // 除外: excluded フラグを立てて永続化 (非破壊、blob は残す)。表示は filter で消える。
 // 直後にトーストで取り消し可能。
+// 描画を先 / DB 保存は後 (保存失敗でも UX をブロックしない、メモリ状態が真実)
 async function excludePhoto(photo) {
   photo.excluded = true;
-  try { await dbPut(photo); } catch (e) { logErr(`除外保存失敗: ${e.message}`); }
   showUndoToast(photo);
   if (state === 'explore' && currentCenter && currentCenter.id === photo.id) {
     drawRandom();  // 中心を除外 → 別の3枚へ
   } else {
     render();      // 除外写真は filter で消える
   }
+  try { await dbPut(photo); } catch (e) { logErr(`除外保存失敗: ${e?.message || String(e)}`); }
 }
 
 async function undoExclude(photo) {
   photo.excluded = false;
-  try { await dbPut(photo); } catch (e) { logErr(`取消保存失敗: ${e.message}`); }
   render();
+  try { await dbPut(photo); } catch (e) { logErr(`取消保存失敗: ${e?.message || String(e)}`); }
 }
 
 let toastEl = null, toastTimer = null;
