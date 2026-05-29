@@ -6,30 +6,29 @@
 
 捨ててよい spike。きれいさより「あの感じ」に最速で触ることを優先。
 
+公開先: https://yutsutke.github.io/photo-memory-spike/ (GitHub Pages、リポは public)
+
 ## 起動
 
-`index.html` をブラウザで直接開く（ローカルファイル ok。ES Modules を CDN から取るので要オンライン）。
+`index.html` をブラウザで直接開く（ライブラリ exifr / heic2any を CDN から UMD で読むので要オンライン）。
 
-または:
+ローカルで動かす場合（dev サーバは port 5273）:
 ```
-npx serve .
+python -m http.server 5273
 ```
 
-## フェーズ
+## できること（現状: phase1.20）
 
-### Phase 0 — 前提検証（今ここ）
-- `index.html`: file input → exifr で DateTimeOriginal / GPS を抽出してログ表示
-- 自分の写真20〜30枚で日時取得率を確認
-- Go判定: 日時がほぼ100% → Phase 1 へ
+- **取り込み**: 写真を選ぶ（HEIC 含む）→ サムネ生成 + 日時 / GPS / 色特徴を抽出 → IndexedDB に保存（端末から出ない）
+- **ランダム3枚** → タップで **連想展開**（時空 + 色をランダム混合した近傍6枚）→ 連想ウォーク
+- **条件付ランダム**: この時季 / 1年前 / 10年前 / 久しぶり / たくさん撮った日 / 近場・遠出📍
+- **モード切替**（普段は隠し）: ミックス / 時空 / カラー
+- **長押しでフル画像表示**
+- **ワンタップ ✕ で除外**（気に入らない写真を二度と出さない、取り消し可、消したら次が繰り上がる）
+- **大量取り込み**: 先頭数枚で即遊べて残りは裏で処理（Progressive Indexing）
+- **エクスポート / インポート**（JSON バックアップ）
 
-### Phase 1 — Tier 0 本体
-- HEIC は heic2any で JPEG 変換
-- サムネ生成（canvas, ~200px, EXIF orientation 補正）
-- IndexedDB に `{id, blob, thumb, datetime, lat?, lng?}` 保存
-- ランダム3枚カード表示
-- カードタップで時空の近傍6枚に展開（同日 → ±3日 → ±7日、GPS あれば 5km 以内優先）
-- 連想ウォーク（展開先タップで再展開）
-- フル画像表示、エクスポート
+Phase 0〜1.8 + curation までクローズ。次の候補は Phase 2（ローカル AI / CLIP で意味展開）。詳細は TODO.md / CHANGELOG.md。
 
 ## スコープの境界
 - 作るのは「ランダム引き＋連想展開」。地図ビューも、プラットフォームの器も作らない
@@ -37,7 +36,7 @@ npx serve .
 - 迷ったら「A（今すぐ）か？」で判定
 
 ## スタック
-exifr / heic2any / canvas / IndexedDB / プレーンHTML+CSS+JS
+exifr / heic2any / canvas（サムネ + orientation 補正 + 色特徴）/ IndexedDB / プレーンHTML+CSS+JS（CDN UMD 依存、バックエンドなし）
 
 ## 検証したい問い（作った後に自問）
 - 引いた3枚を見て、気持ちいいか（reminiscence の仮説）
@@ -48,7 +47,8 @@ exifr / heic2any / canvas / IndexedDB / プレーンHTML+CSS+JS
 ## 今は作らない
 - 地図ビュー / プラットフォームの器
 - 積極的 curation（⭐、お気に入り）
-- negative curation（除外印）— Phase 1 検証中に必要なら追加検討
 - 二軸切替（場所つながり / 時期つながり 手動切替）
 - proactive 通知（pull のみ、push にしない）
 - 認証、クラウド同期、シェア
+
+（negative curation = 除外印は検証中に必要性が出たため v13 で実装済み）
