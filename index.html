@@ -74,6 +74,15 @@
   .grid .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .grid .thumb .lbl { position: absolute; bottom: 0; left: 0; right: 0; padding: 6px 6px 4px; font-size: 10px; background: linear-gradient(transparent, rgba(0,0,0,0.85)); color: #fff; }
 
+  /* 足跡 (タップ履歴): この連想ウォークで辿った写真の小さな帯。横スクロール、現在地を強調 */
+  .trail { max-width: 600px; margin: 20px auto 0; }
+  .trail-label { text-align: center; color: #888; font-size: 12px; margin-bottom: 8px; }
+  .trail-strip { display: flex; gap: 6px; overflow-x: auto; padding: 2px 4px 8px; -webkit-overflow-scrolling: touch; }
+  .trail-step { flex: 0 0 auto; width: 44px; height: 44px; border-radius: 8px; overflow: hidden; cursor: pointer; opacity: 0.5; border: 2px solid transparent; transition: opacity 0.1s; }
+  .trail-step:active { opacity: 0.85; }
+  .trail-step img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .trail-step.current { opacity: 1; border-color: #8bf; cursor: default; }
+
   .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 22px auto; max-width: 600px; }
 
   /* フィルタチップ (ランダム3枚画面の上に並ぶ) */
@@ -161,7 +170,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2 (使い方まとめ) · 2026-05-29';
+const BUILD = 'phase2.1 (足跡) · 2026-05-31';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -782,6 +791,7 @@ let exploreMode = (() => { try { return localStorage.getItem('pms-exploreMode') 
 // モード切替トグルを展開表示するか。普段は隠し (小さな opener のみ)、必要時に展開
 let modeToggleVisible = (() => { try { return localStorage.getItem('pms-modeToggleVisible') === '1'; } catch { return false; } })();
 let currentNeighbors = [];     // explore で表示中の近傍 (mix のシャッフルを再描画ごとに変えないようキャッシュ)
+let walkTrail = [];            // タップ履歴 (足跡): 今の連想ウォークで辿った写真を順に保持。drawRandom で新しい歩きとしてリセット
 let backfillStatus = null;     // {done, total} or null. 起動時 color バックフィル進捗
 
 // 取り込みフロー (待ち時間ゼロ化 + 連打詰まり対策)
@@ -1070,7 +1080,7 @@ function renderInfoModal() {
       <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時</p>
       <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
-      <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（取り消し可）。</p>
+      <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（取り消し可）。歩いた道は下の <b>🔖 足跡</b> でたどり直せます（タップでその地点へ戻る）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
       <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
     </div>`;
@@ -1387,6 +1397,31 @@ function render() {
         ns.forEach(p => grid.appendChild(makeThumb(p, () => showExplore(p))));
         $main.appendChild(grid);
       }
+    }
+
+    // 足跡 (タップ履歴): この連想ウォークで辿ってきた写真。1枚目 (スタート) だけの時は出さない
+    // = デフォルト体験は最小のまま、歩き始めて初めて広がる ([[ui-minimalism-works]])。
+    // 写真そのものを並べる → 思い出しの意識を逸らさない。タップで過去の地点へ戻る (先の枝は畳む)。
+    if (walkTrail.length >= 2) {
+      const trail = document.createElement('div');
+      trail.className = 'trail';
+      const tlabel = document.createElement('div');
+      tlabel.className = 'trail-label';
+      tlabel.textContent = '🔖 ここまでの足跡';
+      trail.appendChild(tlabel);
+      const strip = document.createElement('div');
+      strip.className = 'trail-strip';
+      walkTrail.forEach(p => {
+        const step = document.createElement('div');
+        const isHere = p.id === center.id;
+        step.className = 'trail-step' + (isHere ? ' current' : '');
+        step.innerHTML = `<img src="${thumbUrl(p)}" loading="lazy">`;
+        if (!isHere) step.addEventListener('click', () => showExplore(p));
+        strip.appendChild(step);
+      });
+      trail.appendChild(strip);
+      $main.appendChild(trail);
+      strip.scrollLeft = strip.scrollWidth;   // 現在地 (右端) が見えるようスクロール
     }
 
     const actions = document.createElement('div');
@@ -1754,6 +1789,7 @@ async function maybeAutoExtractEmbeddings() {
 
 async function drawRandom() {
   if (allPhotos.length === 0) { state = 'empty'; render(); return; }
+  walkTrail = [];   // ランダムに戻る/引き直す = 新しい連想ウォークの始まり → 足跡をリセット
   const filtered = pickPool(currentFilter, allPhotos.filter(p => !p.excluded));
   if (filtered.length === 0) {
     currentRandom = [];  // 該当無し → render(random) 内で専用メッセージ
@@ -1770,6 +1806,11 @@ async function drawRandom() {
 }
 
 function showExplore(photo) {
+  // 足跡を更新。既に通った写真へ戻る (近傍タップ or 足跡タップ) なら、その地点まで巻き戻す
+  // (= 先の枝を畳む。パンくず的な後戻り)。初めての写真なら末尾に追加。
+  const idx = walkTrail.findIndex(p => p.id === photo.id);
+  if (idx >= 0) walkTrail = walkTrail.slice(0, idx + 1);
+  else walkTrail.push(photo);
   currentCenter = photo;
   refreshNeighbors();
   state = 'explore';
