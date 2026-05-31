@@ -170,7 +170,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2.1 (足跡) · 2026-05-31';
+const BUILD = 'phase2.2 (足跡 開閉) · 2026-05-31';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -790,6 +790,8 @@ let currentFilter = 'all';     // ランダム引きの条件 (FILTERS の key)
 let exploreMode = (() => { try { return localStorage.getItem('pms-exploreMode') || 'mix'; } catch { return 'mix'; } })();
 // モード切替トグルを展開表示するか。普段は隠し (小さな opener のみ)、必要時に展開
 let modeToggleVisible = (() => { try { return localStorage.getItem('pms-modeToggleVisible') === '1'; } catch { return false; } })();
+// 足跡 (タップ履歴) を展開表示するか。普段は畳んで写真に集中、必要時に開いて辿る。モード切替と同じ流儀で localStorage 永続
+let trailVisible = (() => { try { return localStorage.getItem('pms-trailVisible') === '1'; } catch { return false; } })();
 let currentNeighbors = [];     // explore で表示中の近傍 (mix のシャッフルを再描画ごとに変えないようキャッシュ)
 let walkTrail = [];            // タップ履歴 (足跡): 今の連想ウォークで辿った写真を順に保持。drawRandom で新しい歩きとしてリセット
 let backfillStatus = null;     // {done, total} or null. 起動時 color バックフィル進捗
@@ -1080,7 +1082,7 @@ function renderInfoModal() {
       <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時</p>
       <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
-      <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（取り消し可）。歩いた道は下の <b>🔖 足跡</b> でたどり直せます（タップでその地点へ戻る）。</p>
+      <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（取り消し可）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
       <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
     </div>`;
@@ -1401,27 +1403,39 @@ function render() {
 
     // 足跡 (タップ履歴): この連想ウォークで辿ってきた写真。1枚目 (スタート) だけの時は出さない
     // = デフォルト体験は最小のまま、歩き始めて初めて広がる ([[ui-minimalism-works]])。
+    // モード切替と同じ開閉式: 普段は小さな opener だけ、開いた時にサムネ帯が出る (写真への集中を守る)。
     // 写真そのものを並べる → 思い出しの意識を逸らさない。タップで過去の地点へ戻る (先の枝は畳む)。
     if (walkTrail.length >= 2) {
-      const trail = document.createElement('div');
-      trail.className = 'trail';
-      const tlabel = document.createElement('div');
-      tlabel.className = 'trail-label';
-      tlabel.textContent = '🔖 ここまでの足跡';
-      trail.appendChild(tlabel);
-      const strip = document.createElement('div');
-      strip.className = 'trail-strip';
-      walkTrail.forEach(p => {
-        const step = document.createElement('div');
-        const isHere = p.id === center.id;
-        step.className = 'trail-step' + (isHere ? ' current' : '');
-        step.innerHTML = `<img src="${thumbUrl(p)}" loading="lazy">`;
-        if (!isHere) step.addEventListener('click', () => showExplore(p));
-        strip.appendChild(step);
+      const trailBar = document.createElement('div');
+      trailBar.className = 'mode-toggle';   // モード opener と同じ見た目・配置
+      const trailOpener = document.createElement('button');
+      trailOpener.textContent = trailVisible ? '🔖 足跡 ▲' : `🔖 足跡 ${walkTrail.length} ▼`;
+      trailOpener.style.cssText = 'border-color:#333;color:#888;';
+      trailOpener.addEventListener('click', () => {
+        trailVisible = !trailVisible;
+        saveModePrefs();
+        render();
       });
-      trail.appendChild(strip);
-      $main.appendChild(trail);
-      strip.scrollLeft = strip.scrollWidth;   // 現在地 (右端) が見えるようスクロール
+      trailBar.appendChild(trailOpener);
+      $main.appendChild(trailBar);
+
+      if (trailVisible) {
+        const trail = document.createElement('div');
+        trail.className = 'trail';
+        const strip = document.createElement('div');
+        strip.className = 'trail-strip';
+        walkTrail.forEach(p => {
+          const step = document.createElement('div');
+          const isHere = p.id === center.id;
+          step.className = 'trail-step' + (isHere ? ' current' : '');
+          step.innerHTML = `<img src="${thumbUrl(p)}" loading="lazy">`;
+          if (!isHere) step.addEventListener('click', () => showExplore(p));
+          strip.appendChild(step);
+        });
+        trail.appendChild(strip);
+        $main.appendChild(trail);
+        strip.scrollLeft = strip.scrollWidth;   // 現在地 (右端) が見えるようスクロール
+      }
     }
 
     const actions = document.createElement('div');
@@ -1834,6 +1848,7 @@ function saveModePrefs() {
   try {
     localStorage.setItem('pms-exploreMode', exploreMode);
     localStorage.setItem('pms-modeToggleVisible', modeToggleVisible ? '1' : '0');
+    localStorage.setItem('pms-trailVisible', trailVisible ? '1' : '0');
   } catch {}
 }
 
