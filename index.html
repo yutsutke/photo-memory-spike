@@ -170,7 +170,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2.2 (足跡 開閉) · 2026-05-31';
+const BUILD = 'phase2.3 (足跡 永続) · 2026-05-31';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -213,6 +213,16 @@ async function dbGetSome(query, count) {
     const store = db.transaction(STORE, 'readonly').objectStore(STORE);
     const req = (count != null) ? store.getAll(query, count) : store.getAll(query);
     req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// id (primaryKey) で1件取得。足跡復元で、初期ロード窓に無い写真を引くのに使う (v41)。
+async function dbGet(id) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
+    req.onsuccess = () => resolve(req.result || null);
     req.onerror = () => reject(req.error);
   });
 }
@@ -793,8 +803,28 @@ let modeToggleVisible = (() => { try { return localStorage.getItem('pms-modeTogg
 // 足跡 (タップ履歴) を展開表示するか。普段は畳んで写真に集中、必要時に開いて辿る。モード切替と同じ流儀で localStorage 永続
 let trailVisible = (() => { try { return localStorage.getItem('pms-trailVisible') === '1'; } catch { return false; } })();
 let currentNeighbors = [];     // explore で表示中の近傍 (mix のシャッフルを再描画ごとに変えないようキャッシュ)
-let walkTrail = [];            // タップ履歴 (足跡): 今の連想ウォークで辿った写真を順に保持。drawRandom で新しい歩きとしてリセット
+// 足跡 (タップ履歴): 連想ウォークで辿った写真の id 列。ウォークをまたいで貯まり、リロードしても残る (localStorage 永続)。
+// 上限 MAX_TRAIL を超えたら古い順に消える (リングバッファ)。表示用の写真は描画時に id から解決する。
+let walkTrailIds = (() => { try { return JSON.parse(localStorage.getItem('pms-walkTrail') || '[]'); } catch { return []; } })();
+const MAX_TRAIL = 30;
 let backfillStatus = null;     // {done, total} or null. 起動時 color バックフィル進捗
+
+// id → 写真 の解決キャッシュ (足跡描画用)。allPhotos の参照か件数が変わった時だけ作り直す。
+let _idMap = null, _idMapSrc = null;
+function photoById(id) {
+  if (_idMapSrc !== allPhotos || !_idMap || _idMap.size !== allPhotos.length) {
+    _idMap = new Map(allPhotos.map(p => [p.id, p]));
+    _idMapSrc = allPhotos;
+  }
+  return _idMap.get(id);
+}
+// 足跡 (と直前の中心) を永続化。中心はリロード時に explore へ戻すために保存する。
+function saveTrail() {
+  try {
+    localStorage.setItem('pms-walkTrail', JSON.stringify(walkTrailIds));
+    localStorage.setItem('pms-walkCenter', currentCenter ? currentCenter.id : '');
+  } catch {}
+}
 
 // 取り込みフロー (待ち時間ゼロ化 + 連打詰まり対策)
 let importBusy = false;            // picker を開いてから完了/キャンセルまで true (多重 open/change 防止)
@@ -1082,7 +1112,7 @@ function renderInfoModal() {
       <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時</p>
       <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
-      <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（取り消し可）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る）。</p>
+      <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（取り消し可）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
       <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
     </div>`;
@@ -1401,15 +1431,16 @@ function render() {
       }
     }
 
-    // 足跡 (タップ履歴): この連想ウォークで辿ってきた写真。1枚目 (スタート) だけの時は出さない
+    // 足跡 (タップ履歴): 連想ウォークで辿った写真。ウォークをまたいで貯まり、リロードしても残る (最大 MAX_TRAIL 枚、古い順に消える)。
     // = デフォルト体験は最小のまま、歩き始めて初めて広がる ([[ui-minimalism-works]])。
     // モード切替と同じ開閉式: 普段は小さな opener だけ、開いた時にサムネ帯が出る (写真への集中を守る)。
-    // 写真そのものを並べる → 思い出しの意識を逸らさない。タップで過去の地点へ戻る (先の枝は畳む)。
-    if (walkTrail.length >= 2) {
+    // 写真そのものを並べる → 思い出しの意識を逸らさない。タップで過去の地点へ戻る。
+    const displayTrail = walkTrailIds.map(id => photoById(id)).filter(p => p && !p.excluded);
+    if (displayTrail.length >= 2) {
       const trailBar = document.createElement('div');
       trailBar.className = 'mode-toggle';   // モード opener と同じ見た目・配置
       const trailOpener = document.createElement('button');
-      trailOpener.textContent = trailVisible ? '🔖 足跡 ▲' : `🔖 足跡 ${walkTrail.length} ▼`;
+      trailOpener.textContent = trailVisible ? '🔖 足跡 ▲' : `🔖 足跡 ${displayTrail.length} ▼`;
       trailOpener.style.cssText = 'border-color:#333;color:#888;';
       trailOpener.addEventListener('click', () => {
         trailVisible = !trailVisible;
@@ -1424,9 +1455,9 @@ function render() {
         trail.className = 'trail';
         const strip = document.createElement('div');
         strip.className = 'trail-strip';
-        walkTrail.forEach(p => {
+        displayTrail.forEach(p => {
           const step = document.createElement('div');
-          const isHere = p.id === center.id;
+          const isHere = center && p.id === center.id;
           step.className = 'trail-step' + (isHere ? ' current' : '');
           step.innerHTML = `<img src="${thumbUrl(p)}" loading="lazy">`;
           if (!isHere) step.addEventListener('click', () => showExplore(p));
@@ -1434,7 +1465,14 @@ function render() {
         });
         trail.appendChild(strip);
         $main.appendChild(trail);
-        strip.scrollLeft = strip.scrollWidth;   // 現在地 (右端) が見えるようスクロール
+        // 現在地が見えるようスクロール: 中ほどに戻った時は中央寄せ、末尾なら右端
+        const cur = strip.querySelector('.trail-step.current');
+        if (cur) {
+          const sr = strip.getBoundingClientRect(), cr = cur.getBoundingClientRect();
+          strip.scrollLeft += (cr.left - sr.left) - (strip.clientWidth - cr.width) / 2;
+        } else {
+          strip.scrollLeft = strip.scrollWidth;
+        }
       }
     }
 
@@ -1803,7 +1841,7 @@ async function maybeAutoExtractEmbeddings() {
 
 async function drawRandom() {
   if (allPhotos.length === 0) { state = 'empty'; render(); return; }
-  walkTrail = [];   // ランダムに戻る/引き直す = 新しい連想ウォークの始まり → 足跡をリセット
+  try { localStorage.setItem('pms-walkCenter', ''); } catch {}   // ランダムに戻る/引き直し: 足跡は残しリロード先だけ random に (足跡は貯め続ける)
   const filtered = pickPool(currentFilter, allPhotos.filter(p => !p.excluded));
   if (filtered.length === 0) {
     currentRandom = [];  // 該当無し → render(random) 内で専用メッセージ
@@ -1820,15 +1858,34 @@ async function drawRandom() {
 }
 
 function showExplore(photo) {
-  // 足跡を更新。既に通った写真へ戻る (近傍タップ or 足跡タップ) なら、その地点まで巻き戻す
-  // (= 先の枝を畳む。パンくず的な後戻り)。初めての写真なら末尾に追加。
-  const idx = walkTrail.findIndex(p => p.id === photo.id);
-  if (idx >= 0) walkTrail = walkTrail.slice(0, idx + 1);
-  else walkTrail.push(photo);
+  // 足跡を更新。連想ウォークをまたいで貯まり、リロードしても残る (localStorage, [[tap-history-wanted]])。
+  // 初めての写真は末尾に追加。上限 MAX_TRAIL を超えたら古い順に消える (リングバッファ)。
+  // 既に足跡にある写真へ戻る (近傍タップ or 足跡タップ) 時は重複させず順序もそのまま (タップで過去地点に戻れる)。
+  if (!walkTrailIds.includes(photo.id)) {
+    walkTrailIds.push(photo.id);
+    while (walkTrailIds.length > MAX_TRAIL) walkTrailIds.shift();
+  }
   currentCenter = photo;
+  saveTrail();
   refreshNeighbors();
   state = 'explore';
   render();
+}
+
+// 起動時の足跡復元 (v41): 保存した足跡 + 直前の中心を復元し、可能なら explore 画面へ戻す。
+// 中心/足跡の写真が初期ロード窓に無くても id で IDB から直接引いてメモリに足す (大規模でも復元できる)。
+async function restoreOrRandom() {
+  let centerId = '';
+  try { centerId = localStorage.getItem('pms-walkCenter') || ''; } catch {}
+  const need = [...new Set([...walkTrailIds, centerId].filter(Boolean))].filter(id => !photoById(id));
+  if (need.length) {
+    try { addPhotos((await Promise.all(need.map(dbGet))).filter(Boolean)); } catch {}
+  }
+  walkTrailIds = walkTrailIds.filter(id => photoById(id));   // 削除済み等で解決できない id は落とす
+  try { localStorage.setItem('pms-walkTrail', JSON.stringify(walkTrailIds)); } catch {}
+  const c = centerId ? photoById(centerId) : null;
+  if (c && !c.excluded) { currentCenter = c; refreshNeighbors(); state = 'explore'; render(); }
+  else { await drawRandom(); }
 }
 
 // currentCenter + exploreMode から近傍を計算してキャッシュ。
@@ -1896,6 +1953,8 @@ document.getElementById('btnClear').addEventListener('click', async () => {
   await dbClear();
   revokeAllThumbUrls();
   resetPhotos([]);   // allPhotos と loadedIds を両方クリア (v28)
+  walkTrailIds = []; currentCenter = null;   // 写真が無くなるので足跡もクリア (v41)
+  try { localStorage.removeItem('pms-walkTrail'); localStorage.removeItem('pms-walkCenter'); } catch {}
   state = 'empty';
   render();
 });
@@ -2117,7 +2176,7 @@ async function loadRestInBackground() {
       addPhotos(await dbGetSome(IDBKeyRange.upperBound(startKey, true), INITIAL_LOAD - allPhotos.length));
     }
     if (allPhotos.length === 0) { state = 'empty'; render(); }
-    else await drawRandom();
+    else await restoreOrRandom();   // 足跡 + 直前の中心を復元し、可能なら explore へ戻す (v41)
   } catch (e) {
     logErr(`起動失敗: ${e.message}`);
     state = 'empty'; render();
