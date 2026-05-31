@@ -170,7 +170,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2.3 (足跡 永続) · 2026-05-31';
+const BUILD = 'phase2.4 (足跡 永続/起動random) · 2026-05-31';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -818,12 +818,10 @@ function photoById(id) {
   }
   return _idMap.get(id);
 }
-// 足跡 (と直前の中心) を永続化。中心はリロード時に explore へ戻すために保存する。
+// 足跡を永続化 (id 列だけ)。リロードしても足跡の記憶は残す。
+// ※ 画面自体はリロード時にランダム3枚から始める (v42, ユーザー要望) ので中心は保存しない。
 function saveTrail() {
-  try {
-    localStorage.setItem('pms-walkTrail', JSON.stringify(walkTrailIds));
-    localStorage.setItem('pms-walkCenter', currentCenter ? currentCenter.id : '');
-  } catch {}
+  try { localStorage.setItem('pms-walkTrail', JSON.stringify(walkTrailIds)); } catch {}
 }
 
 // 取り込みフロー (待ち時間ゼロ化 + 連打詰まり対策)
@@ -1841,7 +1839,6 @@ async function maybeAutoExtractEmbeddings() {
 
 async function drawRandom() {
   if (allPhotos.length === 0) { state = 'empty'; render(); return; }
-  try { localStorage.setItem('pms-walkCenter', ''); } catch {}   // ランダムに戻る/引き直し: 足跡は残しリロード先だけ random に (足跡は貯め続ける)
   const filtered = pickPool(currentFilter, allPhotos.filter(p => !p.excluded));
   if (filtered.length === 0) {
     currentRandom = [];  // 該当無し → render(random) 内で専用メッセージ
@@ -1872,20 +1869,16 @@ function showExplore(photo) {
   render();
 }
 
-// 起動時の足跡復元 (v41): 保存した足跡 + 直前の中心を復元し、可能なら explore 画面へ戻す。
-// 中心/足跡の写真が初期ロード窓に無くても id で IDB から直接引いてメモリに足す (大規模でも復元できる)。
+// 起動時 (v42): 足跡の記憶はそのまま保持しつつ、画面はランダム3枚から始める (ユーザー要望)。
+// 足跡の写真を id で先読みしておく (初期ロード窓=ランダム3000件の外にあっても、後で開いた時に strip へ出せる)。
 async function restoreOrRandom() {
-  let centerId = '';
-  try { centerId = localStorage.getItem('pms-walkCenter') || ''; } catch {}
-  const need = [...new Set([...walkTrailIds, centerId].filter(Boolean))].filter(id => !photoById(id));
+  const need = walkTrailIds.filter(id => !photoById(id));
   if (need.length) {
     try { addPhotos((await Promise.all(need.map(dbGet))).filter(Boolean)); } catch {}
   }
   walkTrailIds = walkTrailIds.filter(id => photoById(id));   // 削除済み等で解決できない id は落とす
   try { localStorage.setItem('pms-walkTrail', JSON.stringify(walkTrailIds)); } catch {}
-  const c = centerId ? photoById(centerId) : null;
-  if (c && !c.excluded) { currentCenter = c; refreshNeighbors(); state = 'explore'; render(); }
-  else { await drawRandom(); }
+  await drawRandom();   // 画面はいつもランダム3枚から
 }
 
 // currentCenter + exploreMode から近傍を計算してキャッシュ。
