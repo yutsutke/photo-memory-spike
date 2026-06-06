@@ -5,6 +5,36 @@
 
 ---
 
+## v43 — Instagram エクスポート (zip) からの取り込み: 投稿日時を復元 (2026-06-06)
+
+**背景**
+- ユーザー「インスタから自分の画像をダウンロードした画像を使いたい」。
+- 調べると、**Instagram からダウンロードした画像は EXIF (撮影日時) が剥がされており**、`importOne` の `if (!datetime) return {skipped:'no-datetime'}` ゲートで**無言で全スキップ**されていた (コードにも「ネット画像は EXIF 日時が無く入らない」と既知メモ)。このアプリの核は時間軸 (昔→今→未来 / 久しぶり) なので「日時をどう与えるか」が肝。
+- ユーザーと相談し方針を確定: **公式「情報をダウンロード」(JSON 形式) の zip に残る `creation_timestamp` から投稿日時を復元**して取り込む (核を最も忠実に保てる)。食わせ方は **zip 1個を選ぶだけ (アプリが端末内で解凍)** を選択 (iPhone Safari で操作が最小・uri で正確突合)。
+
+**設計判断**
+- **エクスポート形式は調査で裏取りしてから実装** (3視点 web 調査 + 突き合わせ)。確定した要点: `creation_timestamp` は **Unix 秒** (×1000)。posts JSON はパス可変 (`content/` ↔ `your_instagram_activity/media/`、日付入りトップフォルダ、`posts_1/2…` 分割) → **決め打ちせず正規表現で再帰的に拾う**。構造は投稿配列だが**単一投稿だとオブジェクト**になる版・`{ig_stories:[...]}` ラップ版あり → 正規化が要る。日時は **root と media[] 要素の両方に出うる** → media 優先・root フォールバック。`uri` は zip ルート相対 (`media/posts/YYYYMM/…`)、メディア実体は JSON の隣でなく zip 直下 `media/` 配下。
+- **メモリ最小の 2 パス・ストリーミング解凍** (`fflate` の `Unzip`/`UnzipInflate`、CDN 追加)。zip 全体をメモリに載せない: 各 push のたびに完了エントリを 1 件ずつ await 処理してから次を読む = バックプレッシャで常に ~1 エントリ分だけ保持。**iOS の OOM 履歴 (CHANGELOG v23/v36/v37) を踏まえた選択**。`file.stream()` を 2 回開く (パス1=JSON のみ展開して日時マップ / パス2=画像のみ展開して取込)。`want()=false` のエントリは `start()` を呼ばず展開もスキップ (動画 `.mp4` 等を弾く)。
+- **`importOne(file, override)` に外部日時を渡せるよう拡張**し EXIF 必須ゲートをバイパス。override 時も `readMeta` を best-effort で呼び orientation/GPS は拾える分拾う。既存の写真ピッカー/バックアップ復元の経路は**完全に無変更** (override 無しなら従来通り)。zip 画像は `new File([bytes], basename, {type})` に包んで既存パイプライン (`toJpegBlob`/`createThumbnail`/dedup/`dbPut`) にそのまま合流。
+- **uri 突合は 2 段**: エントリ名・uri を `media/` 起点に正規化して相対パス一致 → 外れたら basename フォールバック (別フォルダ同名が別日時なら衝突として basename は無効化)。
+- **GPS のおまけ復活**: `media_metadata.photo_metadata.exif_data` に lat/lng があれば拾い、時空ウォークの軸を部分的に取り戻す。
+- **HTML 形式の誤出力を検出**: 日時マップが 0 件なら「JSON 形式で出し直して」と案内 (HTML には生の数値日時が無くパース不能)。
+- **採用しなかった案**: (a) ダウンロード日 (`lastModified`) を日時に → 全部「今」に寄り「久しぶり/昔」が壊れるので却下。(b) 手動日付入力 → 枚数が多いと非現実的。(c) 解凍後に JSON+画像を手選択 → iOS で多数選択がつらく相対パスが失われ basename 頼みになるので却下。
+
+**ハマったところ**
+- **構造正規化のバグ (preview で発見)**: 「トップがオブジェクトなら中の配列を探す」素朴な実装だと、**単一投稿オブジェクト `{creation_timestamp, media:[…]}` の内側 `media` 配列を投稿配列と誤認**し、各 media 要素を投稿として扱って **root の日時を落とす** (media に日時が無い版で取りこぼし)。→ オブジェクトが `media`/`uri`/`creation_timestamp` を持つ (=投稿そのもの) なら `[data]`、持たない (=`{ig_stories:[…]}` 等のラッパー) 時だけ中の配列を取り出す、に分岐して修正。
+- fflate の `ondata` で渡る chunk は**バッファを再利用するので必ず複製** (`chunk.slice()`) してから蓄積。
+
+**結果 / 観察**
+- preview で**合成 zip を本物パイプラインに通す E2E** を実施 (`dbPut`/`dbHasDedup`/`addPhotos` をスタブし**実 IndexedDB を汚さず**検証)。配列版 posts と**単一投稿オブジェクト版** (content/ 配下・日付トップフォルダ・mp4 混在) の両方で、日時復元 (秒→正しい Date)・サムネ生成・動画/JSON 除外・パス正規化・root フォールバックすべて green。`igTsToDate`/`igNorm`/`igCollectDates`/`igLookup` の単体表明も全 pass (0/未来/文字列除外、ms 救済、ラップ配列、basename フォールバック)。コンソールエラー無し。BUILD `phase2.5 (Instagram zip 取り込み)`。
+
+**教訓**
+- ネット由来画像は EXIF が無い前提で「**日時をどこから供給するか**」を設計の中心に据える。spike の核が時間軸である以上、ここを曖昧にすると体験ごと壊れる。
+- エクスポート形式はバージョンで動く (パス・配列/オブジェクト・分割) → **決め打ちを避け、正規表現探索 + 構造 coercion + 2 段マッチ**で頑健にする。投稿日時 (≠ 撮影日時) である点は「久しぶり」の手触りに効きうるので実機で要観察。
+
+**残課題 / 次の方向**
+- 実機 (iPhone Safari) で**実エクスポート zip** を取り込み、(a) 大容量 zip の解凍時間/メモリ、(b) 投稿日時が reminiscence (久しぶり) に馴染むか、を観察。重ければ「期間を絞ってエクスポート」運用 or `media_metadata.exif_data` の撮影日時優先を検討。
+
 ## v42 — リロード時は足跡を残しつつ画面はランダム3枚から (2026-05-31)
 
 **背景**

@@ -146,6 +146,7 @@
   <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠</button>
   <button id="btnExport" title="エクスポート">⇩</button>
   <button id="btnImport" title="インポート">⇧</button>
+  <button id="btnIg" title="Instagram取り込み (エクスポート zip)">📦</button>
   <button id="btnClear" title="全削除">🗑</button>
   <button id="btnInfo" title="使い方・注意">ℹ️</button>
   <button id="btnDev" class="hidden" title="開発: ダミー大量生成 (#dev)">🧪</button>
@@ -156,12 +157,15 @@
 
 <input id="picker" class="hidden" type="file" multiple accept="image/*">
 <input id="importer" class="hidden" type="file" accept="application/json">
+<input id="igzip" class="hidden" type="file" accept=".zip,application/zip">
 
 <div class="log" id="log"></div>
 
 <!-- CDN: exifr full (HEIC EXIF まで読める), heic2any (HEIC→JPEG 描画用) -->
 <script src="https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<!-- CDN: fflate (zip ストリーミング解凍。Instagram エクスポート zip を端末内で展開, v43) -->
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
 
 <script>
 "use strict";
@@ -170,7 +174,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2.4 (足跡 永続/起動random) · 2026-05-31';
+const BUILD = 'phase2.5 (Instagram zip 取り込み) · 2026-06-06';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -487,12 +491,23 @@ async function createThumbnail(jpegBlob, maxPx, orientation = 1) {
 const THUMB_PX = 512;
 const KEEP_ORIGINAL = false;  // true で原画も保存 (小規模で原画拡大を最優先したい時用、容量と引き換え)
 
-async function importOne(file) {
+async function importOne(file, override) {
   // stage を持たせておくと、エラー時にどの段階で落ちたか分かる
   let stage = 'meta';
   try {
-    const { datetime, lat, lng, orientation } = await readMeta(file);
-    if (!datetime) return { skipped: 'no-datetime' };
+    // override.datetime があれば EXIF 日時必須ゲートをバイパス (Instagram エクスポート等、
+    // 画像本体から EXIF が剥がされていても外部 JSON の日時で取り込むため, v43)。
+    let datetime, lat, lng, orientation;
+    if (override?.datetime) {
+      datetime = override.datetime;
+      const m = await readMeta(file).catch(() => null);   // orientation/GPS は拾えれば拾う
+      orientation = m?.orientation ?? 1;
+      lat = override.lat ?? m?.lat ?? null;
+      lng = override.lng ?? m?.lng ?? null;
+    } else {
+      ({ datetime, lat, lng, orientation } = await readMeta(file));
+      if (!datetime) return { skipped: 'no-datetime' };
+    }
 
     stage = 'dedup';
     const dedup = `${file.name}|${file.size}|${datetime.getTime()}`;
@@ -785,6 +800,196 @@ async function importBackup(file) {
 }
 
 // ============================================================
+// Instagram エクスポート (zip) 取り込み (v43)
+// ============================================================
+// 「あなたの情報をダウンロード」(JSON 形式) の zip を端末内で解凍し、画像本体から
+// EXIF が剥がれていても、同梱 JSON の creation_timestamp で本来の投稿日時を復元して取り込む。
+// メモリ最小化のため zip 全体を載せず 2 パスのストリーミングで処理 (iOS OOM 回避, CHANGELOG 参照):
+//   パス1: 小さい JSON だけ展開 → 「画像パス → 日時(+GPS)」マップを作る
+//   パス2: 画像を 1 枚ずつ展開 → サムネ化 → 保存 → 即破棄
+
+// creation_timestamp (Unix 秒) を検証して Date へ。0/2010年以前/未来や 13桁(ミリ秒) を救済・除外。
+function igTsToDate(ts) {
+  if (typeof ts !== 'number' || !isFinite(ts)) return null;
+  let sec = ts > 1e12 ? Math.floor(ts / 1000) : ts;   // 万一ミリ秒で来たら救済
+  if (sec < 1262304000) return null;                  // 2010-01-01 より前は不正 (0/欠損除け)
+  const ms = sec * 1000;
+  if (ms > Date.now() + 86400000) return null;         // 未来 (明日以降) は不正
+  const d = new Date(ms);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// zip エントリ名 / uri を "media/..." に正規化 (日付入りトップフォルダ等のプレフィックス差を吸収)。
+function igNorm(name) {
+  const i = name.indexOf('media/');
+  return i >= 0 ? name.slice(i) : name;
+}
+
+// 1 つの JSON テキストから日時(+GPS)を集めて byPath / byBase に詰める。
+// 構造ゆれ対応: トップが配列でない (単一投稿オブジェクト / 単一キー配下に配列) 版を正規化。
+function igCollectDates(jsonText, byPath, byBase, stats) {
+  let data;
+  try { data = JSON.parse(jsonText); } catch { stats.badJson++; return; }
+  let arr;
+  if (Array.isArray(data)) arr = data;
+  else if (data && typeof data === 'object') {
+    // 単一投稿オブジェクト (creation_timestamp / media / uri を持つ) はそれ自体を 1 件として扱う。
+    // ここで「中の配列を探す」と media[] を投稿配列と誤認し root の日時を落とすので分岐が要る。
+    if ('media' in data || 'uri' in data || 'creation_timestamp' in data) {
+      arr = [data];
+    } else {
+      // {ig_stories:[...]} / {ig_archived_post_media:[...]} 等、単一キー配下に配列をラップした版
+      const wrapped = Object.values(data).find(v => Array.isArray(v));
+      arr = wrapped || [data];
+    }
+  } else return;
+  for (const post of arr) {
+    if (!post || typeof post !== 'object') continue;
+    const rootD = igTsToDate(post.creation_timestamp);
+    // posts は media[] を持つ。stories/reels 等は要素自身が uri を持つ (media ラッパー無し)。
+    const medias = Array.isArray(post.media) ? post.media : (post.uri ? [post] : []);
+    for (const m of medias) {
+      if (!m || !m.uri) continue;
+      const d = igTsToDate(m.creation_timestamp) || rootD;   // media 優先・root フォールバック
+      if (!d) continue;
+      // GPS が exif_data にあれば拾う (時空ウォークの軸が部分復活, 任意)
+      let lat = null, lng = null;
+      const exif = m.media_metadata?.photo_metadata?.exif_data || m.media_metadata?.video_metadata?.exif_data;
+      if (Array.isArray(exif)) for (const e of exif) {
+        if (typeof e?.latitude === 'number' && typeof e?.longitude === 'number' && (e.latitude || e.longitude)) {
+          lat = e.latitude; lng = e.longitude; break;
+        }
+      }
+      const rec = { date: d, lat, lng };
+      const rel = igNorm(m.uri);
+      const base = m.uri.split('/').pop();
+      if (!byPath.has(rel)) { byPath.set(rel, rec); stats.mapped++; }
+      // basename フォールバック用。別フォルダの同名が別日時なら衝突 → null にして使わない。
+      if (byBase.has(base)) { const ex = byBase.get(base); if (ex && ex.date.getTime() !== d.getTime()) byBase.set(base, null); }
+      else byBase.set(base, rec);
+    }
+  }
+}
+
+// 画像エントリ名から日時メタを引く (相対パス完全一致 → basename フォールバック)。
+function igLookup(name, byPath, byBase) {
+  return byPath.get(igNorm(name)) || byBase.get(name.split('/').pop()) || null;
+}
+
+function igGuessType(name) {
+  const e = (name.split('.').pop() || '').toLowerCase();
+  return e === 'png' ? 'image/png' : e === 'webp' ? 'image/webp'
+       : (e === 'heic' || e === 'heif') ? 'image/heic' : 'image/jpeg';
+}
+
+// zip を 1 パス・ストリーミングで走査。want(name)=true のエントリだけ展開し onEntry(name, bytes) を呼ぶ。
+// onEntry を 1 件ずつ await してから次の push を続ける = バックプレッシャでメモリを抑える (常に ~1 エントリ分だけ保持)。
+async function igStreamZip(file, want, onEntry) {
+  const { Unzip, UnzipInflate } = fflate;
+  const unzip = new Unzip();
+  unzip.register(UnzipInflate);
+  const ready = [];
+  let failure = null;
+  unzip.onfile = (f) => {
+    if (!want(f.name)) return;   // start() を呼ばなければ展開もスキップされる
+    const chunks = [];
+    f.ondata = (err, chunk, final) => {
+      if (err) { failure = err; return; }
+      if (chunk && chunk.length) chunks.push(chunk.slice());   // fflate はバッファを再利用するので複製必須
+      if (final) {
+        let len = 0; for (const c of chunks) len += c.length;
+        const out = new Uint8Array(len);
+        let off = 0; for (const c of chunks) { out.set(c, off); off += c.length; }
+        ready.push({ name: f.name, data: out });
+      }
+    };
+    f.start();
+  };
+  const reader = file.stream().getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    unzip.push(done ? new Uint8Array(0) : value, done);
+    if (failure) throw failure;
+    while (ready.length) { const e = ready.shift(); await onEntry(e.name, e.data); }
+    if (done) break;
+  }
+}
+
+async function importIgZip(file) {
+  if (typeof fflate === 'undefined') {
+    logErr('解凍ライブラリ (fflate) の読み込みに失敗 (CDN 到達不可)');
+    alert('解凍ライブラリの読み込みに失敗しました。通信状態を確認して開き直してください。');
+    return;
+  }
+  importStats = { added: 0, dup: 0, skipped: 0, failed: 0, heic: 0 };
+  state = 'importing'; render(); await nextPaint();
+  const $text = document.getElementById('prog-text');
+  const $bar  = document.getElementById('prog-bar');
+  if ($text) $text.textContent = 'エクスポートを解析中…';
+
+  // --- パス1: JSON から「画像 → 日時」マップを作る ---
+  const byPath = new Map(), byBase = new Map();
+  const stats = { mapped: 0, badJson: 0, jsonFiles: 0 };
+  const jsonRe = /(?:^|\/)(posts_\d+|posts|stories|reels|igtv_videos|igtv|archived_posts|profile_photos|other_content|other|recently_deleted_content)\.json$/i;
+  try {
+    await igStreamZip(file, (n) => jsonRe.test(n), async (n, bytes) => {
+      stats.jsonFiles++;
+      igCollectDates(new TextDecoder('utf-8').decode(bytes), byPath, byBase, stats);
+    });
+  } catch (e) {
+    logErr(`zip 解析失敗: ${e?.message || e}`);
+    alert(`zip の解析に失敗しました: ${e?.message || e}`);
+    importStats = null; state = allPhotos.length ? 'random' : 'empty'; render(); return;
+  }
+
+  if (stats.mapped === 0) {
+    importStats = null; state = allPhotos.length ? 'random' : 'empty'; render();
+    logErr('日時情報が見つかりません。エクスポートを「JSON 形式」で出力していますか? (HTML 形式だと日時を復元できません)');
+    alert('日時情報が見つかりませんでした。\n\nInstagram の「情報をダウンロード」を【JSON 形式】で出力し直してください。\n(HTML 形式や、画像が含まれないエクスポートだと日時を復元できません)');
+    return;
+  }
+
+  // --- パス2: 画像を 1 枚ずつ取り込み ---
+  const imgRe = /\.(jpe?g|png|webp|heic|heif)$/i;
+  const total = [...byPath.keys()].filter(k => imgRe.test(k)).length;   // 動画は除いた概数
+  if ($text) $text.textContent = `日時 ${stats.mapped} 件を復元 — 画像を取り込み中…`;
+  let seen = 0;
+  let batch = [];
+  try {
+    await igStreamZip(file,
+      (n) => imgRe.test(n) && igLookup(n, byPath, byBase) != null,
+      async (n, bytes) => {
+        const meta = igLookup(n, byPath, byBase);
+        if (!meta) return;
+        const base = n.split('/').pop();
+        const f = new File([bytes], base, { type: igGuessType(base) });
+        try {
+          const r = await importOne(f, { datetime: meta.date, lat: meta.lat, lng: meta.lng });
+          tallyImport(r);
+          if (r?.ok && r.record) batch.push(r.record);
+        } catch (e) {
+          if (importStats) importStats.failed++;
+          logErr(`取込失敗: ${base}: ${e.message}`);
+        }
+        if (batch.length >= 50) { addPhotos(batch); batch = []; }
+        seen++;
+        if ($text) $text.textContent = `読み込み中… ${seen} / ${total}`;
+        if ($bar)  $bar.style.width = `${Math.min(100, seen / Math.max(1, total) * 100).toFixed(0)}%`;
+        if (seen % 8 === 0) await new Promise(r => setTimeout(r, 0));   // 進捗を描かせ、メインを詰まらせない
+      }
+    );
+  } catch (e) {
+    logErr(`画像取り込み中に中断: ${e?.message || e}`);
+  }
+  if (batch.length) addPhotos(batch);
+
+  showImportSummary();
+  if (allPhotos.length === 0) { state = 'empty'; render(); }
+  else await drawRandom();
+  backfillColors().then(maybeAutoExtractEmbeddings).catch(e => logErr(`backfill: ${e?.message || e}`));
+}
+
+// ============================================================
 // 表示
 // ============================================================
 let state = 'loading';        // loading | empty | preparing | importing | random | explore
@@ -866,6 +1071,7 @@ const $main   = document.getElementById('main');
 const $count  = document.getElementById('count');
 const $picker = document.getElementById('picker');
 const $importer = document.getElementById('importer');
+const $igzip = document.getElementById('igzip');
 const $log    = document.getElementById('log');
 
 // バージョン表示 (画面ですぐ確認できるように)
@@ -1107,6 +1313,7 @@ function renderInfoModal() {
       <p style="margin:.4em 0;color:#9f9;">🔒 <b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。AI 解析も端末内で行います。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">📥 取り込み</p>
       <p style="margin:.2em 0;">「+」で写真を選ぶ。<b>同じ写真を選び直しても重複は自動でスキップ</b>（差分取り込み）。たくさん入れる時・古い端末では <b>10〜20枚ずつ</b>に分けると安定します。</p>
+      <p style="margin:.2em 0;">📦 は <b>Instagram のエクスポート(zip)</b> から取り込みます。Instagram の「情報をダウンロード」を <b>JSON 形式</b>で出力した zip を選ぶと、画像から日時が消えていても<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。容量が大きいと時間がかかるので、期間を絞って出力すると軽いです。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時</p>
       <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
@@ -1941,6 +2148,7 @@ document.getElementById('btnExport').addEventListener('click', async () => {
   catch (e) { logErr(`export failed: ${e.message}`); alert(`エクスポート失敗: ${e.message}`); }
 });
 document.getElementById('btnImport').addEventListener('click', () => $importer.click());
+document.getElementById('btnIg').addEventListener('click', () => $igzip.click());
 document.getElementById('btnClear').addEventListener('click', async () => {
   if (!confirm('IndexedDB の全写真を削除します。続行?')) return;
   await dbClear();
@@ -1988,6 +2196,23 @@ $importer.addEventListener('change', async (e) => {
   } catch (err) {
     logErr(`インポート失敗: ${err.message}`);
     alert(`インポート失敗: ${err.message}`);
+  }
+});
+
+$igzip.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  if (importingNow) return;   // 多重起動を弾く
+  importingNow = true;
+  try {
+    await importIgZip(file);
+  } catch (err) {
+    logErr(`Instagram取り込み失敗: ${err?.message || err}`);
+    alert(`取り込み失敗: ${err?.message || err}`);
+  } finally {
+    importingNow = false;
+    importBusy = false;
   }
 });
 
