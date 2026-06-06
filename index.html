@@ -146,7 +146,7 @@
   <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠</button>
   <button id="btnExport" title="エクスポート">⇩</button>
   <button id="btnImport" title="インポート">⇧</button>
-  <button id="btnIg" title="Instagram取り込み (エクスポート zip)">📦</button>
+  <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦</button>
   <button id="btnClear" title="全削除">🗑</button>
   <button id="btnInfo" title="使い方・注意">ℹ️</button>
   <button id="btnDev" class="hidden" title="開発: ダミー大量生成 (#dev)">🧪</button>
@@ -174,7 +174,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2.6 (Instagram zip 入口を空画面にも) · 2026-06-06';
+const BUILD = 'phase2.7 (X(Twitter) zip 取り込み対応) · 2026-06-06';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -800,15 +800,18 @@ async function importBackup(file) {
 }
 
 // ============================================================
-// Instagram エクスポート (zip) 取り込み (v43)
+// Instagram / X(Twitter) エクスポート (zip) 取り込み (v43: IG, v45: X 追加)
 // ============================================================
-// 「あなたの情報をダウンロード」(JSON 形式) の zip を端末内で解凍し、画像本体から
-// EXIF が剥がれていても、同梱 JSON の creation_timestamp で本来の投稿日時を復元して取り込む。
-// メモリ最小化のため zip 全体を載せず 2 パスのストリーミングで処理 (iOS OOM 回避, CHANGELOG 参照):
-//   パス1: 小さい JSON だけ展開 → 「画像パス → 日時(+GPS)」マップを作る
+// 公式エクスポート zip を端末内で解凍し、画像本体から EXIF が剥がれていても、
+// 同梱メタデータ (IG=JSON の creation_timestamp / X=tweets.js の created_at) で
+// 本来の投稿日時を復元して取り込む。zip 全体を載せず 2 パスのストリーミング (iOS OOM 回避):
+//   パス1: メタデータ (JSON/JS) だけ展開 → 「画像ファイル名 → 日時(+GPS)」マップを作る
 //   パス2: 画像を 1 枚ずつ展開 → サムネ化 → 保存 → 即破棄
 
-// creation_timestamp (Unix 秒) を検証して Date へ。0/2010年以前/未来や 13桁(ミリ秒) を救済・除外。
+// 取り込み対象の画像拡張子 (動画 mp4 等は対象外)。
+const ARCHIVE_IMG_RE = /\.(jpe?g|png|webp|heic|heif)$/i;
+
+// --- Instagram: creation_timestamp (Unix 秒) を検証して Date へ。0/2010年以前/未来や 13桁(ミリ秒) を救済・除外。
 function igTsToDate(ts) {
   if (typeof ts !== 'number' || !isFinite(ts)) return null;
   let sec = ts > 1e12 ? Math.floor(ts / 1000) : ts;   // 万一ミリ秒で来たら救済
@@ -863,7 +866,7 @@ function igCollectDates(jsonText, byPath, byBase, stats) {
       const rec = { date: d, lat, lng };
       const rel = igNorm(m.uri);
       const base = m.uri.split('/').pop();
-      if (!byPath.has(rel)) { byPath.set(rel, rec); stats.mapped++; }
+      if (!byPath.has(rel)) { byPath.set(rel, rec); if (ARCHIVE_IMG_RE.test(rel)) stats.images++; }
       // basename フォールバック用。別フォルダの同名が別日時なら衝突 → null にして使わない。
       if (byBase.has(base)) { const ex = byBase.get(base); if (ex && ex.date.getTime() !== d.getTime()) byBase.set(base, null); }
       else byBase.set(base, rec);
@@ -880,6 +883,52 @@ function igGuessType(name) {
   const e = (name.split('.').pop() || '').toLowerCase();
   return e === 'png' ? 'image/png' : e === 'webp' ? 'image/webp'
        : (e === 'heic' || e === 'heif') ? 'image/heic' : 'image/jpeg';
+}
+
+// --- X(Twitter): アーカイブの tweets.js から「画像ファイル名 → 投稿日時」を集める ---
+// 形式: window.YTD.tweets.partN = [ {tweet:{ created_at, id_str, extended_entities:{media:[…]} }}, … ]
+// ローカル実体は data/tweets_media/<tweet.id_str>-<media_url の basename>。画像投稿 (type==='photo') だけ採用。
+
+// created_at ("Wed Oct 10 20:19:24 +0000 2018", 英語固定・UTC) を検証して Date へ。
+function twDate(str) {
+  if (typeof str !== 'string' || !str) return null;
+  const ms = Date.parse(str);                          // 月名・曜日が英語固定なのでロケール非依存で解釈可
+  if (isNaN(ms)) return null;
+  if (ms < 1136073600000) return null;                 // 2006-01-01 (Twitter 開始) より前は不正
+  if (ms > Date.now() + 86400000) return null;          // 未来は不正
+  return new Date(ms);
+}
+
+// .js ラッパー (window.YTD.xxx.partN = [...]) を剥がして配列を得る。先頭 [ 〜 末尾 ] を JSON.parse。
+function twParseJs(text) {
+  const i = text.indexOf('[');
+  const j = text.lastIndexOf(']');
+  if (i < 0 || j < i) return [];
+  try { return JSON.parse(text.slice(i, j + 1)); } catch { return []; }
+}
+
+function twCollectDates(jsText, byPath, byBase, stats) {
+  const arr = twParseJs(jsText);
+  if (!Array.isArray(arr)) { stats.badJson++; return; }
+  for (const el of arr) {
+    const t = (el && el.tweet) ? el.tweet : el;        // {tweet:{}} を 1 段アンラップ (旧フラット版も吸収)
+    if (!t || typeof t !== 'object') continue;
+    const d = twDate(t.created_at);
+    const id = t.id_str;                                // ツイートの id_str (数値 id は精度落ちで不可)
+    const medias = t.extended_entities?.media;            // entities.media は先頭1件/type誤判定で不可
+    if (!d || !id || !Array.isArray(medias)) continue;
+    for (const m of medias) {
+      if (!m || m.type !== 'photo') continue;            // 動画 / animated_gif は除外 (mp4)
+      const url = m.media_url_https || m.media_url;
+      if (!url) continue;
+      const urlBase = url.split('?')[0].split('/').pop();  // CDN basename (クエリ除去)
+      if (!urlBase) continue;
+      const localBase = `${id}-${urlBase}`;              // = tweets_media 内の実ファイル名
+      const rec = { date: d, lat: null, lng: null };
+      if (byBase.has(localBase)) { const ex = byBase.get(localBase); if (ex && ex.date.getTime() !== d.getTime()) byBase.set(localBase, null); }
+      else { byBase.set(localBase, rec); stats.images++; }
+    }
+  }
 }
 
 // zip を 1 パス・ストリーミングで走査。want(name)=true のエントリだけ展開し onEntry(name, bytes) を呼ぶ。
@@ -915,7 +964,7 @@ async function igStreamZip(file, want, onEntry) {
   }
 }
 
-async function importIgZip(file) {
+async function importArchiveZip(file) {
   if (typeof fflate === 'undefined') {
     logErr('解凍ライブラリ (fflate) の読み込みに失敗 (CDN 到達不可)');
     alert('解凍ライブラリの読み込みに失敗しました。通信状態を確認して開き直してください。');
@@ -927,14 +976,17 @@ async function importIgZip(file) {
   const $bar  = document.getElementById('prog-bar');
   if ($text) $text.textContent = 'エクスポートを解析中…';
 
-  // --- パス1: JSON から「画像 → 日時」マップを作る ---
+  // --- パス1: メタデータ (Instagram=JSON / X=tweets.js) から「画像ファイル名 → 日時」マップ ---
   const byPath = new Map(), byBase = new Map();
-  const stats = { mapped: 0, badJson: 0, jsonFiles: 0 };
-  const jsonRe = /(?:^|\/)(posts_\d+|posts|stories|reels|igtv_videos|igtv|archived_posts|profile_photos|other_content|other|recently_deleted_content)\.json$/i;
+  const stats = { images: 0, files: 0, badJson: 0 };
+  const igJsonRe = /(?:^|\/)(posts_\d+|posts|stories|reels|igtv_videos|igtv|archived_posts|profile_photos|other_content|other|recently_deleted_content)\.json$/i;
+  const twJsRe   = /(?:^|\/)(tweets?|tweets-part\d+)\.js$/i;   // tweet.js / tweets.js / tweets-part0.js …
   try {
-    await igStreamZip(file, (n) => jsonRe.test(n), async (n, bytes) => {
-      stats.jsonFiles++;
-      igCollectDates(new TextDecoder('utf-8').decode(bytes), byPath, byBase, stats);
+    await igStreamZip(file, (n) => igJsonRe.test(n) || twJsRe.test(n), async (n, bytes) => {
+      stats.files++;
+      const text = new TextDecoder('utf-8').decode(bytes);
+      if (twJsRe.test(n)) twCollectDates(text, byPath, byBase, stats);
+      else igCollectDates(text, byPath, byBase, stats);
     });
   } catch (e) {
     logErr(`zip 解析失敗: ${e?.message || e}`);
@@ -942,22 +994,26 @@ async function importIgZip(file) {
     importStats = null; state = allPhotos.length ? 'random' : 'empty'; render(); return;
   }
 
-  if (stats.mapped === 0) {
+  if (stats.images === 0) {
     importStats = null; state = allPhotos.length ? 'random' : 'empty'; render();
-    logErr('日時情報が見つかりません。エクスポートを「JSON 形式」で出力していますか? (HTML 形式だと日時を復元できません)');
-    alert('日時情報が見つかりませんでした。\n\nInstagram の「情報をダウンロード」を【JSON 形式】で出力し直してください。\n(HTML 形式や、画像が含まれないエクスポートだと日時を復元できません)');
+    if (stats.files === 0) {
+      logErr('取り込める写真が見つかりません。Instagram は「JSON 形式」+メディア込み、X は data/tweets.js を含む zip ですか?');
+      alert('取り込める写真が見つかりませんでした。\n\n・Instagram:「情報をダウンロード」を【JSON 形式】+【メディアを含める】で出力\n・X(Twitter): アーカイブ (data/tweets.js と tweets_media を含む zip)\n\n(HTML だけ・メディア未同梱だと取り込めません)');
+    } else {
+      logErr('日時は読めましたが、取り込める画像投稿がありませんでした (テキスト/動画のみ、またはメディア未同梱)。');
+      alert('画像投稿が見つかりませんでした。\nテキストのみ / 動画のみ、またはエクスポートにメディアが含まれていない可能性があります。');
+    }
     return;
   }
 
   // --- パス2: 画像を 1 枚ずつ取り込み ---
-  const imgRe = /\.(jpe?g|png|webp|heic|heif)$/i;
-  const total = [...byPath.keys()].filter(k => imgRe.test(k)).length;   // 動画は除いた概数
-  if ($text) $text.textContent = `日時 ${stats.mapped} 件を復元 — 画像を取り込み中…`;
+  const total = stats.images;
+  if ($text) $text.textContent = `日時 ${total} 件を復元 — 画像を取り込み中…`;
   let seen = 0;
   let batch = [];
   try {
     await igStreamZip(file,
-      (n) => imgRe.test(n) && igLookup(n, byPath, byBase) != null,
+      (n) => ARCHIVE_IMG_RE.test(n) && igLookup(n, byPath, byBase) != null,
       async (n, bytes) => {
         const meta = igLookup(n, byPath, byBase);
         if (!meta) return;
@@ -1313,7 +1369,7 @@ function renderInfoModal() {
       <p style="margin:.4em 0;color:#9f9;">🔒 <b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。AI 解析も端末内で行います。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">📥 取り込み</p>
       <p style="margin:.2em 0;">「+」で写真を選ぶ。<b>同じ写真を選び直しても重複は自動でスキップ</b>（差分取り込み）。たくさん入れる時・古い端末では <b>10〜20枚ずつ</b>に分けると安定します。</p>
-      <p style="margin:.2em 0;">📦 は <b>Instagram のエクスポート(zip)</b> から取り込みます。Instagram の「情報をダウンロード」を <b>JSON 形式</b>で出力した zip を選ぶと、画像から日時が消えていても<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。容量が大きいと時間がかかるので、期間を絞って出力すると軽いです。</p>
+      <p style="margin:.2em 0;">📦 は <b>Instagram / X(Twitter) のエクスポート(zip)</b> から取り込みます。画像本体から日時が消えていても、同梱データ（Instagram は「情報をダウンロード」の <b>JSON 形式</b>、X は <b>アーカイブ</b>の <code>data/tweets.js</code>）から<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。X は画像投稿のみ対応（動画・テキストは対象外）。容量が大きいと時間がかかるので、期間を絞ると軽いです。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時</p>
       <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
@@ -1440,8 +1496,8 @@ function render() {
         <p>まず 20〜30 枚くらい入れて感触を見るのが目安です。</p>
         <button class="primary" id="emptyAdd">📷 写真を選ぶ</button>
         <p style="margin:1.2em 0 .3em;opacity:.8;">または</p>
-        <button id="emptyIg">📦 Instagram の zip から取り込む</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">「情報をダウンロード」(JSON形式) の zip を選ぶと、投稿日時を復元して取り込みます。</p>
+        <button id="emptyIg">📦 Instagram / X の zip から取り込む</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">Instagram「情報をダウンロード」(JSON形式) / X(Twitter) アーカイブの zip を選ぶと、投稿日時を復元して取り込みます。</p>
       </div>`;
     document.getElementById('emptyAdd').addEventListener('click', openPicker);
     document.getElementById('emptyIg').addEventListener('click', () => $igzip.click());
@@ -2210,7 +2266,7 @@ $igzip.addEventListener('change', async (e) => {
   if (importingNow) return;   // 多重起動を弾く
   importingNow = true;
   try {
-    await importIgZip(file);
+    await importArchiveZip(file);
   } catch (err) {
     logErr(`Instagram取り込み失敗: ${err?.message || err}`);
     alert(`取り込み失敗: ${err?.message || err}`);
