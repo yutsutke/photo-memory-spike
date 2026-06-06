@@ -174,7 +174,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2.5 (Instagram zip 取り込み) · 2026-06-06';
+const BUILD = 'phase2.6 (Instagram zip 入口を空画面にも) · 2026-06-06';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1439,8 +1439,12 @@ function render() {
         <div class="privacy">🔒 <b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。すべてブラウザ内 (IndexedDB) に保存され、AI 解析も端末内で行います。</div>
         <p>まず 20〜30 枚くらい入れて感触を見るのが目安です。</p>
         <button class="primary" id="emptyAdd">📷 写真を選ぶ</button>
+        <p style="margin:1.2em 0 .3em;opacity:.8;">または</p>
+        <button id="emptyIg">📦 Instagram の zip から取り込む</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">「情報をダウンロード」(JSON形式) の zip を選ぶと、投稿日時を復元して取り込みます。</p>
       </div>`;
     document.getElementById('emptyAdd').addEventListener('click', openPicker);
+    document.getElementById('emptyIg').addEventListener('click', () => $igzip.click());
     return;
   }
 
