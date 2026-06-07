@@ -12,12 +12,18 @@
   :root { font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; }
   * { box-sizing: border-box; }
   body { margin: 0; padding: 0; background: #111; color: #eee; min-height: 100vh; }
-  header { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #111; z-index: 10; }
-  header h1 { font-size: 15px; margin: 0; flex: 1; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #111; z-index: 10; }
+  header h1 { font-size: 15px; margin: 0; flex: 1; min-width: 0; }
+  /* 狭い画面ではタイトル+バージョンを独立行にし (BUILD を必ず見せる=iOS キャッシュ確認)、ボタンは下段へ折り返す */
+  @media (max-width: 600px) { header h1 { flex-basis: 100%; } }
   header h1 .ver { font-size: 10px; color: #666; font-weight: normal; margin-left: 6px; letter-spacing: 0.5px; }
   header .count { font-size: 12px; color: #8bf; margin-right: 4px; }
   header button { padding: 6px 10px; font-size: 12px; background: #333; color: #eee; border: 0; border-radius: 6px; cursor: pointer; }
   header button:active { background: #555; }
+  .import-menu { position: fixed; z-index: 1000; background: #222; border: 1px solid #444; border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.5); min-width: 170px; }
+  .import-menu .im-title { font-size: 11px; color: #9af; padding: 2px 6px 5px; }
+  .import-menu button { background: #333; color: #eee; border: 1px solid #555; border-radius: 6px; padding: 9px 12px; font-size: 13px; text-align: left; cursor: pointer; }
+  .import-menu button:hover { background: #444; }
   main { padding: 14px; }
 
   button.primary { padding: 12px 18px; border: 0; border-radius: 8px; background: #2a6; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
@@ -142,12 +148,10 @@
   <h1>写真思い出 <span class="ver" id="ver"></span></h1>
   <span class="count" id="count">— 枚</span>
   <span class="count hidden" id="bgStatus"></span>
-  <button id="btnAdd" title="追加">+</button>
+  <button id="btnAddPhoto" class="import-trigger" title="写真を取り込む（EXIF 日時のある写真だけ・ファイル/フォルダ）">📷写真</button>
+  <button id="btnAddImage" class="import-trigger" title="日時の無い画像も取り込む（保存日を使う・ファイル/フォルダ）">🖼️画像</button>
   <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠</button>
-  <button id="btnExport" title="エクスポート">⇩</button>
-  <button id="btnImport" title="インポート">⇧</button>
   <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦</button>
-  <button id="btnFolder" title="フォルダごと取り込む (日時が無ければ保存日で)">📁</button>
   <button id="btnClear" title="全削除">🗑</button>
   <button id="btnInfo" title="使い方・注意">ℹ️</button>
   <button id="btnDev" class="hidden" title="開発: ダミー大量生成 (#dev)">🧪</button>
@@ -157,7 +161,6 @@
 <main id="main"></main>
 
 <input id="picker" class="hidden" type="file" multiple accept="image/*">
-<input id="importer" class="hidden" type="file" accept="application/json">
 <input id="igzip" class="hidden" type="file" accept=".zip,application/zip">
 <input id="folder" class="hidden" type="file" webkitdirectory multiple>
 
@@ -176,7 +179,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2.8 (フォルダ取り込み・保存日フォールバック) · 2026-06-07';
+const BUILD = 'phase2.9 (取り込み口を2系統に整理・バックアップ撤去) · 2026-06-07';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -742,72 +745,6 @@ function pickPool(filterKey, all) {
 }
 
 // ============================================================
-// エクスポート / インポート (JSON + base64)
-// ============================================================
-function blobToB64(blob) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(blob);
-  });
-}
-
-async function b64ToBlob(dataUrl) {
-  return (await fetch(dataUrl)).blob();
-}
-
-async function exportAll() {
-  const all = await dbGetAll();
-  if (!all.length) { alert('エクスポートする写真がありません'); return; }
-  const out = { version: 1, exportedAt: new Date().toISOString(), photos: [] };
-  for (const p of all) {
-    out.photos.push({
-      id: p.id, name: p.name,
-      datetime: p.datetime.toISOString(),
-      lat: p.lat, lng: p.lng,
-      blob: p.blob ? await blobToB64(p.blob) : null,  // v23: 原画は無いことがある
-      thumb: await blobToB64(p.thumb),
-      color: p.color ? Array.from(p.color) : null,  // Float32Array は JSON 化できないので Array に
-      excluded: p.excluded || false,
-      dedup: p.dedup,
-      importedAt: p.importedAt?.toISOString?.() || null,
-    });
-  }
-  const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `photo-memory-${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  alert(`${all.length} 枚をエクスポートしました`);
-}
-
-async function importBackup(file) {
-  const data = JSON.parse(await file.text());
-  if (data.version !== 1) throw new Error(`未知のバックアップバージョン: ${data.version}`);
-  let imported = 0, dup = 0;
-  for (const p of data.photos) {
-    if (p.dedup && await dbHasDedup(p.dedup)) { dup++; continue; }
-    await dbPut({
-      id: p.id || crypto.randomUUID(),
-      name: p.name,
-      datetime: new Date(p.datetime),
-      lat: p.lat, lng: p.lng,
-      blob: p.blob ? await b64ToBlob(p.blob) : null,  // v23: 原画は無いことがある
-      thumb: await b64ToBlob(p.thumb),
-      color: Array.isArray(p.color) ? new Float32Array(p.color) : null,  // 復元
-      excluded: p.excluded || false,
-      dedup: p.dedup,
-      importedAt: p.importedAt ? new Date(p.importedAt) : new Date(),
-    });
-    imported++;
-  }
-  return { imported, dup };
-}
-
-// ============================================================
 // Instagram / X(Twitter) エクスポート (zip) 取り込み (v43: IG, v45: X 追加)
 // ============================================================
 // 公式エクスポート zip を端末内で解凍し、画像本体から EXIF が剥がれていても、
@@ -1096,6 +1033,7 @@ function saveTrail() {
 // 取り込みフロー (待ち時間ゼロ化 + 連打詰まり対策)
 let importBusy = false;            // picker を開いてから完了/キャンセルまで true (多重 open/change 防止)
 let importingNow = false;          // 実際に importFiles 実行中 (change 後)
+let importFallback = false;        // 次の取り込みで保存日フォールバックを使うか (📷=false / 🖼️=true, v47)
 let prevStateBeforePicker = 'empty'; // preparing キャンセル時に戻す先
 let importStatus = null;           // {done, total} or null. バックグラウンド取り込み進捗
 let importStats = null;            // {added, dup, skipped, failed} or null. 当該取り込みセッションの差分集計 (v22)
@@ -1134,7 +1072,6 @@ function revokeAllThumbUrls() {
 const $main   = document.getElementById('main');
 const $count  = document.getElementById('count');
 const $picker = document.getElementById('picker');
-const $importer = document.getElementById('importer');
 const $igzip = document.getElementById('igzip');
 const $folder = document.getElementById('folder');
 const $log    = document.getElementById('log');
@@ -1377,9 +1314,8 @@ function renderInfoModal() {
     <div style="text-align:left;font-size:13px;line-height:1.7;color:#ccc;">
       <p style="margin:.4em 0;color:#9f9;">🔒 <b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。AI 解析も端末内で行います。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">📥 取り込み</p>
-      <p style="margin:.2em 0;">「+」で写真を選ぶ。<b>同じ写真を選び直しても重複は自動でスキップ</b>（差分取り込み）。たくさん入れる時・古い端末では <b>10〜20枚ずつ</b>に分けると安定します。</p>
+      <p style="margin:.2em 0;"><b>📷写真</b> = EXIF 日時のある写真だけ取り込み。<b>🖼️画像</b> = 日時の無い画像も<b>保存日</b>で取り込み（色・意味の連想に乗ります）。どちらも押すと <b>ファイル / フォルダ</b> を選べます。同じ画像を選び直しても<b>重複は自動スキップ</b>。たくさん入れる時・古い端末では小分けが安定。</p>
       <p style="margin:.2em 0;">📦 は <b>Instagram / X(Twitter) のエクスポート(zip)</b> から取り込みます。画像本体から日時が消えていても、同梱データ（Instagram は「情報をダウンロード」の <b>JSON 形式</b>、X は <b>アーカイブ</b>の <code>data/tweets.js</code>）から<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。X は画像投稿のみ対応（動画・テキストは対象外）。容量が大きいと時間がかかるので、期間を絞ると軽いです。</p>
-      <p style="margin:.2em 0;">📁 は <b>フォルダごと</b>取り込みます（PC 向け）。撮影日時の無い画像は<b>保存日</b>を日時として取り込むので、色・意味の連想にも乗ります（保存した瞬間も思い出のきっかけ、という考え方）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時</p>
       <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
@@ -1504,16 +1440,16 @@ function render() {
         <h2>写真を取り込んで始める</h2>
         <div class="privacy">🔒 <b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。すべてブラウザ内 (IndexedDB) に保存され、AI 解析も端末内で行います。</div>
         <p>まず 20〜30 枚くらい入れて感触を見るのが目安です。</p>
-        <button class="primary" id="emptyAdd">📷 写真を選ぶ</button>
-        <p style="margin:1.2em 0 .3em;opacity:.8;">または</p>
+        <button class="primary import-trigger" id="emptyAddPhoto">📷 写真を取り込む（日時あり）</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">EXIF 日時のある写真だけ。押すとファイル/フォルダを選べます。</p>
+        <button class="import-trigger" id="emptyAddImage">🖼️ 日時の無い画像も取り込む（保存日）</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">撮影日時が無い画像は<b>保存日</b>を日時にして取り込みます（色・意味の連想に乗ります）。押すとファイル/フォルダを選べます（PC 向け）。</p>
         <button id="emptyIg">📦 Instagram / X の zip から取り込む</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">Instagram「情報をダウンロード」(JSON形式) / X(Twitter) アーカイブの zip を選ぶと、投稿日時を復元して取り込みます。</p>
-        <button id="emptyFolder">📁 フォルダごと取り込む</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">フォルダ内の画像をまとめて取り込みます。撮影日時の無い画像は<b>保存日</b>を日時として取り込みます（PC 向け）。</p>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">Instagram「情報をダウンロード」(JSON形式) / X(Twitter) アーカイブの zip。投稿日時を復元します。</p>
       </div>`;
-    document.getElementById('emptyAdd').addEventListener('click', openPicker);
+    document.getElementById('emptyAddPhoto').addEventListener('click', (e) => openImportMenu(e.currentTarget, false, '写真を取り込み（EXIF 日時のある写真だけ）'));
+    document.getElementById('emptyAddImage').addEventListener('click', (e) => openImportMenu(e.currentTarget, true, '画像を取り込み（日時が無ければ保存日を使う）'));
     document.getElementById('emptyIg').addEventListener('click', () => $igzip.click());
-    document.getElementById('emptyFolder').addEventListener('click', () => $folder.click());
     return;
   }
 
@@ -2211,19 +2147,46 @@ function cancelPicker() {
   if (state === 'preparing') { state = prevStateBeforePicker; render(); }
 }
 
+// 取り込みボタンの小メニュー (ファイル / フォルダ)。fallback=true なら日時の無い画像を保存日で取り込む (v47)。
+function openImportMenu(anchor, fallback, title) {
+  closeImportMenu();
+  const menu = document.createElement('div');
+  menu.id = 'importMenu';
+  menu.className = 'import-menu';
+  menu.innerHTML = `<div class="im-title">${title}</div>`
+    + `<button data-mode="file">📄 ファイルを選ぶ</button>`
+    + `<button data-mode="folder">📁 フォルダを選ぶ</button>`;
+  document.body.appendChild(menu);
+  const r = anchor.getBoundingClientRect();
+  const w = menu.offsetWidth || 180;
+  menu.style.top = `${r.bottom + 4}px`;
+  menu.style.left = `${Math.max(6, Math.min(r.left, window.innerWidth - w - 6))}px`;
+  const pick = (mode) => {
+    closeImportMenu();
+    importFallback = fallback;
+    if (mode === 'folder') $folder.click(); else openPicker();
+  };
+  menu.querySelector('[data-mode="file"]').addEventListener('click', () => pick('file'));
+  menu.querySelector('[data-mode="folder"]').addEventListener('click', () => pick('folder'));
+  setTimeout(() => document.addEventListener('click', onDocClickForMenu), 0);
+}
+function closeImportMenu() {
+  const m = document.getElementById('importMenu');
+  if (m) m.remove();
+  document.removeEventListener('click', onDocClickForMenu);
+}
+function onDocClickForMenu(e) {
+  if (!e.target.closest('#importMenu') && !e.target.closest('.import-trigger')) closeImportMenu();
+}
+
 // ============================================================
 // イベント
 // ============================================================
-document.getElementById('btnAdd').addEventListener('click', openPicker);
+document.getElementById('btnAddPhoto').addEventListener('click', (e) => openImportMenu(e.currentTarget, false, '写真を取り込み（EXIF 日時のある写真だけ）'));
+document.getElementById('btnAddImage').addEventListener('click', (e) => openImportMenu(e.currentTarget, true, '画像を取り込み（日時が無ければ保存日を使う）'));
 document.getElementById('btnAI').addEventListener('click', openAIModal);
 document.getElementById('btnInfo').addEventListener('click', openInfoModal);
-document.getElementById('btnExport').addEventListener('click', async () => {
-  try { await exportAll(); }
-  catch (e) { logErr(`export failed: ${e.message}`); alert(`エクスポート失敗: ${e.message}`); }
-});
-document.getElementById('btnImport').addEventListener('click', () => $importer.click());
 document.getElementById('btnIg').addEventListener('click', () => $igzip.click());
-document.getElementById('btnFolder').addEventListener('click', () => $folder.click());
 document.getElementById('btnClear').addEventListener('click', async () => {
   if (!confirm('IndexedDB の全写真を削除します。続行?')) return;
   await dbClear();
@@ -2247,30 +2210,12 @@ $picker.addEventListener('change', async (e) => {
   if (importingNow) { e.target.value = ''; return; }  // 多重 change を弾く
   importingNow = true;
   try {
-    await importFiles(files);
+    await importFiles(files, { fallbackMtime: importFallback });
   } finally {
     // フェーズA 完了で制御を返す (フェーズB は裏で継続)。連打ガードもここで解除。
     importingNow = false;
     importBusy = false;
     e.target.value = '';
-  }
-});
-
-$importer.addEventListener('change', async (e) => {
-  const file = e.target.files?.[0];
-  e.target.value = '';
-  if (!file) return;
-  try {
-    const { imported, dup } = await importBackup(file);
-    revokeAllThumbUrls();
-    resetPhotos(await dbGetAll());  // バックアップ復元は全件入れ替え (loadedIds も貼り替え, v28)
-    alert(`インポート完了: 新規 ${imported} 枚 / 重複スキップ ${dup} 枚`);
-    if (allPhotos.length > 0) await drawRandom();
-    else { state = 'empty'; render(); }
-    backfillColors().catch(e => logErr(`backfill: ${e.message}`));
-  } catch (err) {
-    logErr(`インポート失敗: ${err.message}`);
-    alert(`インポート失敗: ${err.message}`);
   }
 });
 
@@ -2302,7 +2247,7 @@ $folder.addEventListener('change', async (e) => {
   if (importingNow) return;
   importingNow = true;
   try {
-    await importFiles(imgs, { fallbackMtime: true });
+    await importFiles(imgs, { fallbackMtime: importFallback });
   } catch (err) {
     logErr(`フォルダ取り込み失敗: ${err?.message || err}`);
     alert(`取り込み失敗: ${err?.message || err}`);
