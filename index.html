@@ -147,6 +147,7 @@
   <button id="btnExport" title="エクスポート">⇩</button>
   <button id="btnImport" title="インポート">⇧</button>
   <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦</button>
+  <button id="btnFolder" title="フォルダごと取り込む (日時が無ければ保存日で)">📁</button>
   <button id="btnClear" title="全削除">🗑</button>
   <button id="btnInfo" title="使い方・注意">ℹ️</button>
   <button id="btnDev" class="hidden" title="開発: ダミー大量生成 (#dev)">🧪</button>
@@ -158,6 +159,7 @@
 <input id="picker" class="hidden" type="file" multiple accept="image/*">
 <input id="importer" class="hidden" type="file" accept="application/json">
 <input id="igzip" class="hidden" type="file" accept=".zip,application/zip">
+<input id="folder" class="hidden" type="file" webkitdirectory multiple>
 
 <div class="log" id="log"></div>
 
@@ -174,7 +176,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2.7 (X(Twitter) zip 取り込み対応) · 2026-06-06';
+const BUILD = 'phase2.8 (フォルダ取り込み・保存日フォールバック) · 2026-06-07';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -506,6 +508,12 @@ async function importOne(file, override) {
       lng = override.lng ?? m?.lng ?? null;
     } else {
       ({ datetime, lat, lng, orientation } = await readMeta(file));
+      if (!datetime && override?.fallbackMtime && file.lastModified) {
+        // v46: フォルダ取り込み時のみ、EXIF 日時が無い画像は「保存日時」(file.lastModified) で補完。
+        // 「+」(通常ピッカー) は override 無し → 従来どおり日時なしはスキップ (タイムラインの純度を維持)。
+        const ms = file.lastModified;
+        if (ms > 0 && ms < Date.now() + 86400000) datetime = new Date(ms);
+      }
       if (!datetime) return { skipped: 'no-datetime' };
     }
 
@@ -1128,6 +1136,7 @@ const $count  = document.getElementById('count');
 const $picker = document.getElementById('picker');
 const $importer = document.getElementById('importer');
 const $igzip = document.getElementById('igzip');
+const $folder = document.getElementById('folder');
 const $log    = document.getElementById('log');
 
 // バージョン表示 (画面ですぐ確認できるように)
@@ -1370,6 +1379,7 @@ function renderInfoModal() {
       <p style="margin:.8em 0 .2em;color:#fff;">📥 取り込み</p>
       <p style="margin:.2em 0;">「+」で写真を選ぶ。<b>同じ写真を選び直しても重複は自動でスキップ</b>（差分取り込み）。たくさん入れる時・古い端末では <b>10〜20枚ずつ</b>に分けると安定します。</p>
       <p style="margin:.2em 0;">📦 は <b>Instagram / X(Twitter) のエクスポート(zip)</b> から取り込みます。画像本体から日時が消えていても、同梱データ（Instagram は「情報をダウンロード」の <b>JSON 形式</b>、X は <b>アーカイブ</b>の <code>data/tweets.js</code>）から<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。X は画像投稿のみ対応（動画・テキストは対象外）。容量が大きいと時間がかかるので、期間を絞ると軽いです。</p>
+      <p style="margin:.2em 0;">📁 は <b>フォルダごと</b>取り込みます（PC 向け）。撮影日時の無い画像は<b>保存日</b>を日時として取り込むので、色・意味の連想にも乗ります（保存した瞬間も思い出のきっかけ、という考え方）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時</p>
       <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
@@ -1498,9 +1508,12 @@ function render() {
         <p style="margin:1.2em 0 .3em;opacity:.8;">または</p>
         <button id="emptyIg">📦 Instagram / X の zip から取り込む</button>
         <p style="margin:.4em 0;font-size:12px;opacity:.7;">Instagram「情報をダウンロード」(JSON形式) / X(Twitter) アーカイブの zip を選ぶと、投稿日時を復元して取り込みます。</p>
+        <button id="emptyFolder">📁 フォルダごと取り込む</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">フォルダ内の画像をまとめて取り込みます。撮影日時の無い画像は<b>保存日</b>を日時として取り込みます（PC 向け）。</p>
       </div>`;
     document.getElementById('emptyAdd').addEventListener('click', openPicker);
     document.getElementById('emptyIg').addEventListener('click', () => $igzip.click());
+    document.getElementById('emptyFolder').addEventListener('click', () => $folder.click());
     return;
   }
 
@@ -1799,7 +1812,8 @@ function showImportSummary() {
   importStats = null;
 }
 
-async function importFiles(files) {
+async function importFiles(files, opts = {}) {
+  const fallbackMtime = !!opts.fallbackMtime;   // v46: フォルダ取り込みは保存日で日時補完
   clearTimeout(prepareHintTimer);  // 取り込みに入ったら準備ガイドは不要 (v34)
   importStats = { added: 0, dup: 0, skipped: 0, failed: 0, heic: 0 };  // 差分集計 (v22) + heic2any 呼出数 (v37 診断)
   state = 'importing';
@@ -1815,7 +1829,7 @@ async function importFiles(files) {
   const fastAdded = [];
   for (let i = 0; i < fast.length; i++) {
     try {
-      const r = await withTimeout(importOne(fast[i]), IMPORT_TIMEOUT_MS, fast[i].name);
+      const r = await withTimeout(importOne(fast[i], fallbackMtime ? { fallbackMtime: true } : undefined), IMPORT_TIMEOUT_MS, fast[i].name);
       tallyImport(r);
       if (r?.ok && r.record) fastAdded.push(r.record);
     } catch (e) {
@@ -1837,7 +1851,7 @@ async function importFiles(files) {
   // 残りがあれば runBackgroundImport の末尾で backfill→自動 embedding を回す。
   // fast-track だけ (rest 無し) の時はここで色 backfill → AI opt-in 済なら自動 embedding 抽出。
   if (rest.length) {
-    enqueueBackground(rest);  // 残りの集計とサマリは runBackgroundImport 末尾で
+    enqueueBackground(rest, fallbackMtime);  // 残りの集計とサマリは runBackgroundImport 末尾で
   } else {
     showImportSummary();      // fast-track だけで完結 → ここで差分サマリ
     backfillColors().then(maybeAutoExtractEmbeddings).catch(e => logErr(`backfill: ${e?.message || e}`));
@@ -1846,8 +1860,8 @@ async function importFiles(files) {
 
 // バックグラウンド取り込み: キューに積んで1本のループで低優先消化。
 // 再インポートが来たらキューに足すだけ (多重ループを作らない)。
-function enqueueBackground(files) {
-  bgQueue.push(...files);
+function enqueueBackground(files, fallbackMtime = false) {
+  for (const f of files) bgQueue.push({ file: f, fallbackMtime });
   if (!bgRunning) runBackgroundImport();
 }
 
@@ -1858,9 +1872,9 @@ async function runBackgroundImport() {
   updateBgStatus();
 
   while (bgQueue.length) {
-    const file = bgQueue.shift();
+    const { file, fallbackMtime } = bgQueue.shift();
     try {
-      const r = await withTimeout(importOne(file), IMPORT_TIMEOUT_MS, file.name);
+      const r = await withTimeout(importOne(file, fallbackMtime ? { fallbackMtime: true } : undefined), IMPORT_TIMEOUT_MS, file.name);
       tallyImport(r);
       if (r.ok && r.record) {
         // 表示中の thumb URL を壊さないため revokeAllThumbUrls はしない。
@@ -2209,6 +2223,7 @@ document.getElementById('btnExport').addEventListener('click', async () => {
 });
 document.getElementById('btnImport').addEventListener('click', () => $importer.click());
 document.getElementById('btnIg').addEventListener('click', () => $igzip.click());
+document.getElementById('btnFolder').addEventListener('click', () => $folder.click());
 document.getElementById('btnClear').addEventListener('click', async () => {
   if (!confirm('IndexedDB の全写真を削除します。続行?')) return;
   await dbClear();
@@ -2269,6 +2284,27 @@ $igzip.addEventListener('change', async (e) => {
     await importArchiveZip(file);
   } catch (err) {
     logErr(`Instagram取り込み失敗: ${err?.message || err}`);
+    alert(`取り込み失敗: ${err?.message || err}`);
+  } finally {
+    importingNow = false;
+    importBusy = false;
+  }
+});
+
+// フォルダごと取り込み (v46)。webkitdirectory はフォルダ内全ファイルを返すので画像だけ抽出。
+// 撮影/投稿日時が無い画像は importFiles の fallbackMtime=true で「保存日」を日時に補完する。
+$folder.addEventListener('change', async (e) => {
+  const all = Array.from(e.target.files || []);
+  e.target.value = '';
+  const imgs = all.filter(f => (f.type.startsWith('image/') && f.type !== 'image/tiff')
+    || /\.(jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(f.name));
+  if (!imgs.length) { alert('画像ファイルが見つかりませんでした。'); return; }
+  if (importingNow) return;
+  importingNow = true;
+  try {
+    await importFiles(imgs, { fallbackMtime: true });
+  } catch (err) {
+    logErr(`フォルダ取り込み失敗: ${err?.message || err}`);
     alert(`取り込み失敗: ${err?.message || err}`);
   } finally {
     importingNow = false;
