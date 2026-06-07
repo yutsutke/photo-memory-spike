@@ -138,6 +138,11 @@
   .ai-modal-card button { padding: 8px 14px; border: 1px solid #444; border-radius: 6px; background: #222; color: #ddd; font-size: 13px; cursor: pointer; }
   .ai-modal-card button.primary { background: #2a6; border-color: #2a6; color: #fff; font-weight: 600; }
   .ai-modal-card button:disabled { opacity: 0.45; cursor: default; }
+  /* 削除（除外）一覧のサムネグリッド */
+  .trash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; margin: 10px 0 4px; }
+  .trash-cell { display: flex; flex-direction: column; gap: 4px; }
+  .trash-cell img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 6px; background: #000; }
+  .trash-cell button { padding: 5px 0; font-size: 12px; }
   /* AI 進捗 (ヘッダ右の控えめ表示、🌀 と同列) */
   .ai-bg { color: #c9a; }
 </style>
@@ -152,6 +157,7 @@
   <button id="btnAddImage" class="import-trigger" title="日時の無い画像も取り込む（保存日を使う・ファイル/フォルダ）">🖼️画像</button>
   <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠</button>
   <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦</button>
+  <button id="btnTrash" class="hidden" title="削除（除外）した写真を戻す">♻️</button>
   <button id="btnClear" title="全削除">🗑</button>
   <button id="btnInfo" title="使い方・注意">ℹ️</button>
   <button id="btnDev" class="hidden" title="開発: ダミー大量生成 (#dev)">🧪</button>
@@ -179,7 +185,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2.9 (取り込み口を2系統に整理・バックアップ撤去) · 2026-06-07';
+const BUILD = 'phase2.10 (削除一覧から復活) · 2026-06-07';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1319,7 +1325,7 @@ function renderInfoModal() {
       <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時</p>
       <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
-      <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（取り消し可）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。</p>
+      <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（直後のトースト、または右上の <b>♻️</b> からいつでも戻せます）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
       <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
     </div>`;
@@ -1329,6 +1335,83 @@ function renderInfoModal() {
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '閉じる';
   closeBtn.addEventListener('click', closeInfoModal);
+  actions.appendChild(closeBtn);
+  card.appendChild(actions);
+
+  modal.appendChild(card);
+  document.body.appendChild(modal);
+}
+
+// 削除（除外）した写真の一覧モーダル (v48): ✕ で除外した写真を後からまとめて見て、戻せる。
+// 既存の excluded フラグ + undoExclude を流用 (新ストア/新フラグ不要)。
+function openExcludedModal()  { excludedModalOpen = true;  render(); }
+function closeExcludedModal() { excludedModalOpen = false; render(); }
+
+async function restoreAllExcluded() {
+  const list = allPhotos.filter(p => p.excluded);
+  for (const p of list) p.excluded = false;
+  render();
+  for (const p of list) { try { await dbPut(p); } catch (e) { logErr(`復元保存失敗: ${e?.message || e}`); } }
+}
+
+function renderExcludedModal() {
+  const old = document.getElementById('excludedModal');
+  if (old) old.remove();
+  if (!excludedModalOpen) return;
+
+  const excluded = allPhotos.filter(p => p.excluded);
+  const modal = document.createElement('div');
+  modal.className = 'ai-modal';
+  modal.id = 'excludedModal';
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeExcludedModal(); });
+
+  const card = document.createElement('div');
+  card.className = 'ai-modal-card';
+
+  const h2 = document.createElement('h2');
+  h2.textContent = `🗑 削除した写真 (${excluded.length})`;
+  card.appendChild(h2);
+
+  const desc = document.createElement('p');
+  desc.textContent = '✕ で「もう出さない」にした写真です。「戻す」で連想に復活します。';
+  card.appendChild(desc);
+
+  if (excluded.length === 0) {
+    const e0 = document.createElement('p');
+    e0.style.color = '#888';
+    e0.textContent = '削除した写真はありません。';
+    card.appendChild(e0);
+  } else {
+    const grid = document.createElement('div');
+    grid.className = 'trash-grid';
+    for (const photo of excluded) {
+      const cell = document.createElement('div');
+      cell.className = 'trash-cell';
+      const img = document.createElement('img');
+      img.src = thumbUrl(photo);   // URL は握らず都度取得 (iOS の revoke 後も render で回復)
+      img.loading = 'lazy';
+      const btn = document.createElement('button');
+      btn.textContent = '戻す';
+      btn.addEventListener('click', () => undoExclude(photo));  // render() で一覧から消える
+      cell.appendChild(img);
+      cell.appendChild(btn);
+      grid.appendChild(cell);
+    }
+    card.appendChild(grid);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  if (excluded.length > 1) {
+    const allBtn = document.createElement('button');
+    allBtn.textContent = 'すべて戻す';
+    allBtn.addEventListener('click', restoreAllExcluded);
+    actions.appendChild(allBtn);
+  }
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'primary';
+  closeBtn.textContent = '閉じる';
+  closeBtn.addEventListener('click', closeExcludedModal);
   actions.appendChild(closeBtn);
   card.appendChild(actions);
 
@@ -1422,12 +1505,23 @@ function renderAIModal() {
   document.body.appendChild(modal);
 }
 
+// ヘッダの ♻️N (削除/除外した写真の数)。0 のときは隠す ([[ui-minimalism-works]] 使う時だけ広がる)。
+function updateTrashBtn() {
+  const el = document.getElementById('btnTrash');
+  if (!el) return;
+  const n = allPhotos.reduce((a, p) => a + (p.excluded ? 1 : 0), 0);
+  if (n > 0) { el.textContent = `♻️${n}`; el.classList.remove('hidden'); }
+  else el.classList.add('hidden');
+}
+
 function render() {
   $main.innerHTML = '';
   const activeCount = allPhotos.reduce((n, p) => n + (p.excluded ? 0 : 1), 0);
   $count.textContent = activeCount > 0 ? `${activeCount} 枚` : '— 枚';
   renderAIModal();    // モーダルは独立 (state に依存しない overlay)
   renderInfoModal();  // 使い方・注意モーダル (v38)
+  renderExcludedModal();  // 削除（除外）一覧モーダル (v48)
+  updateTrashBtn();       // ヘッダの ♻️N (除外数) を更新
 
   if (state === 'loading') {
     $main.innerHTML = `<p style="text-align:center;color:#888;margin-top:40px;">読み込み中…</p>`;
@@ -1934,6 +2028,7 @@ let aiStatus = null;          // { phase: 'dl'|'extract', done, total, msg }
 let aiModalOpen = false;      // モーダル表示中フラグ
 let aiLastError = null;       // 直近のエラー (モーダルに出す)
 let infoModalOpen = false;    // 「使い方・注意」モーダル表示中フラグ (v38)
+let excludedModalOpen = false; // 「削除（除外）した写真」一覧モーダル表示中フラグ (v48)
 
 async function loadAIPipeline() {
   if (aiExtractor) return aiExtractor;
@@ -2187,6 +2282,7 @@ document.getElementById('btnAddImage').addEventListener('click', (e) => openImpo
 document.getElementById('btnAI').addEventListener('click', openAIModal);
 document.getElementById('btnInfo').addEventListener('click', openInfoModal);
 document.getElementById('btnIg').addEventListener('click', () => $igzip.click());
+document.getElementById('btnTrash').addEventListener('click', openExcludedModal);
 document.getElementById('btnClear').addEventListener('click', async () => {
   if (!confirm('IndexedDB の全写真を削除します。続行?')) return;
   await dbClear();
@@ -2194,6 +2290,7 @@ document.getElementById('btnClear').addEventListener('click', async () => {
   resetPhotos([]);   // allPhotos と loadedIds を両方クリア (v28)
   walkTrailIds = []; currentCenter = null;   // 写真が無くなるので足跡もクリア (v41)
   try { localStorage.removeItem('pms-walkTrail'); localStorage.removeItem('pms-walkCenter'); } catch {}
+  excludedModalOpen = false;   // 全削除したら除外一覧も閉じる (中身も消えるため)
   state = 'empty';
   render();
 });
