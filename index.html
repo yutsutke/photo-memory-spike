@@ -145,6 +145,53 @@
   .trash-cell button { padding: 5px 0; font-size: 12px; }
   /* AI 進捗 (ヘッダ右の控えめ表示、🌀 と同列) */
   .ai-bg { color: #c9a; }
+
+  /* ============================================================
+     地図ビュー (軌跡 + タイムライン) — phase3.0
+     $main の外に出すフルスクリーン overlay。Leaflet は遅延ロード。
+     ============================================================ */
+  .map-overlay { position: fixed; inset: 0; z-index: 150; background: #111; }
+  #mapEl { position: absolute; inset: 0; width: 100%; height: 100%; background: #111; }
+  .map-close { position: absolute; top: 10px; left: 10px; z-index: 1200; background: rgba(0,0,0,0.7); color: #fff; border: 1px solid #444; border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  .map-close:active { background: #000; }
+  .map-empty-note { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 1100; background: rgba(0,0,0,0.78); color: #ddd; border: 1px solid #444; border-radius: 8px; padding: 8px 14px; font-size: 12px; text-align: center; max-width: 80%; }
+
+  /* 写真サムネのマーカー (L.divIcon の中身) */
+  .photo-marker { width: 44px; height: 44px; border-radius: 8px; border: 2px solid #fff; background-size: cover; background-position: center; box-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+  /* Leaflet popup をダークに */
+  .leaflet-popup-content-wrapper { background: #1a1a1a; color: #eee; border-radius: 10px; }
+  .leaflet-popup-content { margin: 12px; }
+  .leaflet-popup-tip { background: #1a1a1a; }
+  .marker-popup { width: 170px; text-align: center; }
+  .marker-popup .mp-thumb { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; display: block; cursor: pointer; background: #000; }
+  .marker-popup .mp-date { font-size: 12px; font-weight: 600; margin-top: 6px; color: #eee; }
+  .marker-popup .mp-place { font-size: 11px; color: #8bf; margin-top: 2px; }
+  .marker-popup .mp-walk { margin-top: 8px; width: 100%; padding: 8px; border: 0; border-radius: 8px; background: #2a6; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+  /* タイムライン シート (モバイル=下部から引き出す / PC=右サイドバー) */
+  .timeline-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; background: #161616; border-top: 1px solid #333; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; max-height: 78vh; transform: translateY(calc(100% - 46px)); transition: transform 0.25s ease; }
+  .timeline-sheet.open { transform: translateY(0); }
+  .sheet-handle { flex: 0 0 auto; height: 46px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; user-select: none; }
+  .sheet-grip { width: 36px; height: 4px; border-radius: 2px; background: #555; }
+  .sheet-title { font-size: 12px; color: #aaa; }
+  .sheet-body { flex: 1 1 auto; overflow-y: auto; padding: 2px 12px 16px; -webkit-overflow-scrolling: touch; }
+  .tl-day { position: sticky; top: 0; background: #161616; font-size: 12px; color: #8bf; font-weight: 600; padding: 8px 2px 4px; z-index: 1; }
+  .tl-item { display: flex; align-items: center; gap: 10px; padding: 5px 2px; cursor: pointer; border-radius: 8px; }
+  .tl-item:active { background: #222; }
+  .tl-item img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; flex: 0 0 auto; background: #000; }
+  .tl-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .tl-time { font-size: 12px; color: #ddd; }
+  .tl-badge { font-size: 10px; color: #777; }
+  .tl-item.tl-nogps img { opacity: 0.5; }
+  .tl-empty { color: #888; font-size: 12px; text-align: center; padding: 20px; }
+
+  @media (min-width: 720px) {
+    .timeline-sheet { left: auto; right: 0; top: 0; bottom: 0; width: 320px; max-height: none; border-radius: 0; border-top: 0; border-left: 1px solid #333; transform: none; box-shadow: -4px 0 20px rgba(0,0,0,0.4); }
+    .timeline-sheet .sheet-handle { height: 40px; cursor: default; }
+    .timeline-sheet .sheet-grip { display: none; }
+    #mapEl { right: 320px; width: auto; }
+    .map-empty-note { right: 320px; left: auto; transform: none; }
+  }
 </style>
 </head>
 <body>
@@ -155,6 +202,7 @@
   <span class="count hidden" id="bgStatus"></span>
   <button id="btnAddPhoto" class="import-trigger" title="写真を取り込む（EXIF 日時のある写真だけ・ファイル/フォルダ）">📷写真</button>
   <button id="btnAddImage" class="import-trigger" title="日時の無い画像も取り込む（保存日を使う・ファイル/フォルダ）">🖼️画像</button>
+  <button id="btnMap" title="地図で軌跡を見る（位置情報のある写真）">🗺</button>
   <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠</button>
   <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦</button>
   <button id="btnTrash" class="hidden" title="削除（除外）した写真を戻す">♻️</button>
@@ -185,7 +233,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase2.10 (削除一覧から復活) · 2026-06-07';
+const BUILD = 'phase3.0 (地図ビュー) · 2026-06-14';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1220,6 +1268,221 @@ function closeFullImage() {
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && fullImageState) closeFullImage();
 });
+
+// ============================================================
+// 地図ビュー (軌跡 + タイムライン) — phase3.0
+// 「写真をみて、自分の移動した軌跡をみて、想起を促す」。GPS のある写真を
+// 日本地図に置き、撮影順に線でつなぐ。線は「旅/日」ごとに自動分割 (撮影時刻が
+// 大きく空いたら別の動線)。タップでマーカーのポップアップ → 連想ウォーク(explore)
+// に接続 (プロダクトの核に合流)。GPS の無い写真は地図に出さずタイムラインで見る。
+//
+// Leaflet は起動コストを増やさないよう遅延ロード (CLIP と同じ「使う時だけ」)。
+// 逆ジオコーディングは入れない (座標を外部に送らない = ローカル完結の精神)。
+// render() は $main を毎回作り直すので、地図は $main の外の overlay として
+// showFullImage と同様に命令的に build/teardown する。
+// ============================================================
+const TRIP_GAP_MS = 12 * 60 * 60 * 1000;   // これ以上空いたら別の旅/日として線を切る (調整可)
+const TRIP_COLORS = ['#ff6b6b','#feca57','#48dbfb','#1dd1a1','#f368e0','#ff9f43','#54a0ff','#00d2d3'];
+
+let _leafletLoading = null;
+function loadAsset(tag, props) {
+  return new Promise((resolve, reject) => {
+    const el = document.createElement(tag);
+    Object.assign(el, props);
+    el.onload = () => resolve();
+    el.onerror = () => reject(new Error('load failed: ' + (props.src || props.href)));
+    document.head.appendChild(el);
+  });
+}
+// Leaflet + markercluster + polylineDecorator を冪等に注入。すべて無料/APIキー不要。
+function loadLeaflet() {
+  if (window.L && window.L.markerClusterGroup) return Promise.resolve();
+  if (_leafletLoading) return _leafletLoading;
+  _leafletLoading = (async () => {
+    await Promise.all([
+      loadAsset('link', { rel: 'stylesheet', href: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' }),
+      loadAsset('link', { rel: 'stylesheet', href: 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css' }),
+      loadAsset('link', { rel: 'stylesheet', href: 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css' }),
+    ]);
+    await loadAsset('script', { src: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js' });   // core 先 (plugin は global L 依存)
+    await Promise.all([
+      loadAsset('script', { src: 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js' }),
+      loadAsset('script', { src: 'https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js' }),
+    ]);
+  })();
+  return _leafletLoading;
+}
+
+// GPS 写真 (datetime 昇順) を旅/日ごとに分割。撮影時刻が TRIP_GAP_MS を超えて空いたら新しい動線。
+function segmentTrips(gpsPhotos) {
+  const segs = [];
+  let cur = null;
+  for (const p of gpsPhotos) {
+    if (!cur || (p.datetime.getTime() - cur[cur.length - 1].datetime.getTime()) > TRIP_GAP_MS) {
+      cur = [p]; segs.push(cur);
+    } else {
+      cur.push(p);
+    }
+  }
+  return segs;
+}
+
+// マーカーのポップアップ (サムネ + 日時 + 場所 + 連想ウォーク導線)。
+function buildMarkerPopup(p) {
+  const el = document.createElement('div');
+  el.className = 'marker-popup';
+  const place = fmtPlace(p.lat, p.lng);
+  el.innerHTML =
+    `<img class="mp-thumb" src="${thumbUrl(p)}">` +
+    `<div class="mp-date">${fmtDate(p.datetime)}</div>` +
+    (place ? `<div class="mp-place">${place}</div>` : '') +
+    `<button class="mp-walk">🔮 連想ウォーク</button>`;
+  el.querySelector('.mp-thumb').addEventListener('click', () => showFullImage(p));
+  el.querySelector('.mp-walk').addEventListener('click', () => { closeMapView(); showExplore(p); });
+  return el;
+}
+
+let mapState = null;
+async function openMapView() {
+  if (mapState) return;
+  try { await loadLeaflet(); }
+  catch { logErr('地図ライブラリの読み込みに失敗しました（オフラインの可能性）'); return; }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'map-overlay';
+  overlay.innerHTML =
+    `<div id="mapEl"></div>` +
+    `<button class="map-close">✕ 閉じる</button>` +
+    `<div class="timeline-sheet">` +
+      `<div class="sheet-handle"><span class="sheet-grip"></span><span class="sheet-title">タイムライン</span></div>` +
+      `<div class="sheet-body"></div>` +
+    `</div>`;
+  document.body.appendChild(overlay);
+
+  // ベースタイル: CARTO ダーク (既定) + 地理院 (標準/淡色)。参照アプリ owntracks と同じ無料タイル。
+  const GSI_ATTR = "地理院タイル（<a href='https://www.gsi.go.jp/'>国土地理院</a>）";
+  const dark = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", {
+    maxZoom: 19, attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> &copy; <a href='https://carto.com/attributions'>CARTO</a>" });
+  const gsiStd = L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", { maxZoom: 18, attribution: GSI_ATTR });
+  const gsiPale = L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", { maxZoom: 18, attribution: GSI_ATTR });
+  const map = L.map('mapEl', { layers: [dark], zoomControl: false }).setView([36.2, 138.2], 5);  // 既定: 日本全体
+  L.control.zoom({ position: 'bottomleft' }).addTo(map);
+  L.control.layers({ 'ダーク': dark, '地理院(標準)': gsiStd, '地理院(淡色)': gsiPale }, null, { position: 'topright' }).addTo(map);
+
+  mapState = { overlay, map };
+
+  // GPS 写真を撮影順に。除外は出さない。
+  const gps = allPhotos.filter(p => !p.excluded && p.lat != null && p.lng != null)
+                       .sort((a, b) => a.datetime - b.datetime);
+
+  // 旅/日ごとの動線 (色分け + 進行方向の矢印)。
+  segmentTrips(gps).forEach((seg, i) => {
+    if (seg.length < 2) return;
+    const color = TRIP_COLORS[i % TRIP_COLORS.length];
+    const latlngs = seg.map(p => [p.lat, p.lng]);
+    L.polyline(latlngs, { color, weight: 3, opacity: 0.85, lineCap: 'round' }).addTo(map);
+    if (L.polylineDecorator && L.Symbol) {
+      L.polylineDecorator(latlngs, {
+        patterns: [{ offset: 24, repeat: 90, symbol: L.Symbol.arrowHead({ pixelSize: 9, polygon: false, pathOptions: { color, weight: 2, opacity: 0.85 } }) }]
+      }).addTo(map);
+    }
+  });
+
+  // 写真サムネのマーカー (大量化に備えクラスタ化)。id → marker でタイムライン側から開ける。
+  const cluster = L.markerClusterGroup({ maxClusterRadius: 45, spiderfyOnMaxZoom: true });
+  const markerById = new Map();
+  gps.forEach(p => {
+    const icon = L.divIcon({
+      className: 'photo-marker-wrap',
+      html: `<div class="photo-marker" style="background-image:url(${thumbUrl(p)})"></div>`,
+      iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -22],
+    });
+    const mk = L.marker([p.lat, p.lng], { icon });
+    mk.bindPopup(() => buildMarkerPopup(p), { minWidth: 180, closeButton: true });
+    cluster.addLayer(mk);
+    markerById.set(p.id, { marker: mk, latlng: [p.lat, p.lng] });
+  });
+  map.addLayer(cluster);
+  mapState.cluster = cluster;
+  mapState.markerById = markerById;
+
+  // bounds: GPS があれば全点にフィット、無ければ日本全体のまま注記。
+  if (gps.length) {
+    map.fitBounds(gps.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14 });
+  } else {
+    const note = document.createElement('div');
+    note.className = 'map-empty-note';
+    note.textContent = '位置情報のある写真がありません（下のタイムラインから一覧で見られます）';
+    overlay.appendChild(note);
+  }
+
+  buildTimeline(overlay.querySelector('.sheet-body'), map, cluster, markerById);
+
+  // 配線
+  overlay.querySelector('.map-close').addEventListener('click', closeMapView);
+  const sheet = overlay.querySelector('.timeline-sheet');
+  overlay.querySelector('.sheet-handle').addEventListener('click', () => {
+    sheet.classList.toggle('open');
+    setTimeout(() => map.invalidateSize(), 260);   // シート開閉でコンテナ高が変わる → Leaflet に反映
+  });
+
+  setTimeout(() => map.invalidateSize(), 60);       // overlay 表示後のレイアウト確定
+}
+
+// タイムライン: 全写真 (GPS 有無問わず) を日付降順 (新しい旅が上) に。
+// GPS あり → タップで地図をそのマーカーへ。GPS 無し → タップでフル画像 (地図に出せないが一覧では見られる)。
+function buildTimeline(container, map, cluster, markerById) {
+  const all = allPhotos.filter(p => !p.excluded).slice().sort((a, b) => b.datetime - a.datetime);
+  if (!all.length) { container.innerHTML = '<div class="tl-empty">写真がありません</div>'; return; }
+  const isMobile = () => window.matchMedia('(max-width:719px)').matches;
+  const frag = document.createDocumentFragment();
+  let lastDay = '';
+  for (const p of all) {
+    const d = p.datetime;
+    const dayKey = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+    if (dayKey !== lastDay) {
+      lastDay = dayKey;
+      const h = document.createElement('div');
+      h.className = 'tl-day';
+      h.textContent = dayKey;
+      frag.appendChild(h);
+    }
+    const hasGps = p.lat != null && p.lng != null;
+    const item = document.createElement('div');
+    item.className = 'tl-item' + (hasGps ? '' : ' tl-nogps');
+    item.innerHTML =
+      `<img src="${thumbUrl(p)}">` +
+      `<div class="tl-meta"><div class="tl-time">${fmtShortDate(d)}</div>` +
+      `<div class="tl-badge">${hasGps ? '📍 地図で見る' : '位置情報なし'}</div></div>`;
+    item.addEventListener('click', () => {
+      if (hasGps) {
+        const rec = markerById.get(p.id);
+        const ll = rec ? rec.latlng : [p.lat, p.lng];
+        map.setView(ll, Math.max(map.getZoom(), 13), { animate: true });
+        if (rec && cluster.zoomToShowLayer) cluster.zoomToShowLayer(rec.marker, () => rec.marker.openPopup());
+        else if (rec) rec.marker.openPopup();
+        // モバイルはシートを畳んで地図を見せる
+        const sheet = container.closest('.timeline-sheet');
+        if (sheet && sheet.classList.contains('open') && isMobile()) {
+          sheet.classList.remove('open');
+          setTimeout(() => map.invalidateSize(), 260);
+        }
+      } else {
+        showFullImage(p);
+      }
+    });
+    frag.appendChild(item);
+  }
+  container.appendChild(frag);
+}
+
+function closeMapView() {
+  if (!mapState) return;
+  try { mapState.map.remove(); } catch {}
+  mapState.overlay.remove();
+  mapState = null;
+}
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mapState) closeMapView(); });
 
 // ワンタップ除外ボタン (✕)。親カードの tap/長押しと衝突しないよう pointer 系を止める。
 function makeExcludeBtn(photo) {
@@ -2282,6 +2545,7 @@ document.getElementById('btnAddImage').addEventListener('click', (e) => openImpo
 document.getElementById('btnAI').addEventListener('click', openAIModal);
 document.getElementById('btnInfo').addEventListener('click', openInfoModal);
 document.getElementById('btnIg').addEventListener('click', () => $igzip.click());
+document.getElementById('btnMap').addEventListener('click', openMapView);
 document.getElementById('btnTrash').addEventListener('click', openExcludedModal);
 document.getElementById('btnClear').addEventListener('click', async () => {
   if (!confirm('IndexedDB の全写真を削除します。続行?')) return;
