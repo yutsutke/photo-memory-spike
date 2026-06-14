@@ -149,6 +149,18 @@
   /* AI 進捗 (ヘッダ右の控えめ表示、🌀 と同列) */
   .ai-bg { color: #c9a; }
 
+  /* 取り込みの詳細設定 (ラジオ選択) */
+  .imp-opts { display: flex; flex-direction: column; gap: 8px; margin: 6px 0 4px; }
+  .imp-opt { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; border: 1px solid #3a3a3a; border-radius: 10px; cursor: pointer; }
+  .imp-opt:has(input:checked) { border-color: #2a6; background: rgba(42,170,102,0.10); }
+  .imp-opt input { margin-top: 2px; flex: 0 0 auto; }
+  .imp-opt span { display: flex; flex-direction: column; gap: 3px; }
+  .imp-opt b { font-size: 13px; color: #eee; }
+  .imp-opt small { font-size: 11px; color: #999; line-height: 1.5; }
+  /* 日時の出所タグ (撮影日 / 保存日 / 投稿日) — 日時表示に小さく添える */
+  .src-tag { display: inline-block; font-size: 10px; font-weight: 600; color: #9bd; background: rgba(120,160,210,0.16); border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; letter-spacing: 0.02em; }
+  .full-cap .dt .src-tag { color: #cfe2ff; background: rgba(140,180,230,0.22); }
+
   /* ============================================================
      地図ビュー (軌跡 + タイムライン) — phase3.0
      $main の外に出すフルスクリーン overlay。Leaflet は遅延ロード。
@@ -235,8 +247,7 @@
   <h1>写真思い出 <span class="ver" id="ver"></span></h1>
   <span class="count" id="count">— 枚</span>
   <span class="count hidden" id="bgStatus"></span>
-  <button id="btnAddPhoto" class="import-trigger" title="写真を取り込む（EXIF 日時のある写真だけ・ファイル/フォルダ）">📷写真</button>
-  <button id="btnAddImage" class="import-trigger" title="日時の無い画像も取り込む（保存日を使う・ファイル/フォルダ）">🖼️画像</button>
+  <button id="btnAdd" class="import-trigger" title="画像を取り込む（ファイル / フォルダ・詳細設定）">📷取り込む</button>
   <button id="btnMap" title="地図で軌跡を見る（位置情報のある写真）">🗺</button>
   <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠</button>
   <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦</button>
@@ -268,7 +279,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.3 (マップ上フィルタUI) · 2026-06-14';
+const BUILD = 'phase3.4 (取り込み簡素化+日時出所) · 2026-06-14';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -591,20 +602,24 @@ async function importOne(file, override) {
   try {
     // override.datetime があれば EXIF 日時必須ゲートをバイパス (Instagram エクスポート等、
     // 画像本体から EXIF が剥がされていても外部 JSON の日時で取り込むため, v43)。
-    let datetime, lat, lng, orientation;
+    // dateSource = 日時の出所 ('exif'=撮影日 / 'mtime'=保存日 / 'posted'=投稿日)。画像を見た時に表示する (v53)。
+    let datetime, lat, lng, orientation, dateSource;
     if (override?.datetime) {
       datetime = override.datetime;
+      dateSource = override.dateSource || 'posted';   // Instagram/X エクスポート等 = 投稿日時
       const m = await readMeta(file).catch(() => null);   // orientation/GPS は拾えれば拾う
       orientation = m?.orientation ?? 1;
       lat = override.lat ?? m?.lat ?? null;
       lng = override.lng ?? m?.lng ?? null;
     } else {
       ({ datetime, lat, lng, orientation } = await readMeta(file));
-      if (!datetime && override?.fallbackMtime && file.lastModified) {
-        // v46: フォルダ取り込み時のみ、EXIF 日時が無い画像は「保存日時」(file.lastModified) で補完。
-        // 「+」(通常ピッカー) は override 無し → 従来どおり日時なしはスキップ (タイムラインの純度を維持)。
+      if (datetime) {
+        dateSource = 'exif';
+      } else if (override?.fallbackMtime && file.lastModified) {
+        // v46: EXIF 日時が無い画像は「保存日時」(file.lastModified) で補完 (importMode='all' の時)。
+        // exifOnly (override 無し or fallbackMtime=false) は従来どおり日時なしはスキップ。
         const ms = file.lastModified;
-        if (ms > 0 && ms < Date.now() + 86400000) datetime = new Date(ms);
+        if (ms > 0 && ms < Date.now() + 86400000) { datetime = new Date(ms); dateSource = 'mtime'; }
       }
       if (!datetime) return { skipped: 'no-datetime' };
     }
@@ -629,6 +644,7 @@ async function importOne(file, override) {
       thumb,
       color,
       dedup,
+      dateSource,                             // v53: 'exif' | 'mtime' | 'posted' (日時の出所)
       importedAt: new Date(),
     };
     await dbPut(record);
@@ -1122,7 +1138,12 @@ function saveTrail() {
 // 取り込みフロー (待ち時間ゼロ化 + 連打詰まり対策)
 let importBusy = false;            // picker を開いてから完了/キャンセルまで true (多重 open/change 防止)
 let importingNow = false;          // 実際に importFiles 実行中 (change 後)
-let importFallback = false;        // 次の取り込みで保存日フォールバックを使うか (📷=false / 🖼️=true, v47)
+let importFallback = false;        // 次の取り込みで保存日フォールバックを使うか (importMode から都度設定, v53)
+// 取り込みの基準 (v53: 初心者向けに口を1本化し、強弱は詳細設定で)。
+//   'all'      = すべての画像 / 撮影日(EXIF)優先・無ければ保存日(最終更新日)。既定。
+//   'exifOnly' = 撮影日(EXIF)のある画像だけ (保存日は使わない)。
+let importMode = 'all';
+try { const v = localStorage.getItem('pms-importMode'); if (v === 'all' || v === 'exifOnly') importMode = v; } catch {}
 let prevStateBeforePicker = 'empty'; // preparing キャンセル時に戻す先
 let importStatus = null;           // {done, total} or null. バックグラウンド取り込み進捗
 let importStats = null;            // {added, dup, skipped, failed} or null. 当該取り込みセッションの差分集計 (v22)
@@ -1202,6 +1223,18 @@ function fmtShortDate(d) {
 function fmtPlace(lat, lng) {
   return (lat == null || lng == null) ? '' : `📍 ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
 }
+// 日時の出所ラベル (v53)。画像を見た時に「撮影日 / 保存日 / 投稿日」のどれを使ったか分かるように。
+// 旧データ (dateSource 無し) は不明なので空 = 表示しない。
+function dateSourceLabel(photo) {
+  return photo?.dateSource === 'exif' ? '撮影日'
+       : photo?.dateSource === 'mtime' ? '保存日'
+       : photo?.dateSource === 'posted' ? '投稿日' : '';
+}
+// 日時表示に添える小さな出所タグ (HTML)。出所不明なら空文字。
+function srcTagHtml(photo) {
+  const l = dateSourceLabel(photo);
+  return l ? ` <span class="src-tag">${l}</span>` : '';
+}
 
 // ============================================================
 // 長押し → フル画像表示 (タップで閉じる、ESC でも閉じる)
@@ -1270,7 +1303,7 @@ function showFullImage(photo) {
   const cap = document.createElement('div');
   cap.className = 'full-cap';
   cap.innerHTML =
-    `<div class="dt">📅 ${dtStr}<small>タップで日付をコピー</small></div>` +
+    `<div class="dt">📅 ${dtStr}${srcTagHtml(photo)}<small>タップで日付をコピー</small></div>` +
     `<button class="to-photos">📷 写真アプリで開く</button>`;
   cap.addEventListener('click', e => e.stopPropagation());  // キャプション操作で overlay を閉じない
   const $small = cap.querySelector('.dt small');
@@ -1395,7 +1428,7 @@ function buildMarkerPopup(p) {
   const place = fmtPlace(p.lat, p.lng);
   el.innerHTML =
     `<img class="mp-thumb" src="${thumbUrl(p)}">` +
-    `<div class="mp-date">${fmtDate(p.datetime)}</div>` +
+    `<div class="mp-date">${fmtDate(p.datetime)}${srcTagHtml(p)}</div>` +
     (place ? `<div class="mp-place">${place}</div>` : '') +
     `<button class="mp-walk">🔮 連想ウォーク</button>`;
   el.querySelector('.mp-thumb').addEventListener('click', () => showFullImage(p));
@@ -1774,7 +1807,7 @@ function makeCard(photo, onClick) {
   card.className = 'card';
   card.innerHTML = `<img src="${thumbUrl(photo)}" loading="lazy">
     <div class="meta">
-      <div class="date">${fmtDate(photo.datetime)}</div>
+      <div class="date">${fmtDate(photo.datetime)}${srcTagHtml(photo)}</div>
       ${fmtPlace(photo.lat, photo.lng) ? `<div class="place">${fmtPlace(photo.lat, photo.lng)}</div>` : ''}
     </div>`;
   attachPhotoGestures(card, photo, onClick);
@@ -1854,7 +1887,7 @@ function renderInfoModal() {
     <div style="text-align:left;font-size:13px;line-height:1.7;color:#ccc;">
       <p style="margin:.4em 0;color:#9f9;">🔒 <b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。AI 解析も端末内で行います。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">📥 取り込み</p>
-      <p style="margin:.2em 0;"><b>📷写真</b> = EXIF 日時のある写真だけ取り込み。<b>🖼️画像</b> = 日時の無い画像も<b>保存日</b>で取り込み（色・意味の連想に乗ります）。どちらも押すと <b>ファイル / フォルダ</b> を選べます。同じ画像を選び直しても<b>重複は自動スキップ</b>。たくさん入れる時・古い端末では小分けが安定。</p>
+      <p style="margin:.2em 0;"><b>📷取り込む</b> から <b>ファイル / フォルダー</b> を選びます。撮影日時(EXIF)があればそれを、なければ<b>保存日（最終更新日）</b>を日時にして取り込みます（色・意味の連想に乗ります）。日時の出所は画像を見ると「撮影日 / 保存日 / 投稿日」と表示されます。細かい基準（撮影日のある画像だけ取り込む等）は <b>⚙️ 詳細設定</b> から。同じ画像を選び直しても<b>重複は自動スキップ</b>。たくさん入れる時・古い端末では小分けが安定。</p>
       <p style="margin:.2em 0;">📦 は <b>Instagram / X(Twitter) のエクスポート(zip)</b> から取り込みます。画像本体から日時が消えていても、同梱データ（Instagram は「情報をダウンロード」の <b>JSON 形式</b>、X は <b>アーカイブ</b>の <code>data/tweets.js</code>）から<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。X は画像投稿のみ対応（動画・テキストは対象外）。容量が大きいと時間がかかるので、期間を絞ると軽いです。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時</p>
       <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
@@ -2069,15 +2102,12 @@ function render() {
         <h2>写真を取り込んで始める</h2>
         <div class="privacy">🔒 <b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。すべてブラウザ内 (IndexedDB) に保存され、AI 解析も端末内で行います。</div>
         <p>まず 20〜30 枚くらい入れて感触を見るのが目安です。</p>
-        <button class="primary import-trigger" id="emptyAddPhoto">📷 写真を取り込む（日時あり）</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">EXIF 日時のある写真だけ。押すとファイル/フォルダを選べます。</p>
-        <button class="import-trigger" id="emptyAddImage">🖼️ 日時の無い画像も取り込む（保存日）</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">撮影日時が無い画像は<b>保存日</b>を日時にして取り込みます（色・意味の連想に乗ります）。押すとファイル/フォルダを選べます（PC 向け）。</p>
-        <button id="emptyIg">📦 Instagram / X の zip から取り込む</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">Instagram「情報をダウンロード」(JSON形式) / X(Twitter) アーカイブの zip。投稿日時を復元します。</p>
+        <button class="primary import-trigger" id="emptyAdd">📷 画像を取り込む</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">押すと <b>ファイル / フォルダー</b> を選べます。撮影日時があればそれを、なければ<b>保存日</b>を使って取り込みます。細かい基準は <b>⚙️ 詳細設定</b> から。</p>
+        <button id="emptyIg" style="margin-top:6px;">📦 Instagram / X の zip から取り込む</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">（上級者向け）Instagram「情報をダウンロード」(JSON形式) / X(Twitter) アーカイブの zip。投稿日時を復元します。</p>
       </div>`;
-    document.getElementById('emptyAddPhoto').addEventListener('click', (e) => openImportMenu(e.currentTarget, false, '写真を取り込み（EXIF 日時のある写真だけ）'));
-    document.getElementById('emptyAddImage').addEventListener('click', (e) => openImportMenu(e.currentTarget, true, '画像を取り込み（日時が無ければ保存日を使う）'));
+    document.getElementById('emptyAdd').addEventListener('click', (e) => openImportMenu(e.currentTarget));
     document.getElementById('emptyIg').addEventListener('click', () => $igzip.click());
     return;
   }
@@ -2185,7 +2215,7 @@ function render() {
     // (raw 座標は人にとって意味が薄く、連想ウォーク中の写真への集中を逸らす情報だった)。
     centerEl.innerHTML = `<img src="${thumbUrl(center)}">
       <div class="meta">
-        <div class="date">${fmtDate(center.datetime)}</div>
+        <div class="date">${fmtDate(center.datetime)}${srcTagHtml(center)}</div>
       </div>`;
     // 中心カードは tap action なし、長押しでフル画像のみ
     attachPhotoGestures(centerEl, center, null);
@@ -2790,15 +2820,17 @@ function cancelPicker() {
   if (state === 'preparing') { state = prevStateBeforePicker; render(); }
 }
 
-// 取り込みボタンの小メニュー (ファイル / フォルダ)。fallback=true なら日時の無い画像を保存日で取り込む (v47)。
-function openImportMenu(anchor, fallback, title) {
+// 取り込みボタンの小メニュー (ファイル / フォルダ / 詳細設定)。v53: 口を1本化。
+// 日時の扱い (保存日フォールバックの有無) は importMode から都度決める。
+function openImportMenu(anchor) {
   closeImportMenu();
   const menu = document.createElement('div');
   menu.id = 'importMenu';
   menu.className = 'import-menu';
-  menu.innerHTML = `<div class="im-title">${title}</div>`
+  menu.innerHTML = `<div class="im-title">画像を取り込む</div>`
     + `<button data-mode="file">📄 ファイルを選ぶ</button>`
-    + `<button data-mode="folder">📁 フォルダを選ぶ</button>`;
+    + `<button data-mode="folder">📁 フォルダーを選ぶ</button>`
+    + `<button data-mode="settings" class="im-adv">⚙️ 詳細設定</button>`;
   document.body.appendChild(menu);
   const r = anchor.getBoundingClientRect();
   const w = menu.offsetWidth || 180;
@@ -2806,12 +2838,41 @@ function openImportMenu(anchor, fallback, title) {
   menu.style.left = `${Math.max(6, Math.min(r.left, window.innerWidth - w - 6))}px`;
   const pick = (mode) => {
     closeImportMenu();
-    importFallback = fallback;
+    if (mode === 'settings') { openImportSettings(); return; }
+    importFallback = (importMode === 'all');   // all=保存日フォールバックあり / exifOnly=EXIF 必須
     if (mode === 'folder') $folder.click(); else openPicker();
   };
   menu.querySelector('[data-mode="file"]').addEventListener('click', () => pick('file'));
   menu.querySelector('[data-mode="folder"]').addEventListener('click', () => pick('folder'));
+  menu.querySelector('[data-mode="settings"]').addEventListener('click', () => pick('settings'));
   setTimeout(() => document.addEventListener('click', onDocClickForMenu), 0);
+}
+
+// 取り込みの詳細設定モーダル (v53)。初心者は触らなくてよい。既定 = すべて取り込み・撮影日優先・無ければ保存日。
+function openImportSettings() {
+  closeImportMenu();
+  const modal = document.createElement('div');
+  modal.className = 'ai-modal';
+  modal.innerHTML =
+    `<div class="ai-modal-card">` +
+      `<h2>⚙️ 取り込みの詳細設定</h2>` +
+      `<p>初心者の方は変更不要です。<b>既定</b>は「すべての画像を取り込み、<b>撮影日時(EXIF)</b>があればそれを、なければ<b>保存日(最終更新日)</b>を使う」です。</p>` +
+      `<div class="imp-opts">` +
+        `<label class="imp-opt"><input type="radio" name="impMode" value="all"><span><b>すべての画像を取り込む</b><small>撮影日時があればそれ・なければ保存日（最終更新日）。おすすめ。</small></span></label>` +
+        `<label class="imp-opt"><input type="radio" name="impMode" value="exifOnly"><span><b>撮影日時(EXIF)のある画像だけ</b><small>保存日は使わない。日時が確実な写真だけ入れたい人向け。</small></span></label>` +
+      `</div>` +
+      `<div class="actions"><button class="primary" id="impClose">閉じる</button></div>` +
+    `</div>`;
+  document.body.appendChild(modal);
+  const cur = modal.querySelector(`input[value="${importMode}"]`);
+  if (cur) cur.checked = true;
+  modal.querySelectorAll('input[name="impMode"]').forEach(rb => rb.addEventListener('change', () => {
+    importMode = rb.value;
+    try { localStorage.setItem('pms-importMode', importMode); } catch {}
+  }));
+  const close = () => modal.remove();
+  modal.querySelector('#impClose').addEventListener('click', close);
+  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
 }
 function closeImportMenu() {
   const m = document.getElementById('importMenu');
@@ -2825,8 +2886,7 @@ function onDocClickForMenu(e) {
 // ============================================================
 // イベント
 // ============================================================
-document.getElementById('btnAddPhoto').addEventListener('click', (e) => openImportMenu(e.currentTarget, false, '写真を取り込み（EXIF 日時のある写真だけ）'));
-document.getElementById('btnAddImage').addEventListener('click', (e) => openImportMenu(e.currentTarget, true, '画像を取り込み（日時が無ければ保存日を使う）'));
+document.getElementById('btnAdd').addEventListener('click', (e) => openImportMenu(e.currentTarget));
 document.getElementById('btnAI').addEventListener('click', openAIModal);
 document.getElementById('btnInfo').addEventListener('click', openInfoModal);
 document.getElementById('btnIg').addEventListener('click', () => $igzip.click());
