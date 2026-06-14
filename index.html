@@ -103,10 +103,11 @@
   .filter-note { text-align: center; color: #777; font-size: 11px; max-width: 600px; margin: 0 auto 14px; padding: 0 12px; }
 
   /* フル画像表示 (長押しで開く、タップで閉じる) */
-  .full-overlay { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; align-items: center; justify-content: center; }
+  /* フル画像は最前面 (地図オーバーレイ z-index:150〜1250 より上。タイムライン/マーカーから開いても隠れない, v54 fix) */
+  .full-overlay { position: fixed; inset: 0; background: #000; z-index: 2000; display: flex; align-items: center; justify-content: center; }
   .full-overlay img { max-width: 100%; max-height: 100%; object-fit: contain; }
   /* v24: フル表示の下部キャプション。日時 (純正写真アプリで辿る鍵) + 写真アプリ動線 */
-  .full-cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 101; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.72)); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .full-cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2001; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.72)); display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .full-cap .dt { color: #fff; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
   .full-cap .dt small { color: #9a9a9a; font-size: 11px; margin-left: 8px; }
   .full-cap .to-photos { background: #2a2a2a; color: #e0e0e0; border: 1px solid #4a4a4a; border-radius: 999px; padding: 9px 20px; font-size: 14px; }
@@ -279,7 +280,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.4 (取り込み簡素化+日時出所) · 2026-06-14';
+const BUILD = 'phase3.5 (地図内フル画像の前面化) · 2026-06-14';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
