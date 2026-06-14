@@ -187,14 +187,24 @@
   .sheet-grip { width: 36px; height: 4px; border-radius: 2px; background: #555; }
   .sheet-title { font-size: 12px; color: #aaa; }
   .sheet-body { flex: 1 1 auto; overflow-y: auto; padding: 2px 12px 16px; -webkit-overflow-scrolling: touch; }
-  .tl-day { position: sticky; top: 0; background: #161616; font-size: 12px; color: #8bf; font-weight: 600; padding: 8px 2px 4px; z-index: 1; }
-  .tl-item { display: flex; align-items: center; gap: 10px; padding: 5px 2px; cursor: pointer; border-radius: 8px; }
+  /* 日付/期間フィルタのバー (タイムライン先頭に固定) */
+  .tl-filterbar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; margin: 0 -12px 2px; background: #1b1b1b; border-bottom: 1px solid #2a2a2a; }
+  .tl-filterbar .fb-text { font-size: 12px; color: #ccc; font-weight: 600; }
+  .tl-filterbar.active .fb-text { color: #6ee0a3; }
+  .tl-filterbar .fb-hint { font-size: 10px; color: #666; font-weight: normal; }
+  .tl-filterbar .fb-clear { flex: 0 0 auto; background: #333; color: #eee; border: 0; border-radius: 999px; padding: 5px 11px; font-size: 11px; cursor: pointer; }
+  .tl-filterbar .fb-clear:active { background: #555; }
+  .tl-day { position: sticky; top: 33px; background: #161616; font-size: 12px; color: #8bf; font-weight: 600; padding: 8px 2px 4px; z-index: 1; cursor: pointer; }
+  .tl-day:active { color: #fff; }
+  .tl-day.selected { color: #6ee0a3; }
+  .tl-item { display: flex; align-items: center; gap: 10px; padding: 5px 2px; cursor: pointer; border-radius: 8px; transition: opacity 0.12s; }
   .tl-item:active { background: #222; }
   .tl-item img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; flex: 0 0 auto; background: #000; }
   .tl-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .tl-time { font-size: 12px; color: #ddd; }
   .tl-badge { font-size: 10px; color: #777; }
   .tl-item.tl-nogps img { opacity: 0.5; }
+  .tl-item.dimmed { opacity: 0.3; }   /* フィルタ圏外 */
   .tl-empty { color: #888; font-size: 12px; text-align: center; padding: 20px; }
 
   @media (min-width: 720px) {
@@ -245,7 +255,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.1 (線の日数 + 連想→ピン) · 2026-06-14';
+const BUILD = 'phase3.2 (日付/期間フィルタ) · 2026-06-14';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1409,19 +1419,44 @@ async function openMapView(focusPhoto) {
   L.control.zoom({ position: 'bottomleft' }).addTo(map);
   L.control.layers({ 'ダーク': dark, '地理院(標準)': gsiStd, '地理院(淡色)': gsiPale }, null, { position: 'topright' }).addTo(map);
 
-  mapState = { overlay, map };
+  mapState = { overlay, map, range: { start: null, end: null }, tripLayers: [], filteredGps: [] };
 
   // GPS 写真を撮影順に。除外は出さない。
   const gps = allPhotos.filter(p => !p.excluded && p.lat != null && p.lng != null)
                        .sort((a, b) => a.datetime - b.datetime);
 
-  // 旅/日ごとの動線 (色分け + 進行方向の矢印)。「線の日数」で再描画できるよう関数化し、
-  // 引いたレイヤを mapState.tripLayers に保持して張り替える (マーカーは線モードと無関係なので不動)。
-  mapState.tripLayers = [];
+  // クラスタとマーカー索引は「中身を入れ替えて」使う (日付/期間フィルタで張り替えても、
+  // タイムライン側の closure が握る参照を保つため、Map/cluster は作り直さず clear→再投入)。
+  const cluster = L.markerClusterGroup({ maxClusterRadius: 45, spiderfyOnMaxZoom: true });
+  const markerById = new Map();
+  map.addLayer(cluster);
+  mapState.cluster = cluster;
+  mapState.markerById = markerById;
+
+  // 表示フィルタ (日付/期間)。range.start==null は全期間。
+  function inRange(p) {
+    const r = mapState.range;
+    if (r.start == null) return true;
+    const t = p.datetime.getTime();
+    return t >= r.start && t <= r.end;
+  }
+  function makePhotoMarker(p) {
+    const icon = L.divIcon({
+      className: 'photo-marker-wrap',
+      html: `<div class="photo-marker" style="background-image:url(${thumbUrl(p)})"></div>`,
+      iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -22],
+    });
+    const mk = L.marker([p.lat, p.lng], { icon });
+    mk.bindPopup(() => buildMarkerPopup(p), { minWidth: 180, closeButton: true });
+    return mk;
+  }
+
+  // 旅/日ごとの動線 (色分け + 進行方向の矢印)。「線の日数」とフィルタの両方で再描画する。
+  // mapState.filteredGps を読み、引いたレイヤを mapState.tripLayers に保持して張り替える。
   function drawTrips() {
     for (const l of mapState.tripLayers) map.removeLayer(l);
     mapState.tripLayers = [];
-    segmentByMode(gps, LINE_MODES[lineModeIdx]).forEach((seg, i) => {
+    segmentByMode(mapState.filteredGps, LINE_MODES[lineModeIdx]).forEach((seg, i) => {
       if (seg.length < 2) return;
       const color = TRIP_COLORS[i % TRIP_COLORS.length];
       const latlngs = seg.map(p => [p.lat, p.lng]);
@@ -1435,7 +1470,25 @@ async function openMapView(focusPhoto) {
       }
     });
   }
-  drawTrips();
+
+  // 日付/期間フィルタを適用: 表示するマーカーと動線を絞り、bounds を合わせ、タイムライン UI を更新。
+  function applyFilter(opts) {
+    const fg = gps.filter(inRange);
+    mapState.filteredGps = fg;
+    cluster.clearLayers();
+    markerById.clear();
+    fg.forEach(p => {
+      const mk = makePhotoMarker(p);
+      cluster.addLayer(mk);
+      markerById.set(p.id, { marker: mk, latlng: [p.lat, p.lng] });
+    });
+    drawTrips();
+    if (!(opts && opts.skipFit) && fg.length) {
+      map.fitBounds(fg.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14 });
+    }
+    if (mapState.updateTimelineUI) mapState.updateTimelineUI();
+  }
+  mapState.applyFilter = applyFilter;
 
   // 「線の日数」コントロール (上部中央)。一日だけの線 / 複数日の線を選べる (ユーザー要望)。
   const lc = overlay.querySelector('.map-line-ctrl');
@@ -1448,42 +1501,22 @@ async function openMapView(focusPhoto) {
       if (i === lineModeIdx) return;
       lineModeIdx = i;
       lc.querySelectorAll('.lc-chip').forEach((c, j) => c.classList.toggle('selected', j === lineModeIdx));
-      drawTrips();
+      drawTrips();   // 現在のフィルタ済み集合で線だけ張り替え
     });
     lc.appendChild(b);
   });
 
-  // 写真サムネのマーカー (大量化に備えクラスタ化)。id → marker でタイムライン側から開ける。
-  const cluster = L.markerClusterGroup({ maxClusterRadius: 45, spiderfyOnMaxZoom: true });
-  const markerById = new Map();
-  gps.forEach(p => {
-    const icon = L.divIcon({
-      className: 'photo-marker-wrap',
-      html: `<div class="photo-marker" style="background-image:url(${thumbUrl(p)})"></div>`,
-      iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -22],
-    });
-    const mk = L.marker([p.lat, p.lng], { icon });
-    mk.bindPopup(() => buildMarkerPopup(p), { minWidth: 180, closeButton: true });
-    cluster.addLayer(mk);
-    markerById.set(p.id, { marker: mk, latlng: [p.lat, p.lng] });
-  });
-  map.addLayer(cluster);
-  mapState.cluster = cluster;
-  mapState.markerById = markerById;
+  // タイムライン (フィルタ操作の主役) を先に組み、updateTimelineUI フックを mapState に立ててから適用。
+  buildTimeline(overlay.querySelector('.sheet-body'), map, cluster, markerById, applyFilter);
 
-  // bounds: focusPhoto があればそのピンへ寄せる (後段の setTimeout で) / GPS があれば全点にフィット /
-  // 無ければ日本全体のまま注記。
-  const focusHasPin = focusPhoto && markerById.has(focusPhoto.id);
-  if (!focusHasPin && gps.length) {
-    map.fitBounds(gps.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14 });
-  } else if (!gps.length) {
+  const focusHasPin = focusPhoto && gps.some(p => p.id === focusPhoto.id);
+  applyFilter({ skipFit: focusHasPin });   // 初期 = 全期間。focus 時は後段で寄せるので fit しない
+  if (!gps.length) {
     const note = document.createElement('div');
     note.className = 'map-empty-note';
     note.textContent = '位置情報のある写真がありません（下のタイムラインから一覧で見られます）';
     overlay.appendChild(note);
   }
-
-  buildTimeline(overlay.querySelector('.sheet-body'), map, cluster, markerById);
 
   // 配線
   overlay.querySelector('.map-close').addEventListener('click', closeMapView);
@@ -1494,33 +1527,52 @@ async function openMapView(focusPhoto) {
   });
 
   setTimeout(() => {
+    if (!mapState) return;
     map.invalidateSize();       // overlay 表示後のレイアウト確定
     if (focusHasPin) {          // 連想ウォークの写真 → その地図ピンへ寄せて popup を開く
       const rec = markerById.get(focusPhoto.id);
-      map.setView(rec.latlng, 14, { animate: false });
-      if (cluster.zoomToShowLayer) cluster.zoomToShowLayer(rec.marker, () => rec.marker.openPopup());
-      else rec.marker.openPopup();
+      if (rec) {
+        map.setView(rec.latlng, 14, { animate: false });
+        if (cluster.zoomToShowLayer) cluster.zoomToShowLayer(rec.marker, () => rec.marker.openPopup());
+        else rec.marker.openPopup();
+      }
     }
   }, 80);
 }
 
 // タイムライン: 全写真 (GPS 有無問わず) を日付降順 (新しい旅が上) に。
-// GPS あり → タップで地図をそのマーカーへ。GPS 無し → タップでフル画像 (地図に出せないが一覧では見られる)。
-function buildTimeline(container, map, cluster, markerById) {
+// 日付見出しタップで地図を「その日 / 期間」に絞り込む (別の日をタップで期間レンジ、✕ で解除)。
+// 写真タップ: いま地図に出ている GPS 写真ならフォーカス、それ以外 (フィルタ圏外/GPS無し) はフル画像。
+function buildTimeline(container, map, cluster, markerById, applyFilter) {
+  container.innerHTML = '';
   const all = allPhotos.filter(p => !p.excluded).slice().sort((a, b) => b.datetime - a.datetime);
   if (!all.length) { container.innerHTML = '<div class="tl-empty">写真がありません</div>'; return; }
   const isMobile = () => window.matchMedia('(max-width:719px)').matches;
+  const dayStartOf = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const dayEndOf = ms => ms + 86400000 - 1;
+  const fmtDay = ms => { const d = new Date(ms); return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`; };
+
+  // フィルタバー (絞り込み状態 + 解除)。リスト先頭に固定。
+  const bar = document.createElement('div');
+  bar.className = 'tl-filterbar';
+  container.appendChild(bar);
+
   const frag = document.createDocumentFragment();
+  const dayHeaders = [];   // { el, dayStart }
+  const itemEls = [];      // { el, dayStart }
   let lastDay = '';
   for (const p of all) {
     const d = p.datetime;
-    const dayKey = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+    const dayStart = dayStartOf(d);
+    const dayKey = fmtDay(dayStart);
     if (dayKey !== lastDay) {
       lastDay = dayKey;
       const h = document.createElement('div');
       h.className = 'tl-day';
       h.textContent = dayKey;
+      h.addEventListener('click', () => toggleDayFilter(dayStart));
       frag.appendChild(h);
+      dayHeaders.push({ el: h, dayStart });
     }
     const hasGps = p.lat != null && p.lng != null;
     const item = document.createElement('div');
@@ -1530,25 +1582,67 @@ function buildTimeline(container, map, cluster, markerById) {
       `<div class="tl-meta"><div class="tl-time">${fmtShortDate(d)}</div>` +
       `<div class="tl-badge">${hasGps ? '📍 地図で見る' : '位置情報なし'}</div></div>`;
     item.addEventListener('click', () => {
-      if (hasGps) {
+      if (markerById.has(p.id)) {          // いま地図に出ている (フィルタ内の GPS 写真) → フォーカス
         const rec = markerById.get(p.id);
-        const ll = rec ? rec.latlng : [p.lat, p.lng];
-        map.setView(ll, Math.max(map.getZoom(), 13), { animate: true });
-        if (rec && cluster.zoomToShowLayer) cluster.zoomToShowLayer(rec.marker, () => rec.marker.openPopup());
-        else if (rec) rec.marker.openPopup();
-        // モバイルはシートを畳んで地図を見せる
-        const sheet = container.closest('.timeline-sheet');
+        map.setView(rec.latlng, Math.max(map.getZoom(), 13), { animate: true });
+        if (cluster.zoomToShowLayer) cluster.zoomToShowLayer(rec.marker, () => rec.marker.openPopup());
+        else rec.marker.openPopup();
+        const sheet = container.closest('.timeline-sheet');   // モバイルはシートを畳んで地図を見せる
         if (sheet && sheet.classList.contains('open') && isMobile()) {
           sheet.classList.remove('open');
           setTimeout(() => map.invalidateSize(), 260);
         }
-      } else {
+      } else {                              // フィルタ圏外 or GPS 無し → フル画像
         showFullImage(p);
       }
     });
     frag.appendChild(item);
+    itemEls.push({ el: item, dayStart });
   }
   container.appendChild(frag);
+
+  // 日付見出しタップ: なし→その日 / 単日→(同じ日で解除・別の日で期間) / 期間→新しい単日。
+  function toggleDayFilter(dayStart) {
+    const r = mapState.range;
+    const dayEnd = dayEndOf(dayStart);
+    if (r.start == null) {
+      mapState.range = { start: dayStart, end: dayEnd };
+    } else if (r.end === dayEndOf(r.start)) {            // いま単日
+      if (dayStart === r.start) mapState.range = { start: null, end: null };   // 同じ日 → 解除
+      else mapState.range = { start: Math.min(r.start, dayStart), end: Math.max(dayEndOf(r.start), dayEnd) };
+    } else {                                              // いま期間 → 新しい単日から
+      mapState.range = { start: dayStart, end: dayEnd };
+    }
+    applyFilter();
+  }
+
+  // フィルタ状態に合わせてバー/見出し/淡色を更新 (applyFilter から呼ばれる)。
+  mapState.updateTimelineUI = () => {
+    const r = mapState.range;
+    bar.innerHTML = '';
+    if (r.start == null) {
+      bar.classList.remove('active');
+      bar.innerHTML = `<span class="fb-text">全期間</span><span class="fb-hint">日付をタップで絞り込み</span>`;
+    } else {
+      bar.classList.add('active');
+      const single = r.end === dayEndOf(r.start);
+      bar.innerHTML = single
+        ? `<span class="fb-text">📅 ${fmtDay(r.start)}</span>`
+        : `<span class="fb-text">📅 ${fmtDay(r.start)} 〜 ${fmtDay(r.end)}</span>`;
+      const clr = document.createElement('button');
+      clr.className = 'fb-clear';
+      clr.textContent = '✕ 解除';
+      clr.addEventListener('click', () => { mapState.range = { start: null, end: null }; applyFilter(); });
+      bar.appendChild(clr);
+    }
+    for (const { el, dayStart } of dayHeaders) {
+      el.classList.toggle('selected', r.start != null && dayStart >= r.start && dayStart <= r.end);
+    }
+    for (const { el, dayStart } of itemEls) {
+      el.classList.toggle('dimmed', r.start != null && !(dayStart >= r.start && dayStart <= r.end));
+    }
+  };
+  mapState.updateTimelineUI();
 }
 
 function closeMapView() {
@@ -1984,10 +2078,11 @@ function render() {
 
     const centerEl = document.createElement('div');
     centerEl.className = 'center-card';
+    // v51: 座標 (📍 lat,lng) は「🗺 地図でこの場所を見る」が担うので中心カードからは外す
+    // (raw 座標は人にとって意味が薄く、連想ウォーク中の写真への集中を逸らす情報だった)。
     centerEl.innerHTML = `<img src="${thumbUrl(center)}">
       <div class="meta">
         <div class="date">${fmtDate(center.datetime)}</div>
-        ${fmtPlace(center.lat, center.lng) ? `<div class="place">${fmtPlace(center.lat, center.lng)}</div>` : ''}
       </div>`;
     // 中心カードは tap action なし、長押しでフル画像のみ
     attachPhotoGestures(centerEl, center, null);
