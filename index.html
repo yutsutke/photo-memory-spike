@@ -222,7 +222,8 @@
   .tl-filterbar .fb-clear:active { background: #555; }
   .tl-day { position: sticky; top: 33px; background: #161616; font-size: 12px; color: #8bf; font-weight: 600; padding: 8px 2px 4px; z-index: 1; cursor: pointer; }
   .tl-day:active { color: #fff; }
-  .tl-day.selected { color: #6ee0a3; }
+  /* フィルタ圏外は非表示 (v55: 絞った期間だけを見せる) */
+  .tl-day.tl-out, .tl-item.tl-out, .tl-empty.tl-out { display: none !important; }
   .tl-item { display: flex; align-items: center; gap: 10px; padding: 5px 2px; cursor: pointer; border-radius: 8px; transition: opacity 0.12s; }
   .tl-item:active { background: #222; }
   .tl-item img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; flex: 0 0 auto; background: #000; }
@@ -230,7 +231,6 @@
   .tl-time { font-size: 12px; color: #ddd; }
   .tl-badge { font-size: 10px; color: #777; }
   .tl-item.tl-nogps img { opacity: 0.5; }
-  .tl-item.dimmed { opacity: 0.3; }   /* フィルタ圏外 */
   .tl-empty { color: #888; font-size: 12px; text-align: center; padding: 20px; }
 
   @media (min-width: 720px) {
@@ -280,7 +280,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.5 (地図内フル画像の前面化) · 2026-06-14';
+const BUILD = 'phase3.6 (タイムラインも期間で絞る) · 2026-06-14';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1692,6 +1692,11 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
   const bar = document.createElement('div');
   bar.className = 'tl-filterbar';
   container.appendChild(bar);
+  // 期間を絞った結果その期間に写真が無いときの注記 (既定は非表示)。
+  const emptyNote = document.createElement('div');
+  emptyNote.className = 'tl-empty tl-out';
+  emptyNote.textContent = 'この期間に写真はありません';
+  container.appendChild(emptyNote);
 
   const frag = document.createDocumentFragment();
   const dayHeaders = [];   // { el, dayStart }
@@ -1771,12 +1776,12 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
       clr.addEventListener('click', () => { mapState.range = { start: null, end: null }; applyFilter(); });
       bar.appendChild(clr);
     }
-    for (const { el, dayStart } of dayHeaders) {
-      el.classList.toggle('selected', r.start != null && dayStart >= r.start && dayStart <= r.end);
-    }
-    for (const { el, dayStart } of itemEls) {
-      el.classList.toggle('dimmed', r.start != null && !(dayStart >= r.start && dayStart <= r.end));
-    }
+    // v55: フィルタ中はその期間「だけ」を見せる (淡色化でなく非表示)。タイムライン=絞り込んだ期間の一覧。
+    const inR = ds => r.start == null || (ds >= r.start && ds <= r.end);
+    let visible = 0;
+    for (const { el, dayStart } of dayHeaders) el.classList.toggle('tl-out', !inR(dayStart));
+    for (const { el, dayStart } of itemEls) { const v = inR(dayStart); el.classList.toggle('tl-out', !v); if (v) visible++; }
+    emptyNote.classList.toggle('tl-out', !(r.start != null && visible === 0));
   };
   mapState.updateTimelineUI();
 }
