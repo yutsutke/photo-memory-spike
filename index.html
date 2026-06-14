@@ -65,6 +65,9 @@
   .center-card .meta { padding: 10px 14px 12px; }
   .center-card .meta .date { font-size: 14px; font-weight: 600; }
   .center-card .meta .place { font-size: 12px; color: #8bf; margin-top: 3px; }
+  /* 連想ウォークの中心写真 → 地図ピンへ飛ぶ導線 (GPS がある時だけ) */
+  .center-map-btn { margin-top: 10px; padding: 8px 14px; border: 1px solid #2a6; border-radius: 999px; background: rgba(42,170,102,0.12); color: #6ee0a3; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .center-map-btn:active { background: rgba(42,170,102,0.28); }
 
   .neighbor-label { text-align: center; color: #888; font-size: 12px; margin: 6px 0 10px; }
 
@@ -154,6 +157,15 @@
   #mapEl { position: absolute; inset: 0; width: 100%; height: 100%; background: #111; }
   .map-close { position: absolute; top: 10px; left: 10px; z-index: 1200; background: rgba(0,0,0,0.7); color: #fff; border: 1px solid #444; border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
   .map-close:active { background: #000; }
+  /* 「線の日数」コントロール (上部中央、一日だけ/複数日を選ぶ) */
+  .map-line-ctrl { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200; display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.72); border: 1px solid #444; border-radius: 999px; padding: 4px 6px; max-width: calc(100% - 130px); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .map-line-ctrl::-webkit-scrollbar { display: none; }
+  .map-line-ctrl .lc-label { color: #888; font-size: 11px; padding: 0 4px 0 2px; flex: 0 0 auto; }
+  .lc-chip { flex: 0 0 auto; padding: 5px 11px; border: 0; border-radius: 999px; background: transparent; color: #bbb; font-size: 12px; white-space: nowrap; cursor: pointer; }
+  .lc-chip:active { opacity: 0.7; }
+  .lc-chip.selected { background: #2a6; color: #fff; font-weight: 600; }
+  /* 狭い画面では閉じる/レイヤ切替(上端の左右)と重なるので1段下げる */
+  @media (max-width: 719px) { .map-line-ctrl { top: 52px; max-width: calc(100% - 20px); } }
   .map-empty-note { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 1100; background: rgba(0,0,0,0.78); color: #ddd; border: 1px solid #444; border-radius: 8px; padding: 8px 14px; font-size: 12px; text-align: center; max-width: 80%; }
 
   /* 写真サムネのマーカー (L.divIcon の中身) */
@@ -233,7 +245,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.0 (地図ビュー) · 2026-06-14';
+const BUILD = 'phase3.1 (線の日数 + 連想→ピン) · 2026-06-14';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1281,8 +1293,18 @@ window.addEventListener('keydown', (e) => {
 // render() は $main を毎回作り直すので、地図は $main の外の overlay として
 // showFullImage と同様に命令的に build/teardown する。
 // ============================================================
-const TRIP_GAP_MS = 12 * 60 * 60 * 1000;   // これ以上空いたら別の旅/日として線を切る (調整可)
 const TRIP_COLORS = ['#ff6b6b','#feca57','#48dbfb','#1dd1a1','#f368e0','#ff9f43','#54a0ff','#00d2d3'];
+
+// 線の「つなぐ範囲」を選べるようにする (ユーザー要望: 一日だけの線も、複数日の線も見たい)。
+// 'day' = 暦日ごとに切る (1日=1本) / gapDays = この日数を超えて空いたら切る (大きいほど数日の旅が1本に) /
+// Infinity = ぜんぶ1本。地図上部のチップで切替。
+const LINE_MODES = [
+  { label: '日ごと', mode: 'day' },
+  { label: '3日',   gapDays: 3 },
+  { label: '1週間', gapDays: 7 },
+  { label: 'ぜんぶ', gapDays: Infinity },
+];
+let lineModeIdx = 0;   // 既定 = 日ごと。地図を開き直しても選択を覚える (module スコープ)。
 
 let _leafletLoading = null;
 function loadAsset(tag, props) {
@@ -1313,18 +1335,34 @@ function loadLeaflet() {
   return _leafletLoading;
 }
 
-// GPS 写真 (datetime 昇順) を旅/日ごとに分割。撮影時刻が TRIP_GAP_MS を超えて空いたら新しい動線。
-function segmentTrips(gpsPhotos) {
+// GPS 写真 (datetime 昇順) を、撮影時刻が gapMs を超えて空いたら新しい動線に切る。
+function segmentByGap(gpsPhotos, gapMs) {
   const segs = [];
   let cur = null;
   for (const p of gpsPhotos) {
-    if (!cur || (p.datetime.getTime() - cur[cur.length - 1].datetime.getTime()) > TRIP_GAP_MS) {
+    if (!cur || (p.datetime.getTime() - cur[cur.length - 1].datetime.getTime()) > gapMs) {
       cur = [p]; segs.push(cur);
     } else {
       cur.push(p);
     }
   }
   return segs;
+}
+// 暦日ごとに分割 (日付が変われば別の線 = 一日だけの線)。
+function segmentByDay(gpsPhotos) {
+  const segs = [];
+  let cur = null, curKey = null;
+  for (const p of gpsPhotos) {
+    const d = p.datetime;
+    const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (k !== curKey) { cur = [p]; segs.push(cur); curKey = k; }
+    else cur.push(p);
+  }
+  return segs;
+}
+// 現在の線モードでセグメント化 (Infinity*86400000=Infinity → gap 超え無し → ぜんぶ1本)。
+function segmentByMode(gpsPhotos, m) {
+  return m.mode === 'day' ? segmentByDay(gpsPhotos) : segmentByGap(gpsPhotos, m.gapDays * 86400000);
 }
 
 // マーカーのポップアップ (サムネ + 日時 + 場所 + 連想ウォーク導線)。
@@ -1343,7 +1381,8 @@ function buildMarkerPopup(p) {
 }
 
 let mapState = null;
-async function openMapView() {
+// focusPhoto を渡すと、その写真のピンに寄せて popup を開く (連想ウォークの中心写真 → 地図ピン)。
+async function openMapView(focusPhoto) {
   if (mapState) return;
   try { await loadLeaflet(); }
   catch { logErr('地図ライブラリの読み込みに失敗しました（オフラインの可能性）'); return; }
@@ -1352,6 +1391,7 @@ async function openMapView() {
   overlay.className = 'map-overlay';
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
+    `<div class="map-line-ctrl"></div>` +
     `<button class="map-close">✕ 閉じる</button>` +
     `<div class="timeline-sheet">` +
       `<div class="sheet-handle"><span class="sheet-grip"></span><span class="sheet-title">タイムライン</span></div>` +
@@ -1375,17 +1415,42 @@ async function openMapView() {
   const gps = allPhotos.filter(p => !p.excluded && p.lat != null && p.lng != null)
                        .sort((a, b) => a.datetime - b.datetime);
 
-  // 旅/日ごとの動線 (色分け + 進行方向の矢印)。
-  segmentTrips(gps).forEach((seg, i) => {
-    if (seg.length < 2) return;
-    const color = TRIP_COLORS[i % TRIP_COLORS.length];
-    const latlngs = seg.map(p => [p.lat, p.lng]);
-    L.polyline(latlngs, { color, weight: 3, opacity: 0.85, lineCap: 'round' }).addTo(map);
-    if (L.polylineDecorator && L.Symbol) {
-      L.polylineDecorator(latlngs, {
-        patterns: [{ offset: 24, repeat: 90, symbol: L.Symbol.arrowHead({ pixelSize: 9, polygon: false, pathOptions: { color, weight: 2, opacity: 0.85 } }) }]
-      }).addTo(map);
-    }
+  // 旅/日ごとの動線 (色分け + 進行方向の矢印)。「線の日数」で再描画できるよう関数化し、
+  // 引いたレイヤを mapState.tripLayers に保持して張り替える (マーカーは線モードと無関係なので不動)。
+  mapState.tripLayers = [];
+  function drawTrips() {
+    for (const l of mapState.tripLayers) map.removeLayer(l);
+    mapState.tripLayers = [];
+    segmentByMode(gps, LINE_MODES[lineModeIdx]).forEach((seg, i) => {
+      if (seg.length < 2) return;
+      const color = TRIP_COLORS[i % TRIP_COLORS.length];
+      const latlngs = seg.map(p => [p.lat, p.lng]);
+      const line = L.polyline(latlngs, { color, weight: 3, opacity: 0.85, lineCap: 'round' }).addTo(map);
+      mapState.tripLayers.push(line);
+      if (L.polylineDecorator && L.Symbol) {
+        const dec = L.polylineDecorator(latlngs, {
+          patterns: [{ offset: 24, repeat: 90, symbol: L.Symbol.arrowHead({ pixelSize: 9, polygon: false, pathOptions: { color, weight: 2, opacity: 0.85 } }) }]
+        }).addTo(map);
+        mapState.tripLayers.push(dec);
+      }
+    });
+  }
+  drawTrips();
+
+  // 「線の日数」コントロール (上部中央)。一日だけの線 / 複数日の線を選べる (ユーザー要望)。
+  const lc = overlay.querySelector('.map-line-ctrl');
+  lc.innerHTML = `<span class="lc-label">線</span>`;
+  LINE_MODES.forEach((m, i) => {
+    const b = document.createElement('button');
+    b.className = 'lc-chip' + (i === lineModeIdx ? ' selected' : '');
+    b.textContent = m.label;
+    b.addEventListener('click', () => {
+      if (i === lineModeIdx) return;
+      lineModeIdx = i;
+      lc.querySelectorAll('.lc-chip').forEach((c, j) => c.classList.toggle('selected', j === lineModeIdx));
+      drawTrips();
+    });
+    lc.appendChild(b);
   });
 
   // 写真サムネのマーカー (大量化に備えクラスタ化)。id → marker でタイムライン側から開ける。
@@ -1406,10 +1471,12 @@ async function openMapView() {
   mapState.cluster = cluster;
   mapState.markerById = markerById;
 
-  // bounds: GPS があれば全点にフィット、無ければ日本全体のまま注記。
-  if (gps.length) {
+  // bounds: focusPhoto があればそのピンへ寄せる (後段の setTimeout で) / GPS があれば全点にフィット /
+  // 無ければ日本全体のまま注記。
+  const focusHasPin = focusPhoto && markerById.has(focusPhoto.id);
+  if (!focusHasPin && gps.length) {
     map.fitBounds(gps.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14 });
-  } else {
+  } else if (!gps.length) {
     const note = document.createElement('div');
     note.className = 'map-empty-note';
     note.textContent = '位置情報のある写真がありません（下のタイムラインから一覧で見られます）';
@@ -1426,7 +1493,15 @@ async function openMapView() {
     setTimeout(() => map.invalidateSize(), 260);   // シート開閉でコンテナ高が変わる → Leaflet に反映
   });
 
-  setTimeout(() => map.invalidateSize(), 60);       // overlay 表示後のレイアウト確定
+  setTimeout(() => {
+    map.invalidateSize();       // overlay 表示後のレイアウト確定
+    if (focusHasPin) {          // 連想ウォークの写真 → その地図ピンへ寄せて popup を開く
+      const rec = markerById.get(focusPhoto.id);
+      map.setView(rec.latlng, 14, { animate: false });
+      if (cluster.zoomToShowLayer) cluster.zoomToShowLayer(rec.marker, () => rec.marker.openPopup());
+      else rec.marker.openPopup();
+    }
+  }, 80);
 }
 
 // タイムライン: 全写真 (GPS 有無問わず) を日付降順 (新しい旅が上) に。
@@ -1917,6 +1992,18 @@ function render() {
     // 中心カードは tap action なし、長押しでフル画像のみ
     attachPhotoGestures(centerEl, center, null);
     centerEl.appendChild(makeExcludeBtn(center));
+    // GPS があれば「地図でこの場所を見る」導線 (連想ウォークの写真 → その地図ピンへ飛ぶ)。
+    if (center.lat != null && center.lng != null) {
+      const mapBtn = document.createElement('button');
+      mapBtn.className = 'center-map-btn';
+      mapBtn.textContent = '🗺 地図でこの場所を見る';
+      const stop = e => e.stopPropagation();   // 長押し(フル画像)/カードのジェスチャと衝突させない
+      mapBtn.addEventListener('pointerdown', stop);
+      mapBtn.addEventListener('pointerup', stop);
+      mapBtn.addEventListener('pointermove', stop);
+      mapBtn.addEventListener('click', (e) => { e.stopPropagation(); openMapView(center); });
+      centerEl.querySelector('.meta').appendChild(mapBtn);
+    }
     $main.appendChild(centerEl);
 
     // モード切替の開閉 opener (普段は隠し、必要時に展開して軸を固定)
