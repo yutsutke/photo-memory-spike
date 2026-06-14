@@ -171,7 +171,7 @@
   .map-close { position: absolute; top: 10px; left: 10px; z-index: 1200; background: rgba(0,0,0,0.7); color: #fff; border: 1px solid #444; border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
   .map-close:active { background: #000; }
   /* マップ上のコントロール (📅 日付/期間フィルタ と 〰 線の日数。アイコン → 開くパネル) */
-  .map-ctrlbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200; display: flex; gap: 6px; }
+  .map-ctrlbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 96vw; }
   .mc-btn { background: rgba(0,0,0,0.72); color: #ddd; border: 1px solid #444; border-radius: 999px; padding: 7px 13px; font-size: 12px; white-space: nowrap; cursor: pointer; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
   .mc-btn:active { background: #000; }
   .mc-btn.on { color: #6ee0a3; border-color: #2a6; }
@@ -190,6 +190,23 @@
   .lc-chip { flex: 0 0 auto; padding: 6px 12px; border: 1px solid #444; border-radius: 999px; background: transparent; color: #bbb; font-size: 12px; white-space: nowrap; cursor: pointer; }
   .lc-chip:active { opacity: 0.7; }
   .lc-chip.selected { background: #2a6; color: #fff; font-weight: 600; border-color: #2a6; }
+  /* 記憶の封印パネル (v56) */
+  .mc-pop-check { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #ccc; margin: 8px 0; cursor: pointer; }
+  .mc-pop-row input[type=text] { background: #111; color: #eee; border: 1px solid #444; border-radius: 8px; padding: 6px 8px; font-size: 13px; flex: 1 1 auto; min-width: 0; }
+  .seal-val { color: #ddd; }
+  .seal-preview { font-size: 11px; color: #888; margin-top: 10px; min-height: 1.2em; }
+  .seal-preview.on { color: #e0a06e; }
+  .seal-preview.warn { color: #d9a; }
+  .mc-pop-btn:disabled { opacity: 0.4; cursor: default; }
+  .seal-list-title { font-size: 12px; font-weight: 600; color: #ccc; margin: 14px 0 6px; border-top: 1px solid #333; padding-top: 12px; }
+  .seal-list { display: flex; flex-direction: column; gap: 6px; max-height: 30vh; overflow-y: auto; }
+  .seal-empty { font-size: 11px; color: #666; }
+  .seal-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #222; border-radius: 8px; padding: 7px 10px; }
+  .seal-item-info { min-width: 0; }
+  .seal-item-label { font-size: 12px; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seal-item-sub { font-size: 10px; color: #888; margin-top: 2px; }
+  .seal-del { flex: 0 0 auto; padding: 5px 12px; border: 1px solid #555; border-radius: 999px; background: #2a2a2a; color: #ddd; font-size: 12px; cursor: pointer; }
+  .seal-del:active { opacity: 0.8; }
   /* 狭い画面では閉じる/レイヤ切替(上端の左右)と重なるので1段下げる */
   @media (max-width: 719px) { .map-ctrlbar { top: 52px; } .mc-pop { top: 92px; } }
   .map-empty-note { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 1100; background: rgba(0,0,0,0.78); color: #ddd; border: 1px solid #444; border-radius: 8px; padding: 8px 14px; font-size: 12px; text-align: center; max-width: 80%; }
@@ -280,7 +297,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.6 (タイムラインも期間で絞る) · 2026-06-14';
+const BUILD = 'phase3.7 (記憶の封印: 場所×期間で非表示) · 2026-06-14';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1136,6 +1153,51 @@ function saveTrail() {
   try { localStorage.setItem('pms-walkTrail', JSON.stringify(walkTrailIds)); } catch {}
 }
 
+// ── 記憶の封印 (seal) ─────────────────────────────────────────────
+// 場所(地図の表示範囲) × 期間 を条件に、写真を「偶然の再会」から外す機能 (v56)。
+// 削除(excluded)とは別概念: 条件を「ルール」として保存し、以後の取り込みにも自動適用、一覧からいつでも解除。
+// 偶然よみがえる体験は、よみがえってほしくない記憶の不意打ちと裏表 → 封印できると安心して核を楽しめる。
+// 隠す判定は visible(p) に集約。封印は消さない (blob は残る) ので解除で元に戻る。
+let seals = (() => { try { return JSON.parse(localStorage.getItem('pms-seals') || '[]'); } catch { return []; } })();
+function saveSeals() { try { localStorage.setItem('pms-seals', JSON.stringify(seals)); } catch {} }
+// 1つの封印ルールに写真が当てはまるか。from/to=期間(ms, null は無制限)、bounds=地図範囲(null は場所問わず)。
+function sealMatches(s, p) {
+  const t = p.datetime.getTime();
+  if (s.from != null && t < s.from) return false;
+  if (s.to   != null && t > s.to)   return false;
+  if (s.bounds) {
+    if (p.lat == null || p.lng == null) return false;   // 場所封印は位置情報のある写真だけが対象
+    const b = s.bounds;
+    if (p.lat < b.south || p.lat > b.north || p.lng < b.west || p.lng > b.east) return false;
+  }
+  return true;
+}
+// 全写真の封印フラグ _sealed を貼り直す (封印の追加/解除・全件入れ替え時)。
+function recomputeSealed() {
+  const has = seals.length > 0;
+  for (const p of allPhotos) p._sealed = has && seals.some(s => sealMatches(s, p));
+}
+// 表示/想起に出してよい写真か。除外(削除)でも封印でもない。プール・描画の各所で使う。
+function visible(p) { return !p.excluded && !p._sealed; }
+// ある封印条件に当てはまる (削除を除く) 写真の枚数。封印前のプレビュー・一覧の件数に使う。
+function countSealed(spec) {
+  let n = 0;
+  for (const p of allPhotos) { if (!p.excluded && sealMatches(spec, p)) n++; }
+  return n;
+}
+function addSeal(spec) {
+  seals.push({ id: 'seal-' + Date.now() + '-' + Math.floor(Math.random() * 1e6), createdAt: Date.now(), ...spec });
+  saveSeals(); recomputeSealed();
+  if (mapState && mapState.refreshData) mapState.refreshData();   // 地図が開いていればマーカー/線/一覧を貼り直す
+  render();
+}
+function removeSeal(id) {
+  seals = seals.filter(s => s.id !== id);
+  saveSeals(); recomputeSealed();
+  if (mapState && mapState.refreshData) mapState.refreshData();
+  render();
+}
+
 // 取り込みフロー (待ち時間ゼロ化 + 連打詰まり対策)
 let importBusy = false;            // picker を開いてから完了/キャンセルまで true (多重 open/change 防止)
 let importingNow = false;          // 実際に importFiles 実行中 (change 後)
@@ -1159,6 +1221,7 @@ function addPhotos(records) {
     if (!r || loadedIds.has(r.id)) continue;
     loadedIds.add(r.id);
     allPhotos.push(r);
+    if (seals.length) r._sealed = seals.some(s => sealMatches(s, r));   // 新規取り込みにも封印を自動適用 (v56)
     n++;
   }
   return n;
@@ -1167,6 +1230,7 @@ function addPhotos(records) {
 function resetPhotos(records) {
   allPhotos = records;
   loadedIds = new Set(records.map(p => p.id));
+  recomputeSealed();   // v56: 全件入れ替え後に封印フラグを貼り直す
 }
 
 // thumbnail を毎回 createObjectURL するとリークするので URL を録っておいて再利用 + 画面遷移時に開放
@@ -1448,9 +1512,10 @@ async function openMapView(focusPhoto) {
   overlay.className = 'map-overlay';
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
-    `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcLine">〰 日ごと</button></div>` +
+    `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcLine">〰 日ごと</button><button class="mc-btn" id="mcSeal">🔒</button></div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopLine" hidden></div>` +
+    `<div class="mc-pop" id="mcPopSeal" hidden></div>` +
     `<button class="map-close">✕ 閉じる</button>` +
     `<div class="timeline-sheet">` +
       `<div class="sheet-handle"><span class="sheet-grip"></span><span class="sheet-title">タイムライン</span></div>` +
@@ -1470,8 +1535,8 @@ async function openMapView(focusPhoto) {
 
   mapState = { overlay, map, range: { start: null, end: null }, tripLayers: [], filteredGps: [] };
 
-  // GPS 写真を撮影順に。除外は出さない。
-  const gps = allPhotos.filter(p => !p.excluded && p.lat != null && p.lng != null)
+  // GPS 写真を撮影順に。除外・封印は出さない (初期表示の判定用。再描画は applyFilter が allPhotos から都度算出)。
+  const gps = allPhotos.filter(p => visible(p) && p.lat != null && p.lng != null)
                        .sort((a, b) => a.datetime - b.datetime);
 
   // クラスタとマーカー索引は「中身を入れ替えて」使う (日付/期間フィルタで張り替えても、
@@ -1488,6 +1553,11 @@ async function openMapView(focusPhoto) {
     if (r.start == null) return true;
     const t = p.datetime.getTime();
     return t >= r.start && t <= r.end;
+  }
+  // 地図に出す GPS 写真集合。封印/除外を都度反映するため allPhotos から算出 (封印の追加/解除で張り替わる)。
+  function visibleGps() {
+    return allPhotos.filter(p => visible(p) && p.lat != null && p.lng != null && inRange(p))
+                    .sort((a, b) => a.datetime - b.datetime);
   }
   function makePhotoMarker(p) {
     const icon = L.divIcon({
@@ -1522,7 +1592,7 @@ async function openMapView(focusPhoto) {
 
   // 日付/期間フィルタを適用: 表示するマーカーと動線を絞り、bounds を合わせ、タイムライン UI を更新。
   function applyFilter(opts) {
-    const fg = gps.filter(inRange);
+    const fg = visibleGps();
     mapState.filteredGps = fg;
     cluster.clearLayers();
     markerById.clear();
@@ -1544,18 +1614,21 @@ async function openMapView(focusPhoto) {
   // 状態はタイムラインの日付タップとも共有 (どちらから絞っても applyFilter / mapState.range に集約)。
   const elFilterBtn = overlay.querySelector('#mcFilter');
   const elLineBtn   = overlay.querySelector('#mcLine');
+  const elSealBtn   = overlay.querySelector('#mcSeal');
   const popFilter   = overlay.querySelector('#mcPopFilter');
   const popLine     = overlay.querySelector('#mcPopLine');
+  const popSeal     = overlay.querySelector('#mcPopSeal');
 
   const startOfDay = ms => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
   const endOfDay   = ms => startOfDay(ms) + 86400000 - 1;
   const toInputVal = ms => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
   const fromInputVal = v => { const [y, m, d] = v.split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
   const fmtMD = ms => { const d = new Date(ms); return `${d.getMonth()+1}/${d.getDate()}`; };
+  const fmtYMD = ms => { const d = new Date(ms); return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`; };
 
   // データの日時レンジ (片側だけ指定した時の補完用)
   let dataMin = null, dataMax = null;
-  for (const p of allPhotos) { if (p.excluded) continue; const t = p.datetime.getTime(); if (dataMin == null || t < dataMin) dataMin = t; if (dataMax == null || t > dataMax) dataMax = t; }
+  for (const p of allPhotos) { if (!visible(p)) continue; const t = p.datetime.getTime(); if (dataMin == null || t < dataMin) dataMin = t; if (dataMax == null || t > dataMax) dataMax = t; }
 
   // ボタンのラベルを現在の状態で更新 (フィルタ状態 / 線モード)。タイムラインから絞っても反映される。
   function updateCtrlLabels() {
@@ -1571,8 +1644,8 @@ async function openMapView(focusPhoto) {
   mapState.updateCtrlLabels = updateCtrlLabels;
 
   function closePops() {
-    popFilter.hidden = true; popLine.hidden = true;
-    elFilterBtn.classList.remove('open'); elLineBtn.classList.remove('open');
+    popFilter.hidden = true; popLine.hidden = true; popSeal.hidden = true;
+    elFilterBtn.classList.remove('open'); elLineBtn.classList.remove('open'); elSealBtn.classList.remove('open');
   }
   mapState.closePops = closePops;
 
@@ -1640,10 +1713,123 @@ async function openMapView(focusPhoto) {
   }
   elFilterBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePop('filter'); });
   elLineBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePop('line'); });
+
+  // 🔒 封印パネル (v56): いま地図に見えている範囲 × 期間 を条件に封印 + 封印中の一覧/解除。
+  // 期間は地図のフィルタ状態 (mapState.range)、場所は地図の表示範囲 (map.getBounds()) を流用する。
+  popSeal.innerHTML =
+    `<div class="mc-pop-title">🔒 記憶の封印</div>` +
+    `<div class="mc-pop-row"><span>期間</span><span class="seal-val" id="sealRange"></span></div>` +
+    `<label class="mc-pop-check"><input type="checkbox" id="sealBounds" checked> 📍 いま地図に見えている範囲だけ</label>` +
+    `<label class="mc-pop-row">名前 <input type="text" id="sealLabel"></label>` +
+    `<div class="seal-preview" id="sealPreview"></div>` +
+    `<div class="mc-pop-actions"><button class="mc-pop-btn primary" id="sealAdd">🔒 封印する</button></div>` +
+    `<div class="mc-pop-hint">封印した写真は3枚引き・連想・地図・タイムラインに出なくなります（削除ではないので blob は残り、下の一覧でいつでも解除できます）。位置情報のない写真は「範囲だけ」では封印されません（期間で封印できます）。</div>` +
+    `<div class="seal-list-title">封印中の記憶</div>` +
+    `<div class="seal-list" id="sealList"></div>`;
+  const sealRangeEl   = popSeal.querySelector('#sealRange');
+  const sealBoundsEl  = popSeal.querySelector('#sealBounds');
+  const sealLabelEl   = popSeal.querySelector('#sealLabel');
+  const sealPreviewEl = popSeal.querySelector('#sealPreview');
+  const sealAddEl     = popSeal.querySelector('#sealAdd');
+  const sealListEl    = popSeal.querySelector('#sealList');
+
+  // いま選んでいる封印条件 {from, to, bounds}。bounds は「範囲だけ」ON のときだけ地図の表示範囲。
+  function currentSealSpec() {
+    const r = mapState.range;
+    const spec = { from: r.start, to: r.end, bounds: null };
+    if (sealBoundsEl.checked) {
+      const b = map.getBounds();
+      spec.bounds = { south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() };
+    }
+    return spec;
+  }
+  function rangeLabel(from, to) {
+    if (from == null) return '全期間';
+    return to === endOfDay(from) ? fmtYMD(from) : `${fmtYMD(from)}〜${fmtYMD(to)}`;
+  }
+  function autoSealLabel(spec) {
+    const parts = [];
+    if (spec.from != null) parts.push(rangeLabel(spec.from, spec.to));
+    if (spec.bounds) parts.push('この辺り');
+    return parts.join(' / ') || '全部';
+  }
+  function updateSealPreview() {
+    const r = mapState.range;
+    sealRangeEl.textContent = rangeLabel(r.start, r.end);
+    const spec = currentSealSpec();
+    const noConstraint = spec.from == null && !spec.bounds;   // 全期間×範囲なし = 全部の封印 → 禁止
+    sealLabelEl.placeholder = autoSealLabel(spec);
+    if (noConstraint) {
+      sealPreviewEl.textContent = '期間を絞るか、範囲を限定してください';
+      sealPreviewEl.className = 'seal-preview warn';
+      sealAddEl.disabled = true;
+      return;
+    }
+    const n = countSealed(spec);
+    if (n === 0) {
+      sealPreviewEl.textContent = 'この条件に当てはまる写真はありません';
+      sealPreviewEl.className = 'seal-preview';
+      sealAddEl.disabled = true;
+    } else {
+      sealPreviewEl.textContent = `この条件に ${n} 枚が当てはまります`;
+      sealPreviewEl.className = 'seal-preview on';
+      sealAddEl.disabled = false;
+    }
+  }
+  function updateSealList() {
+    sealListEl.innerHTML = '';
+    if (!seals.length) { sealListEl.innerHTML = '<div class="seal-empty">まだありません</div>'; return; }
+    seals.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'seal-item';
+      const info = document.createElement('div');
+      info.className = 'seal-item-info';
+      const lab = document.createElement('div'); lab.className = 'seal-item-label'; lab.textContent = s.label || '(無名)';
+      const sub = document.createElement('div'); sub.className = 'seal-item-sub';
+      sub.textContent = `${countSealed(s)} 枚` + (s.bounds ? ' · 📍範囲' : '');
+      info.appendChild(lab); info.appendChild(sub);
+      const del = document.createElement('button');
+      del.className = 'seal-del';
+      del.textContent = '解除';
+      del.addEventListener('click', () => { removeSeal(s.id); updateSealList(); updateSealPreview(); });
+      row.appendChild(info); row.appendChild(del);
+      sealListEl.appendChild(row);
+    });
+  }
+  mapState.updateSealPanel = () => { updateSealPreview(); updateSealList(); };
+  sealBoundsEl.addEventListener('change', updateSealPreview);
+  sealAddEl.addEventListener('click', () => {
+    const spec = currentSealSpec();
+    if ((spec.from == null && !spec.bounds) || countSealed(spec) === 0) return;
+    spec.label = sealLabelEl.value.trim() || autoSealLabel(spec);
+    addSeal(spec);   // recomputeSealed + refreshData + render
+    closePops();
+  });
+  elSealBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = popSeal.hidden;
+    closePops();
+    if (willOpen) {
+      sealLabelEl.value = '';
+      updateSealPreview();
+      updateSealList();
+      popSeal.hidden = false;
+      elSealBtn.classList.add('open');
+    }
+  });
+
   map.on('click', closePops);   // 地図をタップしたらパネルを閉じる
 
   // タイムライン (フィルタ操作の主役) を先に組み、updateTimelineUI フックを mapState に立ててから適用。
-  buildTimeline(overlay.querySelector('.sheet-body'), map, cluster, markerById, applyFilter);
+  // 封印の追加/解除でデータが変わったら地図(マーカー/線)とタイムラインを貼り直す (refreshData)。
+  const sheetBody = overlay.querySelector('.sheet-body');
+  mapState.rebuildTimeline = () => buildTimeline(sheetBody, map, cluster, markerById, applyFilter);
+  mapState.refreshData = () => {
+    mapState.rebuildTimeline();
+    applyFilter({ skipFit: true });
+    if (!popSeal.hidden && mapState.updateSealPanel) mapState.updateSealPanel();
+  };
+  mapState.rebuildTimeline();
 
   const focusHasPin = focusPhoto && gps.some(p => p.id === focusPhoto.id);
   applyFilter({ skipFit: focusHasPin });   // 初期 = 全期間。focus 時は後段で寄せるので fit しない
@@ -1681,7 +1867,7 @@ async function openMapView(focusPhoto) {
 // 写真タップ: いま地図に出ている GPS 写真ならフォーカス、それ以外 (フィルタ圏外/GPS無し) はフル画像。
 function buildTimeline(container, map, cluster, markerById, applyFilter) {
   container.innerHTML = '';
-  const all = allPhotos.filter(p => !p.excluded).slice().sort((a, b) => b.datetime - a.datetime);
+  const all = allPhotos.filter(visible).slice().sort((a, b) => b.datetime - a.datetime);
   if (!all.length) { container.innerHTML = '<div class="tl-empty">写真がありません</div>'; return; }
   const isMobile = () => window.matchMedia('(max-width:719px)').matches;
   const dayStartOf = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -1899,6 +2085,8 @@ function renderInfoModal() {
       <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
       <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（直後のトースト、または右上の <b>♻️</b> からいつでも戻せます）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">🗺 地図 / 🔒 封印</p>
+      <p style="margin:.2em 0;"><b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。地図の <b>🔒</b> から、いま見えている<b>範囲</b>と<b>期間</b>を指定して<b>記憶を封印</b>できます（よみがえってほしくない場所・時期を、3枚引き・連想・地図・タイムラインに出さない）。<b>削除ではない</b>ので写真は残り、🔒 パネルの一覧から<b>いつでも解除</b>できます。位置情報のない写真は「期間」で封印できます。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
       <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
     </div>`;
@@ -2005,7 +2193,7 @@ function renderAIModal() {
 
   const total = allPhotos.length;
   const done = aiEmbeddedCount();
-  const remain = allPhotos.filter(p => !p.excluded && !p.embedding).length;
+  const remain = allPhotos.filter(p => visible(p) && !p.embedding).length;
   const room = Math.max(0, MEANING_SAMPLE_CAP - done);   // 標本上限までの残り枠 (v27)
   const toAnalyze = Math.min(remain, room);              // 次に解析する枚数 (上限超えはランダム間引き)
   const capped = total > MEANING_SAMPLE_CAP;             // 上限を超える規模か (間引きが効く)
@@ -2090,7 +2278,7 @@ function updateTrashBtn() {
 
 function render() {
   $main.innerHTML = '';
-  const activeCount = allPhotos.reduce((n, p) => n + (p.excluded ? 0 : 1), 0);
+  const activeCount = allPhotos.reduce((n, p) => n + (visible(p) ? 1 : 0), 0);
   $count.textContent = activeCount > 0 ? `${activeCount} 枚` : '— 枚';
   renderAIModal();    // モーダルは独立 (state に依存しない overlay)
   renderInfoModal();  // 使い方・注意モーダル (v38)
@@ -2167,7 +2355,7 @@ function render() {
     // 母数の脚注 (どのフィルタでも何枚から引いているかを見える化)
     // 副次的に「近場/遠出 は GPS つき写真のみ対象」が自然に伝わる
     const currentFilterObj = FILTERS.find(x => x.key === currentFilter);
-    const active = allPhotos.filter(p => !p.excluded);
+    const active = allPhotos.filter(visible);
     const filtered = pickPool(currentFilter, active);
     const gpsCount = active.filter(p => p.lat != null && p.lng != null).length;
     const note = document.createElement('div');
@@ -2180,7 +2368,7 @@ function render() {
     $main.appendChild(note);
 
     // 表示は除外を除いた先頭3枚。除外で次が繰り上がり、取り消しで元に戻る (他の2枚は不動)
-    const visibleRandom = currentRandom.filter(p => !p.excluded).slice(0, 3);
+    const visibleRandom = currentRandom.filter(visible).slice(0, 3);
     if (currentRandom.length === 0) {
       const msg = document.createElement('p');
       msg.style.cssText = 'text-align:center;color:#888;margin:40px 0;';
@@ -2299,7 +2487,7 @@ function render() {
       label.textContent = 'この写真はまだ AI 解析されていません (🧠 から追加解析)';
       $main.appendChild(label);
     } else {
-      const ns = currentNeighbors.filter(p => !p.excluded).slice(0, 6);
+      const ns = currentNeighbors.filter(visible).slice(0, 6);
       const label = document.createElement('div');
       label.className = 'neighbor-label';
       if (ns.length === 0) {
@@ -2327,7 +2515,7 @@ function render() {
     // = デフォルト体験は最小のまま、歩き始めて初めて広がる ([[ui-minimalism-works]])。
     // モード切替と同じ開閉式: 普段は小さな opener だけ、開いた時にサムネ帯が出る (写真への集中を守る)。
     // 写真そのものを並べる → 思い出しの意識を逸らさない。タップで過去の地点へ戻る。
-    const displayTrail = walkTrailIds.map(id => photoById(id)).filter(p => p && !p.excluded);
+    const displayTrail = walkTrailIds.map(id => photoById(id)).filter(p => p && visible(p));
     if (displayTrail.length >= 2) {
       const trailBar = document.createElement('div');
       trailBar.className = 'mode-toggle';   // モード opener と同じ見た目・配置
@@ -2535,7 +2723,7 @@ function updateBgStatus() {
       el.classList.remove('ai-bg');
     }
   }
-  const activeCount = allPhotos.reduce((n, p) => n + (p.excluded ? 0 : 1), 0);
+  const activeCount = allPhotos.reduce((n, p) => n + (visible(p) ? 1 : 0), 0);
   $count.textContent = activeCount > 0 ? `${activeCount} 枚` : '— 枚';
 }
 
@@ -2652,7 +2840,7 @@ async function extractEmbeddingForPhoto(p) {
 // 中断可能 (aiCancel)。閉じても処理継続 (ヘッダ 🧠 N/M で進捗)。
 async function runEmbeddingExtraction(limit) {
   if (aiExtracting) return;
-  const candidates = allPhotos.filter(p => !p.excluded && !p.embedding);
+  const candidates = allPhotos.filter(p => visible(p) && !p.embedding);
   if (!candidates.length) { aiStatus = null; if (aiModalOpen) render(); return; }
 
   // シャッフル: 途中で中断しても満遍なく解析されているように
@@ -2729,13 +2917,13 @@ async function maybeAutoExtractEmbeddings() {
   if (aiEmbeddedCount() === 0) return;                            // AI 未 opt-in → 何もしない
   const room = MEANING_SAMPLE_CAP - aiEmbeddedCount();
   if (room <= 0) return;                                          // 間引き: サンプル上限に達したら自動解析しない (v27)
-  if (!allPhotos.some(p => !p.excluded && !p.embedding)) return;  // 未解析の新規写真なし
+  if (!allPhotos.some(p => visible(p) && !p.embedding)) return;  // 未解析の新規写真なし (封印・除外は対象外)
   await runEmbeddingExtraction(room);                             // 残り枠だけ。シャッフル済なのでランダム標本になる
 }
 
 async function drawRandom() {
   if (allPhotos.length === 0) { state = 'empty'; render(); return; }
-  const filtered = pickPool(currentFilter, allPhotos.filter(p => !p.excluded));
+  const filtered = pickPool(currentFilter, allPhotos.filter(visible));
   if (filtered.length === 0) {
     currentRandom = [];  // 該当無し → render(random) 内で専用メッセージ
   } else {
@@ -2783,7 +2971,7 @@ function refreshNeighbors() {
   const c = currentCenter;
   if (!c) { currentNeighbors = []; return; }
   // 表示は6枚だが、除外時に繰り上げる候補を確保するため 12 枚キャッシュする
-  const active = allPhotos.filter(p => !p.excluded);
+  const active = allPhotos.filter(visible);
   if (exploreMode === 'spacetime') currentNeighbors = spacetimeNeighbors(c, active, 12);
   else if (exploreMode === 'color') currentNeighbors = colorNeighbors(c, active, 12);
   else if (exploreMode === 'meaning') currentNeighbors = meaningNeighbors(c, active, 12);
