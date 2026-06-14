@@ -157,15 +157,28 @@
   #mapEl { position: absolute; inset: 0; width: 100%; height: 100%; background: #111; }
   .map-close { position: absolute; top: 10px; left: 10px; z-index: 1200; background: rgba(0,0,0,0.7); color: #fff; border: 1px solid #444; border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
   .map-close:active { background: #000; }
-  /* 「線の日数」コントロール (上部中央、一日だけ/複数日を選ぶ) */
-  .map-line-ctrl { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200; display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.72); border: 1px solid #444; border-radius: 999px; padding: 4px 6px; max-width: calc(100% - 130px); overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .map-line-ctrl::-webkit-scrollbar { display: none; }
-  .map-line-ctrl .lc-label { color: #888; font-size: 11px; padding: 0 4px 0 2px; flex: 0 0 auto; }
-  .lc-chip { flex: 0 0 auto; padding: 5px 11px; border: 0; border-radius: 999px; background: transparent; color: #bbb; font-size: 12px; white-space: nowrap; cursor: pointer; }
+  /* マップ上のコントロール (📅 日付/期間フィルタ と 〰 線の日数。アイコン → 開くパネル) */
+  .map-ctrlbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200; display: flex; gap: 6px; }
+  .mc-btn { background: rgba(0,0,0,0.72); color: #ddd; border: 1px solid #444; border-radius: 999px; padding: 7px 13px; font-size: 12px; white-space: nowrap; cursor: pointer; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
+  .mc-btn:active { background: #000; }
+  .mc-btn.on { color: #6ee0a3; border-color: #2a6; }
+  .mc-btn.open { background: #222; border-color: #777; }
+  .mc-pop { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); z-index: 1250; width: min(300px, 92vw); background: #1b1b1b; border: 1px solid #444; border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); }
+  .mc-pop[hidden] { display: none; }
+  .mc-pop-title { font-size: 13px; font-weight: 600; color: #eee; margin-bottom: 10px; }
+  .mc-pop-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .mc-pop-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: #bbb; margin: 6px 0; }
+  .mc-pop-row input[type=date] { background: #111; color: #eee; border: 1px solid #444; border-radius: 8px; padding: 6px 8px; font-size: 13px; flex: 1 1 auto; min-width: 0; }
+  .mc-pop-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+  .mc-pop-btn { padding: 7px 14px; border: 1px solid #444; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 13px; cursor: pointer; }
+  .mc-pop-btn.primary { background: #2a6; border-color: #2a6; color: #fff; font-weight: 600; }
+  .mc-pop-btn:active { opacity: 0.8; }
+  .mc-pop-hint { font-size: 10px; color: #666; margin-top: 10px; line-height: 1.5; }
+  .lc-chip { flex: 0 0 auto; padding: 6px 12px; border: 1px solid #444; border-radius: 999px; background: transparent; color: #bbb; font-size: 12px; white-space: nowrap; cursor: pointer; }
   .lc-chip:active { opacity: 0.7; }
-  .lc-chip.selected { background: #2a6; color: #fff; font-weight: 600; }
+  .lc-chip.selected { background: #2a6; color: #fff; font-weight: 600; border-color: #2a6; }
   /* 狭い画面では閉じる/レイヤ切替(上端の左右)と重なるので1段下げる */
-  @media (max-width: 719px) { .map-line-ctrl { top: 52px; max-width: calc(100% - 20px); } }
+  @media (max-width: 719px) { .map-ctrlbar { top: 52px; } .mc-pop { top: 92px; } }
   .map-empty-note { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 1100; background: rgba(0,0,0,0.78); color: #ddd; border: 1px solid #444; border-radius: 8px; padding: 8px 14px; font-size: 12px; text-align: center; max-width: 80%; }
 
   /* 写真サムネのマーカー (L.divIcon の中身) */
@@ -255,7 +268,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.2 (日付/期間フィルタ) · 2026-06-14';
+const BUILD = 'phase3.3 (マップ上フィルタUI) · 2026-06-14';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1401,7 +1414,9 @@ async function openMapView(focusPhoto) {
   overlay.className = 'map-overlay';
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
-    `<div class="map-line-ctrl"></div>` +
+    `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcLine">〰 日ごと</button></div>` +
+    `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
+    `<div class="mc-pop" id="mcPopLine" hidden></div>` +
     `<button class="map-close">✕ 閉じる</button>` +
     `<div class="timeline-sheet">` +
       `<div class="sheet-handle"><span class="sheet-grip"></span><span class="sheet-title">タイムライン</span></div>` +
@@ -1487,24 +1502,111 @@ async function openMapView(focusPhoto) {
       map.fitBounds(fg.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14 });
     }
     if (mapState.updateTimelineUI) mapState.updateTimelineUI();
+    if (mapState.updateCtrlLabels) mapState.updateCtrlLabels();
   }
   mapState.applyFilter = applyFilter;
 
-  // 「線の日数」コントロール (上部中央)。一日だけの線 / 複数日の線を選べる (ユーザー要望)。
-  const lc = overlay.querySelector('.map-line-ctrl');
-  lc.innerHTML = `<span class="lc-label">線</span>`;
+  // マップ上のコントロール: 📅日付/期間フィルタ と 〰線の日数 を、アイコン → 開くパネルで操作 (ユーザー要望)。
+  // 状態はタイムラインの日付タップとも共有 (どちらから絞っても applyFilter / mapState.range に集約)。
+  const elFilterBtn = overlay.querySelector('#mcFilter');
+  const elLineBtn   = overlay.querySelector('#mcLine');
+  const popFilter   = overlay.querySelector('#mcPopFilter');
+  const popLine     = overlay.querySelector('#mcPopLine');
+
+  const startOfDay = ms => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+  const endOfDay   = ms => startOfDay(ms) + 86400000 - 1;
+  const toInputVal = ms => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+  const fromInputVal = v => { const [y, m, d] = v.split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
+  const fmtMD = ms => { const d = new Date(ms); return `${d.getMonth()+1}/${d.getDate()}`; };
+
+  // データの日時レンジ (片側だけ指定した時の補完用)
+  let dataMin = null, dataMax = null;
+  for (const p of allPhotos) { if (p.excluded) continue; const t = p.datetime.getTime(); if (dataMin == null || t < dataMin) dataMin = t; if (dataMax == null || t > dataMax) dataMax = t; }
+
+  // ボタンのラベルを現在の状態で更新 (フィルタ状態 / 線モード)。タイムラインから絞っても反映される。
+  function updateCtrlLabels() {
+    const r = mapState.range;
+    if (r.start == null) { elFilterBtn.textContent = '📅 全期間'; elFilterBtn.classList.remove('on'); }
+    else {
+      const single = r.end === endOfDay(r.start);
+      elFilterBtn.textContent = single ? `📅 ${fmtMD(r.start)}` : `📅 ${fmtMD(r.start)}〜${fmtMD(r.end)}`;
+      elFilterBtn.classList.add('on');
+    }
+    elLineBtn.textContent = `〰 ${LINE_MODES[lineModeIdx].label}`;
+  }
+  mapState.updateCtrlLabels = updateCtrlLabels;
+
+  function closePops() {
+    popFilter.hidden = true; popLine.hidden = true;
+    elFilterBtn.classList.remove('open'); elLineBtn.classList.remove('open');
+  }
+  mapState.closePops = closePops;
+
+  // 線の日数パネル (チップ)
+  popLine.innerHTML = `<div class="mc-pop-title">線の日数</div><div class="mc-pop-chips"></div><div class="mc-pop-hint">日ごと=1日1本 / 3日・1週間=その範囲は連結 / ぜんぶ=1本</div>`;
+  const lineChips = popLine.querySelector('.mc-pop-chips');
   LINE_MODES.forEach((m, i) => {
     const b = document.createElement('button');
     b.className = 'lc-chip' + (i === lineModeIdx ? ' selected' : '');
     b.textContent = m.label;
     b.addEventListener('click', () => {
-      if (i === lineModeIdx) return;
       lineModeIdx = i;
-      lc.querySelectorAll('.lc-chip').forEach((c, j) => c.classList.toggle('selected', j === lineModeIdx));
-      drawTrips();   // 現在のフィルタ済み集合で線だけ張り替え
+      lineChips.querySelectorAll('.lc-chip').forEach((c, j) => c.classList.toggle('selected', j === lineModeIdx));
+      drawTrips();         // 現在のフィルタ済み集合で線だけ張り替え
+      updateCtrlLabels();
+      closePops();
     });
-    lc.appendChild(b);
+    lineChips.appendChild(b);
   });
+
+  // 日付/期間フィルタパネル (date 入力 2つ + 適用 / 全期間)
+  popFilter.innerHTML =
+    `<div class="mc-pop-title">日付・期間で絞り込み</div>` +
+    `<label class="mc-pop-row">開始 <input type="date" id="fFrom"></label>` +
+    `<label class="mc-pop-row">終了 <input type="date" id="fTo"></label>` +
+    `<div class="mc-pop-actions"><button class="mc-pop-btn" id="fClear">全期間</button><button class="mc-pop-btn primary" id="fApply">適用</button></div>` +
+    `<div class="mc-pop-hint">片方だけでもOK（開始のみ=その日以降 / 終了のみ=その日まで）。タイムラインの日付タップでも絞れます。</div>`;
+  const fFrom = popFilter.querySelector('#fFrom');
+  const fTo   = popFilter.querySelector('#fTo');
+  if (dataMin != null) { fFrom.min = fTo.min = toInputVal(dataMin); fFrom.max = fTo.max = toInputVal(dataMax); }
+  popFilter.querySelector('#fApply').addEventListener('click', () => {
+    const fromV = fFrom.value, toV = fTo.value;
+    if (!fromV && !toV) {
+      mapState.range = { start: null, end: null };
+    } else {
+      let sDay = fromV ? startOfDay(fromInputVal(fromV)) : (dataMin != null ? startOfDay(dataMin) : null);
+      let eDay = toV   ? startOfDay(fromInputVal(toV))   : (dataMax != null ? startOfDay(dataMax) : null);
+      if (sDay != null && eDay != null && sDay > eDay) { const t = sDay; sDay = eDay; eDay = t; }   // 逆指定は入れ替え
+      mapState.range = { start: sDay, end: eDay != null ? endOfDay(eDay) : (sDay != null ? endOfDay(sDay) : null) };
+    }
+    applyFilter();
+    closePops();
+  });
+  popFilter.querySelector('#fClear').addEventListener('click', () => {
+    mapState.range = { start: null, end: null };
+    fFrom.value = ''; fTo.value = '';
+    applyFilter();
+    closePops();
+  });
+
+  function togglePop(which) {
+    const isFilter = which === 'filter';
+    const target = isFilter ? popFilter : popLine;
+    const willOpen = target.hidden;
+    closePops();
+    if (willOpen) {
+      if (isFilter) {   // 現在の絞り込みを入力欄に反映してから開く
+        const r = mapState.range;
+        fFrom.value = r.start != null ? toInputVal(r.start) : '';
+        fTo.value   = r.start != null ? toInputVal(r.end)   : '';
+      }
+      target.hidden = false;
+      (isFilter ? elFilterBtn : elLineBtn).classList.add('open');
+    }
+  }
+  elFilterBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePop('filter'); });
+  elLineBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePop('line'); });
+  map.on('click', closePops);   // 地図をタップしたらパネルを閉じる
 
   // タイムライン (フィルタ操作の主役) を先に組み、updateTimelineUI フックを mapState に立ててから適用。
   buildTimeline(overlay.querySelector('.sheet-body'), map, cluster, markerById, applyFilter);
@@ -1937,12 +2039,13 @@ function renderAIModal() {
   document.body.appendChild(modal);
 }
 
-// ヘッダの ♻️N (削除/除外した写真の数)。0 のときは隠す ([[ui-minimalism-works]] 使う時だけ広がる)。
+// ヘッダの ♻️ (削除/除外した写真を戻す入口)。0 のときは隠す ([[ui-minimalism-works]] 使う時だけ広がる)。
+// v52: 連想ウォーク中に件数が目に入るのが余計、との指摘で数値は出さずアイコンのみ (件数は一覧モーダル側で見える)。
 function updateTrashBtn() {
   const el = document.getElementById('btnTrash');
   if (!el) return;
   const n = allPhotos.reduce((a, p) => a + (p.excluded ? 1 : 0), 0);
-  if (n > 0) { el.textContent = `♻️${n}`; el.classList.remove('hidden'); }
+  if (n > 0) { el.textContent = '♻️'; el.classList.remove('hidden'); }
   else el.classList.add('hidden');
 }
 
