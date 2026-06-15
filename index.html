@@ -137,7 +137,7 @@
   .exclude-btn:active { background: rgba(210,50,50,0.9); }
 
   /* 除外の取り消しトースト */
-  .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #222; color: #eee; border: 1px solid #444; border-radius: 999px; padding: 9px 14px 9px 18px; font-size: 13px; display: flex; gap: 14px; align-items: center; z-index: 200; box-shadow: 0 6px 20px rgba(0,0,0,0.55); }
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #222; color: #eee; border: 1px solid #444; border-radius: 999px; padding: 9px 14px 9px 18px; font-size: 13px; display: flex; gap: 14px; align-items: center; z-index: 1700; box-shadow: 0 6px 20px rgba(0,0,0,0.55); }
   .toast button { background: none; border: 0; color: #8bf; font-weight: 700; font-size: 13px; cursor: pointer; padding: 4px; }
 
   /* AI 試行モーダル (β) */
@@ -260,10 +260,13 @@
   .tl-time { font-size: 12px; color: #ddd; }
   .tl-badge { font-size: 10px; color: #777; }
   .tl-item.tl-nogps img { opacity: 0.5; }
-  /* タイムラインの「位置を設定/直す」ボタン (v59) */
-  .tl-locedit { flex: 0 0 auto; margin-left: auto; padding: 5px 9px; border: 1px solid #3a5; border-radius: 999px; background: transparent; color: #6ee0a3; font-size: 11px; white-space: nowrap; cursor: pointer; }
+  /* タイムラインの操作ボタン群 (位置を設定/直す + 削除) (v59-v61) */
+  .tl-actions { margin-left: auto; flex: 0 0 auto; display: flex; gap: 6px; align-items: center; }
+  .tl-locedit { flex: 0 0 auto; padding: 5px 9px; border: 1px solid #3a5; border-radius: 999px; background: transparent; color: #6ee0a3; font-size: 11px; white-space: nowrap; cursor: pointer; }
   .tl-locedit:active { background: #163; }
   .tl-item.tl-nogps .tl-locedit { border-color: #57a; color: #9bf; }   /* 未設定は青系で「付けてね」を促す */
+  .tl-del { flex: 0 0 auto; padding: 5px 8px; border: 1px solid #633; border-radius: 999px; background: transparent; color: #e88; font-size: 12px; cursor: pointer; }
+  .tl-del:active { background: #311; }
   /* 位置編集バー + ドラッグピン (v59) */
   .loc-edit-bar { position: absolute; left: 50%; transform: translateX(-50%); bottom: 70px; z-index: 1600; display: flex; align-items: center; gap: 10px; background: rgba(18,18,18,0.97); border: 1px solid #2a6; border-radius: 12px; padding: 8px 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); max-width: 94vw; }
   .loc-edit-bar .le-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; flex: 0 0 auto; background: #000; }
@@ -278,6 +281,7 @@
   .loc-edit-pin::after { content: ''; position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #2a6; }
   @keyframes lePulse { 0%,100% { box-shadow: 0 0 0 2px #fff, 0 3px 8px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 0 2px #fff, 0 0 0 9px rgba(42,170,102,0.35), 0 3px 8px rgba(0,0,0,0.5); } }
   .marker-popup .mp-edit { margin-top: 6px; width: 100%; padding: 7px; border: 1px solid #555; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 12px; cursor: pointer; }
+  .marker-popup .mp-del { margin-top: 6px; width: 100%; padding: 7px; border: 1px solid #633; border-radius: 8px; background: #2a1a1a; color: #e88; font-size: 12px; cursor: pointer; }
   .tl-empty { color: #888; font-size: 12px; text-align: center; padding: 20px; }
 
   @media (min-width: 720px) {
@@ -327,7 +331,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.11 (写真の日付も後から直せる) · 2026-06-15';
+const BUILD = 'phase3.12 (地図/タイムラインから削除) · 2026-06-15';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1555,10 +1559,12 @@ function buildMarkerPopup(p) {
     `<div class="mp-date">${fmtDate(p.datetime)}${srcTagHtml(p)}</div>` +
     (place ? `<div class="mp-place">${place}</div>` : '') +
     `<button class="mp-walk">🔮 連想ウォーク</button>` +
-    `<button class="mp-edit" type="button">📍 位置を直す</button>`;
+    `<button class="mp-edit" type="button">📍 位置を直す</button>` +
+    `<button class="mp-del" type="button">🗑 画像を削除</button>`;
   el.querySelector('.mp-thumb').addEventListener('click', () => showFullImage(p));
   el.querySelector('.mp-walk').addEventListener('click', () => { closeMapView(); showExplore(p); });
   el.querySelector('.mp-edit').addEventListener('click', () => { if (mapState && mapState.startLocationEdit) mapState.startLocationEdit(p); });
+  el.querySelector('.mp-del').addEventListener('click', () => { excludePhoto(p); });   // 除外 (♻️ で復元可)。地図は refreshData で消える
   return el;
 }
 
@@ -2038,10 +2044,17 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
       `<img src="${thumbUrl(p)}">` +
       `<div class="tl-meta"><div class="tl-time">${fmtShortDate(d)}</div>` +
       `<div class="tl-badge">${hasGps ? '📍 地図で見る' : '位置情報なし'}</div></div>` +
-      `<button class="tl-locedit" type="button">${hasGps ? '位置を直す' : '📍 位置を設定'}</button>`;
+      `<div class="tl-actions">` +
+        `<button class="tl-locedit" type="button">${hasGps ? '位置を直す' : '📍 位置を設定'}</button>` +
+        `<button class="tl-del" type="button" title="削除（♻️で戻せる）">🗑</button>` +
+      `</div>`;
     item.querySelector('.tl-locedit').addEventListener('click', (e) => {
       e.stopPropagation();   // 項目本体のタップ (フォーカス/フル画像) と衝突させない
       if (mapState && mapState.startLocationEdit) mapState.startLocationEdit(p);
+    });
+    item.querySelector('.tl-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      excludePhoto(p);       // 除外 (♻️ で復元可)。refreshData でこの項目も消える
     });
     item.addEventListener('click', () => {
       if (markerById.has(p.id)) {          // いま地図に出ている (フィルタ内の GPS 写真) → フォーカス
@@ -2162,12 +2175,14 @@ async function excludePhoto(photo) {
   } else {
     render();      // 除外写真は filter で消える
   }
+  if (mapState && mapState.refreshData) mapState.refreshData();   // 地図が開いていればマーカー/タイムラインから消す (v61)
   try { await dbPut(photo); } catch (e) { logErr(`除外保存失敗: ${e?.message || String(e)}`); }
 }
 
 async function undoExclude(photo) {
   photo.excluded = false;
   render();
+  if (mapState && mapState.refreshData) mapState.refreshData();   // 地図が開いていれば戻す (v61)
   try { await dbPut(photo); } catch (e) { logErr(`取消保存失敗: ${e?.message || String(e)}`); }
 }
 
@@ -2221,7 +2236,7 @@ function renderInfoModal() {
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
       <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（直後のトースト、または右上の <b>♻️</b> からいつでも戻せます）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🗺 地図 / 🔒 封印</p>
-      <p style="margin:.2em 0;"><b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。<b>複数日にまたがる旅行は1本の線で、日が変わるごとに色が変わります</b>（昔→今が色で読めます。1日以上あくと別の線）。<b>撮ったのに位置が入っていない写真</b>は、タイムライン（または地図のピン）の <b>「📍 位置を設定／位置を直す」</b>から、<b>地図のピンをドラッグ</b>して後から位置を付けられます（近い時間に位置のある写真があれば、その近くから始まります）。地図上部は <b>📅 期間</b> と <b>⋯ 表示</b> の2つ。<b>⋯</b> から <b>🔒 記憶の封印</b>（いま見えている<b>範囲</b>と<b>期間</b>を指定して、よみがえってほしくない場所・時期を3枚引き・連想・地図・タイムラインに出さない。<b>削除ではない</b>ので写真は残り、一覧から<b>いつでも解除</b>。位置情報のない写真は「期間」で封印できます）。</p>
+      <p style="margin:.2em 0;"><b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。<b>複数日にまたがる旅行は1本の線で、日が変わるごとに色が変わります</b>（昔→今が色で読めます。1日以上あくと別の線）。<b>撮ったのに位置が入っていない写真</b>は、タイムライン（または地図のピン）の <b>「📍 位置を設定／位置を直す」</b>から、<b>地図のピンをドラッグ</b>して後から位置を付けられます（近い時間に位置のある写真があれば、その近くから始まります）。地図上部は <b>📅 期間</b> と <b>⋯ 表示</b> の2つ。<b>⋯</b> から <b>🔒 記憶の封印</b>（いま見えている<b>範囲</b>と<b>期間</b>を指定して、よみがえってほしくない場所・時期を3枚引き・連想・地図・タイムラインに出さない。<b>削除ではない</b>ので写真は残り、一覧から<b>いつでも解除</b>。位置情報のない写真は「期間」で封印できます）。タイムラインの各写真とマーカーには <b>🗑 削除</b> もあります（除外＝右上の <b>♻️</b> から戻せます）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
       <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
     </div>`;
