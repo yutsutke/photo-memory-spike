@@ -299,7 +299,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.8 (線=旅行ごと1本 + 地図UI整理) · 2026-06-15';
+const BUILD = 'phase3.9 (線=1日固定·複数日は色変化) · 2026-06-15';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1418,23 +1418,9 @@ window.addEventListener('keydown', (e) => {
 // ============================================================
 const TRIP_COLORS = ['#ff6b6b','#feca57','#48dbfb','#1dd1a1','#f368e0','#ff9f43','#54a0ff','#00d2d3'];
 
-// 線の「つなぎ方 = 旅行の区切り」を日数単位で選べるようにする (v57, ユーザー要望: 2日の旅も5日の旅も
-// すべて一本でつなぎたい / 1日単位で選びたい)。gapDays = この日数以上あいたら別の線 (= 別の旅行) に切る。
-// 大きいほど数日の旅も1本に。Infinity='ぜんぶ'1本。'day'=暦日ごと (基本使わないので末尾)。
-const LINE_MODES = [
-  { label: '1日',   gapDays: 1 },
-  { label: '2日',   gapDays: 2 },
-  { label: '3日',   gapDays: 3 },
-  { label: '5日',   gapDays: 5 },
-  { label: '1週間', gapDays: 7 },
-  { label: 'ぜんぶ', gapDays: Infinity },
-  { label: '日ごと', mode: 'day' },
-];
-// 既定 = 2日 (連続した旅行の動静を1本につなぐ)。選んだ区切りは localStorage で覚える (毎回選び直さない)。
-let lineModeIdx = (() => {
-  try { const v = parseInt(localStorage.getItem('pms-lineMode'), 10); return (Number.isInteger(v) && v >= 0 && v < LINE_MODES.length) ? v : 1; }
-  catch { return 1; }
-})();
+// 線のつなぎは「1日」で固定 (v58, ユーザー要望: 選択式は複雑なだけ → 1日以上あいたら別の線)。
+// 複数日にまたがる旅行は1本の連続線として描き、日が変わるごとに色を変える (drawTrips)。= 昔→今が色で読める。
+const TRIP_GAP_MS = 86400000;   // 24h。これ以上あいたら別の線 (= 別の旅行)。
 
 let _leafletLoading = null;
 function loadAsset(tag, props) {
@@ -1478,22 +1464,8 @@ function segmentByGap(gpsPhotos, gapMs) {
   }
   return segs;
 }
-// 暦日ごとに分割 (日付が変われば別の線 = 一日だけの線)。
-function segmentByDay(gpsPhotos) {
-  const segs = [];
-  let cur = null, curKey = null;
-  for (const p of gpsPhotos) {
-    const d = p.datetime;
-    const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-    if (k !== curKey) { cur = [p]; segs.push(cur); curKey = k; }
-    else cur.push(p);
-  }
-  return segs;
-}
-// 現在の線モードでセグメント化 (Infinity*86400000=Infinity → gap 超え無し → ぜんぶ1本)。
-function segmentByMode(gpsPhotos, m) {
-  return m.mode === 'day' ? segmentByDay(gpsPhotos) : segmentByGap(gpsPhotos, m.gapDays * 86400000);
-}
+// 写真の暦日キー (色を日ごとに変える判定に使う)。
+function dayKeyOf(p) { const d = p.datetime; return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
 
 // マーカーのポップアップ (サムネ + 日時 + 場所 + 連想ウォーク導線)。
 function buildMarkerPopup(p) {
@@ -1524,7 +1496,6 @@ async function openMapView(focusPhoto) {
     `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcMore">⋯ 表示</button></div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopMore" hidden></div>` +
-    `<div class="mc-pop" id="mcPopLine" hidden></div>` +
     `<div class="mc-pop" id="mcPopSeal" hidden></div>` +
     `<button class="map-close">✕ 閉じる</button>` +
     `<div class="timeline-sheet">` +
@@ -1580,23 +1551,37 @@ async function openMapView(focusPhoto) {
     return mk;
   }
 
-  // 旅/日ごとの動線 (色分け + 進行方向の矢印)。「線の日数」とフィルタの両方で再描画する。
+  // 動線を描く。旅行 = 1日以上あいたら別の線 (TRIP_GAP_MS 固定)。各旅行は1本の連続線として描き、
+  // 日が変わるごとに色を変える (v58: 複数日の旅行を「昔→今」が色で読める連続線に)。進行方向の矢印つき。
   // mapState.filteredGps を読み、引いたレイヤを mapState.tripLayers に保持して張り替える。
   function drawTrips() {
     for (const l of mapState.tripLayers) map.removeLayer(l);
     mapState.tripLayers = [];
-    segmentByMode(mapState.filteredGps, LINE_MODES[lineModeIdx]).forEach((seg, i) => {
-      if (seg.length < 2) return;
-      const color = TRIP_COLORS[i % TRIP_COLORS.length];
-      const latlngs = seg.map(p => [p.lat, p.lng]);
-      const line = L.polyline(latlngs, { color, weight: 3, opacity: 0.85, lineCap: 'round' }).addTo(map);
-      mapState.tripLayers.push(line);
+    const drawSub = (latlngs, color) => {
+      if (latlngs.length < 2) return;
+      mapState.tripLayers.push(L.polyline(latlngs, { color, weight: 3, opacity: 0.85, lineCap: 'round' }).addTo(map));
       if (L.polylineDecorator && L.Symbol) {
-        const dec = L.polylineDecorator(latlngs, {
+        mapState.tripLayers.push(L.polylineDecorator(latlngs, {
           patterns: [{ offset: 24, repeat: 90, symbol: L.Symbol.arrowHead({ pixelSize: 9, polygon: false, pathOptions: { color, weight: 2, opacity: 0.85 } }) }]
-        }).addTo(map);
-        mapState.tripLayers.push(dec);
+        }).addTo(map));
       }
+    };
+    segmentByGap(mapState.filteredGps, TRIP_GAP_MS).forEach(seg => {
+      if (seg.length < 2) return;
+      // 旅行内を「日ごと」のサブ線に分けて色を変える。境界は前日最後の点から引いて連続に見せる。
+      let curDay = null, dayIdx = -1, sub = null, prev = null;
+      for (const p of seg) {
+        const k = dayKeyOf(p);
+        if (k !== curDay) {
+          if (sub) drawSub(sub, TRIP_COLORS[dayIdx % TRIP_COLORS.length]);   // 前日分を確定
+          dayIdx++;
+          sub = prev ? [[prev.lat, prev.lng]] : [];   // 前日の最後の点から橋渡し
+          curDay = k;
+        }
+        sub.push([p.lat, p.lng]);
+        prev = p;
+      }
+      if (sub) drawSub(sub, TRIP_COLORS[dayIdx % TRIP_COLORS.length]);   // 最終日分
     });
   }
 
@@ -1626,9 +1611,7 @@ async function openMapView(focusPhoto) {
   const elMoreBtn   = overlay.querySelector('#mcMore');
   const popFilter   = overlay.querySelector('#mcPopFilter');
   const popMore     = overlay.querySelector('#mcPopMore');
-  const popLine     = overlay.querySelector('#mcPopLine');
   const popSeal     = overlay.querySelector('#mcPopSeal');
-  let mmLine = null;   // 「⋯ 表示」メニュー内の「線のつなぎ方」項目 (popMore 構築時に代入)。ラベルに現在の区切りを出す。
 
   const startOfDay = ms => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
   const endOfDay   = ms => startOfDay(ms) + 86400000 - 1;
@@ -1650,33 +1633,14 @@ async function openMapView(focusPhoto) {
       elFilterBtn.textContent = single ? `📅 ${fmtMD(r.start)}` : `📅 ${fmtMD(r.start)}〜${fmtMD(r.end)}`;
       elFilterBtn.classList.add('on');
     }
-    if (mmLine) mmLine.textContent = `〰 線のつなぎ方：${LINE_MODES[lineModeIdx].label}`;
   }
   mapState.updateCtrlLabels = updateCtrlLabels;
 
   function closePops() {
-    popFilter.hidden = true; popMore.hidden = true; popLine.hidden = true; popSeal.hidden = true;
+    popFilter.hidden = true; popMore.hidden = true; popSeal.hidden = true;
     elFilterBtn.classList.remove('open'); elMoreBtn.classList.remove('open');
   }
   mapState.closePops = closePops;
-
-  // 線のつなぎ方パネル (旅行の区切りを日数で選ぶ。チップ)
-  popLine.innerHTML = `<div class="mc-pop-title">線のつなぎ方（旅行の区切り）</div><div class="mc-pop-chips"></div><div class="mc-pop-hint">写真が「N日以上」あくと別の線（＝別の旅行）に分けます。小さいほど細かく、大きいほど数日の旅行も1本につながります。「ぜんぶ」は全部1本、「日ごと」は暦日ごと。</div>`;
-  const lineChips = popLine.querySelector('.mc-pop-chips');
-  LINE_MODES.forEach((m, i) => {
-    const b = document.createElement('button');
-    b.className = 'lc-chip' + (i === lineModeIdx ? ' selected' : '');
-    b.textContent = m.label;
-    b.addEventListener('click', () => {
-      lineModeIdx = i;
-      try { localStorage.setItem('pms-lineMode', String(lineModeIdx)); } catch {}   // 選んだ区切りを覚える
-      lineChips.querySelectorAll('.lc-chip').forEach((c, j) => c.classList.toggle('selected', j === lineModeIdx));
-      drawTrips();         // 現在のフィルタ済み集合で線だけ張り替え
-      updateCtrlLabels();
-      closePops();
-    });
-    lineChips.appendChild(b);
-  });
 
   // 日付/期間フィルタパネル (date 入力 2つ + 適用 / 全期間)
   popFilter.innerHTML =
@@ -1721,21 +1685,18 @@ async function openMapView(focusPhoto) {
     }
   });
 
-  // ⋯ 表示メニュー (v57): よく使わない「線のつなぎ方 / 記憶の封印」を1つのアイコンにまとめる (ユーザー要望)。
-  // タップ → 2項目のメニュー → 選ぶとそれぞれのパネルを開く。期間(📅)だけは常時トップに残す。
+  // ⋯ 表示メニュー (v57→v58): よく使わない設定を1アイコンにまとめる。線のつなぎ方は固定化したので
+  // 今は「記憶の封印」のみ (ユーザー要望: 封印が表示の中にある UI は継続)。期間(📅)だけは常時トップに残す。
   popMore.innerHTML =
     `<div class="mc-pop-title">表示の設定</div>` +
-    `<button class="mc-menu-item" id="mmLine">〰 線のつなぎ方</button>` +
     `<button class="mc-menu-item" id="mmSeal">🔒 記憶の封印</button>`;
-  mmLine = popMore.querySelector('#mmLine');
   const mmSeal = popMore.querySelector('#mmSeal');
-  mmLine.addEventListener('click', () => { closePops(); popLine.hidden = false; });
   mmSeal.addEventListener('click', () => { closePops(); openSealPanel(); });
   elMoreBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const willOpen = popMore.hidden;
     closePops();
-    if (willOpen) { updateCtrlLabels(); popMore.hidden = false; elMoreBtn.classList.add('open'); }
+    if (willOpen) { popMore.hidden = false; elMoreBtn.classList.add('open'); }
   });
 
   // 🔒 封印パネル (v56): いま地図に見えている範囲 × 期間 を条件に封印 + 封印中の一覧/解除。
@@ -2105,7 +2066,7 @@ function renderInfoModal() {
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
       <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（直後のトースト、または右上の <b>♻️</b> からいつでも戻せます）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🗺 地図 / 🔒 封印</p>
-      <p style="margin:.2em 0;"><b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。地図上部は <b>📅 期間</b> と <b>⋯ 表示</b> の2つ。<b>⋯</b> から<b>線のつなぎ方</b>（旅行の区切りを日数で。数日の旅行も1本につながります）と <b>🔒 記憶の封印</b> を選べます。封印はいま見えている<b>範囲</b>と<b>期間</b>を指定して、よみがえってほしくない場所・時期を3枚引き・連想・地図・タイムラインに出さない機能（<b>削除ではない</b>ので写真は残り、🔒 パネルの一覧から<b>いつでも解除</b>。位置情報のない写真は「期間」で封印できます）。</p>
+      <p style="margin:.2em 0;"><b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。<b>複数日にまたがる旅行は1本の線で、日が変わるごとに色が変わります</b>（昔→今が色で読めます。1日以上あくと別の線）。地図上部は <b>📅 期間</b> と <b>⋯ 表示</b> の2つ。<b>⋯</b> から <b>🔒 記憶の封印</b>（いま見えている<b>範囲</b>と<b>期間</b>を指定して、よみがえってほしくない場所・時期を3枚引き・連想・地図・タイムラインに出さない。<b>削除ではない</b>ので写真は残り、一覧から<b>いつでも解除</b>。位置情報のない写真は「期間」で封印できます）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
       <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
     </div>`;
