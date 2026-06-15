@@ -111,6 +111,16 @@
   .full-cap .dt { color: #fff; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
   .full-cap .dt small { color: #9a9a9a; font-size: 11px; margin-left: 8px; }
   .full-cap .to-photos { background: #2a2a2a; color: #e0e0e0; border: 1px solid #4a4a4a; border-radius: 999px; padding: 9px 20px; font-size: 14px; }
+  .full-cap .full-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .full-cap .fix-date { background: #2a2a2a; color: #e0e0e0; border: 1px solid #4a4a4a; border-radius: 999px; padding: 9px 20px; font-size: 14px; cursor: pointer; }
+  .full-cap .date-editor { display: flex; flex-direction: column; align-items: center; gap: 8px; background: rgba(18,18,18,0.96); border: 1px solid #2a6; border-radius: 12px; padding: 12px 14px; }
+  .full-cap .date-editor[hidden] { display: none; }
+  .full-cap .de-input { background: #111; color: #fff; border: 1px solid #555; border-radius: 8px; padding: 8px 10px; font-size: 15px; }
+  .full-cap .de-actions { display: flex; gap: 8px; }
+  .full-cap .de-actions button { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+  .full-cap .de-cancel { background: #2a2a2a; color: #ddd; border: 1px solid #555; }
+  .full-cap .de-save { background: #2a6; color: #fff; border: 1px solid #2a6; font-weight: 600; }
+  .full-cap .de-hint { font-size: 11px; color: #9a9a9a; max-width: 280px; text-align: center; line-height: 1.4; }
   /* iOS のロングタップで出る画像メニューを抑止 (これが出ると長押し検知も奪われる) */
   .card img, .thumb img, .center-card img, .full-overlay img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 
@@ -317,7 +327,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.10 (写真の位置を後から設定) · 2026-06-15';
+const BUILD = 'phase3.11 (写真の日付も後から直せる) · 2026-06-15';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1309,11 +1319,23 @@ function fmtPlace(lat, lng) {
   return (lat == null || lng == null) ? '' : `📍 ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
 }
 // 日時の出所ラベル (v53)。画像を見た時に「撮影日 / 保存日 / 投稿日」のどれを使ったか分かるように。
-// 旧データ (dateSource 無し) は不明なので空 = 表示しない。
+// 旧データ (dateSource 無し) は不明なので空 = 表示しない。manual = 後から手で直した日付 (v60)。
 function dateSourceLabel(photo) {
   return photo?.dateSource === 'exif' ? '撮影日'
        : photo?.dateSource === 'mtime' ? '保存日'
-       : photo?.dateSource === 'posted' ? '投稿日' : '';
+       : photo?.dateSource === 'posted' ? '投稿日'
+       : photo?.dateSource === 'manual' ? '手動' : '';
+}
+// datetime-local 入力との相互変換 (ローカル時刻、日付を後から直す用, v60)。
+function toDatetimeLocalVal(d) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function fromDatetimeLocalVal(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v || '');
+  if (!m) return null;
+  const d = new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], 0, 0);
+  return isNaN(d.getTime()) ? null : d;
 }
 // 日時表示に添える小さな出所タグ (HTML)。出所不明なら空文字。
 function srcTagHtml(photo) {
@@ -1384,22 +1406,48 @@ function showFullImage(photo) {
   // (実機確認)。和暦形式 (2021年6月5日) が日本語端末の写真検索に通りやすい。
   const d = photo.datetime;
   const dtStr = d ? fmtDate(d) : '日時不明';
-  const dateOnly = d ? `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日` : '';
   const cap = document.createElement('div');
   cap.className = 'full-cap';
   cap.innerHTML =
     `<div class="dt">📅 ${dtStr}${srcTagHtml(photo)}<small>タップで日付をコピー</small></div>` +
-    `<button class="to-photos">📷 写真アプリで開く</button>`;
+    `<div class="full-actions">` +
+      `<button class="to-photos">📷 写真アプリで開く</button>` +
+      `<button class="fix-date">📅 日付を直す</button>` +
+    `</div>` +
+    `<div class="date-editor" hidden>` +
+      `<input type="datetime-local" class="de-input">` +
+      `<div class="de-actions"><button class="de-cancel">キャンセル</button><button class="de-save">保存</button></div>` +
+      `<div class="de-hint">本当に撮った日時に直すと、タイムライン・地図の並びもそこへ移ります。</div>` +
+    `</div>`;
   cap.addEventListener('click', e => e.stopPropagation());  // キャプション操作で overlay を閉じない
   const $small = cap.querySelector('.dt small');
   cap.querySelector('.dt').addEventListener('click', async () => {
-    if (!dateOnly) return;
-    try { await navigator.clipboard.writeText(dateOnly); if ($small) $small.textContent = `「${dateOnly}」をコピー`; }
+    const dd = photo.datetime;                              // 直した後も最新の日付をコピーできるよう都度算出
+    const dOnly = dd ? `${dd.getFullYear()}年${dd.getMonth()+1}月${dd.getDate()}日` : '';
+    if (!dOnly) return;
+    try { await navigator.clipboard.writeText(dOnly); if ($small) $small.textContent = `「${dOnly}」をコピー`; }
     catch { if ($small) $small.textContent = '長押しでコピー'; }
   });
   cap.querySelector('.to-photos').addEventListener('click', () => {
     // 写真アプリを開く (非公式スキーム、特定写真までは飛べない)。開けなければ無反応。
     try { window.location.href = 'photos-redirect://'; } catch {}
+  });
+  // 📅 日付を直す (v60): 撮影日/保存日が無い・おかしい写真を、本当の日時に直す。直す行為自体が想起の入口。
+  const editor = cap.querySelector('.date-editor');
+  cap.querySelector('.fix-date').addEventListener('click', () => {
+    if (photo.datetime) cap.querySelector('.de-input').value = toDatetimeLocalVal(photo.datetime);
+    editor.hidden = false;
+  });
+  cap.querySelector('.de-cancel').addEventListener('click', () => { editor.hidden = true; });
+  cap.querySelector('.de-save').addEventListener('click', async () => {
+    const nd = fromDatetimeLocalVal(cap.querySelector('.de-input').value);
+    if (!nd) { logErr('日時の形式が正しくありません'); return; }
+    photo.datetime = nd;
+    photo.dateSource = 'manual';
+    try { await dbPut(photo); } catch (e) { logErr(`日付の保存に失敗: ${e?.message || e}`); }
+    if (mapState && mapState.refreshData) mapState.refreshData();   // タイムライン・線の並びを更新
+    render();                                                       // 本体側 (カードの日付表示・件数) も整合
+    showFullImage(photo);                                           // 新しい日付でフル画像を開き直す
   });
   overlay.appendChild(cap);
 
@@ -2168,8 +2216,8 @@ function renderInfoModal() {
       <p style="margin:.8em 0 .2em;color:#fff;">📥 取り込み</p>
       <p style="margin:.2em 0;"><b>📷取り込む</b> から <b>ファイル / フォルダー</b> を選びます。撮影日時(EXIF)があればそれを、なければ<b>保存日（最終更新日）</b>を日時にして取り込みます（色・意味の連想に乗ります）。日時の出所は画像を見ると「撮影日 / 保存日 / 投稿日」と表示されます。細かい基準（撮影日のある画像だけ取り込む等）は <b>⚙️ 詳細設定</b> から。同じ画像を選び直しても<b>重複は自動スキップ</b>。たくさん入れる時・古い端末では小分けが安定。</p>
       <p style="margin:.2em 0;">📦 は <b>Instagram / X(Twitter) のエクスポート(zip)</b> から取り込みます。画像本体から日時が消えていても、同梱データ（Instagram は「情報をダウンロード」の <b>JSON 形式</b>、X は <b>アーカイブ</b>の <code>data/tweets.js</code>）から<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。X は画像投稿のみ対応（動画・テキストは対象外）。容量が大きいと時間がかかるので、期間を絞ると軽いです。</p>
-      <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時</p>
-      <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時 / 📅 日付を直す</p>
+      <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。<b>日付がおかしい・抜けている写真</b>は、写真を長押しして開いた画面の <b>「📅 日付を直す」</b>から本当の日時に直せます（タイムラインや地図の並びもそこへ移ります）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
       <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（直後のトースト、または右上の <b>♻️</b> からいつでも戻せます）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🗺 地図 / 🔒 封印</p>
