@@ -187,6 +187,8 @@
   .mc-pop-btn.primary { background: #2a6; border-color: #2a6; color: #fff; font-weight: 600; }
   .mc-pop-btn:active { opacity: 0.8; }
   .mc-pop-hint { font-size: 10px; color: #666; margin-top: 10px; line-height: 1.5; }
+  .mc-menu-item { display: block; width: 100%; text-align: left; padding: 11px 12px; margin: 6px 0; border: 1px solid #444; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 13px; cursor: pointer; }
+  .mc-menu-item:active { background: #000; }
   .lc-chip { flex: 0 0 auto; padding: 6px 12px; border: 1px solid #444; border-radius: 999px; background: transparent; color: #bbb; font-size: 12px; white-space: nowrap; cursor: pointer; }
   .lc-chip:active { opacity: 0.7; }
   .lc-chip.selected { background: #2a6; color: #fff; font-weight: 600; border-color: #2a6; }
@@ -297,7 +299,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.7 (記憶の封印: 場所×期間で非表示) · 2026-06-14';
+const BUILD = 'phase3.8 (線=旅行ごと1本 + 地図UI整理) · 2026-06-15';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1416,16 +1418,23 @@ window.addEventListener('keydown', (e) => {
 // ============================================================
 const TRIP_COLORS = ['#ff6b6b','#feca57','#48dbfb','#1dd1a1','#f368e0','#ff9f43','#54a0ff','#00d2d3'];
 
-// 線の「つなぐ範囲」を選べるようにする (ユーザー要望: 一日だけの線も、複数日の線も見たい)。
-// 'day' = 暦日ごとに切る (1日=1本) / gapDays = この日数を超えて空いたら切る (大きいほど数日の旅が1本に) /
-// Infinity = ぜんぶ1本。地図上部のチップで切替。
+// 線の「つなぎ方 = 旅行の区切り」を日数単位で選べるようにする (v57, ユーザー要望: 2日の旅も5日の旅も
+// すべて一本でつなぎたい / 1日単位で選びたい)。gapDays = この日数以上あいたら別の線 (= 別の旅行) に切る。
+// 大きいほど数日の旅も1本に。Infinity='ぜんぶ'1本。'day'=暦日ごと (基本使わないので末尾)。
 const LINE_MODES = [
-  { label: '日ごと', mode: 'day' },
+  { label: '1日',   gapDays: 1 },
+  { label: '2日',   gapDays: 2 },
   { label: '3日',   gapDays: 3 },
+  { label: '5日',   gapDays: 5 },
   { label: '1週間', gapDays: 7 },
   { label: 'ぜんぶ', gapDays: Infinity },
+  { label: '日ごと', mode: 'day' },
 ];
-let lineModeIdx = 0;   // 既定 = 日ごと。地図を開き直しても選択を覚える (module スコープ)。
+// 既定 = 2日 (連続した旅行の動静を1本につなぐ)。選んだ区切りは localStorage で覚える (毎回選び直さない)。
+let lineModeIdx = (() => {
+  try { const v = parseInt(localStorage.getItem('pms-lineMode'), 10); return (Number.isInteger(v) && v >= 0 && v < LINE_MODES.length) ? v : 1; }
+  catch { return 1; }
+})();
 
 let _leafletLoading = null;
 function loadAsset(tag, props) {
@@ -1512,8 +1521,9 @@ async function openMapView(focusPhoto) {
   overlay.className = 'map-overlay';
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
-    `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcLine">〰 日ごと</button><button class="mc-btn" id="mcSeal">🔒</button></div>` +
+    `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcMore">⋯ 表示</button></div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
+    `<div class="mc-pop" id="mcPopMore" hidden></div>` +
     `<div class="mc-pop" id="mcPopLine" hidden></div>` +
     `<div class="mc-pop" id="mcPopSeal" hidden></div>` +
     `<button class="map-close">✕ 閉じる</button>` +
@@ -1613,11 +1623,12 @@ async function openMapView(focusPhoto) {
   // マップ上のコントロール: 📅日付/期間フィルタ と 〰線の日数 を、アイコン → 開くパネルで操作 (ユーザー要望)。
   // 状態はタイムラインの日付タップとも共有 (どちらから絞っても applyFilter / mapState.range に集約)。
   const elFilterBtn = overlay.querySelector('#mcFilter');
-  const elLineBtn   = overlay.querySelector('#mcLine');
-  const elSealBtn   = overlay.querySelector('#mcSeal');
+  const elMoreBtn   = overlay.querySelector('#mcMore');
   const popFilter   = overlay.querySelector('#mcPopFilter');
+  const popMore     = overlay.querySelector('#mcPopMore');
   const popLine     = overlay.querySelector('#mcPopLine');
   const popSeal     = overlay.querySelector('#mcPopSeal');
+  let mmLine = null;   // 「⋯ 表示」メニュー内の「線のつなぎ方」項目 (popMore 構築時に代入)。ラベルに現在の区切りを出す。
 
   const startOfDay = ms => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
   const endOfDay   = ms => startOfDay(ms) + 86400000 - 1;
@@ -1630,7 +1641,7 @@ async function openMapView(focusPhoto) {
   let dataMin = null, dataMax = null;
   for (const p of allPhotos) { if (!visible(p)) continue; const t = p.datetime.getTime(); if (dataMin == null || t < dataMin) dataMin = t; if (dataMax == null || t > dataMax) dataMax = t; }
 
-  // ボタンのラベルを現在の状態で更新 (フィルタ状態 / 線モード)。タイムラインから絞っても反映される。
+  // ボタン/メニューのラベルを現在の状態で更新 (📅フィルタ / 〰線のつなぎ方)。タイムラインから絞っても反映される。
   function updateCtrlLabels() {
     const r = mapState.range;
     if (r.start == null) { elFilterBtn.textContent = '📅 全期間'; elFilterBtn.classList.remove('on'); }
@@ -1639,18 +1650,18 @@ async function openMapView(focusPhoto) {
       elFilterBtn.textContent = single ? `📅 ${fmtMD(r.start)}` : `📅 ${fmtMD(r.start)}〜${fmtMD(r.end)}`;
       elFilterBtn.classList.add('on');
     }
-    elLineBtn.textContent = `〰 ${LINE_MODES[lineModeIdx].label}`;
+    if (mmLine) mmLine.textContent = `〰 線のつなぎ方：${LINE_MODES[lineModeIdx].label}`;
   }
   mapState.updateCtrlLabels = updateCtrlLabels;
 
   function closePops() {
-    popFilter.hidden = true; popLine.hidden = true; popSeal.hidden = true;
-    elFilterBtn.classList.remove('open'); elLineBtn.classList.remove('open'); elSealBtn.classList.remove('open');
+    popFilter.hidden = true; popMore.hidden = true; popLine.hidden = true; popSeal.hidden = true;
+    elFilterBtn.classList.remove('open'); elMoreBtn.classList.remove('open');
   }
   mapState.closePops = closePops;
 
-  // 線の日数パネル (チップ)
-  popLine.innerHTML = `<div class="mc-pop-title">線の日数</div><div class="mc-pop-chips"></div><div class="mc-pop-hint">日ごと=1日1本 / 3日・1週間=その範囲は連結 / ぜんぶ=1本</div>`;
+  // 線のつなぎ方パネル (旅行の区切りを日数で選ぶ。チップ)
+  popLine.innerHTML = `<div class="mc-pop-title">線のつなぎ方（旅行の区切り）</div><div class="mc-pop-chips"></div><div class="mc-pop-hint">写真が「N日以上」あくと別の線（＝別の旅行）に分けます。小さいほど細かく、大きいほど数日の旅行も1本につながります。「ぜんぶ」は全部1本、「日ごと」は暦日ごと。</div>`;
   const lineChips = popLine.querySelector('.mc-pop-chips');
   LINE_MODES.forEach((m, i) => {
     const b = document.createElement('button');
@@ -1658,6 +1669,7 @@ async function openMapView(focusPhoto) {
     b.textContent = m.label;
     b.addEventListener('click', () => {
       lineModeIdx = i;
+      try { localStorage.setItem('pms-lineMode', String(lineModeIdx)); } catch {}   // 選んだ区切りを覚える
       lineChips.querySelectorAll('.lc-chip').forEach((c, j) => c.classList.toggle('selected', j === lineModeIdx));
       drawTrips();         // 現在のフィルタ済み集合で線だけ張り替え
       updateCtrlLabels();
@@ -1696,23 +1708,35 @@ async function openMapView(focusPhoto) {
     closePops();
   });
 
-  function togglePop(which) {
-    const isFilter = which === 'filter';
-    const target = isFilter ? popFilter : popLine;
-    const willOpen = target.hidden;
+  // 📅 期間ボタン: トグルで日付パネルを開閉 (開く時に現在の絞り込みを入力欄へ反映)。
+  elFilterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = popFilter.hidden;
     closePops();
     if (willOpen) {
-      if (isFilter) {   // 現在の絞り込みを入力欄に反映してから開く
-        const r = mapState.range;
-        fFrom.value = r.start != null ? toInputVal(r.start) : '';
-        fTo.value   = r.start != null ? toInputVal(r.end)   : '';
-      }
-      target.hidden = false;
-      (isFilter ? elFilterBtn : elLineBtn).classList.add('open');
+      const r = mapState.range;
+      fFrom.value = r.start != null ? toInputVal(r.start) : '';
+      fTo.value   = r.start != null ? toInputVal(r.end)   : '';
+      popFilter.hidden = false; elFilterBtn.classList.add('open');
     }
-  }
-  elFilterBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePop('filter'); });
-  elLineBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePop('line'); });
+  });
+
+  // ⋯ 表示メニュー (v57): よく使わない「線のつなぎ方 / 記憶の封印」を1つのアイコンにまとめる (ユーザー要望)。
+  // タップ → 2項目のメニュー → 選ぶとそれぞれのパネルを開く。期間(📅)だけは常時トップに残す。
+  popMore.innerHTML =
+    `<div class="mc-pop-title">表示の設定</div>` +
+    `<button class="mc-menu-item" id="mmLine">〰 線のつなぎ方</button>` +
+    `<button class="mc-menu-item" id="mmSeal">🔒 記憶の封印</button>`;
+  mmLine = popMore.querySelector('#mmLine');
+  const mmSeal = popMore.querySelector('#mmSeal');
+  mmLine.addEventListener('click', () => { closePops(); popLine.hidden = false; });
+  mmSeal.addEventListener('click', () => { closePops(); openSealPanel(); });
+  elMoreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = popMore.hidden;
+    closePops();
+    if (willOpen) { updateCtrlLabels(); popMore.hidden = false; elMoreBtn.classList.add('open'); }
+  });
 
   // 🔒 封印パネル (v56): いま地図に見えている範囲 × 期間 を条件に封印 + 封印中の一覧/解除。
   // 期間は地図のフィルタ状態 (mapState.range)、場所は地図の表示範囲 (map.getBounds()) を流用する。
@@ -1805,18 +1829,13 @@ async function openMapView(focusPhoto) {
     addSeal(spec);   // recomputeSealed + refreshData + render
     closePops();
   });
-  elSealBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const willOpen = popSeal.hidden;
-    closePops();
-    if (willOpen) {
-      sealLabelEl.value = '';
-      updateSealPreview();
-      updateSealList();
-      popSeal.hidden = false;
-      elSealBtn.classList.add('open');
-    }
-  });
+  // 封印パネルを開く (v57: 「⋯ 表示」メニューの 🔒 項目から呼ぶ)。
+  function openSealPanel() {
+    sealLabelEl.value = '';
+    updateSealPreview();
+    updateSealList();
+    popSeal.hidden = false;
+  }
 
   map.on('click', closePops);   // 地図をタップしたらパネルを閉じる
 
@@ -2086,7 +2105,7 @@ function renderInfoModal() {
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
       <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（直後のトースト、または右上の <b>♻️</b> からいつでも戻せます）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🗺 地図 / 🔒 封印</p>
-      <p style="margin:.2em 0;"><b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。地図の <b>🔒</b> から、いま見えている<b>範囲</b>と<b>期間</b>を指定して<b>記憶を封印</b>できます（よみがえってほしくない場所・時期を、3枚引き・連想・地図・タイムラインに出さない）。<b>削除ではない</b>ので写真は残り、🔒 パネルの一覧から<b>いつでも解除</b>できます。位置情報のない写真は「期間」で封印できます。</p>
+      <p style="margin:.2em 0;"><b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。地図上部は <b>📅 期間</b> と <b>⋯ 表示</b> の2つ。<b>⋯</b> から<b>線のつなぎ方</b>（旅行の区切りを日数で。数日の旅行も1本につながります）と <b>🔒 記憶の封印</b> を選べます。封印はいま見えている<b>範囲</b>と<b>期間</b>を指定して、よみがえってほしくない場所・時期を3枚引き・連想・地図・タイムラインに出さない機能（<b>削除ではない</b>ので写真は残り、🔒 パネルの一覧から<b>いつでも解除</b>。位置情報のない写真は「期間」で封印できます）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
       <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
     </div>`;
