@@ -225,6 +225,9 @@
 
   /* 写真サムネのマーカー (L.divIcon の中身) */
   .photo-marker { width: 44px; height: 44px; border-radius: 8px; border: 2px solid #fff; background-size: cover; background-position: center; box-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+  /* seed view (入り口で変わる地図): 起点 = 強調リング / 意味echo = 破線リング (線でつながる時空近傍と読み分ける) */
+  .photo-marker-seed { border-color: #6ee0a3; box-shadow: 0 0 0 3px rgba(110,224,163,0.5), 0 1px 4px rgba(0,0,0,0.6); }
+  .photo-marker-echo { border-style: dashed; border-color: #c08bff; box-shadow: 0 0 0 2px rgba(192,139,255,0.35), 0 1px 4px rgba(0,0,0,0.6); }
   /* Leaflet popup をダークに */
   .leaflet-popup-content-wrapper { background: #1a1a1a; color: #eee; border-radius: 10px; }
   .leaflet-popup-content { margin: 12px; }
@@ -331,7 +334,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.12 (地図/タイムラインから削除) · 2026-06-15';
+const BUILD = 'phase3.13 (入り口で変わる地図: 偶然の1スライス / 時空+意味) · 2026-06-15';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1579,7 +1582,8 @@ async function openMapView(focusPhoto) {
   overlay.className = 'map-overlay';
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
-    `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcMore">⋯ 表示</button></div>` +
+    `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcMore">⋯ 表示</button>` +
+      `<button class="mc-btn" id="mcEcho" hidden></button><button class="mc-btn" id="mcAll" hidden>↩︎ 全部を見る</button></div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopMore" hidden></div>` +
     `<div class="mc-pop" id="mcPopSeal" hidden></div>` +
@@ -1600,7 +1604,9 @@ async function openMapView(focusPhoto) {
   L.control.zoom({ position: 'bottomleft' }).addTo(map);
   L.control.layers({ 'ダーク': dark, '地理院(標準)': gsiStd, '地理院(淡色)': gsiPale }, null, { position: 'topright' }).addTo(map);
 
-  mapState = { overlay, map, range: { start: null, end: null }, tripLayers: [], filteredGps: [] };
+  // seed = 入り口で決まる「どこまで」。seed があれば その写真の 時空近傍(+意味echo) を見せ、無ければ従来の期間ブラウズ。
+  mapState = { overlay, map, range: { start: null, end: null }, tripLayers: [], filteredGps: [], lineGps: [],
+               seed: null, seedSpacetime: [], seedMeaning: [], showEcho: false };
 
   // GPS 写真を撮影順に。除外・封印は出さない (初期表示の判定用。再描画は applyFilter が allPhotos から都度算出)。
   const gps = allPhotos.filter(p => visible(p) && p.lat != null && p.lng != null)
@@ -1622,14 +1628,32 @@ async function openMapView(focusPhoto) {
     return t >= r.start && t <= r.end;
   }
   // 地図に出す GPS 写真集合。封印/除外を都度反映するため allPhotos から算出 (封印の追加/解除で張り替わる)。
+  // seed モード = その写真の 時空近傍 (+ 広げた時だけ意味echo)。ブラウズ = 期間内の全 GPS。
   function visibleGps() {
-    return allPhotos.filter(p => visible(p) && p.lat != null && p.lng != null && inRange(p))
-                    .sort((a, b) => a.datetime - b.datetime);
+    let pool;
+    if (mapState.seed) {
+      pool = mapState.showEcho ? mapState.seedSpacetime.concat(mapState.seedMeaning) : mapState.seedSpacetime;
+    } else {
+      pool = allPhotos.filter(p => inRange(p));
+    }
+    return pool.filter(p => visible(p) && p.lat != null && p.lng != null)
+               .sort((a, b) => a.datetime - b.datetime);
+  }
+  // 線でつなぐのは時空近傍だけ (意味echoは「時空無視で似た場面」なので線にしない = 線あり/なしで読み分け)。
+  function lineGpsOf(fg) {
+    if (!mapState.seed) return fg;
+    return mapState.seedSpacetime.filter(p => visible(p) && p.lat != null && p.lng != null)
+                                 .sort((a, b) => a.datetime - b.datetime);
   }
   function makePhotoMarker(p) {
+    let cls = 'photo-marker';
+    if (mapState.seed) {
+      if (p.id === mapState.seed.id) cls += ' photo-marker-seed';
+      else if (!mapState.seedSpacetime.some(q => q.id === p.id)) cls += ' photo-marker-echo';
+    }
     const icon = L.divIcon({
       className: 'photo-marker-wrap',
-      html: `<div class="photo-marker" style="background-image:url(${thumbUrl(p)})"></div>`,
+      html: `<div class="${cls}" style="background-image:url(${thumbUrl(p)})"></div>`,
       iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -22],
     });
     const mk = L.marker([p.lat, p.lng], { icon });
@@ -1652,7 +1676,7 @@ async function openMapView(focusPhoto) {
         }).addTo(map));
       }
     };
-    segmentByGap(mapState.filteredGps, TRIP_GAP_MS).forEach(seg => {
+    segmentByGap(mapState.lineGps, TRIP_GAP_MS).forEach(seg => {
       if (seg.length < 2) return;
       // 旅行内を「日ごと」のサブ線に分けて色を変える。境界は前日最後の点から引いて連続に見せる。
       let curDay = null, dayIdx = -1, sub = null, prev = null;
@@ -1675,6 +1699,7 @@ async function openMapView(focusPhoto) {
   function applyFilter(opts) {
     const fg = visibleGps();
     mapState.filteredGps = fg;
+    mapState.lineGps = lineGpsOf(fg);
     cluster.clearLayers();
     markerById.clear();
     fg.forEach(p => {
@@ -1688,6 +1713,7 @@ async function openMapView(focusPhoto) {
     }
     if (mapState.updateTimelineUI) mapState.updateTimelineUI();
     if (mapState.updateCtrlLabels) mapState.updateCtrlLabels();
+    if (mapState.updateCtrlMode) mapState.updateCtrlMode();
   }
   mapState.applyFilter = applyFilter;
 
@@ -1721,6 +1747,62 @@ async function openMapView(focusPhoto) {
     }
   }
   mapState.updateCtrlLabels = updateCtrlLabels;
+
+  // ── seed (入り口で変わる地図) ─────────────────────────────────────────
+  const mcEcho = overlay.querySelector('#mcEcho');
+  const mcAll  = overlay.querySelector('#mcAll');
+
+  // GPS のある意味echoの枚数 (「広げる」で地図に灯る数。0 ならボタンを出さない)。
+  function echoGpsCount() {
+    return mapState.seedMeaning.filter(p => visible(p) && p.lat != null && p.lng != null).length;
+  }
+  // seed モードでは 📅期間/⋯表示 を隠し、🌍似た場所 / ↩︎全部を見る を出す。
+  function updateCtrlMode() {
+    const seeded = !!mapState.seed;
+    elFilterBtn.style.display = seeded ? 'none' : '';
+    elMoreBtn.style.display   = seeded ? 'none' : '';
+    const k = seeded ? echoGpsCount() : 0;
+    if (seeded && k > 0) {
+      mcEcho.hidden = false;
+      mcEcho.textContent = mapState.showEcho ? '🌍 似た場所を隠す' : `🌍 似た場所 ${k}`;
+      mcEcho.classList.toggle('on', mapState.showEcho);
+    } else { mcEcho.hidden = true; }
+    mcAll.hidden = !seeded;
+  }
+  mapState.updateCtrlMode = updateCtrlMode;
+
+  // 起点を決めて、その時空近傍(+意味echo)に絞る。意味echoは時空近傍と重複排除。
+  function setSeed(photo) {
+    const pool = allPhotos.filter(visible);
+    const st = spacetimeNeighbors(photo, pool, 24);
+    const seen = new Set([photo.id]);
+    const stSet = [photo];
+    for (const p of st) { if (!seen.has(p.id)) { seen.add(p.id); stSet.push(p); } }
+    const me = meaningNeighbors(photo, pool, 12).filter(p => !seen.has(p.id));
+    mapState.seed = photo;
+    mapState.seedSpacetime = stSet;
+    mapState.seedMeaning = me;
+    mapState.showEcho = false;
+    mapState.range = { start: null, end: null };   // seed が「どこまで」を担うので期間はリセット
+    if (mapState.rebuildTimeline) mapState.rebuildTimeline();
+    applyFilter();
+  }
+  mapState.setSeed = setSeed;
+
+  // seed を抜けて従来の期間ブラウズ (全 GPS) に戻る。
+  function clearSeed() {
+    mapState.seed = null;
+    mapState.seedSpacetime = [];
+    mapState.seedMeaning = [];
+    mapState.showEcho = false;
+    if (mapState.rebuildTimeline) mapState.rebuildTimeline();
+    applyFilter();
+  }
+  mapState.clearSeed = clearSeed;
+
+  mcEcho.addEventListener('click', () => { mapState.showEcho = !mapState.showEcho; applyFilter(); });
+  mcAll.addEventListener('click', () => clearSeed());
+  // ───────────────────────────────────────────────────────────────────
 
   function closePops() {
     popFilter.hidden = true; popMore.hidden = true; popSeal.hidden = true;
@@ -1967,8 +2049,12 @@ async function openMapView(focusPhoto) {
   };
   mapState.rebuildTimeline();
 
-  const focusHasPin = focusPhoto && gps.some(p => p.id === focusPhoto.id);
-  applyFilter({ skipFit: focusHasPin });   // 初期 = 全期間。focus 時は後段で寄せるので fit しない
+  // 入り口で「どこまで」を変える: 写真から来たら その写真を起点 (時空+意味)、
+  // ヘッダ(起点なし)は GPS 写真からランダムに1枚を起点 = 偶然の1スライス。
+  const explicit = !!(focusPhoto && focusPhoto.id);
+  let seed = explicit ? focusPhoto : (gps.length ? gps[Math.floor(Math.random() * gps.length)] : null);
+  if (seed) setSeed(seed);
+  else applyFilter();   // GPS 写真ゼロ → 従来ブラウズ (タイムラインのみ)
   if (!gps.length) {
     const note = document.createElement('div');
     note.className = 'map-empty-note';
@@ -1987,10 +2073,9 @@ async function openMapView(focusPhoto) {
   setTimeout(() => {
     if (!mapState) return;
     map.invalidateSize();       // overlay 表示後のレイアウト確定
-    if (focusHasPin) {          // 連想ウォークの写真 → その地図ピンへ寄せて popup を開く
-      const rec = markerById.get(focusPhoto.id);
+    if (explicit && mapState.seed) {   // 特定の写真から来た時 → その起点ピンの popup を開く
+      const rec = markerById.get(mapState.seed.id);
       if (rec) {
-        map.setView(rec.latlng, 14, { animate: false });
         if (cluster.zoomToShowLayer) cluster.zoomToShowLayer(rec.marker, () => rec.marker.openPopup());
         else rec.marker.openPopup();
       }
@@ -2078,6 +2163,9 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
 
   // 日付見出しタップ: なし→その日 / 単日→(同じ日で解除・別の日で期間) / 期間→新しい単日。
   function toggleDayFilter(dayStart) {
+    if (mapState.seed) {   // 起点モードで日付を絞る = スライスを抜けて期間ブラウズへ
+      mapState.seed = null; mapState.seedSpacetime = []; mapState.seedMeaning = []; mapState.showEcho = false;
+    }
     const r = mapState.range;
     const dayEnd = dayEndOf(dayStart);
     if (r.start == null) {
@@ -2093,6 +2181,20 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
 
   // フィルタ状態に合わせてバー/見出し/淡色を更新 (applyFilter から呼ばれる)。
   mapState.updateTimelineUI = () => {
+    // 起点モード: 期間バーの代わりに「この写真の周り / 全部を見る」を出し、淡色化はしない (一覧は全件のまま=次の起点を選ぶ索引)。
+    if (mapState.seed) {
+      bar.classList.add('active');
+      bar.innerHTML = `<span class="fb-text">🌱 この写真の周り</span>`;
+      const clr = document.createElement('button');
+      clr.className = 'fb-clear';
+      clr.textContent = '✕ 全部を見る';
+      clr.addEventListener('click', () => { if (mapState.clearSeed) mapState.clearSeed(); });
+      bar.appendChild(clr);
+      for (const { el } of dayHeaders) el.classList.remove('tl-out');
+      for (const { el } of itemEls) el.classList.remove('tl-out');
+      emptyNote.classList.add('tl-out');
+      return;
+    }
     const r = mapState.range;
     bar.innerHTML = '';
     if (r.start == null) {
@@ -3234,7 +3336,7 @@ document.getElementById('btnAdd').addEventListener('click', (e) => openImportMen
 document.getElementById('btnAI').addEventListener('click', openAIModal);
 document.getElementById('btnInfo').addEventListener('click', openInfoModal);
 document.getElementById('btnIg').addEventListener('click', () => $igzip.click());
-document.getElementById('btnMap').addEventListener('click', openMapView);
+document.getElementById('btnMap').addEventListener('click', () => openMapView());
 document.getElementById('btnTrash').addEventListener('click', openExcludedModal);
 document.getElementById('btnClear').addEventListener('click', async () => {
   if (!confirm('IndexedDB の全写真を削除します。続行?')) return;
