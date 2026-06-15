@@ -250,6 +250,24 @@
   .tl-time { font-size: 12px; color: #ddd; }
   .tl-badge { font-size: 10px; color: #777; }
   .tl-item.tl-nogps img { opacity: 0.5; }
+  /* タイムラインの「位置を設定/直す」ボタン (v59) */
+  .tl-locedit { flex: 0 0 auto; margin-left: auto; padding: 5px 9px; border: 1px solid #3a5; border-radius: 999px; background: transparent; color: #6ee0a3; font-size: 11px; white-space: nowrap; cursor: pointer; }
+  .tl-locedit:active { background: #163; }
+  .tl-item.tl-nogps .tl-locedit { border-color: #57a; color: #9bf; }   /* 未設定は青系で「付けてね」を促す */
+  /* 位置編集バー + ドラッグピン (v59) */
+  .loc-edit-bar { position: absolute; left: 50%; transform: translateX(-50%); bottom: 70px; z-index: 1600; display: flex; align-items: center; gap: 10px; background: rgba(18,18,18,0.97); border: 1px solid #2a6; border-radius: 12px; padding: 8px 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); max-width: 94vw; }
+  .loc-edit-bar .le-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; flex: 0 0 auto; background: #000; }
+  .loc-edit-bar .le-text { min-width: 0; }
+  .loc-edit-bar .le-title { font-size: 12px; color: #eee; font-weight: 600; }
+  .loc-edit-bar .le-coords { font-size: 10px; color: #8bf; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .loc-edit-bar button { flex: 0 0 auto; padding: 7px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+  .loc-edit-bar .le-cancel { border: 1px solid #555; background: #2a2a2a; color: #ddd; }
+  .loc-edit-bar .le-save { border: 1px solid #2a6; background: #2a6; color: #fff; font-weight: 600; }
+  .loc-edit-pin-wrap { background: transparent; border: 0; }
+  .loc-edit-pin { position: relative; width: 44px; height: 44px; border-radius: 50%; border: 3px solid #2a6; background-size: cover; background-position: center; box-shadow: 0 0 0 2px #fff, 0 3px 8px rgba(0,0,0,0.5); animation: lePulse 1.3s ease-in-out infinite; }
+  .loc-edit-pin::after { content: ''; position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #2a6; }
+  @keyframes lePulse { 0%,100% { box-shadow: 0 0 0 2px #fff, 0 3px 8px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 0 2px #fff, 0 0 0 9px rgba(42,170,102,0.35), 0 3px 8px rgba(0,0,0,0.5); } }
+  .marker-popup .mp-edit { margin-top: 6px; width: 100%; padding: 7px; border: 1px solid #555; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 12px; cursor: pointer; }
   .tl-empty { color: #888; font-size: 12px; text-align: center; padding: 20px; }
 
   @media (min-width: 720px) {
@@ -299,7 +317,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.9 (線=1日固定·複数日は色変化) · 2026-06-15';
+const BUILD = 'phase3.10 (写真の位置を後から設定) · 2026-06-15';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1467,6 +1485,18 @@ function segmentByGap(gpsPhotos, gapMs) {
 // 写真の暦日キー (色を日ごとに変える判定に使う)。
 function dayKeyOf(p) { const d = p.datetime; return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
 
+// 位置を手動入力する時の初期値: 時間的に最も近い GPS 写真 (maxMs 以内) の座標。旅行中の抜け落ち写真を最小操作で救う (v59)。
+function nearestGps(photo, maxMs) {
+  let best = null, bestDt = Infinity;
+  const t = photo.datetime.getTime();
+  for (const q of allPhotos) {
+    if (q.id === photo.id || q.excluded || q.lat == null || q.lng == null) continue;
+    const dt = Math.abs(q.datetime.getTime() - t);
+    if (dt < bestDt) { bestDt = dt; best = q; }
+  }
+  return (best && bestDt <= maxMs) ? [best.lat, best.lng] : null;
+}
+
 // マーカーのポップアップ (サムネ + 日時 + 場所 + 連想ウォーク導線)。
 function buildMarkerPopup(p) {
   const el = document.createElement('div');
@@ -1476,9 +1506,11 @@ function buildMarkerPopup(p) {
     `<img class="mp-thumb" src="${thumbUrl(p)}">` +
     `<div class="mp-date">${fmtDate(p.datetime)}${srcTagHtml(p)}</div>` +
     (place ? `<div class="mp-place">${place}</div>` : '') +
-    `<button class="mp-walk">🔮 連想ウォーク</button>`;
+    `<button class="mp-walk">🔮 連想ウォーク</button>` +
+    `<button class="mp-edit" type="button">📍 位置を直す</button>`;
   el.querySelector('.mp-thumb').addEventListener('click', () => showFullImage(p));
   el.querySelector('.mp-walk').addEventListener('click', () => { closeMapView(); showExplore(p); });
+  el.querySelector('.mp-edit').addEventListener('click', () => { if (mapState && mapState.startLocationEdit) mapState.startLocationEdit(p); });
   return el;
 }
 
@@ -1798,6 +1830,76 @@ async function openMapView(focusPhoto) {
     popSeal.hidden = false;
   }
 
+  // ── 位置を後から設定/修正 (v59) ──────────────────────────────────
+  // 撮ったのに GPS が入らなかった写真に、地図のピンをドラッグして位置を付ける (タイムライン/マーカーから起動)。
+  function cancelLocationEdit() {
+    if (!mapState || !mapState.locEdit) return;
+    try { map.removeLayer(mapState.locEdit.pin); } catch {}
+    try { mapState.locEdit.bar.remove(); } catch {}
+    mapState.locEdit = null;
+  }
+  async function saveLocationEdit() {
+    if (!mapState || !mapState.locEdit) return;
+    const { photo, pin } = mapState.locEdit;
+    const ll = pin.getLatLng();
+    photo.lat = +ll.lat.toFixed(6);
+    photo.lng = +ll.lng.toFixed(6);
+    photo.geoManual = true;                                              // 手動で付けた位置 (将来の区別用)
+    if (seals.length) photo._sealed = seals.some(s => sealMatches(s, photo));   // 場所封印に該当しうる
+    try { await dbPut(photo); } catch (e) { logErr(`位置の保存に失敗: ${e?.message || e}`); }
+    cancelLocationEdit();
+    mapState.refreshData();                                             // マーカー追加 + タイムライン更新
+    render();                                                           // 本体側の件数等も整合
+    const rec = mapState.markerById.get(photo.id);                      // 付けた位置へ寄せる
+    if (rec) map.setView(rec.latlng, Math.max(map.getZoom(), 13));
+  }
+  function startLocationEdit(photo) {
+    cancelLocationEdit();
+    closePops();
+    map.closePopup();
+    const sheet = overlay.querySelector('.timeline-sheet');             // モバイルはシートを畳んで地図を見せる
+    if (sheet && sheet.classList.contains('open') && window.matchMedia('(max-width:719px)').matches) {
+      sheet.classList.remove('open');
+      setTimeout(() => map.invalidateSize(), 260);
+    }
+    // 初期位置: 既存GPS → 時間的に近いGPS写真(3日以内) → 地図中心
+    let start = (photo.lat != null && photo.lng != null) ? [photo.lat, photo.lng] : null;
+    if (start) { map.setView(start, Math.max(map.getZoom(), 14)); }
+    else {
+      const g = nearestGps(photo, 3 * 86400000);
+      if (g) { start = g; map.setView(start, Math.max(map.getZoom(), 13)); }
+      else { const c = map.getCenter(); start = [c.lat, c.lng]; }
+    }
+    const pin = L.marker(start, {
+      draggable: true, autoPan: true, zIndexOffset: 1000,
+      icon: L.divIcon({ className: 'loc-edit-pin-wrap', html: `<div class="loc-edit-pin" style="background-image:url(${thumbUrl(photo)})"></div>`, iconSize: [50, 54], iconAnchor: [25, 53] }),
+    }).addTo(map);
+    const bar = document.createElement('div');
+    bar.className = 'loc-edit-bar';
+    bar.innerHTML =
+      `<img class="le-thumb" src="${thumbUrl(photo)}">` +
+      `<div class="le-text"><div class="le-title">📍 ピンをドラッグして位置を合わせる</div><div class="le-coords"></div></div>` +
+      `<button class="le-cancel" type="button">キャンセル</button>` +
+      `<button class="le-save" type="button">保存</button>`;
+    overlay.appendChild(bar);
+    const coordsEl = bar.querySelector('.le-coords');
+    const updateReadout = () => {
+      const ll = pin.getLatLng();
+      const place = fmtPlace(ll.lat, ll.lng);
+      coordsEl.textContent = (place ? place + ' · ' : '') + `${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}`;
+    };
+    pin.on('drag', updateReadout);
+    pin.on('dragend', updateReadout);
+    updateReadout();
+    mapState.locEdit = { photo, pin, bar, updateReadout };
+    bar.querySelector('.le-cancel').addEventListener('click', cancelLocationEdit);
+    bar.querySelector('.le-save').addEventListener('click', saveLocationEdit);
+  }
+  mapState.startLocationEdit = startLocationEdit;
+
+  map.on('click', (e) => {                  // 編集中は地図タップでもピンを移動できる
+    if (mapState && mapState.locEdit) { mapState.locEdit.pin.setLatLng(e.latlng); mapState.locEdit.updateReadout(); }
+  });
   map.on('click', closePops);   // 地図をタップしたらパネルを閉じる
 
   // タイムライン (フィルタ操作の主役) を先に組み、updateTimelineUI フックを mapState に立ててから適用。
@@ -1887,7 +1989,12 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
     item.innerHTML =
       `<img src="${thumbUrl(p)}">` +
       `<div class="tl-meta"><div class="tl-time">${fmtShortDate(d)}</div>` +
-      `<div class="tl-badge">${hasGps ? '📍 地図で見る' : '位置情報なし'}</div></div>`;
+      `<div class="tl-badge">${hasGps ? '📍 地図で見る' : '位置情報なし'}</div></div>` +
+      `<button class="tl-locedit" type="button">${hasGps ? '位置を直す' : '📍 位置を設定'}</button>`;
+    item.querySelector('.tl-locedit').addEventListener('click', (e) => {
+      e.stopPropagation();   // 項目本体のタップ (フォーカス/フル画像) と衝突させない
+      if (mapState && mapState.startLocationEdit) mapState.startLocationEdit(p);
+    });
     item.addEventListener('click', () => {
       if (markerById.has(p.id)) {          // いま地図に出ている (フィルタ内の GPS 写真) → フォーカス
         const rec = markerById.get(p.id);
@@ -2066,7 +2173,7 @@ function renderInfoModal() {
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
       <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（直後のトースト、または右上の <b>♻️</b> からいつでも戻せます）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🗺 地図 / 🔒 封印</p>
-      <p style="margin:.2em 0;"><b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。<b>複数日にまたがる旅行は1本の線で、日が変わるごとに色が変わります</b>（昔→今が色で読めます。1日以上あくと別の線）。地図上部は <b>📅 期間</b> と <b>⋯ 表示</b> の2つ。<b>⋯</b> から <b>🔒 記憶の封印</b>（いま見えている<b>範囲</b>と<b>期間</b>を指定して、よみがえってほしくない場所・時期を3枚引き・連想・地図・タイムラインに出さない。<b>削除ではない</b>ので写真は残り、一覧から<b>いつでも解除</b>。位置情報のない写真は「期間」で封印できます）。</p>
+      <p style="margin:.2em 0;"><b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。<b>複数日にまたがる旅行は1本の線で、日が変わるごとに色が変わります</b>（昔→今が色で読めます。1日以上あくと別の線）。<b>撮ったのに位置が入っていない写真</b>は、タイムライン（または地図のピン）の <b>「📍 位置を設定／位置を直す」</b>から、<b>地図のピンをドラッグ</b>して後から位置を付けられます（近い時間に位置のある写真があれば、その近くから始まります）。地図上部は <b>📅 期間</b> と <b>⋯ 表示</b> の2つ。<b>⋯</b> から <b>🔒 記憶の封印</b>（いま見えている<b>範囲</b>と<b>期間</b>を指定して、よみがえってほしくない場所・時期を3枚引き・連想・地図・タイムラインに出さない。<b>削除ではない</b>ので写真は残り、一覧から<b>いつでも解除</b>。位置情報のない写真は「期間」で封印できます）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
       <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
     </div>`;
