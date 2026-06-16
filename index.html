@@ -196,6 +196,7 @@
   .mc-pop-btn { padding: 7px 14px; border: 1px solid #444; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 13px; cursor: pointer; }
   .mc-pop-btn.primary { background: #2a6; border-color: #2a6; color: #fff; font-weight: 600; }
   .mc-pop-btn:active { opacity: 0.8; }
+  .mc-pop-status { font-size: 11px; color: #6ee0a3; margin-top: 8px; min-height: 1.2em; }
   .mc-pop-hint { font-size: 10px; color: #666; margin-top: 10px; line-height: 1.5; }
   .mc-menu-item { display: block; width: 100%; text-align: left; padding: 11px 12px; margin: 6px 0; border: 1px solid #444; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 13px; cursor: pointer; }
   .mc-menu-item:active { background: #000; }
@@ -335,7 +336,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.21 (折りたたんだ日は地図の線も写真も非表示) · 2026-06-16';
+const BUILD = 'phase3.22 (📅から飛び飛びの日/期間を追加) · 2026-06-16';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1882,8 +1883,9 @@ async function openMapView(focusPhoto) {
     `<div class="mc-pop-title">日付・期間で絞り込み</div>` +
     `<label class="mc-pop-row">開始 <input type="date" id="fFrom"></label>` +
     `<label class="mc-pop-row">終了 <input type="date" id="fTo"></label>` +
-    `<div class="mc-pop-actions"><button class="mc-pop-btn" id="fClear">全期間</button><button class="mc-pop-btn primary" id="fApply">適用</button></div>` +
-    `<div class="mc-pop-hint">ここは連続した期間。<b>飛び飛びの日を重ねたい時はタイムラインの日付をタップ</b>（複数選べて、各日が別色の軌跡で重なります）。</div>`;
+    `<div class="mc-pop-actions"><button class="mc-pop-btn" id="fClear">全期間</button><button class="mc-pop-btn" id="fAdd">＋ 追加</button><button class="mc-pop-btn primary" id="fApply">適用</button></div>` +
+    `<div class="mc-pop-status" id="fStatus"></div>` +
+    `<div class="mc-pop-hint"><b>適用</b>＝その期間「だけ」を続けて表示。<b>＋追加</b>＝その日／期間を今の表示に<b>重ねる</b>（離れた日や旅行を何度でも足せる。各日が別色の軌跡）。タイムラインの日付タップでも足せます。</div>`;
   const fFrom = popFilter.querySelector('#fFrom');
   const fTo   = popFilter.querySelector('#fTo');
   if (dataMin != null) { fFrom.min = fTo.min = toInputVal(dataMin); fFrom.max = fTo.max = toInputVal(dataMax); }
@@ -1909,6 +1911,45 @@ async function openMapView(focusPhoto) {
     closePops();
   });
 
+  // 「＋ 追加」: いま入力中の日／期間を「重ねて表示する日の集合」(pickDays / 'days') に足す。
+  // タイムラインの日付タップ (toggleDayFilter) と同じ状態に集約 → 片方で足した日がもう片方にも反映され、
+  // 出し入れが相互にできる。数年前の日も、タイムラインを延々スクロールせずカレンダーから一発で足せる。
+  const fStatus = popFilter.querySelector('#fStatus');
+  function dayKeysWithPhotos(startMs, endMs) {   // 期間内で実際に写真がある日だけを dayKeyOf 形式で
+    const set = new Set();
+    for (const p of allPhotos) {
+      if (!visible(p)) continue;
+      const t = p.datetime.getTime();
+      if (t >= startMs && t <= endMs) set.add(dayKeyOf(p));
+    }
+    return [...set];
+  }
+  function refreshFilterStatus(msg) {
+    if (msg != null) { fStatus.textContent = msg; return; }
+    fStatus.textContent = (mapState.pickMode === 'days' && mapState.pickDays && mapState.pickDays.length)
+      ? `📅 いま ${mapState.pickDays.length}日を重ねて表示中` : '';
+  }
+  popFilter.querySelector('#fAdd').addEventListener('click', () => {
+    const fromV = fFrom.value, toV = fTo.value;
+    if (!fromV && !toV) { refreshFilterStatus('日付を入れてから「＋ 追加」を押してください'); return; }
+    let s = startOfDay(fromInputVal(fromV || toV));   // 開始のみ＝その1日 / 終了のみ＝その1日 / 両方＝範囲
+    let e = startOfDay(fromInputVal(toV || fromV));
+    if (s > e) { const t = s; s = e; e = t; }
+    const keys = dayKeysWithPhotos(s, endOfDay(e));
+    if (!keys.length) { refreshFilterStatus('その期間に写真がありません'); return; }
+    const cur = (mapState.pickMode === 'days' && mapState.pickDays) ? mapState.pickDays.slice() : [];
+    const merged = [...new Set([...cur, ...keys])];
+    const added = merged.length - cur.length;
+    mapState.pickDays = merged;
+    mapState.pickMode = 'days';   // 手で組んだ非連続の集合 (🎲 は出さない / 📅 N日 表示)
+    mapState.focusedDay = null;
+    mapState.range = { start: null, end: null };   // 日選択が「どこまで」を担う
+    applyFilter();   // 地図(マーカー/軌跡/fit) + タイムラインの ✓ 強調を更新 (DOM 再構築なし)
+    fFrom.value = ''; fTo.value = '';   // 次の期間を続けて足しやすく入力をクリア (パネルは開いたまま)
+    refreshFilterStatus(added ? `✓ ${added}日を追加（いま ${merged.length}日を重ねて表示）`
+                              : `その日はもう表示中（いま ${merged.length}日）`);
+  });
+
   // 📅 期間ボタン: トグルで日付パネルを開閉 (開く時に現在の絞り込みを入力欄へ反映)。
   elFilterBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -1919,6 +1960,7 @@ async function openMapView(focusPhoto) {
       fFrom.value = r.start != null ? toInputVal(r.start) : '';
       fTo.value   = r.start != null ? toInputVal(r.end)   : '';
       popFilter.hidden = false; elFilterBtn.classList.add('open');
+      refreshFilterStatus();   // days モードなら「いま N日を重ねて表示中」を出す
     }
   });
 
