@@ -335,7 +335,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.20 (折りたたんだ日は地図の線も非表示) · 2026-06-16';
+const BUILD = 'phase3.21 (折りたたんだ日は地図の線も写真も非表示) · 2026-06-16';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1758,9 +1758,17 @@ async function openMapView(focusPhoto) {
 
   // 日付/期間フィルタを適用: 表示するマーカーと動線を絞り、bounds を合わせ、タイムライン UI を更新。
   function applyFilter(opts) {
-    const fg = visibleGps();
-    mapState.filteredGps = fg;
-    mapState.lineGps = fg;   // 線は表示中の GPS から (日ごとの分割・色は drawTrips が担う)
+    const fgAll = visibleGps();
+    // 入口モードで折りたたんだ日は、地図から「線も写真(マーカー)も」消す。
+    // 線の色 index は全日基準で安定させたいので lineGps は全日のまま (drawTrips が畳んだ日をスキップ)、
+    // マーカー(filteredGps)だけ畳んだ日を除外する。
+    const folded = mapState.foldedDays;
+    const useFold = folded && folded.size && (mapState.pickMode === 'random3' || mapState.pickMode === 'day');
+    const fg = useFold
+      ? fgAll.filter(p => !folded.has(new Date(p.datetime.getFullYear(), p.datetime.getMonth(), p.datetime.getDate()).getTime()))
+      : fgAll;
+    mapState.filteredGps = fg;     // マーカー (畳んだ日を除く)
+    mapState.lineGps = fgAll;      // 線の色 index 用 (全日。畳んだ日の線は drawTrips でスキップ)
     cluster.clearLayers();
     markerById.clear();
     fg.forEach(p => {
