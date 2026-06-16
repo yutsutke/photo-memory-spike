@@ -242,6 +242,8 @@
 
   /* 写真サムネのマーカー (L.divIcon の中身) */
   .photo-marker { width: 44px; height: 44px; border-radius: 8px; border: 2px solid #fff; background-size: cover; background-position: center; box-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+  .photo-marker-est { width: 40px; height: 40px; border: 2px dashed #2ee6c0; opacity: 0.92; }   /* 軌跡から推定 (v74) */
+  .mp-est { color: #2ee6c0; font-style: italic; }
   /* Leaflet popup をダークに */
   .leaflet-popup-content-wrapper { background: #1a1a1a; color: #eee; border-radius: 10px; }
   .leaflet-popup-content { margin: 12px; }
@@ -353,7 +355,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.24 (位置ロガー: 開いている間だけ軌跡を記録) · 2026-06-17';
+const BUILD = 'phase3.25 (GPSなし写真を軌跡の時刻位置に配置) · 2026-06-17';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1791,6 +1793,60 @@ function buildMarkerPopup(p) {
   return el;
 }
 
+// ── GPSなし写真の位置補完 (v74) ──────────────────────────────
+// 写真の時刻に「ロガーの軌跡上のどこにいたか」を推定する。Notion §③(b) の最小実装。
+//  ・写真時刻を挟む前後の記録点があり、その時間差が TRACK_BRACKET_MS 以内 → 線形補間 (歩いた途中の位置)。
+//  ・挟めない時は近い片側の点に TRACK_SNAP_MS 以内なら snap。
+//  ・どちらも満たさない (記録のある時間帯の外) → null = 補完しない (= ユーザー指定「記録が残っている時間帯のみ」)。
+const TRACK_BRACKET_MS = 60 * 60 * 1000;   // 前後点がこの差以内なら間を補間 (1時間)
+const TRACK_SNAP_MS    = 30 * 60 * 1000;   // 片側だけの時はこの差以内なら snap (30分)
+function estimateFromTrack(timeMs, pts) {
+  if (!pts || !pts.length) return null;
+  let lo = 0, hi = pts.length;                         // 二分探索: t >= timeMs の最初の index
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (pts[mid].t < timeMs) lo = mid + 1; else hi = mid; }
+  const next = pts[lo] || null;                         // t >= timeMs の最初
+  const prev = pts[lo - 1] || null;                     // t <  timeMs の最後
+  if (prev && next) {
+    const gap = next.t - prev.t;
+    if (gap <= TRACK_BRACKET_MS) {
+      const f = gap > 0 ? (timeMs - prev.t) / gap : 0;
+      return { lat: prev.lat + f * (next.lat - prev.lat), lng: prev.lng + f * (next.lng - prev.lng) };
+    }
+  }
+  const cand = [prev, next].filter(Boolean).map(p => ({ p, d: Math.abs(p.t - timeMs) })).sort((a, b) => a.d - b.d)[0];
+  if (cand && cand.d <= TRACK_SNAP_MS) return { lat: cand.p.lat, lng: cand.p.lng };
+  return null;
+}
+
+// 推定マーカーの popup。実GPS popup と違い「≈ 軌跡から推定」と明示し、「この場所で確定」で永続化できる。
+function buildEstPopup(p, est) {
+  const el = document.createElement('div');
+  el.className = 'marker-popup';
+  el.innerHTML =
+    `<img class="mp-thumb" src="${thumbUrl(p)}">` +
+    `<div class="mp-date">${fmtDate(p.datetime)}${srcTagHtml(p)}</div>` +
+    `<div class="mp-place mp-est">≈ 軌跡から推定した場所</div>` +
+    `<button class="mp-walk">🔮 連想ウォーク</button>` +
+    `<button class="mp-edit" type="button">📍 この場所で確定</button>` +
+    `<button class="mp-del" type="button">🗑 画像を削除</button>`;
+  el.querySelector('.mp-thumb').addEventListener('click', () => showFullImage(p));
+  el.querySelector('.mp-walk').addEventListener('click', () => { closeMapView(); showExplore(p); });
+  el.querySelector('.mp-edit').addEventListener('click', () => confirmEstimatedPos(p, est));
+  el.querySelector('.mp-del').addEventListener('click', () => { excludePhoto(p); });
+  return el;
+}
+
+// 推定位置を写真に確定保存 (v59 の手動保存と同じ流儀。geoFromTrack で由来を区別)。確定後は通常のGPS写真扱いに。
+async function confirmEstimatedPos(photo, est) {
+  photo.lat = +est.lat.toFixed(6);
+  photo.lng = +est.lng.toFixed(6);
+  photo.geoFromTrack = true;
+  if (seals.length) photo._sealed = seals.some(s => sealMatches(s, photo));   // 場所封印に該当しうる
+  try { await dbPut(photo); } catch (e) { logErr(`位置の確定に失敗: ${e?.message || e}`); return; }
+  if (mapState && mapState.refreshData) mapState.refreshData();   // GPS扱いになり通常マーカー/動線へ
+  render();
+}
+
 let mapState = null;
 // focusPhoto を渡すと、その写真のピンに寄せて popup を開く (連想ウォークの中心写真 → 地図ピン)。
 async function openMapView(focusPhoto) {
@@ -1828,7 +1884,8 @@ async function openMapView(focusPhoto) {
   // focusedDay = 1本の軌跡をタップした時、その日以外を暗くするための注目日。
   mapState = { overlay, map, range: { start: null, end: null }, tripLayers: [], filteredGps: [], lineGps: [],
                pickDays: null, pickMode: null, focusedDay: null,
-               trackLayers: [], showTrack: true };   // 🛰️ 位置ロガーの軌跡 (v73)
+               trackLayers: [], showTrack: true,        // 🛰️ 位置ロガーの軌跡 (v73)
+               estLayers: [], showEstimated: true };    // 📍 GPSなし写真を軌跡の時刻位置に配置 (v74)
 
   // GPS 写真を撮影順に。除外・封印は出さない (初期表示の判定用。再描画は applyFilter が allPhotos から都度算出)。
   const gps = allPhotos.filter(p => visible(p) && p.lat != null && p.lng != null)
@@ -1960,20 +2017,34 @@ async function openMapView(focusPhoto) {
     });
   }
 
-  // 🛰️ 位置ロガーの軌跡 (自分の足取り) を、いま地図に出ている日/期間ぶんだけ重ねて描く (v73)。
-  // 写真の動線とは別レイヤ・別の見た目 (青緑の点線 + 点) で「自分が通った道」として読めるように。
-  // データは座標+時刻のみ (写真とは独立)。畳んだ日は写真と同じく軌跡も消す。
-  async function refreshTrack() {
+  // GPSなし写真を「軌跡の時刻位置」に置く推定マーカー (v74)。実GPSの白枠と違い青緑の破線枠で「推定」を示す。
+  function makeEstimatedMarker(p, est) {
+    const icon = L.divIcon({
+      className: 'photo-marker-wrap',
+      html: `<div class="photo-marker photo-marker-est" style="background-image:url(${thumbUrl(p)})"></div>`,
+      iconSize: [40, 40], iconAnchor: [20, 20], popupAnchor: [0, -20],
+    });
+    const mk = L.marker([est.lat, est.lng], { icon });
+    mk.bindPopup(() => buildEstPopup(p, est), { minWidth: 180, closeButton: true });
+    return mk;
+  }
+
+  // 🛰️ 位置ロガーの軌跡 (自分の足取り) と、📍 GPSなし写真の推定位置を、いま地図に出ている日/期間ぶんだけ描く。
+  // ・軌跡 = 青緑の点線 + 点 (写真の動線とは別レイヤ・別の見た目)。showTrack で ON/OFF (v73)。
+  // ・推定 = GPSなし写真を「その写真の時刻に軌跡上のどこにいたか」で配置。showEstimated で ON/OFF (v74)。
+  // どちらも座標+時刻のみ由来。畳んだ日は写真と同じく出さない。canFit=GPS写真ゼロの窓でも収まるよう寄せる。
+  async function refreshTrack(canFit) {
     for (const l of mapState.trackLayers) map.removeLayer(l);
-    mapState.trackLayers = [];
-    if (!mapState.showTrack) return;
+    for (const l of mapState.estLayers) map.removeLayer(l);
+    mapState.trackLayers = []; mapState.estLayers = [];
+    if (!mapState.showTrack && !mapState.showEstimated) return;
     const windows = [];                              // 表示中の時間窓を集める
     if (mapState.pickDays) {
       const folded = mapState.foldedDays;
       for (const dk of mapState.pickDays) {
         const [yy, mm, dd] = dk.split('-').map(Number);
         const s = new Date(yy, mm, dd).getTime();    // dayKeyOf は month 0-based
-        if (folded && folded.has(s)) continue;        // 畳んだ日は軌跡も出さない
+        if (folded && folded.has(s)) continue;        // 畳んだ日は軌跡も推定も出さない
         windows.push([s, s + 86400000 - 1]);
       }
     } else if (mapState.range.start != null) {
@@ -1982,22 +2053,42 @@ async function openMapView(focusPhoto) {
       windows.push([0, Date.now()]);                  // 全期間ブラウズ (foreground 記録なので疎)
     }
     const myMap = map;
+    const fitPts = [];
     for (const [s, e] of windows) {
       let pts = [];
       try { pts = await trackGetRange(s, e); } catch {}
       if (!mapState || mapState.map !== myMap) return;   // 閉じられた/再オープン → 破棄
-      const byDay = new Map();                            // 日ごとに分割 (日をまたぐ移動で線が飛ばないように)
-      for (const p of pts) { const d = new Date(p.t); const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(p); }
-      for (const arr of byDay.values()) {
-        if (arr.length >= 2) {
-          mapState.trackLayers.push(L.polyline(arr.map(p => [p.lat, p.lng]),
-            { color: '#2ee6c0', weight: 3, opacity: 0.9, dashArray: '1 7', lineCap: 'round' }).addTo(myMap));
-        }
-        for (const p of arr) {
-          mapState.trackLayers.push(L.circleMarker([p.lat, p.lng],
-            { radius: 3, color: '#2ee6c0', weight: 1, opacity: 0.9, fillColor: '#2ee6c0', fillOpacity: 0.9 }).addTo(myMap));
+      if (!pts.length) continue;
+      if (mapState.showTrack) {
+        const byDay = new Map();                          // 日ごとに分割 (日をまたぐ移動で線が飛ばないように)
+        for (const p of pts) { const d = new Date(p.t); const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(p); }
+        for (const arr of byDay.values()) {
+          if (arr.length >= 2) {
+            mapState.trackLayers.push(L.polyline(arr.map(p => [p.lat, p.lng]),
+              { color: '#2ee6c0', weight: 3, opacity: 0.9, dashArray: '1 7', lineCap: 'round' }).addTo(myMap));
+          }
+          for (const p of arr) {
+            mapState.trackLayers.push(L.circleMarker([p.lat, p.lng],
+              { radius: 3, color: '#2ee6c0', weight: 1, opacity: 0.9, fillColor: '#2ee6c0', fillOpacity: 0.9 }).addTo(myMap));
+            fitPts.push([p.lat, p.lng]);
+          }
         }
       }
+      if (mapState.showEstimated) {                        // GPSなし写真を軌跡の時刻位置に配置
+        const ghosts = allPhotos.filter(p => visible(p) && p.lat == null && p.lng == null
+          && p.datetime.getTime() >= s && p.datetime.getTime() <= e);
+        for (const ph of ghosts) {
+          const est = estimateFromTrack(ph.datetime.getTime(), pts);   // 記録のある時間帯のみ非null
+          if (!est) continue;
+          const mk = makeEstimatedMarker(ph, est).addTo(myMap);
+          mapState.estLayers.push(mk);
+          fitPts.push([est.lat, est.lng]);
+        }
+      }
+    }
+    // GPS写真が無く軌跡/推定しか無い窓でも画面に収まるように (applyFilter の fitBounds は fg ベースで空振りする)。
+    if (canFit && mapState.filteredGps.length === 0 && fitPts.length) {
+      try { map.fitBounds(fitPts, { padding: [40, 40], maxZoom: 14, animate: false }); } catch {}
     }
   }
   mapState.refreshTrack = refreshTrack;
@@ -2029,7 +2120,7 @@ async function openMapView(focusPhoto) {
     if (mapState.updateTimelineUI) mapState.updateTimelineUI();
     if (mapState.updateCtrlLabels) mapState.updateCtrlLabels();
     if (mapState.updateCtrlMode) mapState.updateCtrlMode();
-    refreshTrack();   // 🛰️ ロガー軌跡も貼り直す (await しない。表示中の日/期間に追従) (v73)
+    refreshTrack(!(opts && opts.skipFit));   // 🛰️ 軌跡 + 📍 GPSなし写真の推定配置を貼り直す (await しない) (v73/v74)
   }
   mapState.applyFilter = applyFilter;
 
@@ -2215,10 +2306,14 @@ async function openMapView(focusPhoto) {
   popMore.innerHTML =
     `<div class="mc-pop-title">表示の設定</div>` +
     `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> 🛰️ 自分の軌跡（ロガー）</label>` +
+    `<label class="mc-pop-check"><input type="checkbox" id="mmEst"> 📍 GPSなし写真を軌跡から配置</label>` +
     `<button class="mc-menu-item" id="mmSeal">🔒 記憶の封印</button>`;
   const mmTrack = popMore.querySelector('#mmTrack');
   mmTrack.checked = mapState.showTrack;
   mmTrack.addEventListener('change', () => { mapState.showTrack = mmTrack.checked; refreshTrack(); });
+  const mmEst = popMore.querySelector('#mmEst');
+  mmEst.checked = mapState.showEstimated;
+  mmEst.addEventListener('change', () => { mapState.showEstimated = mmEst.checked; refreshTrack(); });
   const mmSeal = popMore.querySelector('#mmSeal');
   mmSeal.addEventListener('click', () => { closePops(); openSealPanel(); });
   elMoreBtn.addEventListener('click', (e) => {
