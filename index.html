@@ -331,7 +331,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.15 (地図=軌跡から想起: ランダム3日 / 写真→その日) · 2026-06-16';
+const BUILD = 'phase3.16 (タイムラインも表示中の日に対応) · 2026-06-16';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1759,8 +1759,9 @@ async function openMapView(focusPhoto) {
     });
     drawTrips();
     if (!(opts && opts.skipFit) && fg.length) {
-      // 非アニメで即フィット (🎲 もう一度引く等の連続再描画でアニメ中フィットが重なる markercluster クラッシュを回避)。
-      map.fitBounds(fg.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14, animate: false });
+      // 非アニメで即フィット。連続再描画 (🎲 連打) と地図の開閉が極端に重なると markercluster の moveend が
+      // 落ちる事があるため try/catch で握り潰す (最悪フィットしないだけ。マーカー/線は描画済み)。
+      try { map.fitBounds(fg.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14, animate: false }); } catch {}
     }
     if (mapState.updateTimelineUI) mapState.updateTimelineUI();
     if (mapState.updateCtrlLabels) mapState.updateCtrlLabels();
@@ -2240,9 +2241,13 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
       clr.textContent = '✕ 全部を見る';
       clr.addEventListener('click', () => { if (mapState.clearPick) mapState.clearPick(); });
       bar.appendChild(clr);
-      for (const { el } of dayHeaders) el.classList.remove('tl-out');
-      for (const { el } of itemEls) el.classList.remove('tl-out');
-      emptyNote.classList.add('tl-out');
+      // タイムラインも「表示中の日」に対応させる: 選ばれた日 (ヘッダ=3日 / 写真=その日) だけ出し、他は非表示。
+      // pickDays の暦日キー文字列 ("y-m-d", m は 0始まり) を dayStart(ms) に変換して itemEls/dayHeaders と突合。
+      const pickStarts = new Set(mapState.pickDays.map(dk => { const [y, m, d] = dk.split('-').map(Number); return new Date(y, m, d).getTime(); }));
+      let shown = 0;
+      for (const { el, dayStart } of dayHeaders) el.classList.toggle('tl-out', !pickStarts.has(dayStart));
+      for (const { el, dayStart } of itemEls) { const v = pickStarts.has(dayStart); el.classList.toggle('tl-out', !v); if (v) shown++; }
+      emptyNote.classList.toggle('tl-out', shown !== 0);
       return;
     }
     const r = mapState.range;
