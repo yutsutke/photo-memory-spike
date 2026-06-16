@@ -336,7 +336,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.22 (📅から飛び飛びの日/期間を追加) · 2026-06-16';
+const BUILD = 'phase3.23 (タイムラインは表示中の日だけ＋days も折りたたみ) · 2026-06-16';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1760,11 +1760,11 @@ async function openMapView(focusPhoto) {
   // 日付/期間フィルタを適用: 表示するマーカーと動線を絞り、bounds を合わせ、タイムライン UI を更新。
   function applyFilter(opts) {
     const fgAll = visibleGps();
-    // 入口モードで折りたたんだ日は、地図から「線も写真(マーカー)も」消す。
+    // 選択モード (random3 / day / days) で折りたたんだ日は、地図から「線も写真(マーカー)も」消す。
     // 線の色 index は全日基準で安定させたいので lineGps は全日のまま (drawTrips が畳んだ日をスキップ)、
     // マーカー(filteredGps)だけ畳んだ日を除外する。
     const folded = mapState.foldedDays;
-    const useFold = folded && folded.size && (mapState.pickMode === 'random3' || mapState.pickMode === 'day');
+    const useFold = folded && folded.size && (mapState.pickMode === 'random3' || mapState.pickMode === 'day' || mapState.pickMode === 'days');
     const fg = useFold
       ? fgAll.filter(p => !folded.has(new Date(p.datetime.getFullYear(), p.datetime.getMonth(), p.datetime.getDate()).getTime()))
       : fgAll;
@@ -2234,8 +2234,10 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
       h.textContent = dayKey;
       h.addEventListener('click', () => {
         const m = mapState.pickMode;
-        if (m === 'random3' || m === 'day') toggleFold(dayStart);   // 入口モード = その日を折りたたむ/開く
-        else toggleDayFilter(dayStart);                              // browse / days = 日選択 (絞り込み)
+        // 表示中の日だけを見せる選択モード (ランダム3日 / 写真の日 / 重ねた複数日) は日見出しタップ = 折りたたみ
+        // (その日の線・ピンを地図から隠す / もう一度で戻す)。ブラウズ (全期間) だけタップで日選択を始める。
+        if (m === 'random3' || m === 'day' || m === 'days') toggleFold(dayStart);
+        else toggleDayFilter(dayStart);
       });
       frag.appendChild(h);
       dayHeaders.push({ el: h, dayStart });
@@ -2279,12 +2281,11 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
   }
   container.appendChild(frag);
 
-  // 日付見出しタップ: なし→その日 / 単日→(同じ日で解除・別の日で期間) / 期間→新しい単日。
-  // 日付見出しタップ = その日を「表示する日」に出し入れ (飛び飛びの複数日を重ねられる)。
-  // 2回の旅行など離れた日を足すと、各日が別色の軌跡として地図に重なって出る。
-  // ただし入口モード (random3=もう一度引く / day=写真入口) は「3日 / その日」だけ見せる場なので編集しない。
+  // ブラウズ (全期間) で日見出しをタップ → その日だけの選択を始める (→ days モード)。
+  // 選択モード (random3 / day / days) では日タップは折りたたみ (toggleFold) なのでここには来ない。
+  // 飛び飛びの複数日を「重ねて」足すのは 📅パネルの「＋ 追加」(v71) に集約。
   function toggleDayFilter(dayStart) {
-    if (mapState.pickMode === 'random3' || mapState.pickMode === 'day') return;
+    if (mapState.pickMode === 'random3' || mapState.pickMode === 'day' || mapState.pickMode === 'days') return;
     const d = new Date(dayStart);
     const dk = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;   // dayKeyOf と同形式
     const days = mapState.pickDays ? mapState.pickDays.slice() : [];
@@ -2305,9 +2306,9 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
     else mapState.foldedDays.add(dayStart);
     applyFilter({ skipFit: true });   // drawTrips で線を貼り直し + updateTimelineUI→applyFold でタイムラインの畳みを反映
   }
-  // 折りたたみを反映。入口モードのみ有効 (見出しに ▾/▸ を出し、畳んだ日の写真を隠す)。
+  // 折りたたみを反映。選択モード (random3 / day / days) で有効 (見出しに ▾/▸ を出し、畳んだ日の写真を隠す)。
   function applyFold() {
-    const foldable = (mapState.pickMode === 'random3' || mapState.pickMode === 'day');
+    const foldable = (mapState.pickMode === 'random3' || mapState.pickMode === 'day' || mapState.pickMode === 'days');
     for (const { el, dayStart } of dayHeaders) {
       el.classList.toggle('tl-foldable', foldable && !el.classList.contains('tl-out'));
       el.classList.toggle('tl-folded', foldable && mapState.foldedDays.has(dayStart));
@@ -2317,31 +2318,26 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
 
   // フィルタ状態に合わせてバー/見出し/淡色を更新 (applyFilter から呼ばれる)。
   mapState.updateTimelineUI = () => {
-    // 日選択モード: 期間バーの代わりに「ランダム3日 / その日 」+「全部を見る」を出し、淡色化はしない (一覧は全件のまま=次の入口を選ぶ索引)。
+    // 選択モード (random3 / day / days): タイムラインは「地図に出ている日 (= 選ばれた日) だけ」を見せる。
+    // 他の日は見出しごと隠す (足す候補は出さない。日の追加は 📅「＋ 追加」/ ブラウズの日タップに集約)。
     if (mapState.pickDays) {
       bar.classList.add('active');
       const pickStarts = new Set(mapState.pickDays.map(dk => { const [y, m, d] = dk.split('-').map(Number); return new Date(y, m, d).getTime(); }));
-      const multi = (mapState.pickMode === 'days');   // 非連続の複数日選択 (全期間の文脈で「重ねる」)
+      const multi = (mapState.pickMode === 'days');   // 飛び飛びの複数日を重ねた選択
       let label;
       if (mapState.pickMode === 'random3') label = '🎲 ランダムな3日';
       else if (multi) label = `📅 ${mapState.pickDays.length}日を重ねて`;
       else { const parts = mapState.pickDays[0].split('-').map(Number); label = `📅 ${fmtDay(new Date(parts[0], parts[1], parts[2]).getTime())}`; }
-      bar.innerHTML = `<span class="fb-text">${label}${multi ? ' <span class="fb-hint">· 日付タップで足す/外す</span>' : ''}</span>`;
+      bar.innerHTML = `<span class="fb-text">${label}</span>`;
       const clr = document.createElement('button');
       clr.className = 'fb-clear';
       clr.textContent = '✕ 全部を見る';
       clr.addEventListener('click', () => { if (mapState.clearPick) mapState.clearPick(); });
       bar.appendChild(clr);
-      if (multi) {
-        // 非連続選択: 全日の見出しを残し、選んだ日だけ ✓ 強調＋写真を表示 (他の日も「足す候補」として見える)。
-        for (const { el, dayStart } of dayHeaders) { el.classList.remove('tl-out'); el.classList.toggle('tl-day-on', pickStarts.has(dayStart)); }
-        for (const { el, dayStart } of itemEls) el.classList.toggle('tl-out', !pickStarts.has(dayStart));
-      } else {
-        // 入口モード (random3=もう一度引く / day=写真入口): 選ばれた日「だけ」を表示 (他は見出しごと畳む)。
-        for (const { el, dayStart } of dayHeaders) { el.classList.remove('tl-day-on'); el.classList.toggle('tl-out', !pickStarts.has(dayStart)); }
-        for (const { el, dayStart } of itemEls) el.classList.toggle('tl-out', !pickStarts.has(dayStart));
-      }
-      applyFold();   // 入口モードなら見出しに ▾/▸ + 畳んだ日の写真を隠す (days/browse では foldable=false で解除)
+      // 選ばれた日だけ表示 + 日見出しタップで折りたたみ (applyFold が ▾/▸、畳んだ日は写真も地図の線/ピンも消える)。
+      for (const { el, dayStart } of dayHeaders) { el.classList.remove('tl-day-on'); el.classList.toggle('tl-out', !pickStarts.has(dayStart)); }
+      for (const { el, dayStart } of itemEls) el.classList.toggle('tl-out', !pickStarts.has(dayStart));
+      applyFold();
       emptyNote.classList.add('tl-out');
       return;
     }
