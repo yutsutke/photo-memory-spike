@@ -253,8 +253,10 @@
   .tl-day:active { color: #fff; }
   .tl-day-on { color: #6ee0a3; }                     /* 複数日フィルタで「重ねる」日に選ばれている見出し */
   .tl-day-on::before { content: '✓ '; }
-  /* フィルタ圏外は非表示 (v55: 絞った期間だけを見せる) */
-  .tl-day.tl-out, .tl-item.tl-out, .tl-empty.tl-out { display: none !important; }
+  .tl-day.tl-foldable::after { content: ' ▾'; color: #667; font-weight: normal; font-size: 11px; }   /* 折りたためる日 (入口モード) */
+  .tl-day.tl-foldable.tl-folded::after { content: ' ▸'; }                                            /* 畳んでいる日 */
+  /* フィルタ圏外 / 折りたたみは非表示 (v55: 絞った期間だけを見せる) */
+  .tl-day.tl-out, .tl-item.tl-out, .tl-item.tl-fold, .tl-empty.tl-out { display: none !important; }
   .tl-item { display: flex; align-items: center; gap: 10px; padding: 5px 2px; cursor: pointer; border-radius: 8px; transition: opacity 0.12s; }
   .tl-item:active { background: #222; }
   .tl-item img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; flex: 0 0 auto; background: #000; }
@@ -333,7 +335,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.18 (もう一度引く=3日だけ / 全期間で飛び飛び選択) · 2026-06-16';
+const BUILD = 'phase3.19 (もう一度引く: 日見出しタップで折りたたみ) · 2026-06-16';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -2152,6 +2154,7 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
   const dayStartOf = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const dayEndOf = ms => ms + 86400000 - 1;
   const fmtDay = ms => { const d = new Date(ms); return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`; };
+  mapState.foldedDays = new Set();   // 入口モードで畳んでいる日 (dayStart ms)。タイムライン再構築ごとにリセット。
 
   // フィルタバー (絞り込み状態 + 解除)。リスト先頭に固定。
   const bar = document.createElement('div');
@@ -2176,7 +2179,11 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
       const h = document.createElement('div');
       h.className = 'tl-day';
       h.textContent = dayKey;
-      h.addEventListener('click', () => toggleDayFilter(dayStart));
+      h.addEventListener('click', () => {
+        const m = mapState.pickMode;
+        if (m === 'random3' || m === 'day') toggleFold(dayStart);   // 入口モード = その日を折りたたむ/開く
+        else toggleDayFilter(dayStart);                              // browse / days = 日選択 (絞り込み)
+      });
       frag.appendChild(h);
       dayHeaders.push({ el: h, dayStart });
     }
@@ -2238,6 +2245,22 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
     applyFilter();                          // 地図(マーカー/軌跡/fit) + タイムラインの強調/畳みを更新 (DOM 再構築なし=スクロール維持)
   }
 
+  // 入口モード (もう一度引く/写真) で日見出しタップ → その日の写真を折りたたむ/開く (地図は変えない)。
+  function toggleFold(dayStart) {
+    if (mapState.foldedDays.has(dayStart)) mapState.foldedDays.delete(dayStart);
+    else mapState.foldedDays.add(dayStart);
+    applyFold();
+  }
+  // 折りたたみを反映。入口モードのみ有効 (見出しに ▾/▸ を出し、畳んだ日の写真を隠す)。
+  function applyFold() {
+    const foldable = (mapState.pickMode === 'random3' || mapState.pickMode === 'day');
+    for (const { el, dayStart } of dayHeaders) {
+      el.classList.toggle('tl-foldable', foldable && !el.classList.contains('tl-out'));
+      el.classList.toggle('tl-folded', foldable && mapState.foldedDays.has(dayStart));
+    }
+    for (const { el, dayStart } of itemEls) el.classList.toggle('tl-fold', foldable && mapState.foldedDays.has(dayStart));
+  }
+
   // フィルタ状態に合わせてバー/見出し/淡色を更新 (applyFilter から呼ばれる)。
   mapState.updateTimelineUI = () => {
     // 日選択モード: 期間バーの代わりに「ランダム3日 / その日 」+「全部を見る」を出し、淡色化はしない (一覧は全件のまま=次の入口を選ぶ索引)。
@@ -2264,6 +2287,7 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
         for (const { el, dayStart } of dayHeaders) { el.classList.remove('tl-day-on'); el.classList.toggle('tl-out', !pickStarts.has(dayStart)); }
         for (const { el, dayStart } of itemEls) el.classList.toggle('tl-out', !pickStarts.has(dayStart));
       }
+      applyFold();   // 入口モードなら見出しに ▾/▸ + 畳んだ日の写真を隠す (days/browse では foldable=false で解除)
       emptyNote.classList.add('tl-out');
       return;
     }
