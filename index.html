@@ -335,7 +335,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.19 (もう一度引く: 日見出しタップで折りたたみ) · 2026-06-16';
+const BUILD = 'phase3.20 (折りたたんだ日は地図の線も非表示) · 2026-06-16';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1702,6 +1702,9 @@ async function openMapView(focusPhoto) {
       days.forEach((dk, idx) => {
         const pts = line.filter(p => dayKeyOf(p) === dk);   // line は時刻昇順
         if (pts.length < 2) return;                          // GPS 1枚の日は線なし (マーカーのみ、それでよい)
+        // タイムラインで折りたたんだ日は、地図でも線を出さない (マーカーは残す)。
+        const ds = (() => { const [yy, mm, dd] = dk.split('-').map(Number); return new Date(yy, mm, dd).getTime(); })();
+        if (mapState.foldedDays && mapState.foldedDays.has(ds)) return;
         const dim = mapState.focusedDay && mapState.focusedDay !== dk;
         if (days.length === 1) { drawSkyLine(pts, dim ? 0.2 : 0.9); return; }   // 1日だけなら空色
         const color = TRIP_COLORS[idx % TRIP_COLORS.length];
@@ -2245,11 +2248,12 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
     applyFilter();                          // 地図(マーカー/軌跡/fit) + タイムラインの強調/畳みを更新 (DOM 再構築なし=スクロール維持)
   }
 
-  // 入口モード (もう一度引く/写真) で日見出しタップ → その日の写真を折りたたむ/開く (地図は変えない)。
+  // 入口モード (もう一度引く/写真) で日見出しタップ → その日の写真を折りたたむ/開く。
+  // 地図の軌跡も連動 (折りたたんだ日は線を非表示)。ビューは維持 (skipFit)、マーカーは残る。
   function toggleFold(dayStart) {
     if (mapState.foldedDays.has(dayStart)) mapState.foldedDays.delete(dayStart);
     else mapState.foldedDays.add(dayStart);
-    applyFold();
+    applyFilter({ skipFit: true });   // drawTrips で線を貼り直し + updateTimelineUI→applyFold でタイムラインの畳みを反映
   }
   // 折りたたみを反映。入口モードのみ有効 (見出しに ▾/▸ を出し、畳んだ日の写真を隠す)。
   function applyFold() {
