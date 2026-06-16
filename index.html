@@ -152,6 +152,22 @@
   .ai-modal-card button { padding: 8px 14px; border: 1px solid #444; border-radius: 6px; background: #222; color: #ddd; font-size: 13px; cursor: pointer; }
   .ai-modal-card button.primary { background: #2a6; border-color: #2a6; color: #fff; font-weight: 600; }
   .ai-modal-card button:disabled { opacity: 0.45; cursor: default; }
+  /* 位置ロガー (v73) */
+  #btnLogger.logging { position: relative; }
+  #btnLogger.logging::after { content:''; position:absolute; top:1px; right:1px; width:8px; height:8px; border-radius:50%; background:#ff4d4f; box-shadow:0 0 4px #ff4d4f; }
+  .logger-note { font-size: 11px; color: #999; line-height: 1.6; }
+  .logger-modes { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+  .logger-mode { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid #444; border-radius: 8px; background: #222; cursor: pointer; }
+  .logger-mode input { margin-top: 3px; }
+  .logger-mode span { display: flex; flex-direction: column; gap: 2px; }
+  .logger-mode b { font-size: 13px; color: #eee; font-weight: 600; }
+  .logger-mode small { font-size: 11px; color: #999; }
+  .logger-mode:has(input:checked) { border-color: #2ee6c0; background: #16302b; }
+  .logger-status { font-size: 12px; color: #6ee0a3; min-height: 1.3em; margin: 4px 0 12px; }
+  .logger-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .logger-btn { padding: 8px 14px; border: 1px solid #444; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 13px; cursor: pointer; }
+  .logger-btn.ghost { background: transparent; color: #c66; border-color: #633; }
+  .logger-close { margin-top: 14px; width: 100%; padding: 9px; border: 0; border-radius: 8px; background: #333; color: #ccc; font-size: 13px; cursor: pointer; }
   /* 削除（除外）一覧のサムネグリッド */
   .trash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; margin: 10px 0 4px; }
   .trash-cell { display: flex; flex-direction: column; gap: 4px; }
@@ -306,6 +322,7 @@
   <span class="count hidden" id="bgStatus"></span>
   <button id="btnAdd" class="import-trigger" title="画像を取り込む（ファイル / フォルダ・詳細設定）">📷取り込む</button>
   <button id="btnMap" title="地図で軌跡を見る（位置情報のある写真）">🗺</button>
+  <button id="btnLogger" title="位置ロガー：開いている間だけ軌跡を記録">🛰️</button>
   <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠</button>
   <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦</button>
   <button id="btnTrash" class="hidden" title="削除（除外）した写真を戻す">♻️</button>
@@ -336,14 +353,15 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.23 (タイムラインは表示中の日だけ＋days も折りたたみ) · 2026-06-16';
+const BUILD = 'phase3.24 (位置ロガー: 開いている間だけ軌跡を記録) · 2026-06-17';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
 // ============================================================
 const DB_NAME = 'photo-memory-spike';
-const DB_VERSION = 1;
+const DB_VERSION = 2;               // v73: 位置ロガーの track ストアを追加
 const STORE = 'photos';
+const TRACK_STORE = 'track';        // 位置ロガーの記録点 {id,t,lat,lng,acc,mode} (v73)
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -354,6 +372,11 @@ function openDB() {
         const s = db.createObjectStore(STORE, { keyPath: 'id' });
         s.createIndex('datetime', 'datetime');
         s.createIndex('dedup', 'dedup', { unique: false });
+      }
+      // v1→v2: 既存ユーザーは photos が既にあるので上はスキップ、track だけ作られる。
+      if (!db.objectStoreNames.contains(TRACK_STORE)) {
+        const ts = db.createObjectStore(TRACK_STORE, { keyPath: 'id' });
+        ts.createIndex('t', 't');   // 時刻インデックス = 日/期間の範囲取得に使う
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -478,6 +501,36 @@ async function dbClear() {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ── 位置ロガーの記録ストア (track, v73) ──────────────────────
+// 1点 = {id, t(epoch ms), lat, lng, acc, mode}。t インデックスで日/期間を範囲取得 (昇順)。
+async function trackPut(point) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(TRACK_STORE, 'readwrite');
+    tx.objectStore(TRACK_STORE).put(point);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function trackGetRange(startMs, endMs) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const idx = db.transaction(TRACK_STORE, 'readonly').objectStore(TRACK_STORE).index('t');
+    const req = idx.getAll(IDBKeyRange.bound(startMs, endMs));   // index 順 = t 昇順
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function trackClear() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(TRACK_STORE, 'readwrite');
+    tx.objectStore(TRACK_STORE).clear();
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -1558,6 +1611,155 @@ function segmentByGap(gpsPhotos, gapMs) {
 // 写真の暦日キー (色を日ごとに変える判定に使う)。
 function dayKeyOf(p) { const d = p.datetime; return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
 
+// ════════════════════════════════════════════════════════════
+// 位置ロガー (v73)
+// アプリを「開いている間だけ」現在地を記録し、あとで地図でその日の軌跡を振り返れるようにする。
+// web は前面でしか位置を取れない (背景の常時記録 SLC/CLVisit は native の宿題 = Notion §④)。
+// モード: 'off' / 'important'(前の点から大きく動いた時だけ=疎・電池軽い) / 'frequent'(開いてる間ずっと=密)。
+// 記録点は座標+時刻なので写真キーに依存せず機種変更で移せる (Notion §⑥ の「必ず運ぶ」side)。
+// ════════════════════════════════════════════════════════════
+const LOG_IMPORTANT_M = 500;    // 重要な移動: 前の記録点から 500m 以上動いたら1点
+const LOG_FREQUENT_M  = 25;     // こまめ: 25m 以上 動いたら、または
+const LOG_FREQUENT_MS = 20000;  //          20秒 経過したら1点
+
+let loggerMode = (() => { try { const v = localStorage.getItem('pms-loggerMode'); return (v === 'important' || v === 'frequent') ? v : 'off'; } catch { return 'off'; } })();
+let loggerWatchId = null;
+let loggerLast = null;          // 最後に記録した点 {t,lat,lng}
+let loggerWake = null;          // 記録中の wakeLock sentinel (画面を点けて watch を生かす)
+let loggerStatus = '';          // パネル表示用の一言 (権限拒否など)
+let loggerPanelUpdate = null;   // パネルが開いている間だけ、その更新関数
+
+function loggerOn() { return loggerMode === 'important' || loggerMode === 'frequent'; }
+
+async function loggerAcquireWake() {
+  try { if (navigator.wakeLock?.request && !loggerWake) loggerWake = await navigator.wakeLock.request('screen'); } catch {}
+}
+function loggerReleaseWake() { try { loggerWake?.release(); } catch {} loggerWake = null; }
+
+// 1点を記録 (モードのしきい値でフィルタ。force=開いた瞬間/復帰時の1点は無条件で残す)。
+async function loggerRecord(pos, force) {
+  const c = pos.coords, lat = c.latitude, lng = c.longitude;
+  const t = pos.timestamp || Date.now();
+  if (!force && loggerLast) {
+    const d = haversine(loggerLast.lat, loggerLast.lng, lat, lng);
+    if (loggerMode === 'important') { if (d < LOG_IMPORTANT_M) return; }
+    else { if (d < LOG_FREQUENT_M && (t - loggerLast.t) < LOG_FREQUENT_MS) return; }
+  }
+  loggerLast = { t, lat, lng };
+  loggerStatus = '';
+  try { await trackPut({ id: crypto.randomUUID(), t, lat, lng, acc: Math.round(c.accuracy || 0), mode: loggerMode }); } catch {}
+  loggerRefreshUI();
+  if (mapState && mapState.refreshTrack) mapState.refreshTrack();   // 地図が開いていれば軌跡を更新
+}
+
+function loggerOnError(e) {
+  loggerStatus = (e && e.code === 1) ? '位置情報が許可されていません（端末の設定から許可してください）' : '位置を取得できません';
+  loggerRefreshUI();
+}
+
+function startLogger() {
+  if (!loggerOn() || loggerWatchId != null) return;
+  if (!navigator.geolocation) { loggerStatus = 'この端末は位置情報に未対応です'; loggerRefreshUI(); return; }
+  if (document.visibilityState === 'hidden') return;   // 前面でしか記録できない
+  const opts = loggerMode === 'frequent'
+    ? { enableHighAccuracy: true,  maximumAge: 5000,  timeout: 30000 }
+    : { enableHighAccuracy: false, maximumAge: 30000, timeout: 60000 };
+  navigator.geolocation.getCurrentPosition(p => loggerRecord(p, true), loggerOnError, opts);   // 開いた瞬間の1点
+  loggerWatchId = navigator.geolocation.watchPosition(p => loggerRecord(p, false), loggerOnError, opts);
+  loggerAcquireWake();
+  loggerRefreshUI();
+}
+
+function stopLogger() {
+  if (loggerWatchId != null) { try { navigator.geolocation.clearWatch(loggerWatchId); } catch {} loggerWatchId = null; }
+  loggerReleaseWake();
+}
+
+function setLoggerMode(m) {
+  loggerMode = (m === 'important' || m === 'frequent') ? m : 'off';
+  try { localStorage.setItem('pms-loggerMode', loggerMode); } catch {}
+  stopLogger();
+  loggerLast = null;
+  loggerStatus = '';
+  if (loggerOn()) startLogger();
+  loggerRefreshUI();
+}
+
+// ヘッダボタンの点灯 + パネルが開いていれば中身を更新。
+function loggerRefreshUI() {
+  const btn = document.getElementById('btnLogger');
+  if (btn) btn.classList.toggle('logging', loggerOn());
+  if (loggerPanelUpdate) loggerPanelUpdate();
+}
+
+// 画面を背景↔前面に切り替えたら記録を止める/再開する (web は前面でしか記録できない)。
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { if (loggerOn()) startLogger(); }
+  else stopLogger();
+});
+
+// 位置ロガーのパネル (ヘッダ 🛰️)。モード選択 + 状態 + 地図へ + 記録削除。
+function openLoggerPanel() {
+  if (document.getElementById('loggerPanel')) return;
+  const modal = document.createElement('div');
+  modal.className = 'ai-modal';
+  modal.id = 'loggerPanel';
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeLoggerPanel(); });
+  const card = document.createElement('div');
+  card.className = 'ai-modal-card logger-card';
+  card.innerHTML =
+    `<h2>🛰️ 位置ロガー</h2>` +
+    `<p class="logger-note">アプリを開いている間だけ、いまいる場所を記録します。あとで「🗺 地図」を開くと、その日の軌跡を青緑の線で振り返れます。<br>※ 閉じている間も記録し続ける常時ログは、今後のアプリ版で対応予定です。</p>` +
+    `<div class="logger-modes">` +
+      `<label class="logger-mode"><input type="radio" name="loggerMode" value="off"><span><b>⏸ オフ</b><small>記録しない（既定）</small></span></label>` +
+      `<label class="logger-mode"><input type="radio" name="loggerMode" value="important"><span><b>🚶 重要な移動のみ</b><small>大きく動いた時だけ点を残す（疎・電池にやさしい）</small></span></label>` +
+      `<label class="logger-mode"><input type="radio" name="loggerMode" value="frequent"><span><b>🛰️ こまめに</b><small>開いている間ずっと細かく記録（密な軌跡）</small></span></label>` +
+    `</div>` +
+    `<div class="logger-status" id="loggerStatusLine"></div>` +
+    `<div class="logger-actions">` +
+      `<button class="logger-btn" id="loggerToMap">🗺 地図で軌跡を見る</button>` +
+      `<button class="logger-btn ghost" id="loggerClear">🗑 記録を消す</button>` +
+    `</div>` +
+    `<button class="logger-close" id="loggerCloseBtn">閉じる</button>`;
+  modal.appendChild(card);
+
+  const radios = card.querySelectorAll('input[name="loggerMode"]');
+  radios.forEach(r => r.addEventListener('change', () => { if (r.checked) setLoggerMode(r.value); }));
+  card.querySelector('#loggerCloseBtn').addEventListener('click', closeLoggerPanel);
+  card.querySelector('#loggerToMap').addEventListener('click', () => { closeLoggerPanel(); openMapView(); });
+  card.querySelector('#loggerClear').addEventListener('click', async () => {
+    if (!confirm('記録した位置の軌跡をすべて消します。よろしいですか？（写真は消えません）')) return;
+    try { await trackClear(); } catch {}
+    loggerLast = null;
+    if (mapState && mapState.refreshTrack) mapState.refreshTrack();
+    if (loggerPanelUpdate) loggerPanelUpdate();
+  });
+
+  // パネル内容を現在状態で更新 (モード選択・今日の記録数・ステータス)。
+  async function updateLoggerPanel() {
+    radios.forEach(r => { r.checked = (r.value === loggerMode); });
+    const line = card.querySelector('#loggerStatusLine');
+    if (!line) return;
+    if (loggerStatus) { line.textContent = `⚠ ${loggerStatus}`; return; }
+    if (!loggerOn()) { line.textContent = '記録は停止中です。'; return; }
+    const now = new Date();
+    const s = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    let n = 0; try { n = (await trackGetRange(s, s + 86400000 - 1)).length; } catch {}
+    if (!document.getElementById('loggerPanel')) return;   // 集計中に閉じられた
+    const last = loggerLast ? new Date(loggerLast.t) : null;
+    line.textContent = `今日 ${n} 点を記録` +
+      (last ? ` ・ 最終 ${String(last.getHours()).padStart(2,'0')}:${String(last.getMinutes()).padStart(2,'0')}` : ' ・ 現在地を取得中…');
+  }
+  loggerPanelUpdate = updateLoggerPanel;
+  updateLoggerPanel();
+  document.body.appendChild(modal);
+}
+function closeLoggerPanel() {
+  loggerPanelUpdate = null;
+  const m = document.getElementById('loggerPanel');
+  if (m) m.remove();
+}
+
 // 位置を手動入力する時の初期値: 時間的に最も近い GPS 写真 (maxMs 以内) の座標。旅行中の抜け落ち写真を最小操作で救う (v59)。
 function nearestGps(photo, maxMs) {
   let best = null, bestDt = Infinity;
@@ -1625,7 +1827,8 @@ async function openMapView(focusPhoto) {
   // 表示する「日」を入り口で決める。pickDays = 表示する暦日キーの配列 (ヘッダ=ランダム3日 / 写真=その日)、null=従来の期間ブラウズ。
   // focusedDay = 1本の軌跡をタップした時、その日以外を暗くするための注目日。
   mapState = { overlay, map, range: { start: null, end: null }, tripLayers: [], filteredGps: [], lineGps: [],
-               pickDays: null, pickMode: null, focusedDay: null };
+               pickDays: null, pickMode: null, focusedDay: null,
+               trackLayers: [], showTrack: true };   // 🛰️ 位置ロガーの軌跡 (v73)
 
   // GPS 写真を撮影順に。除外・封印は出さない (初期表示の判定用。再描画は applyFilter が allPhotos から都度算出)。
   const gps = allPhotos.filter(p => visible(p) && p.lat != null && p.lng != null)
@@ -1757,6 +1960,48 @@ async function openMapView(focusPhoto) {
     });
   }
 
+  // 🛰️ 位置ロガーの軌跡 (自分の足取り) を、いま地図に出ている日/期間ぶんだけ重ねて描く (v73)。
+  // 写真の動線とは別レイヤ・別の見た目 (青緑の点線 + 点) で「自分が通った道」として読めるように。
+  // データは座標+時刻のみ (写真とは独立)。畳んだ日は写真と同じく軌跡も消す。
+  async function refreshTrack() {
+    for (const l of mapState.trackLayers) map.removeLayer(l);
+    mapState.trackLayers = [];
+    if (!mapState.showTrack) return;
+    const windows = [];                              // 表示中の時間窓を集める
+    if (mapState.pickDays) {
+      const folded = mapState.foldedDays;
+      for (const dk of mapState.pickDays) {
+        const [yy, mm, dd] = dk.split('-').map(Number);
+        const s = new Date(yy, mm, dd).getTime();    // dayKeyOf は month 0-based
+        if (folded && folded.has(s)) continue;        // 畳んだ日は軌跡も出さない
+        windows.push([s, s + 86400000 - 1]);
+      }
+    } else if (mapState.range.start != null) {
+      windows.push([mapState.range.start, mapState.range.end]);
+    } else {
+      windows.push([0, Date.now()]);                  // 全期間ブラウズ (foreground 記録なので疎)
+    }
+    const myMap = map;
+    for (const [s, e] of windows) {
+      let pts = [];
+      try { pts = await trackGetRange(s, e); } catch {}
+      if (!mapState || mapState.map !== myMap) return;   // 閉じられた/再オープン → 破棄
+      const byDay = new Map();                            // 日ごとに分割 (日をまたぐ移動で線が飛ばないように)
+      for (const p of pts) { const d = new Date(p.t); const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(p); }
+      for (const arr of byDay.values()) {
+        if (arr.length >= 2) {
+          mapState.trackLayers.push(L.polyline(arr.map(p => [p.lat, p.lng]),
+            { color: '#2ee6c0', weight: 3, opacity: 0.9, dashArray: '1 7', lineCap: 'round' }).addTo(myMap));
+        }
+        for (const p of arr) {
+          mapState.trackLayers.push(L.circleMarker([p.lat, p.lng],
+            { radius: 3, color: '#2ee6c0', weight: 1, opacity: 0.9, fillColor: '#2ee6c0', fillOpacity: 0.9 }).addTo(myMap));
+        }
+      }
+    }
+  }
+  mapState.refreshTrack = refreshTrack;
+
   // 日付/期間フィルタを適用: 表示するマーカーと動線を絞り、bounds を合わせ、タイムライン UI を更新。
   function applyFilter(opts) {
     const fgAll = visibleGps();
@@ -1784,6 +2029,7 @@ async function openMapView(focusPhoto) {
     if (mapState.updateTimelineUI) mapState.updateTimelineUI();
     if (mapState.updateCtrlLabels) mapState.updateCtrlLabels();
     if (mapState.updateCtrlMode) mapState.updateCtrlMode();
+    refreshTrack();   // 🛰️ ロガー軌跡も貼り直す (await しない。表示中の日/期間に追従) (v73)
   }
   mapState.applyFilter = applyFilter;
 
@@ -1968,7 +2214,11 @@ async function openMapView(focusPhoto) {
   // 今は「記憶の封印」のみ (ユーザー要望: 封印が表示の中にある UI は継続)。期間(📅)だけは常時トップに残す。
   popMore.innerHTML =
     `<div class="mc-pop-title">表示の設定</div>` +
+    `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> 🛰️ 自分の軌跡（ロガー）</label>` +
     `<button class="mc-menu-item" id="mmSeal">🔒 記憶の封印</button>`;
+  const mmTrack = popMore.querySelector('#mmTrack');
+  mmTrack.checked = mapState.showTrack;
+  mmTrack.addEventListener('change', () => { mapState.showTrack = mmTrack.checked; refreshTrack(); });
   const mmSeal = popMore.querySelector('#mmSeal');
   mmSeal.addEventListener('click', () => { closePops(); openSealPanel(); });
   elMoreBtn.addEventListener('click', (e) => {
@@ -3481,12 +3731,14 @@ function onDocClickForMenu(e) {
 document.getElementById('btnAdd').addEventListener('click', (e) => openImportMenu(e.currentTarget));
 document.getElementById('btnAI').addEventListener('click', openAIModal);
 document.getElementById('btnInfo').addEventListener('click', openInfoModal);
+document.getElementById('btnLogger').addEventListener('click', openLoggerPanel);   // 🛰️ 位置ロガー (v73)
 document.getElementById('btnIg').addEventListener('click', () => $igzip.click());
 document.getElementById('btnMap').addEventListener('click', () => openMapView());
 document.getElementById('btnTrash').addEventListener('click', openExcludedModal);
 document.getElementById('btnClear').addEventListener('click', async () => {
   if (!confirm('IndexedDB の全写真を削除します。続行?')) return;
   await dbClear();
+  try { await trackClear(); } catch {}   // 位置ロガーの記録も全削除に含める (v73)
   revokeAllThumbUrls();
   resetPhotos([]);   // allPhotos と loadedIds を両方クリア (v28)
   walkTrailIds = []; currentCenter = null;   // 写真が無くなるので足跡もクリア (v41)
@@ -3721,6 +3973,7 @@ async function loadRestInBackground() {
     logErr('heic2any ロード失敗 (HEIC が混じると失敗します)');
   }
   requestPersistentStorage();  // await しない (起動を遅らせない)
+  if (loggerOn()) startLogger(); else loggerRefreshUI();   // 前回モードが ON なら位置記録を再開 (v73)
   try {
     // Phase 1 (v28→v29): UUID 空間の「ランダムな開始点」から INITIAL_LOAD 件読んで即 UI。
     // v28 は先頭固定で毎回同じ初期プールだった (ユーザー指摘) → 毎起動でランダムに回す。
