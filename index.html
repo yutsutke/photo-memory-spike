@@ -251,6 +251,8 @@
   .tl-filterbar .fb-clear:active { background: #555; }
   .tl-day { position: sticky; top: 33px; background: #161616; font-size: 12px; color: #8bf; font-weight: 600; padding: 8px 2px 4px; z-index: 1; cursor: pointer; }
   .tl-day:active { color: #fff; }
+  .tl-day-on { color: #6ee0a3; }                     /* 複数日フィルタで「重ねる」日に選ばれている見出し */
+  .tl-day-on::before { content: '✓ '; }
   /* フィルタ圏外は非表示 (v55: 絞った期間だけを見せる) */
   .tl-day.tl-out, .tl-item.tl-out, .tl-empty.tl-out { display: none !important; }
   .tl-item { display: flex; align-items: center; gap: 10px; padding: 5px 2px; cursor: pointer; border-radius: 8px; transition: opacity 0.12s; }
@@ -331,7 +333,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.16 (タイムラインも表示中の日に対応) · 2026-06-16';
+const BUILD = 'phase3.17 (飛び飛びの複数日を重ねる: 日付タップで足す/外す) · 2026-06-16';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1628,7 +1630,11 @@ async function openMapView(focusPhoto) {
 
   // クラスタとマーカー索引は「中身を入れ替えて」使う (日付/期間フィルタで張り替えても、
   // タイムライン側の closure が握る参照を保つため、Map/cluster は作り直さず clear→再投入)。
-  const cluster = L.markerClusterGroup({ maxClusterRadius: 45, spiderfyOnMaxZoom: true });
+  // animate:false = クラスタのズーム/分裂アニメを切る (瞬時クラスタ化で機敏)。
+  // removeOutsideVisibleBounds:false = moveend ごとの「画面外マーカーの付け外し」をやめる。これが
+  //   近接マーカー + fitBounds/zoomToShowLayer の組合せで稀に「_leaflet_id in undefined」を投げる箇所
+  //   (非同期なので呼び出し側で捕まえられない) → 通らなくする。数十〜数百規模なら全保持で問題なし。
+  const cluster = L.markerClusterGroup({ maxClusterRadius: 45, spiderfyOnMaxZoom: true, animate: false, removeOutsideVisibleBounds: false });
   const markerById = new Map();
   map.addLayer(cluster);
   mapState.cluster = cluster;
@@ -1759,9 +1765,7 @@ async function openMapView(focusPhoto) {
     });
     drawTrips();
     if (!(opts && opts.skipFit) && fg.length) {
-      // 非アニメで即フィット。連続再描画 (🎲 連打) と地図の開閉が極端に重なると markercluster の moveend が
-      // 落ちる事があるため try/catch で握り潰す (最悪フィットしないだけ。マーカー/線は描画済み)。
-      try { map.fitBounds(fg.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14, animate: false }); } catch {}
+      map.fitBounds(fg.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14, animate: false });
     }
     if (mapState.updateTimelineUI) mapState.updateTimelineUI();
     if (mapState.updateCtrlLabels) mapState.updateCtrlLabels();
@@ -2207,21 +2211,20 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
   container.appendChild(frag);
 
   // 日付見出しタップ: なし→その日 / 単日→(同じ日で解除・別の日で期間) / 期間→新しい単日。
+  // 日付見出しタップ = その日を「表示する日」に出し入れ (飛び飛びの複数日を重ねられる)。
+  // 2回の旅行など離れた日を足すと、各日が別色の軌跡として地図に重なって出る。
   function toggleDayFilter(dayStart) {
-    if (mapState.pickDays) {   // 日選択モードで日付を絞る = 選択を抜けて期間ブラウズへ
-      mapState.pickDays = null; mapState.pickMode = null; mapState.focusedDay = null;
-    }
-    const r = mapState.range;
-    const dayEnd = dayEndOf(dayStart);
-    if (r.start == null) {
-      mapState.range = { start: dayStart, end: dayEnd };
-    } else if (r.end === dayEndOf(r.start)) {            // いま単日
-      if (dayStart === r.start) mapState.range = { start: null, end: null };   // 同じ日 → 解除
-      else mapState.range = { start: Math.min(r.start, dayStart), end: Math.max(dayEndOf(r.start), dayEnd) };
-    } else {                                              // いま期間 → 新しい単日から
-      mapState.range = { start: dayStart, end: dayEnd };
-    }
-    applyFilter();
+    const d = new Date(dayStart);
+    const dk = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;   // dayKeyOf と同形式
+    const days = mapState.pickDays ? mapState.pickDays.slice() : [];
+    const i = days.indexOf(dk);
+    if (i >= 0) days.splice(i, 1); else days.push(dk);
+    if (!days.length) { if (mapState.clearPick) mapState.clearPick(); return; }   // 全部外したらブラウズへ
+    mapState.pickDays = days;
+    mapState.pickMode = 'days';            // 手で組んだ集合 = 'days' (🎲 は出さない)
+    mapState.focusedDay = null;
+    mapState.range = { start: null, end: null };
+    applyFilter();                          // 地図(マーカー/軌跡/fit) + タイムラインの強調/畳みを更新 (DOM 再構築なし=スクロール維持)
   }
 
   // フィルタ状態に合わせてバー/見出し/淡色を更新 (applyFilter から呼ばれる)。
@@ -2231,23 +2234,22 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
       bar.classList.add('active');
       let label;
       if (mapState.pickMode === 'random3') label = '🎲 ランダムな3日';
-      else {
-        const dk = mapState.pickDays[0]; const parts = (dk || '').split('-').map(Number);
-        label = (parts.length === 3 && !isNaN(parts[0])) ? `📅 ${fmtDay(new Date(parts[0], parts[1], parts[2]).getTime())}` : '📅 この日';
-      }
-      bar.innerHTML = `<span class="fb-text">${label}</span>`;
+      else if (mapState.pickDays.length === 1) {
+        const parts = mapState.pickDays[0].split('-').map(Number);
+        label = `📅 ${fmtDay(new Date(parts[0], parts[1], parts[2]).getTime())}`;
+      } else label = `📅 ${mapState.pickDays.length}日を重ねて`;
+      bar.innerHTML = `<span class="fb-text">${label} <span class="fb-hint">· 日付タップで足す/外す</span></span>`;
       const clr = document.createElement('button');
       clr.className = 'fb-clear';
       clr.textContent = '✕ 全部を見る';
       clr.addEventListener('click', () => { if (mapState.clearPick) mapState.clearPick(); });
       bar.appendChild(clr);
-      // タイムラインも「表示中の日」に対応させる: 選ばれた日 (ヘッダ=3日 / 写真=その日) だけ出し、他は非表示。
-      // pickDays の暦日キー文字列 ("y-m-d", m は 0始まり) を dayStart(ms) に変換して itemEls/dayHeaders と突合。
+      // 選んだ日は見出しを ✓ 強調＋写真を表示。それ以外の日は見出しだけ残し写真を畳む
+      // (= 他の日も「重ねる候補」として見え、タップで足せる)。pickDays 文字列→dayStart(ms) で突合。
       const pickStarts = new Set(mapState.pickDays.map(dk => { const [y, m, d] = dk.split('-').map(Number); return new Date(y, m, d).getTime(); }));
-      let shown = 0;
-      for (const { el, dayStart } of dayHeaders) el.classList.toggle('tl-out', !pickStarts.has(dayStart));
-      for (const { el, dayStart } of itemEls) { const v = pickStarts.has(dayStart); el.classList.toggle('tl-out', !v); if (v) shown++; }
-      emptyNote.classList.toggle('tl-out', shown !== 0);
+      for (const { el, dayStart } of dayHeaders) { el.classList.remove('tl-out'); el.classList.toggle('tl-day-on', pickStarts.has(dayStart)); }
+      for (const { el, dayStart } of itemEls) el.classList.toggle('tl-out', !pickStarts.has(dayStart));
+      emptyNote.classList.add('tl-out');
       return;
     }
     const r = mapState.range;
@@ -2270,7 +2272,7 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
     // v55: フィルタ中はその期間「だけ」を見せる (淡色化でなく非表示)。タイムライン=絞り込んだ期間の一覧。
     const inR = ds => r.start == null || (ds >= r.start && ds <= r.end);
     let visible = 0;
-    for (const { el, dayStart } of dayHeaders) el.classList.toggle('tl-out', !inR(dayStart));
+    for (const { el, dayStart } of dayHeaders) { el.classList.remove('tl-day-on'); el.classList.toggle('tl-out', !inR(dayStart)); }
     for (const { el, dayStart } of itemEls) { const v = inR(dayStart); el.classList.toggle('tl-out', !v); if (v) visible++; }
     emptyNote.classList.toggle('tl-out', !(r.start != null && visible === 0));
   };
