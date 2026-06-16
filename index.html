@@ -334,7 +334,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.13 (入り口で変わる地図: 偶然の1スライス / 時空+意味) · 2026-06-15';
+const BUILD = 'phase3.14 (一日のみ表示: 線を時刻→空の色に) · 2026-06-16';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1495,6 +1495,22 @@ const TRIP_COLORS = ['#ff6b6b','#feca57','#48dbfb','#1dd1a1','#f368e0','#ff9f43'
 // 複数日にまたがる旅行は1本の連続線として描き、日が変わるごとに色を変える (drawTrips)。= 昔→今が色で読める。
 const TRIP_GAP_MS = 86400000;   // 24h。これ以上あいたら別の線 (= 別の旅行)。
 
+// 「一日のみ表示」のときだけ、線をその時刻の空の色で塗る (v63, ユーザー案)。
+// 撮った時刻 → 空の色 にマップ = 単一日の動線が 夜明け→昼→夕焼け→夜 の光で読める。
+// 複数日表示では v58 のパレット (昔→今を色で読む) を維持し、これは使わない。
+function skyColor(d) {
+  const h = d.getHours();
+  if (h < 4)  return '#1B2A4A';   // 深夜 0-4   藍・濃紺
+  if (h < 6)  return '#4A4E7C';   // 夜明け前 4-6 藍→紫のにじみ
+  if (h < 8)  return '#F4A36C';   // 朝焼け 6-8  オレンジ・ピンク
+  if (h < 11) return '#7EC8E3';   // 午前 8-11  明るい青空
+  if (h < 14) return '#BFE3F0';   // 正午 11-14 白っぽい快晴の青
+  if (h < 17) return '#9DB8C9';   // 午後 14-17 金色がかった青
+  if (h < 19) return '#E8743B';   // 夕焼け 17-19 茜・朱
+  if (h < 21) return '#6E4B8E';   // 黄昏 19-21 紫・マゼンタ
+  return '#23304F';               // 夜 21-24  濃紺へ回帰
+}
+
 let _leafletLoading = null;
 function loadAsset(tag, props) {
   return new Promise((resolve, reject) => {
@@ -1676,6 +1692,21 @@ async function openMapView(focusPhoto) {
         }).addTo(map));
       }
     };
+    // 一日のみ表示 (絞り込み or seed の近傍が単一の暦日): 線を時刻→空の色のグラデーションに (v63)。
+    const line = mapState.lineGps;
+    if (line.length >= 2 && new Set(line.map(dayKeyOf)).size === 1) {
+      for (let i = 0; i < line.length - 1; i++) {
+        const a = line[i], b = line[i + 1];
+        mapState.tripLayers.push(L.polyline([[a.lat, a.lng], [b.lat, b.lng]],
+          { color: skyColor(a.datetime), weight: 4, opacity: 0.9, lineCap: 'round' }).addTo(map));   // 出発点の時刻で色付け
+      }
+      if (L.polylineDecorator && L.Symbol) {   // 進行方向は薄い白の矢印 (空色の上で読めるように)
+        mapState.tripLayers.push(L.polylineDecorator(line.map(p => [p.lat, p.lng]), {
+          patterns: [{ offset: 24, repeat: 90, symbol: L.Symbol.arrowHead({ pixelSize: 9, polygon: false, pathOptions: { color: 'rgba(255,255,255,0.65)', weight: 2, opacity: 0.8 } }) }]
+        }).addTo(map));
+      }
+      return;
+    }
     segmentByGap(mapState.lineGps, TRIP_GAP_MS).forEach(seg => {
       if (seg.length < 2) return;
       // 旅行内を「日ごと」のサブ線に分けて色を変える。境界は前日最後の点から引いて連続に見せる。
