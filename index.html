@@ -333,7 +333,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.17 (飛び飛びの複数日を重ねる: 日付タップで足す/外す) · 2026-06-16';
+const BUILD = 'phase3.18 (もう一度引く=3日だけ / 全期間で飛び飛び選択) · 2026-06-16';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1794,6 +1794,11 @@ async function openMapView(focusPhoto) {
 
   // ボタン/メニューのラベルを現在の状態で更新 (📅フィルタ / 〰線のつなぎ方)。タイムラインから絞っても反映される。
   function updateCtrlLabels() {
+    if (mapState.pickMode === 'days') {   // 非連続の複数日選択中は 📅 ボタンに枚数を出す
+      elFilterBtn.textContent = `📅 ${mapState.pickDays.length}日`;
+      elFilterBtn.classList.add('on');
+      return;
+    }
     const r = mapState.range;
     if (r.start == null) { elFilterBtn.textContent = '📅 全期間'; elFilterBtn.classList.remove('on'); }
     else {
@@ -1808,13 +1813,15 @@ async function openMapView(focusPhoto) {
   const mcRoll = overlay.querySelector('#mcRoll');
   const mcAll  = overlay.querySelector('#mcAll');
 
-  // pickDays モードでは 📅期間/⋯表示 を隠し、🎲もう一度引く(ランダム3日のみ) / ↩︎全部を見る を出す。
+  // 入口モード (random3=もう一度引く / day=写真入口) は 📅期間/⋯表示 を隠し 🎲 / ↩︎全部を見る を出す。
+  // 'days' (全期間の文脈で組む非連続の複数日) は 📅/⋯ を残し、解除はタイムラインの「✕ 全部を見る」で行う。
   function updateCtrlMode() {
-    const picked = !!mapState.pickDays;
-    elFilterBtn.style.display = picked ? 'none' : '';
-    elMoreBtn.style.display   = picked ? 'none' : '';
-    mcRoll.hidden = !(picked && mapState.pickMode === 'random3');
-    mcAll.hidden  = !picked;
+    const m = mapState.pickMode;
+    const entry = (m === 'random3' || m === 'day');
+    elFilterBtn.style.display = entry ? 'none' : '';
+    elMoreBtn.style.display   = entry ? 'none' : '';
+    mcRoll.hidden = (m !== 'random3');
+    mcAll.hidden  = !entry;
   }
   mapState.updateCtrlMode = updateCtrlMode;
 
@@ -1863,11 +1870,12 @@ async function openMapView(focusPhoto) {
     `<label class="mc-pop-row">開始 <input type="date" id="fFrom"></label>` +
     `<label class="mc-pop-row">終了 <input type="date" id="fTo"></label>` +
     `<div class="mc-pop-actions"><button class="mc-pop-btn" id="fClear">全期間</button><button class="mc-pop-btn primary" id="fApply">適用</button></div>` +
-    `<div class="mc-pop-hint">片方だけでもOK（開始のみ=その日以降 / 終了のみ=その日まで）。タイムラインの日付タップでも絞れます。</div>`;
+    `<div class="mc-pop-hint">ここは連続した期間。<b>飛び飛びの日を重ねたい時はタイムラインの日付をタップ</b>（複数選べて、各日が別色の軌跡で重なります）。</div>`;
   const fFrom = popFilter.querySelector('#fFrom');
   const fTo   = popFilter.querySelector('#fTo');
   if (dataMin != null) { fFrom.min = fTo.min = toInputVal(dataMin); fFrom.max = fTo.max = toInputVal(dataMax); }
   popFilter.querySelector('#fApply').addEventListener('click', () => {
+    mapState.pickDays = null; mapState.pickMode = null; mapState.focusedDay = null;   // 連続範囲に切替 = 非連続の日選択は解除
     const fromV = fFrom.value, toV = fTo.value;
     if (!fromV && !toV) {
       mapState.range = { start: null, end: null };
@@ -1881,6 +1889,7 @@ async function openMapView(focusPhoto) {
     closePops();
   });
   popFilter.querySelector('#fClear').addEventListener('click', () => {
+    mapState.pickDays = null; mapState.pickMode = null; mapState.focusedDay = null;   // 全期間 = 日選択も解除
     mapState.range = { start: null, end: null };
     fFrom.value = ''; fTo.value = '';
     applyFilter();
@@ -2213,7 +2222,9 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
   // 日付見出しタップ: なし→その日 / 単日→(同じ日で解除・別の日で期間) / 期間→新しい単日。
   // 日付見出しタップ = その日を「表示する日」に出し入れ (飛び飛びの複数日を重ねられる)。
   // 2回の旅行など離れた日を足すと、各日が別色の軌跡として地図に重なって出る。
+  // ただし入口モード (random3=もう一度引く / day=写真入口) は「3日 / その日」だけ見せる場なので編集しない。
   function toggleDayFilter(dayStart) {
+    if (mapState.pickMode === 'random3' || mapState.pickMode === 'day') return;
     const d = new Date(dayStart);
     const dk = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;   // dayKeyOf と同形式
     const days = mapState.pickDays ? mapState.pickDays.slice() : [];
@@ -2232,23 +2243,27 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
     // 日選択モード: 期間バーの代わりに「ランダム3日 / その日 」+「全部を見る」を出し、淡色化はしない (一覧は全件のまま=次の入口を選ぶ索引)。
     if (mapState.pickDays) {
       bar.classList.add('active');
+      const pickStarts = new Set(mapState.pickDays.map(dk => { const [y, m, d] = dk.split('-').map(Number); return new Date(y, m, d).getTime(); }));
+      const multi = (mapState.pickMode === 'days');   // 非連続の複数日選択 (全期間の文脈で「重ねる」)
       let label;
       if (mapState.pickMode === 'random3') label = '🎲 ランダムな3日';
-      else if (mapState.pickDays.length === 1) {
-        const parts = mapState.pickDays[0].split('-').map(Number);
-        label = `📅 ${fmtDay(new Date(parts[0], parts[1], parts[2]).getTime())}`;
-      } else label = `📅 ${mapState.pickDays.length}日を重ねて`;
-      bar.innerHTML = `<span class="fb-text">${label} <span class="fb-hint">· 日付タップで足す/外す</span></span>`;
+      else if (multi) label = `📅 ${mapState.pickDays.length}日を重ねて`;
+      else { const parts = mapState.pickDays[0].split('-').map(Number); label = `📅 ${fmtDay(new Date(parts[0], parts[1], parts[2]).getTime())}`; }
+      bar.innerHTML = `<span class="fb-text">${label}${multi ? ' <span class="fb-hint">· 日付タップで足す/外す</span>' : ''}</span>`;
       const clr = document.createElement('button');
       clr.className = 'fb-clear';
       clr.textContent = '✕ 全部を見る';
       clr.addEventListener('click', () => { if (mapState.clearPick) mapState.clearPick(); });
       bar.appendChild(clr);
-      // 選んだ日は見出しを ✓ 強調＋写真を表示。それ以外の日は見出しだけ残し写真を畳む
-      // (= 他の日も「重ねる候補」として見え、タップで足せる)。pickDays 文字列→dayStart(ms) で突合。
-      const pickStarts = new Set(mapState.pickDays.map(dk => { const [y, m, d] = dk.split('-').map(Number); return new Date(y, m, d).getTime(); }));
-      for (const { el, dayStart } of dayHeaders) { el.classList.remove('tl-out'); el.classList.toggle('tl-day-on', pickStarts.has(dayStart)); }
-      for (const { el, dayStart } of itemEls) el.classList.toggle('tl-out', !pickStarts.has(dayStart));
+      if (multi) {
+        // 非連続選択: 全日の見出しを残し、選んだ日だけ ✓ 強調＋写真を表示 (他の日も「足す候補」として見える)。
+        for (const { el, dayStart } of dayHeaders) { el.classList.remove('tl-out'); el.classList.toggle('tl-day-on', pickStarts.has(dayStart)); }
+        for (const { el, dayStart } of itemEls) el.classList.toggle('tl-out', !pickStarts.has(dayStart));
+      } else {
+        // 入口モード (random3=もう一度引く / day=写真入口): 選ばれた日「だけ」を表示 (他は見出しごと畳む)。
+        for (const { el, dayStart } of dayHeaders) { el.classList.remove('tl-day-on'); el.classList.toggle('tl-out', !pickStarts.has(dayStart)); }
+        for (const { el, dayStart } of itemEls) el.classList.toggle('tl-out', !pickStarts.has(dayStart));
+      }
       emptyNote.classList.add('tl-out');
       return;
     }
