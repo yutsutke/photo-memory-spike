@@ -225,9 +225,6 @@
 
   /* 写真サムネのマーカー (L.divIcon の中身) */
   .photo-marker { width: 44px; height: 44px; border-radius: 8px; border: 2px solid #fff; background-size: cover; background-position: center; box-shadow: 0 1px 4px rgba(0,0,0,0.6); }
-  /* seed view (入り口で変わる地図): 起点 = 強調リング / 意味echo = 破線リング (線でつながる時空近傍と読み分ける) */
-  .photo-marker-seed { border-color: #6ee0a3; box-shadow: 0 0 0 3px rgba(110,224,163,0.5), 0 1px 4px rgba(0,0,0,0.6); }
-  .photo-marker-echo { border-style: dashed; border-color: #c08bff; box-shadow: 0 0 0 2px rgba(192,139,255,0.35), 0 1px 4px rgba(0,0,0,0.6); }
   /* Leaflet popup をダークに */
   .leaflet-popup-content-wrapper { background: #1a1a1a; color: #eee; border-radius: 10px; }
   .leaflet-popup-content { margin: 12px; }
@@ -334,7 +331,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.14 (一日のみ表示: 線を時刻→空の色に) · 2026-06-16';
+const BUILD = 'phase3.15 (地図=軌跡から想起: ランダム3日 / 写真→その日) · 2026-06-16';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1599,7 +1596,7 @@ async function openMapView(focusPhoto) {
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
     `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcMore">⋯ 表示</button>` +
-      `<button class="mc-btn" id="mcEcho" hidden></button><button class="mc-btn" id="mcAll" hidden>↩︎ 全部を見る</button></div>` +
+      `<button class="mc-btn" id="mcRoll" hidden>🎲 もう一度引く</button><button class="mc-btn" id="mcAll" hidden>↩︎ 全部を見る</button></div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopMore" hidden></div>` +
     `<div class="mc-pop" id="mcPopSeal" hidden></div>` +
@@ -1620,9 +1617,10 @@ async function openMapView(focusPhoto) {
   L.control.zoom({ position: 'bottomleft' }).addTo(map);
   L.control.layers({ 'ダーク': dark, '地理院(標準)': gsiStd, '地理院(淡色)': gsiPale }, null, { position: 'topright' }).addTo(map);
 
-  // seed = 入り口で決まる「どこまで」。seed があれば その写真の 時空近傍(+意味echo) を見せ、無ければ従来の期間ブラウズ。
+  // 表示する「日」を入り口で決める。pickDays = 表示する暦日キーの配列 (ヘッダ=ランダム3日 / 写真=その日)、null=従来の期間ブラウズ。
+  // focusedDay = 1本の軌跡をタップした時、その日以外を暗くするための注目日。
   mapState = { overlay, map, range: { start: null, end: null }, tripLayers: [], filteredGps: [], lineGps: [],
-               seed: null, seedSpacetime: [], seedMeaning: [], showEcho: false };
+               pickDays: null, pickMode: null, focusedDay: null };
 
   // GPS 写真を撮影順に。除外・封印は出さない (初期表示の判定用。再描画は applyFilter が allPhotos から都度算出)。
   const gps = allPhotos.filter(p => visible(p) && p.lat != null && p.lng != null)
@@ -1644,32 +1642,22 @@ async function openMapView(focusPhoto) {
     return t >= r.start && t <= r.end;
   }
   // 地図に出す GPS 写真集合。封印/除外を都度反映するため allPhotos から算出 (封印の追加/解除で張り替わる)。
-  // seed モード = その写真の 時空近傍 (+ 広げた時だけ意味echo)。ブラウズ = 期間内の全 GPS。
+  // pickDays = 選ばれた日 (ヘッダ=ランダム3日 / 写真=その日) の全 GPS。null = 期間内の全 GPS (従来ブラウズ)。
   function visibleGps() {
     let pool;
-    if (mapState.seed) {
-      pool = mapState.showEcho ? mapState.seedSpacetime.concat(mapState.seedMeaning) : mapState.seedSpacetime;
+    if (mapState.pickDays) {
+      const set = new Set(mapState.pickDays);
+      pool = allPhotos.filter(p => set.has(dayKeyOf(p)));
     } else {
       pool = allPhotos.filter(p => inRange(p));
     }
     return pool.filter(p => visible(p) && p.lat != null && p.lng != null)
                .sort((a, b) => a.datetime - b.datetime);
   }
-  // 線でつなぐのは時空近傍だけ (意味echoは「時空無視で似た場面」なので線にしない = 線あり/なしで読み分け)。
-  function lineGpsOf(fg) {
-    if (!mapState.seed) return fg;
-    return mapState.seedSpacetime.filter(p => visible(p) && p.lat != null && p.lng != null)
-                                 .sort((a, b) => a.datetime - b.datetime);
-  }
   function makePhotoMarker(p) {
-    let cls = 'photo-marker';
-    if (mapState.seed) {
-      if (p.id === mapState.seed.id) cls += ' photo-marker-seed';
-      else if (!mapState.seedSpacetime.some(q => q.id === p.id)) cls += ' photo-marker-echo';
-    }
     const icon = L.divIcon({
       className: 'photo-marker-wrap',
-      html: `<div class="${cls}" style="background-image:url(${thumbUrl(p)})"></div>`,
+      html: `<div class="photo-marker" style="background-image:url(${thumbUrl(p)})"></div>`,
       iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -22],
     });
     const mk = L.marker([p.lat, p.lng], { icon });
@@ -1677,12 +1665,58 @@ async function openMapView(focusPhoto) {
     return mk;
   }
 
-  // 動線を描く。旅行 = 1日以上あいたら別の線 (TRIP_GAP_MS 固定)。各旅行は1本の連続線として描き、
-  // 日が変わるごとに色を変える (v58: 複数日の旅行を「昔→今」が色で読める連続線に)。進行方向の矢印つき。
-  // mapState.filteredGps を読み、引いたレイヤを mapState.tripLayers に保持して張り替える。
+  // 動線を描く。
+  // ・pickDays モード = 選ばれた各日を独立した1本の軌跡に (色分け / 1本タップで他を暗く / 単一日は時刻→空の色)。
+  // ・ブラウズ = 旅行(1日以上あいたら別線)を連続線で日ごと色替え (v58)。表示が単一日なら時刻→空の色 (v63)。
   function drawTrips() {
     for (const l of mapState.tripLayers) map.removeLayer(l);
     mapState.tripLayers = [];
+    const line = mapState.lineGps;
+    if (!line.length) return;
+
+    // 単一日の軌跡を時刻→空の色のグラデーションで描く (v63)。dim 時は薄く。
+    const drawSkyLine = (pts, opacity) => {
+      for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i], b = pts[i + 1];
+        mapState.tripLayers.push(L.polyline([[a.lat, a.lng], [b.lat, b.lng]],
+          { color: skyColor(a.datetime), weight: 4, opacity, lineCap: 'round' }).addTo(map));   // 出発点の時刻で色付け
+      }
+      if (L.polylineDecorator && L.Symbol) {   // 進行方向は薄い白の矢印 (空色の上で読めるように)
+        mapState.tripLayers.push(L.polylineDecorator(pts.map(p => [p.lat, p.lng]), {
+          patterns: [{ offset: 24, repeat: 90, symbol: L.Symbol.arrowHead({ pixelSize: 9, polygon: false, pathOptions: { color: 'rgba(255,255,255,0.65)', weight: 2, opacity: 0.8 } }) }]
+        }).addTo(map));
+      }
+    };
+
+    // pickDays モード: 選ばれた各日を独立した軌跡に (タップでその日だけ残して他を暗く)。
+    if (mapState.pickDays) {
+      const days = [...new Set(line.map(dayKeyOf))].sort();
+      days.forEach((dk, idx) => {
+        const pts = line.filter(p => dayKeyOf(p) === dk);   // line は時刻昇順
+        if (pts.length < 2) return;                          // GPS 1枚の日は線なし (マーカーのみ、それでよい)
+        const dim = mapState.focusedDay && mapState.focusedDay !== dk;
+        if (days.length === 1) { drawSkyLine(pts, dim ? 0.2 : 0.9); return; }   // 1日だけなら空色
+        const color = TRIP_COLORS[idx % TRIP_COLORS.length];
+        const op = dim ? 0.15 : 0.85;
+        const latlngs = pts.map(p => [p.lat, p.lng]);
+        const pl = L.polyline(latlngs, { color, weight: 3, opacity: op, lineCap: 'round' }).addTo(map);
+        pl.on('click', (e) => {   // 1本タップ → その日だけ残して他を暗く (もう一度タップで解除)
+          L.DomEvent.stop(e);
+          mapState.focusedDay = (mapState.focusedDay === dk ? null : dk);
+          drawTrips();
+        });
+        mapState.tripLayers.push(pl);
+        if (L.polylineDecorator && L.Symbol) {
+          mapState.tripLayers.push(L.polylineDecorator(latlngs, {
+            patterns: [{ offset: 24, repeat: 90, symbol: L.Symbol.arrowHead({ pixelSize: 9, polygon: false, pathOptions: { color, weight: 2, opacity: op } }) }]
+          }).addTo(map));
+        }
+      });
+      return;
+    }
+
+    // ブラウズ: 表示が単一日なら空色、複数日は旅行ごとの連続線 (v58)。
+    if (new Set(line.map(dayKeyOf)).size === 1) { drawSkyLine(line, 0.9); return; }
     const drawSub = (latlngs, color) => {
       if (latlngs.length < 2) return;
       mapState.tripLayers.push(L.polyline(latlngs, { color, weight: 3, opacity: 0.85, lineCap: 'round' }).addTo(map));
@@ -1692,22 +1726,7 @@ async function openMapView(focusPhoto) {
         }).addTo(map));
       }
     };
-    // 一日のみ表示 (絞り込み or seed の近傍が単一の暦日): 線を時刻→空の色のグラデーションに (v63)。
-    const line = mapState.lineGps;
-    if (line.length >= 2 && new Set(line.map(dayKeyOf)).size === 1) {
-      for (let i = 0; i < line.length - 1; i++) {
-        const a = line[i], b = line[i + 1];
-        mapState.tripLayers.push(L.polyline([[a.lat, a.lng], [b.lat, b.lng]],
-          { color: skyColor(a.datetime), weight: 4, opacity: 0.9, lineCap: 'round' }).addTo(map));   // 出発点の時刻で色付け
-      }
-      if (L.polylineDecorator && L.Symbol) {   // 進行方向は薄い白の矢印 (空色の上で読めるように)
-        mapState.tripLayers.push(L.polylineDecorator(line.map(p => [p.lat, p.lng]), {
-          patterns: [{ offset: 24, repeat: 90, symbol: L.Symbol.arrowHead({ pixelSize: 9, polygon: false, pathOptions: { color: 'rgba(255,255,255,0.65)', weight: 2, opacity: 0.8 } }) }]
-        }).addTo(map));
-      }
-      return;
-    }
-    segmentByGap(mapState.lineGps, TRIP_GAP_MS).forEach(seg => {
+    segmentByGap(line, TRIP_GAP_MS).forEach(seg => {
       if (seg.length < 2) return;
       // 旅行内を「日ごと」のサブ線に分けて色を変える。境界は前日最後の点から引いて連続に見せる。
       let curDay = null, dayIdx = -1, sub = null, prev = null;
@@ -1730,7 +1749,7 @@ async function openMapView(focusPhoto) {
   function applyFilter(opts) {
     const fg = visibleGps();
     mapState.filteredGps = fg;
-    mapState.lineGps = lineGpsOf(fg);
+    mapState.lineGps = fg;   // 線は表示中の GPS から (日ごとの分割・色は drawTrips が担う)
     cluster.clearLayers();
     markerById.clear();
     fg.forEach(p => {
@@ -1740,7 +1759,8 @@ async function openMapView(focusPhoto) {
     });
     drawTrips();
     if (!(opts && opts.skipFit) && fg.length) {
-      map.fitBounds(fg.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14 });
+      // 非アニメで即フィット (🎲 もう一度引く等の連続再描画でアニメ中フィットが重なる markercluster クラッシュを回避)。
+      map.fitBounds(fg.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14, animate: false });
     }
     if (mapState.updateTimelineUI) mapState.updateTimelineUI();
     if (mapState.updateCtrlLabels) mapState.updateCtrlLabels();
@@ -1779,60 +1799,51 @@ async function openMapView(focusPhoto) {
   }
   mapState.updateCtrlLabels = updateCtrlLabels;
 
-  // ── seed (入り口で変わる地図) ─────────────────────────────────────────
-  const mcEcho = overlay.querySelector('#mcEcho');
+  // ── 表示する日 (地図=軌跡から想起) ───────────────────────────────────
+  const mcRoll = overlay.querySelector('#mcRoll');
   const mcAll  = overlay.querySelector('#mcAll');
 
-  // GPS のある意味echoの枚数 (「広げる」で地図に灯る数。0 ならボタンを出さない)。
-  function echoGpsCount() {
-    return mapState.seedMeaning.filter(p => visible(p) && p.lat != null && p.lng != null).length;
-  }
-  // seed モードでは 📅期間/⋯表示 を隠し、🌍似た場所 / ↩︎全部を見る を出す。
+  // pickDays モードでは 📅期間/⋯表示 を隠し、🎲もう一度引く(ランダム3日のみ) / ↩︎全部を見る を出す。
   function updateCtrlMode() {
-    const seeded = !!mapState.seed;
-    elFilterBtn.style.display = seeded ? 'none' : '';
-    elMoreBtn.style.display   = seeded ? 'none' : '';
-    const k = seeded ? echoGpsCount() : 0;
-    if (seeded && k > 0) {
-      mcEcho.hidden = false;
-      mcEcho.textContent = mapState.showEcho ? '🌍 似た場所を隠す' : `🌍 似た場所 ${k}`;
-      mcEcho.classList.toggle('on', mapState.showEcho);
-    } else { mcEcho.hidden = true; }
-    mcAll.hidden = !seeded;
+    const picked = !!mapState.pickDays;
+    elFilterBtn.style.display = picked ? 'none' : '';
+    elMoreBtn.style.display   = picked ? 'none' : '';
+    mcRoll.hidden = !(picked && mapState.pickMode === 'random3');
+    mcAll.hidden  = !picked;
   }
   mapState.updateCtrlMode = updateCtrlMode;
 
-  // 起点を決めて、その時空近傍(+意味echo)に絞る。意味echoは時空近傍と重複排除。
-  function setSeed(photo) {
-    const pool = allPhotos.filter(visible);
-    const st = spacetimeNeighbors(photo, pool, 24);
-    const seen = new Set([photo.id]);
-    const stSet = [photo];
-    for (const p of st) { if (!seen.has(p.id)) { seen.add(p.id); stSet.push(p); } }
-    const me = meaningNeighbors(photo, pool, 12).filter(p => !seen.has(p.id));
-    mapState.seed = photo;
-    mapState.seedSpacetime = stSet;
-    mapState.seedMeaning = me;
-    mapState.showEcho = false;
-    mapState.range = { start: null, end: null };   // seed が「どこまで」を担うので期間はリセット
+  // 表示する日の集合をセット。mode: 'random3' (ヘッダ=偶然3日) | 'day' (写真入口=その日)。
+  function setPick(days, mode) {
+    mapState.pickDays = days;
+    mapState.pickMode = mode;
+    mapState.focusedDay = null;
+    mapState.range = { start: null, end: null };   // 日選択が「どこまで」を担うので期間はリセット
     if (mapState.rebuildTimeline) mapState.rebuildTimeline();
     applyFilter();
   }
-  mapState.setSeed = setSeed;
+  mapState.setPick = setPick;
 
-  // seed を抜けて従来の期間ブラウズ (全 GPS) に戻る。
-  function clearSeed() {
-    mapState.seed = null;
-    mapState.seedSpacetime = [];
-    mapState.seedMeaning = [];
-    mapState.showEcho = false;
+  // GPS 写真のある日からランダムに最大3日 (= 偶然の3本の軌跡)。
+  function pickRandom3() {
+    const dayKeys = [...new Set(allPhotos.filter(p => visible(p) && p.lat != null && p.lng != null).map(dayKeyOf))];
+    for (let i = dayKeys.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [dayKeys[i], dayKeys[j]] = [dayKeys[j], dayKeys[i]]; }
+    return dayKeys.slice(0, 3);
+  }
+  mapState.pickRandom3 = pickRandom3;
+
+  // 日の選択を抜けて従来の期間ブラウズ (全 GPS) に戻る。
+  function clearPick() {
+    mapState.pickDays = null;
+    mapState.pickMode = null;
+    mapState.focusedDay = null;
     if (mapState.rebuildTimeline) mapState.rebuildTimeline();
     applyFilter();
   }
-  mapState.clearSeed = clearSeed;
+  mapState.clearPick = clearPick;
 
-  mcEcho.addEventListener('click', () => { mapState.showEcho = !mapState.showEcho; applyFilter(); });
-  mcAll.addEventListener('click', () => clearSeed());
+  mcRoll.addEventListener('click', () => { const d = pickRandom3(); if (d.length) setPick(d, 'random3'); });   // もう一度引く = 別の3日
+  mcAll.addEventListener('click', () => clearPick());
   // ───────────────────────────────────────────────────────────────────
 
   function closePops() {
@@ -2067,7 +2078,10 @@ async function openMapView(focusPhoto) {
   map.on('click', (e) => {                  // 編集中は地図タップでもピンを移動できる
     if (mapState && mapState.locEdit) { mapState.locEdit.pin.setLatLng(e.latlng); mapState.locEdit.updateReadout(); }
   });
-  map.on('click', closePops);   // 地図をタップしたらパネルを閉じる
+  map.on('click', () => {   // 背景タップ: パネルを閉じ、軌跡のハイライト(他を暗く)も解除
+    closePops();
+    if (mapState.focusedDay) { mapState.focusedDay = null; drawTrips(); }
+  });
 
   // タイムライン (フィルタ操作の主役) を先に組み、updateTimelineUI フックを mapState に立ててから適用。
   // 封印の追加/解除でデータが変わったら地図(マーカー/線)とタイムラインを貼り直す (refreshData)。
@@ -2080,12 +2094,11 @@ async function openMapView(focusPhoto) {
   };
   mapState.rebuildTimeline();
 
-  // 入り口で「どこまで」を変える: 写真から来たら その写真を起点 (時空+意味)、
-  // ヘッダ(起点なし)は GPS 写真からランダムに1枚を起点 = 偶然の1スライス。
+  // 入り口で「表示する日」を変える: 写真から来たら その写真の日 (= フィルタ=その日)、
+  // ヘッダ(写真なし)は GPS のある日からランダムに3日 = 偶然の3本の軌跡。
   const explicit = !!(focusPhoto && focusPhoto.id);
-  let seed = explicit ? focusPhoto : (gps.length ? gps[Math.floor(Math.random() * gps.length)] : null);
-  if (seed) setSeed(seed);
-  else applyFilter();   // GPS 写真ゼロ → 従来ブラウズ (タイムラインのみ)
+  if (explicit) setPick([dayKeyOf(focusPhoto)], 'day');
+  else { const d = pickRandom3(); if (d.length) setPick(d, 'random3'); else applyFilter(); }   // GPS 写真ゼロ → 従来ブラウズ
   if (!gps.length) {
     const note = document.createElement('div');
     note.className = 'map-empty-note';
@@ -2104,8 +2117,8 @@ async function openMapView(focusPhoto) {
   setTimeout(() => {
     if (!mapState) return;
     map.invalidateSize();       // overlay 表示後のレイアウト確定
-    if (explicit && mapState.seed) {   // 特定の写真から来た時 → その起点ピンの popup を開く
-      const rec = markerById.get(mapState.seed.id);
+    if (explicit) {   // 特定の写真から来た時 → その写真ピンの popup を開く
+      const rec = markerById.get(focusPhoto.id);
       if (rec) {
         if (cluster.zoomToShowLayer) cluster.zoomToShowLayer(rec.marker, () => rec.marker.openPopup());
         else rec.marker.openPopup();
@@ -2194,8 +2207,8 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
 
   // 日付見出しタップ: なし→その日 / 単日→(同じ日で解除・別の日で期間) / 期間→新しい単日。
   function toggleDayFilter(dayStart) {
-    if (mapState.seed) {   // 起点モードで日付を絞る = スライスを抜けて期間ブラウズへ
-      mapState.seed = null; mapState.seedSpacetime = []; mapState.seedMeaning = []; mapState.showEcho = false;
+    if (mapState.pickDays) {   // 日選択モードで日付を絞る = 選択を抜けて期間ブラウズへ
+      mapState.pickDays = null; mapState.pickMode = null; mapState.focusedDay = null;
     }
     const r = mapState.range;
     const dayEnd = dayEndOf(dayStart);
@@ -2212,14 +2225,20 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
 
   // フィルタ状態に合わせてバー/見出し/淡色を更新 (applyFilter から呼ばれる)。
   mapState.updateTimelineUI = () => {
-    // 起点モード: 期間バーの代わりに「この写真の周り / 全部を見る」を出し、淡色化はしない (一覧は全件のまま=次の起点を選ぶ索引)。
-    if (mapState.seed) {
+    // 日選択モード: 期間バーの代わりに「ランダム3日 / その日 」+「全部を見る」を出し、淡色化はしない (一覧は全件のまま=次の入口を選ぶ索引)。
+    if (mapState.pickDays) {
       bar.classList.add('active');
-      bar.innerHTML = `<span class="fb-text">🌱 この写真の周り</span>`;
+      let label;
+      if (mapState.pickMode === 'random3') label = '🎲 ランダムな3日';
+      else {
+        const dk = mapState.pickDays[0]; const parts = (dk || '').split('-').map(Number);
+        label = (parts.length === 3 && !isNaN(parts[0])) ? `📅 ${fmtDay(new Date(parts[0], parts[1], parts[2]).getTime())}` : '📅 この日';
+      }
+      bar.innerHTML = `<span class="fb-text">${label}</span>`;
       const clr = document.createElement('button');
       clr.className = 'fb-clear';
       clr.textContent = '✕ 全部を見る';
-      clr.addEventListener('click', () => { if (mapState.clearSeed) mapState.clearSeed(); });
+      clr.addEventListener('click', () => { if (mapState.clearPick) mapState.clearPick(); });
       bar.appendChild(clr);
       for (const { el } of dayHeaders) el.classList.remove('tl-out');
       for (const { el } of itemEls) el.classList.remove('tl-out');
