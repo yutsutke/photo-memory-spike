@@ -303,6 +303,7 @@
   .loc-edit-pin { position: relative; width: 44px; height: 44px; border-radius: 50%; border: 3px solid #2a6; background-size: cover; background-position: center; box-shadow: 0 0 0 2px #fff, 0 3px 8px rgba(0,0,0,0.5); animation: lePulse 1.3s ease-in-out infinite; }
   .loc-edit-pin::after { content: ''; position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #2a6; }
   @keyframes lePulse { 0%,100% { box-shadow: 0 0 0 2px #fff, 0 3px 8px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 0 2px #fff, 0 0 0 9px rgba(42,170,102,0.35), 0 3px 8px rgba(0,0,0,0.5); } }
+  .marker-popup .mp-confirm { margin-top: 8px; width: 100%; padding: 8px; border: 0; border-radius: 8px; background: #13a08c; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }   /* 推定を確定 (v75) */
   .marker-popup .mp-edit { margin-top: 6px; width: 100%; padding: 7px; border: 1px solid #555; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 12px; cursor: pointer; }
   .marker-popup .mp-del { margin-top: 6px; width: 100%; padding: 7px; border: 1px solid #633; border-radius: 8px; background: #2a1a1a; color: #e88; font-size: 12px; cursor: pointer; }
   .tl-empty { color: #888; font-size: 12px; text-align: center; padding: 20px; }
@@ -355,7 +356,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.25 (GPSなし写真を軌跡の時刻位置に配置) · 2026-06-17';
+const BUILD = 'phase3.26 (推定マーカーに「位置を直して確定」を追加) · 2026-06-17';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1827,11 +1828,15 @@ function buildEstPopup(p, est) {
     `<div class="mp-date">${fmtDate(p.datetime)}${srcTagHtml(p)}</div>` +
     `<div class="mp-place mp-est">≈ 軌跡から推定した場所</div>` +
     `<button class="mp-walk">🔮 連想ウォーク</button>` +
-    `<button class="mp-edit" type="button">📍 この場所で確定</button>` +
+    `<button class="mp-confirm" type="button">📍 この場所で確定</button>` +
+    `<button class="mp-edit" type="button">✏️ 位置を直して確定</button>` +
     `<button class="mp-del" type="button">🗑 画像を削除</button>`;
   el.querySelector('.mp-thumb').addEventListener('click', () => showFullImage(p));
   el.querySelector('.mp-walk').addEventListener('click', () => { closeMapView(); showExplore(p); });
-  el.querySelector('.mp-edit').addEventListener('click', () => confirmEstimatedPos(p, est));
+  el.querySelector('.mp-confirm').addEventListener('click', () => confirmEstimatedPos(p, est));   // 推定のまま確定
+  el.querySelector('.mp-edit').addEventListener('click', () => {                                  // 推定位置から微調整して確定
+    if (mapState && mapState.startLocationEdit) mapState.startLocationEdit(p, [est.lat, est.lng]);
+  });
   el.querySelector('.mp-del').addEventListener('click', () => { excludePhoto(p); });
   return el;
 }
@@ -2445,7 +2450,7 @@ async function openMapView(focusPhoto) {
     const rec = mapState.markerById.get(photo.id);                      // 付けた位置へ寄せる
     if (rec) map.setView(rec.latlng, Math.max(map.getZoom(), 13));
   }
-  function startLocationEdit(photo) {
+  function startLocationEdit(photo, seedLatLng) {
     cancelLocationEdit();
     closePops();
     map.closePopup();
@@ -2454,8 +2459,8 @@ async function openMapView(focusPhoto) {
       sheet.classList.remove('open');
       setTimeout(() => map.invalidateSize(), 260);
     }
-    // 初期位置: 既存GPS → 時間的に近いGPS写真(3日以内) → 地図中心
-    let start = (photo.lat != null && photo.lng != null) ? [photo.lat, photo.lng] : null;
+    // 初期位置: 推定/指定座標(seed=軌跡からの推定など) → 既存GPS → 時間的に近いGPS写真(3日以内) → 地図中心
+    let start = seedLatLng || ((photo.lat != null && photo.lng != null) ? [photo.lat, photo.lng] : null);
     if (start) { map.setView(start, Math.max(map.getZoom(), 14)); }
     else {
       const g = nearestGps(photo, 3 * 86400000);
