@@ -21,7 +21,12 @@
 > - **⛰ ボトルネック（リスク順＝先に潰す順）**: ①🔴🔴写真全件アクセス（公式 Camera はピッカー止まり→`@capacitor-community/media` or カスタムプラグイン）②🔴Mac なし署名（Codemagic 自動署名・**Xcode 26/iOS 26 SDK 必須**・詰まれば MacinCloud 保険）③🟠Apple 承認待ち ④🟠審査4.2（web ラッパー薄さ→native 要素で実質）⑤🟡IndexedDB→SQLite 移行（**track 含む**・写真キーは OS id にせず UUID 維持＝[[seal-protects-core]] でなく §⑥）⑥🟡AI on-device の持ち方 ⑦🟢マネタイズ/i18n/ストア素材。
 > - **Phase 0-6**（戦略の正＝Notion HOW「アプリ化・ストア公開 方針メモ」。以下はリポ実行チェックリスト）:
 >   - **Phase 0 登録・準備**: [ ] Apple Developer 登録($99・最初に申込) [ ] Small Business Program(手数料15%) [ ] Node+Capacitor 確認 [ ] プライバシーポリシー ドラフト(日英・GitHub Pages 公開)
->   - **Phase 1 Capacitor化+native要素+i18n**: [ ] 🔴写真全件アクセス de-risk [ ] `cap add ios`+Info.plist 用途文言 [ ] **CDN vendoring**(exifr/heic2any/fflate/Leaflet→ローカル同梱・4.2対策) [ ] IndexedDB→SQLite(track 含む) [ ] onboarding(許可+「数枚→全ライブラリ」段階導線) [ ] アイコン/スプラッシュ/i18n(en/ja) [ ] AI(CLIP)の持ち方決定
+>   - **Phase 1 Capacitor化+native要素+i18n**: [ ] 🔴写真全件アクセス de-risk [ ] `cap add ios`+Info.plist 用途文言 [ ] **CDN vendoring**(exifr/heic2any/fflate/Leaflet→ローカル同梱・4.2対策) [ ] IndexedDB→SQLite(track 含む) [ ] onboarding(許可+「数枚→全ライブラリ」段階導線) [ ] アイコン/スプラッシュ/i18n(en/ja) [ ] AI(CLIP)の持ち方決定 [ ] 拡大=原寸オンデマンド/写真アプリ動線見直し/外部画像は実体保持（下記📷方針）
+>     - **📷 画質・写真表示・外部画像の方針（2026-06-17 相談で確定）**:
+>       - **拡大表示＝フル解像度**: ライブラリ写真は PHAsset 参照で**原寸をオンデマンド取得**（PHImageManager・サムネ即出し→裏でフル差替え）。512px 止まりは web/IndexedDB の容量制約（spike v23・[[storage-tradeoffs-accepted]]）→ **native で解消**。
+>       - **「写真アプリで開く」は品質目的としては撤去**（アプリ内フル表示で完結＝reminiscence を切らさない）。残すなら system 共有シートの二次動線のみ。「この1枚を Apple Photos で開く」綺麗な公式 API は native でも無いが、もう不要。
+>       - **外部画像（IG/X/フォルダ/スクショ）は非対称**: 写真ライブラリに居ない＝PHAsset 無し → **アプリが実体をフル/高解像度で自前保存**（巨大物だけ縮小）。「写真アプリで開く」は対象外。任意で取り込み時「写真アプリに保存」して PHAsset 化も可（**強制しない**＝カメラロールを汚したくない人向け）。
+>       - **容量**: ライブラリ＝サムネ＋参照で軽い／外部＝実体保持だが枚数少で許容。コア拡張「取り込んだ画像も一級市民」（[[external-import-savedate-works]]）と整合。
 >   - **Phase 2 Codemagic 自動署名**: [ ] App Store Connect API キー(Issuer/Key ID) [ ] Codemagic で証明書自動生成 [ ] 最初のアーカイブ→TestFlight
 >   - **Phase 3 定常ビルド**: [ ] codemagic.yaml(Xcode26 ランナー) [ ] push でビルド&TestFlight 自動
 >   - **Phase 4 収益化**: [ ] AdMob 非パーソナライズ(npa=1) [ ] ¥300 IAP(RevenueCat)+「購入を復元」必須 [ ] 広告は外周のみ(reminiscence 画面に出さない)
