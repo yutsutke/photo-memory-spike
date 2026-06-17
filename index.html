@@ -344,11 +344,11 @@
 
 <div class="log" id="log"></div>
 
-<!-- CDN: exifr full (HEIC EXIF まで読める), heic2any (HEIC→JPEG 描画用) -->
-<script src="https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
-<!-- CDN: fflate (zip ストリーミング解凍。Instagram エクスポート zip を端末内で展開, v43) -->
-<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
+<!-- vendored (CDN→ローカル同梱, v77 / native 4.2 対策・オフライン耐性): exifr full (HEIC EXIF まで読める), heic2any (HEIC→JPEG 描画用) -->
+<script src="vendor/exifr/full.umd.js"></script>
+<script src="vendor/heic2any/heic2any.min.js"></script>
+<!-- vendored: fflate (zip ストリーミング解凍。Instagram エクスポート zip を端末内で展開, v43) -->
+<script src="vendor/fflate/index.js"></script>
 
 <script>
 "use strict";
@@ -357,7 +357,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.27 (アプリ名を「あの日 — 写真と足跡から蘇る」に変更) · 2026-06-17';
+const BUILD = 'phase3.28 (CDN を vendoring＝ローカル同梱: exifr/heic2any/fflate/Leaflet) · 2026-06-17';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1580,20 +1580,20 @@ function loadAsset(tag, props) {
     document.head.appendChild(el);
   });
 }
-// Leaflet + markercluster + polylineDecorator を冪等に注入。すべて無料/APIキー不要。
+// Leaflet + markercluster + polylineDecorator を冪等に注入。すべて vendored (ローカル同梱, v77)。
 function loadLeaflet() {
   if (window.L && window.L.markerClusterGroup) return Promise.resolve();
   if (_leafletLoading) return _leafletLoading;
   _leafletLoading = (async () => {
     await Promise.all([
-      loadAsset('link', { rel: 'stylesheet', href: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' }),
-      loadAsset('link', { rel: 'stylesheet', href: 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css' }),
-      loadAsset('link', { rel: 'stylesheet', href: 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css' }),
+      loadAsset('link', { rel: 'stylesheet', href: 'vendor/leaflet/leaflet.css' }),
+      loadAsset('link', { rel: 'stylesheet', href: 'vendor/leaflet.markercluster/MarkerCluster.css' }),
+      loadAsset('link', { rel: 'stylesheet', href: 'vendor/leaflet.markercluster/MarkerCluster.Default.css' }),
     ]);
-    await loadAsset('script', { src: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js' });   // core 先 (plugin は global L 依存)
+    await loadAsset('script', { src: 'vendor/leaflet/leaflet.js' });   // core 先 (plugin は global L 依存)
     await Promise.all([
-      loadAsset('script', { src: 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js' }),
-      loadAsset('script', { src: 'https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js' }),
+      loadAsset('script', { src: 'vendor/leaflet.markercluster/leaflet.markercluster.js' }),
+      loadAsset('script', { src: 'vendor/leaflet-polylinedecorator/leaflet.polylineDecorator.js' }),
     ]);
   })();
   return _leafletLoading;

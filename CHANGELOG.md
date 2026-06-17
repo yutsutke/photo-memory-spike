@@ -5,6 +5,25 @@
 
 ---
 
+## v77 — CDN を vendoring（exifr/heic2any/fflate/Leaflet をローカル同梱） (2026-06-17)
+
+**背景**
+- native 化 Phase 1 のチェック項目「CDN vendoring（4.2 対策）」。App Store 審査 4.2（外部 CDN 依存の薄い web ラッパーに見られない）+ オフライン/CDN 障害耐性のため、外部 CDN 依存をローカル同梱に切替。web spike としても堅牢化。Capacitor で `www/` に同梱すれば実行時ネットワーク不要。
+
+**設計判断**
+- 対象 = exifr@7 / heic2any@0.0.4 / fflate@0.8.2（head の静的 script）+ Leaflet 一式（leaflet@1.9.4 + markercluster@1.5.3 + polylinedecorator@1.6.0、遅延ロード）。`vendor/<pkg>/` に配置。版・出所・ライセンスは `vendor/README.md`。
+- Leaflet の `images/`（マーカー/レイヤーアイコン）も同梱。`leaflet.css` の `.leaflet-default-icon-path` から相対参照されるので leaflet.css と同階層に置いた。
+- **対象外（意図的）**: 地図タイル（CARTO/地理院＝実行時の地図データでローカル化不能）/ `@huggingface/transformers`（CLIP＝モデル重みも実行時 DL なので JS だけ同梱は無意味、Phase 1「AI(CLIP)の持ち方決定」で別途）。
+- 参照パスは固定（head `<script>` と `loadLeaflet()`）→ 版更新時は同じパスに置き換えるだけで index.html は無変更。
+
+**結果 / 観察**
+- preview green: BUILD phase3.28、`window.exifr/heic2any/fflate` 定義済、`loadLeaflet()` で L 1.9.4 + markerClusterGroup + polylineDecorator + css ロード、**外部 CDN リクエスト 0 / vendor ローカル 9 本**、失敗リクエスト 0。
+
+**残課題 / 次の方向**
+- 実機（iPhone Safari／将来 Capacitor）で vendored 版でも HEIC 変換・zip 解凍・地図が動くか。`@huggingface/transformers` の on-device 化は Phase 1「AI(CLIP)の持ち方決定」で。
+
+---
+
 ## v76 — アプリ名を「あの日 — 写真と足跡から蘇る」に変更 (2026-06-17)
 
 **背景**

@@ -13,7 +13,7 @@
 
 ---
 
-## 現在地 — BUILD: phase3.27 (アプリ名を「あの日 — 写真と足跡から蘇る」に変更)
+## 現在地 — BUILD: phase3.28 (CDN を vendoring＝ローカル同梱: exifr/heic2any/fflate/Leaflet)
 
 > ### 🚀 製品化決定（2026-06-17）— このリポを「製品本体」にして native 化（App Store 申請）
 > - spike は **v75** で reminiscence + 地図/位置の体験検証を終え卒業。コードを 2 リポ（spike/madeleine）で**コピー二重管理**していたのをやめ、**このリポに統合＝今後の web 編集・Capacitor・Apple 申請は全部ここで**。`madeleine` リポは畳む（凍結・参照のみ。GitHub 削除は別途ユーザー確認）。public のまま製品化（ローカル完結で秘密ロジック無し）。
@@ -21,7 +21,7 @@
 > - **⛰ ボトルネック（リスク順＝先に潰す順）**: ①🔴🔴写真全件アクセス（公式 Camera はピッカー止まり→`@capacitor-community/media` or カスタムプラグイン）②🔴Mac なし署名（Codemagic 自動署名・**Xcode 26/iOS 26 SDK 必須**・詰まれば MacinCloud 保険）③🟠Apple 承認待ち ④🟠審査4.2（web ラッパー薄さ→native 要素で実質）⑤🟡IndexedDB→SQLite 移行（**track 含む**・写真キーは OS id にせず UUID 維持＝[[seal-protects-core]] でなく §⑥）⑥🟡AI on-device の持ち方 ⑦🟢マネタイズ/i18n/ストア素材。
 > - **Phase 0-6**（戦略の正＝Notion HOW「アプリ化・ストア公開 方針メモ」。以下はリポ実行チェックリスト）:
 >   - **Phase 0 登録・準備**: [ ] Apple Developer 登録($99・最初に申込) [ ] Small Business Program(手数料15%) [ ] Node+Capacitor 確認 [ ] プライバシーポリシー ドラフト(日英・GitHub Pages 公開)
->   - **Phase 1 Capacitor化+native要素+i18n**: [ ] 🔴写真全件アクセス de-risk [ ] `cap add ios`+Info.plist 用途文言 [ ] **CDN vendoring**(exifr/heic2any/fflate/Leaflet→ローカル同梱・4.2対策) [ ] IndexedDB→SQLite(track 含む) [ ] onboarding(許可+「数枚→全ライブラリ」段階導線) [ ] アイコン/スプラッシュ/i18n(en/ja) [ ] AI(CLIP)の持ち方決定 [ ] 拡大=原寸オンデマンド/写真アプリ動線見直し/外部画像は実体保持（下記📷方針）
+>   - **Phase 1 Capacitor化+native要素+i18n**: [ ] 🔴写真全件アクセス de-risk [ ] `cap add ios`+Info.plist 用途文言 [x] **CDN vendoring**(exifr/heic2any/fflate/Leaflet→ローカル同梱・4.2対策 ＝v77 完了・`vendor/`／地図タイルとCLIPは対象外) [ ] IndexedDB→SQLite(track 含む) [ ] onboarding(許可+「数枚→全ライブラリ」段階導線) [ ] アイコン/スプラッシュ/i18n(en/ja) [ ] AI(CLIP)の持ち方決定 [ ] 拡大=原寸オンデマンド/写真アプリ動線見直し/外部画像は実体保持（下記📷方針）
 >     - **📷 画質・写真表示・外部画像の方針（2026-06-17 相談で確定）**:
 >       - **拡大表示＝フル解像度**: ライブラリ写真は PHAsset 参照で**原寸をオンデマンド取得**（PHImageManager・サムネ即出し→裏でフル差替え）。512px 止まりは web/IndexedDB の容量制約（spike v23・[[storage-tradeoffs-accepted]]）→ **native で解消**。
 >       - **「写真アプリで開く」は品質目的としては撤去**（アプリ内フル表示で完結＝reminiscence を切らさない）。残すなら system 共有シートの二次動線のみ。「この1枚を Apple Photos で開く」綺麗な公式 API は native でも無いが、もう不要。
