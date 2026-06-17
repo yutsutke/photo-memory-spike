@@ -17,10 +17,10 @@
 
 > ### 🚀 製品化決定（2026-06-17）— このリポを「製品本体」にして native 化（App Store 申請）
 > - spike は **v75** で reminiscence + 地図/位置の体験検証を終え卒業。コードを 2 リポ（spike/madeleine）で**コピー二重管理**していたのをやめ、**このリポに統合＝今後の web 編集・Capacitor・Apple 申請は全部ここで**。`madeleine` リポは畳む（凍結・参照のみ。GitHub 削除は別途ユーザー確認）。public のまま製品化（ローカル完結で秘密ロジック無し）。
-> - **最初の3手**（並行可）: ① **Apple Developer 登録を申込**（$99・承認待ち＝唯一のクリティカルパス）② PC に Node + Capacitor CLI 確認 ③ 🔴 **ネイティブ写真全件アクセスの最小スパイク**（PHAsset 全件列挙 + OS サムネ/EXIF＝「久しぶり=全ライブラリ」の生命線・最優先 de-risk）。
+> - **最初の3手**（並行可）: ① ✅ **Apple Developer 登録を申込＝完了**（2026-06-18 申込・支払い済み、注文 W1884878174・12,980円／**承認・有効化待ち**＝唯一のクリティカルパスが走り出した）② PC に Node + Capacitor CLI 確認（Node v24/npm OK・Capacitor CLI 未導入）③ 🔴 **ネイティブ写真全件アクセスの最小スパイク**（PHAsset 全件列挙 + OS サムネ/EXIF＝「久しぶり=全ライブラリ」の生命線・最優先 de-risk）。
 > - **⛰ ボトルネック（リスク順＝先に潰す順）**: ①🔴🔴写真全件アクセス（公式 Camera はピッカー止まり→`@capacitor-community/media` or カスタムプラグイン）②🔴Mac なし署名（Codemagic 自動署名・**Xcode 26/iOS 26 SDK 必須**・詰まれば MacinCloud 保険）③🟠Apple 承認待ち ④🟠審査4.2（web ラッパー薄さ→native 要素で実質）⑤🟡IndexedDB→SQLite 移行（**track 含む**・写真キーは OS id にせず UUID 維持＝[[seal-protects-core]] でなく §⑥）⑥🟡AI on-device の持ち方 ⑦🟢マネタイズ/i18n/ストア素材。
 > - **Phase 0-6**（戦略の正＝Notion HOW「アプリ化・ストア公開 方針メモ」。以下はリポ実行チェックリスト）:
->   - **Phase 0 登録・準備**: [ ] Apple Developer 登録($99・最初に申込) [ ] Small Business Program(手数料15%) [ ] Node+Capacitor 確認 [ ] プライバシーポリシー ドラフト(日英・GitHub Pages 公開)
+>   - **Phase 0 登録・準備**: [x] Apple Developer 登録($99)＝**申込・支払い済み 2026-06-18**(注文 W1884878174・承認/有効化待ち) [ ] Small Business Program(手数料15%・**有効化後に申請**) [~] Node+Capacitor 確認(Node v24/npm OK・Capacitor CLI 未導入) [ ] プライバシーポリシー ドラフト(日英・GitHub Pages 公開)
 >   - **Phase 1 Capacitor化+native要素+i18n**: [ ] 🔴写真全件アクセス de-risk [ ] `cap add ios`+Info.plist 用途文言 [x] **CDN vendoring**(exifr/heic2any/fflate/Leaflet→ローカル同梱・4.2対策 ＝v77 完了・`vendor/`／地図タイルとCLIPは対象外) [ ] IndexedDB→SQLite(track 含む) [ ] onboarding(許可+「数枚→全ライブラリ」段階導線) [ ] アイコン/スプラッシュ/i18n(en/ja) [ ] AI(CLIP)の持ち方決定 [ ] 拡大=原寸オンデマンド/写真アプリ動線見直し/外部画像は実体保持（下記📷方針）
 >     - **📷 画質・写真表示・外部画像の方針（2026-06-17 相談で確定）**:
 >       - **拡大表示＝フル解像度**: ライブラリ写真は PHAsset 参照で**原寸をオンデマンド取得**（PHImageManager・サムネ即出し→裏でフル差替え）。512px 止まりは web/IndexedDB の容量制約（spike v23・[[storage-tradeoffs-accepted]]）→ **native で解消**。
