@@ -1,5 +1,9 @@
 # photo-memory-spike — Claude 向けプロジェクト指示
 
+> 🚀 **2026-06-17 決定 — このリポを「製品本体」にする（public のまま）。**
+> これまで spike(検証) と madeleine(製品) の 2 リポにコードを**コピーで二重管理**していたが、それでズレた（madeleine は v38 で停止・spike は v75）→ **1 リポに統合**。今後は **web の編集も Capacitor も Apple App Store 申請も、この `photo-memory-spike` リポで行う**。`madeleine` リポは畳む（凍結・参照のみ。GitHub リポ削除は別途ユーザー確認）。
+> native 化の実行計画（Phase 0-6・ボトルネック・最初の3手）は **[TODO.md](TODO.md) 現在地**。検証アーカイブとしての CHANGELOG/git 履歴はこのリポにそのまま残る（統合しても失われない）。
+
 ## 🧭 セッション開始時にまず読む
 
 実装や方針の作業に入る前に **[DOCMAP.md](DOCMAP.md)** (資料マップ) を読み、資料構成と役割を把握する。要点だけ:
@@ -9,9 +13,9 @@
 
 ## このプロジェクトの性質
 
-- **spike**。捨ててよい。きれいさより「あの感じ」に最速で触ることが優先。
-- ローカル完結 (写真は端末から出さない、IndexedDB 保存)、バックエンドなし。
-- スコープ境界は README.md と TODO.md の冒頭を参照。**迷ったら「これは A (今すぐ) か?」で判定**。
+- **元 spike → 製品本体（2026-06-17 統合）**。reminiscence の手触りは v75 まで検証済み。これからは Capacitor で **native 化 → App Store 申請**。「捨ててよい」段階は脱したが、**体験ロジックは資産**でそのまま乗る。整理（web ハック撤去・CDN vendoring・SQLite 化）は native の文脈で段階的に（一気に綺麗にしない）。
+- ローカル完結 (写真は端末から出さない、IndexedDB→将来 SQLite)、バックエンドなし。
+- スコープ境界は README.md と TODO.md の冒頭を参照。
 
 ## ファイル構成
 

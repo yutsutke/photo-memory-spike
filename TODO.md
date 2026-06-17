@@ -15,14 +15,24 @@
 
 ## 現在地 — BUILD: phase3.26 (推定マーカーに「位置を直して確定」を追加)
 
-> ### 🚀 方針転換（2026-06-17）— spike はここで一区切り、次の主戦場は native
-> - spike は **v75** で reminiscence + 地図/位置の体験検証を終えて**卒業**。次は **native 化 → Apple App Store 申請**（ユーザー着手判断）。
-> - **作業は別リポ `madeleine`**（Capacitor）。着手手順・フェーズ・ボトルネックは **`madeleine/TODO.md`** + Notion HOW「アプリ化・ストア公開 方針メモ」Phase 0-6。最初の3手＝① Apple Developer 登録申込 ② Node/Capacitor 確認 ③ 🔴 ネイティブ写真全件アクセスの最小スパイク。
-> - **この spike リポは検証アーカイブとして凍結気味**。ただし下記の**実機手触り確認は手元で随時可**（v56〜v75 未確認分）。新機能を spike に足すより、native に資産として乗せる段階。
+> ### 🚀 製品化決定（2026-06-17）— このリポを「製品本体」にして native 化（App Store 申請）
+> - spike は **v75** で reminiscence + 地図/位置の体験検証を終え卒業。コードを 2 リポ（spike/madeleine）で**コピー二重管理**していたのをやめ、**このリポに統合＝今後の web 編集・Capacitor・Apple 申請は全部ここで**。`madeleine` リポは畳む（凍結・参照のみ。GitHub 削除は別途ユーザー確認）。public のまま製品化（ローカル完結で秘密ロジック無し）。
+> - **最初の3手**（並行可）: ① **Apple Developer 登録を申込**（$99・承認待ち＝唯一のクリティカルパス）② PC に Node + Capacitor CLI 確認 ③ 🔴 **ネイティブ写真全件アクセスの最小スパイク**（PHAsset 全件列挙 + OS サムネ/EXIF＝「久しぶり=全ライブラリ」の生命線・最優先 de-risk）。
+> - **⛰ ボトルネック（リスク順＝先に潰す順）**: ①🔴🔴写真全件アクセス（公式 Camera はピッカー止まり→`@capacitor-community/media` or カスタムプラグイン）②🔴Mac なし署名（Codemagic 自動署名・**Xcode 26/iOS 26 SDK 必須**・詰まれば MacinCloud 保険）③🟠Apple 承認待ち ④🟠審査4.2（web ラッパー薄さ→native 要素で実質）⑤🟡IndexedDB→SQLite 移行（**track 含む**・写真キーは OS id にせず UUID 維持＝[[seal-protects-core]] でなく §⑥）⑥🟡AI on-device の持ち方 ⑦🟢マネタイズ/i18n/ストア素材。
+> - **Phase 0-6**（戦略の正＝Notion HOW「アプリ化・ストア公開 方針メモ」。以下はリポ実行チェックリスト）:
+>   - **Phase 0 登録・準備**: [ ] Apple Developer 登録($99・最初に申込) [ ] Small Business Program(手数料15%) [ ] Node+Capacitor 確認 [ ] プライバシーポリシー ドラフト(日英・GitHub Pages 公開)
+>   - **Phase 1 Capacitor化+native要素+i18n**: [ ] 🔴写真全件アクセス de-risk [ ] `cap add ios`+Info.plist 用途文言 [ ] **CDN vendoring**(exifr/heic2any/fflate/Leaflet→ローカル同梱・4.2対策) [ ] IndexedDB→SQLite(track 含む) [ ] onboarding(許可+「数枚→全ライブラリ」段階導線) [ ] アイコン/スプラッシュ/i18n(en/ja) [ ] AI(CLIP)の持ち方決定
+>   - **Phase 2 Codemagic 自動署名**: [ ] App Store Connect API キー(Issuer/Key ID) [ ] Codemagic で証明書自動生成 [ ] 最初のアーカイブ→TestFlight
+>   - **Phase 3 定常ビルド**: [ ] codemagic.yaml(Xcode26 ランナー) [ ] push でビルド&TestFlight 自動
+>   - **Phase 4 収益化**: [ ] AdMob 非パーソナライズ(npa=1) [ ] ¥300 IAP(RevenueCat)+「購入を復元」必須 [ ] 広告は外周のみ(reminiscence 画面に出さない)
+>   - **Phase 5 ストア素材・申請**: [ ] スクショ/説明文/年齢レーティング(日英) [ ] プライバシーラベル+ポリシー公開 [ ] TestFlight 最終確認 [ ] 申請(4.2 来たら native 要素足して再提出)
+>   - **Phase 6 公開後→Android**（同じ Capacitor。12人/14日クローズドテストはこの段階）
+> - **🆕 計画(2026-05-30)後に増えた native 論点**: 背景位置記録は native プラグイン（位置ロガー v73 の本命・Always 許可は審査注意・電池・**post-v1**／[[location-logger]]）／地図の世界対応 **Leaflet→MapLibre**（§①・**launch blocker でない**・地理院/世界タイルの出し分けは**写真位置基準**で MapLibre 周回に畳む・**言語トリガーは不採用**）／track も SQLite へ／GPSなし補完(v74-75)は web ロジックがそのまま乗る。
+> - **整理の順番**（いきなり綺麗にしない）: ①最初の1ビルドを TestFlight まで通す（**今のコードで**・パイプライン de-risk）→ ②vendoring → ③web ハック撤去 → ④ネイティブ置換（写真全件/SQLite）。
+> - **リポ統合の実務（native 着手時にやる・まだ未実行）**: このリポに Capacitor を足す（`cap init` / webDir）／`madeleine` の Capacitor 設定(appId `io.github.yutsutke.madeleine`)を移植 or 作り直し／madeleine リポは「→ photo-memory-spike に統合」と書いて凍結（GitHub 削除は確認後）。
 
-> ### ▶ （spike を触る場合の）入口
-> - **状態**: BUILD `phase3.26`。git clean & push 済み。**v49〜v75 は全て preview E2E green。ただし v56〜v75 はまとめて実機 (iPhone Safari) 未確認**。
-> - **状態**: BUILD `phase3.26`。git clean & push 済み。**v49〜v75 は全て preview E2E green。ただし v56〜v75 はまとめて実機 (iPhone Safari) 未確認**。
+> ### ▶ web の現状（製品本体の中身）+ 実機手触り確認
+> - **状態**: BUILD `phase3.26`（v75）。git clean & push 済み。**v49〜v75 は全て preview E2E green。ただし v56〜v75 はまとめて実機 (iPhone Safari) 未確認**（GitHub Pages で web のまま随時確認可）。
 > - **🛰️ 位置ロガー（v73）＋ GPSなし写真の位置補完（v74）**: あとからその日の軌跡を振り返るロガー。**ヘッダ 🛰️ パネルで3モード**＝オフ(既定)/重要な移動のみ(500m以上で1点・疎)/こまめに(25m or 20秒・密)。記録は **`track` ストア（DB v2、座標+時刻のみ＝写真キー非依存＝機種変更で移せる＝Notion §⑥）**。**振り返り＝地図に青緑の点線で重ねる**（⋯「🛰️ 自分の軌跡」トグル）。**v74＝GPSなし写真を「その写真の時刻に軌跡上のどこにいたか」で配置**（青緑の破線枠＝推定／挟めれば線形補間・片側30分以内ならsnap・記録の時間帯の外は出さない／非破壊・popup「📍この場所で確定」で永続化／⋯「📍GPSなし写真を軌跡から配置」トグル・既定ON）＝Notion §③(b)。**web の制約＝前面（アプリを開いている間）でしか記録できない**（背景常時は native の宿題＝§④）。詳細 CHANGELOG v73-v74。
 > - **最有力の次手 = 実機 (iPhone Safari) で①ロガー（v73-74）②地図周回（v56〜v72）を触る**（手元作業）。ロガー観察: 散歩中アプリを開いて軌跡が貯まるか／前面復帰の1点が効くか／重要vsこまめの粒度・電池感／**GPSなし写真が軌跡の時刻位置に「だいたい合って」配置されるか（補間/snap 閾値1時間/30分が実軌跡に合うか・破線枠で推定と伝わるか・確定まで使うか）**／その日の軌跡の振り返りが想起を呼ぶか（[[editing-triggers-reminiscence]] と同型で効くか）。
 > - **いまの地図モデル（v64〜v72 で確定。旧 v62 の seed/意味echo は撤去済み）**:
