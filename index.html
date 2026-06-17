@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>写真思い出</title>
+<title>あの日 — 写真と足跡から蘇る</title>
 <style>
   :root { font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; }
   * { box-sizing: border-box; }
@@ -17,6 +17,7 @@
   /* 狭い画面ではタイトル+バージョンを独立行にし (BUILD を必ず見せる=iOS キャッシュ確認)、ボタンは下段へ折り返す */
   @media (max-width: 600px) { header h1 { flex-basis: 100%; } }
   header h1 .ver { font-size: 10px; color: #666; font-weight: normal; margin-left: 6px; letter-spacing: 0.5px; }
+  header h1 .tag { font-size: 11px; color: #8a8a8a; font-weight: normal; margin-left: 6px; letter-spacing: 0.3px; }
   header .count { font-size: 12px; color: #8bf; margin-right: 4px; }
   header button { padding: 6px 10px; font-size: 12px; background: #333; color: #eee; border: 0; border-radius: 6px; cursor: pointer; }
   header button:active { background: #555; }
@@ -320,7 +321,7 @@
 <body>
 
 <header>
-  <h1>写真思い出 <span class="ver" id="ver"></span></h1>
+  <h1>あの日 <span class="tag">写真と足跡から蘇る</span> <span class="ver" id="ver"></span></h1>
   <span class="count" id="count">— 枚</span>
   <span class="count hidden" id="bgStatus"></span>
   <button id="btnAdd" class="import-trigger" title="画像を取り込む（ファイル / フォルダ・詳細設定）">📷取り込む</button>
@@ -356,7 +357,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.26 (推定マーカーに「位置を直して確定」を追加) · 2026-06-17';
+const BUILD = 'phase3.27 (アプリ名を「あの日 — 写真と足跡から蘇る」に変更) · 2026-06-17';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
