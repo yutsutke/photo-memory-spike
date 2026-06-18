@@ -15,6 +15,13 @@
 
 ## 現在地 — BUILD: phase3.28 (CDN を vendoring＝ローカル同梱: exifr/heic2any/fflate/Leaflet)
 
+> ### 📍 次セッションの再開ポイント（2026-06-18 終業時点・まずここを読む）
+> **今日やったこと**: ① Apple Developer **登録を申込・支払い済み**（既存 Apple ID 使用・注文 W1884878174・12,980円・**有効化待ち**）② アプリ名を **あの日（🇯🇵）／ Madeleine（🇬🇧 ブランド据え置き）** に改名（web `index.html`・Notion WHY/HOW・DOCMAP・memory 全整合／英語タグライン「A Certain Day: Revived through Photographs and Footprints」確定＝v76）③ **CDN vendoring**（exifr/heic2any/fflate/Leaflet→`vendor/`＝v77）④ **プライバシーポリシー 日英**（`privacy.html`・連絡先 Tanaka Yusuke / yutsutke@gmail.com）⑤ **Capacitor 足場**（8.4.0・appId `io.github.yutsutke.madeleine`・webDir `www`・`scripts/sync-web.mjs`・GitHub Pages はルート据え置き＝v78）。
+> **唯一のブロッカー＝Apple メンバーシップの有効化待ち**（承認されると確認メール → [App Store Connect](https://appstoreconnect.apple.com) が使えるようになる）。
+> **▶ 次の一手（有効化メールが来たら、この順で私が案内）**: (1) App Store Connect にサインインできるか確認 → (2) **Apple Small Business Program 申請**（手数料15%）→ (3) **Codemagic 接続**（App Store Connect API キー Issuer ID / Key ID 発行 → 証明書を自動生成・Mac 不要）→ (4) **`cap add ios`（CI/Mac で `pod install`）＋ Info.plist 用途文言**（写真/位置）→ (5) **最初の1ビルドを TestFlight へ**（今のコードで・パイプライン de-risk＝「整理の順番」①）。
+> **まだ有効化待ちなら今できること**: (A) `codemagic.yaml` ドラフト（CI 設定・接続後にテスト）／ (C) i18n 文字列抽出（`index.html`・en/ja 辞書化＝Phase 1）。
+> **環境メモ**: Node v24 / npm OK・Capacitor 8.4.0 導入済み・PC=**Windows**（Mac なし→Codemagic 自動署名）。`npm install` → `npm run sync:web` で `www/` 再生成（www と node_modules は gitignore）。詳細は下の Phase 0-6 チェックリスト＋ CHANGELOG v76–v78。
+
 > ### 🚀 製品化決定（2026-06-17）— このリポを「製品本体」にして native 化（App Store 申請）
 > - spike は **v75** で reminiscence + 地図/位置の体験検証を終え卒業。コードを 2 リポ（spike/madeleine）で**コピー二重管理**していたのをやめ、**このリポに統合＝今後の web 編集・Capacitor・Apple 申請は全部ここで**。`madeleine` リポは畳む（凍結・参照のみ。GitHub 削除は別途ユーザー確認）。public のまま製品化（ローカル完結で秘密ロジック無し）。
 > - **最初の3手**（並行可）: ① ✅ **Apple Developer 登録を申込＝完了**（2026-06-18 申込・支払い済み、注文 W1884878174・12,980円／**承認・有効化待ち**＝唯一のクリティカルパスが走り出した）② ✅ **Node + Capacitor 確認＝完了**（Node v24/npm OK・**Capacitor 8.4.0 導入＝足場完了**: appId `io.github.yutsutke.madeleine`/appName Madeleine/webDir=`www`/ルート→www 同期スクリプト・v78）③ 🔴 **ネイティブ写真全件アクセスの最小スパイク**（PHAsset 全件列挙 + OS サムネ/EXIF＝「久しぶり=全ライブラリ」の生命線・最優先 de-risk）。
