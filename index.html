@@ -357,7 +357,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.28 (CDN を vendoring＝ローカル同梱: exifr/heic2any/fflate/Leaflet) · 2026-06-17';
+const BUILD = 'phase3.29 (写真ページから位置情報なしでも日時で「その日の地図」へ) · 2026-06-19';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1472,11 +1472,16 @@ function showFullImage(photo) {
   // (実機確認)。和暦形式 (2021年6月5日) が日本語端末の写真検索に通りやすい。
   const d = photo.datetime;
   const dtStr = d ? fmtDate(d) : '日時不明';
+  // v79: 地図への導線。GPS があれば「その場所」へ、無くてもその日に GPS 写真があれば「その日の地図」へ。
+  const fullHasGps = photo.lat != null && photo.lng != null;
+  const showMapBtn = fullHasGps || dayHasGps(photo);
+  const mapBtnLabel = fullHasGps ? '🗺 地図でこの場所を見る' : '🗺 この日の地図へ';
   const cap = document.createElement('div');
   cap.className = 'full-cap';
   cap.innerHTML =
     `<div class="dt">📅 ${dtStr}${srcTagHtml(photo)}<small>タップで日付をコピー</small></div>` +
     `<div class="full-actions">` +
+      (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '') +
       `<button class="to-photos">📷 写真アプリで開く</button>` +
       `<button class="fix-date">📅 日付を直す</button>` +
     `</div>` +
@@ -1494,6 +1499,13 @@ function showFullImage(photo) {
     try { await navigator.clipboard.writeText(dOnly); if ($small) $small.textContent = `「${dOnly}」をコピー`; }
     catch { if ($small) $small.textContent = '長押しでコピー'; }
   });
+  // v79: 🗺 地図へ。地図 overlay (z 150) はフル画像 (z 2000) より背面なので、先にフル画像を閉じる。
+  if (showMapBtn) {
+    cap.querySelector('.to-map').addEventListener('click', () => {
+      closeFullImage();
+      openMapView(photo);
+    });
+  }
   cap.querySelector('.to-photos').addEventListener('click', () => {
     // 写真アプリを開く (非公式スキーム、特定写真までは飛べない)。開けなければ無反応。
     try { window.location.href = 'photos-redirect://'; } catch {}
@@ -1614,6 +1626,14 @@ function segmentByGap(gpsPhotos, gapMs) {
 }
 // 写真の暦日キー (色を日ごとに変える判定に使う)。
 function dayKeyOf(p) { const d = p.datetime; return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
+// v79: その写真と「同じ日」に GPS のある写真が1枚でもあるか。
+// = 位置情報のないこの写真でも「その日の地図」に飛ぶ価値があるか
+//   (軌跡があれば v74 でこの写真も時刻位置に推定配置される)。自分自身が GPS 持ちでも true。
+function dayHasGps(p) {
+  if (!p || !p.datetime) return false;
+  const k = dayKeyOf(p);
+  return allPhotos.some(q => visible(q) && q.lat != null && q.lng != null && dayKeyOf(q) === k);
+}
 
 // ════════════════════════════════════════════════════════════
 // 位置ロガー (v73)
@@ -3163,11 +3183,13 @@ function render() {
     // 中心カードは tap action なし、長押しでフル画像のみ
     attachPhotoGestures(centerEl, center, null);
     centerEl.appendChild(makeExcludeBtn(center));
-    // GPS があれば「地図でこの場所を見る」導線 (連想ウォークの写真 → その地図ピンへ飛ぶ)。
-    if (center.lat != null && center.lng != null) {
+    // 地図への導線。GPS があれば「その場所」へ。GPS が無くても、その日に GPS 写真が
+    // あれば「その日の地図」へ飛べる (v74 でこの写真も軌跡上の時刻位置に推定配置される)。v79
+    const centerHasGps = center.lat != null && center.lng != null;
+    if (centerHasGps || dayHasGps(center)) {
       const mapBtn = document.createElement('button');
       mapBtn.className = 'center-map-btn';
-      mapBtn.textContent = '🗺 地図でこの場所を見る';
+      mapBtn.textContent = centerHasGps ? '🗺 地図でこの場所を見る' : '🗺 この日の地図へ';
       const stop = e => e.stopPropagation();   // 長押し(フル画像)/カードのジェスチャと衝突させない
       mapBtn.addEventListener('pointerdown', stop);
       mapBtn.addEventListener('pointerup', stop);
