@@ -5,6 +5,26 @@
 
 ---
 
+## v78 — Capacitor 足場（Phase 1 着手・native プロジェクト化の最初の一歩） (2026-06-18)
+
+**背景**
+- native GO の Phase 1。Apple 承認待ちと並行で、このリポを Capacitor でビルド可能な土台にする。「いきなり綺麗にしない」方針（CLAUDE/TODO）に従い、既存 index.html を webview にそのまま乗せる**足場だけ**先に作る（写真全件/SQLite 置換はまだ）。
+
+**設計判断**
+- **GitHub Pages を壊さない構造**: web 本体（`index.html` / `vendor/` / `privacy.html`）は**ルートのまま**（Pages URL 維持＝実機 web 確認の運用を死守）。Capacitor の `webDir` は **`www/`**（生成物・gitignore）にし、`scripts/sync-web.mjs` でルート→www へコピーしてから `cap sync/copy`。www を別フォルダにした理由＝webDir=ルートだと node_modules / ios / docs まで native バンドルに混ざるため。
+- **appId = `io.github.yutsutke.madeleine`**（英語ブランド Madeleine ＋ GitHub 由来の逆ドメイン・parked madeleine と継続）。**App Store 初回申請まで変更可**。
+- **appName = `Madeleine`**（Xcode プロジェクト名は ASCII が安全。日本語表示名「あの日」は Info.plist ローカライズで後付け＝Phase 1 i18n）。
+- **`cap add ios` は今やらない**: CocoaPods（pod install）が Mac 必須で Windows では半端になる → ios/ 生成は Codemagic/Mac（最初の1ビルド時）に回す。「整理の順番」①最初の1ビルドを TestFlight に合流。
+- Capacitor **8.4.0**（core / ios / cli）。`backgroundColor=#111111` で起動時の白フラッシュ回避（アプリのダーク基調に合わせる）。
+
+**結果 / 観察**
+- preview/CLI 検証: `npm run sync:web` で www/ に index.html+privacy.html+vendor 一式が生成、`npx cap --version`=8.4.0、`npx cap ls`=config 読み込み OK（native platform 未追加）。**index.html は無変更につき BUILD は phase3.28 据え置き**（web アプリ自体は変えていない＝足場のみ）。
+
+**残課題 / 次の方向**
+- iOS プラットフォーム生成（`cap add ios`）＋ Info.plist 用途文言（写真/位置）＝Mac/Codemagic 環境で。Apple 有効化後に「最初の1ビルド→TestFlight」（今のコードで・パイプライン de-risk）。その後 web ハック撤去→ネイティブ写真全件/SQLite。
+
+---
+
 ## v77 — CDN を vendoring（exifr/heic2any/fflate/Leaflet をローカル同梱） (2026-06-17)
 
 **背景**

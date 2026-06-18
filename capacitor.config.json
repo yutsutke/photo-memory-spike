@@ -1,0 +1,10 @@
+{
+  "appId": "io.github.yutsutke.madeleine",
+  "appName": "Madeleine",
+  "webDir": "www",
+  "backgroundColor": "#111111",
+  "ios": {
+    "backgroundColor": "#111111",
+    "contentInset": "always"
+  }
+}

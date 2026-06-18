@@ -4,3 +4,14 @@ node_modules/
 *.log
 .vscode/
 .idea/
+
+# Capacitor / native (v78〜)
+# webDir = scripts/sync-web.mjs が生成するビルド成果物
+www/
+# CocoaPods（CI/Mac で pod install）
+ios/App/Pods/
+# cap copy が同期する web（生成物）
+ios/App/App/public/
+ios/App/App/Pods/
+DerivedData/
+*.xcuserstate
