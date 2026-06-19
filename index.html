@@ -359,7 +359,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.35 (地図の入口操作 🎲/📆/↩︎ をアイコンのみに簡素化) · 2026-06-19';
+const BUILD = 'phase3.36 (地図のベースタイル選択を記憶＝前回の地図で開く) · 2026-06-19';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1903,9 +1903,22 @@ async function openMapView(focusPhoto) {
     maxZoom: 19, attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> &copy; <a href='https://carto.com/attributions'>CARTO</a>" });
   const gsiStd = L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", { maxZoom: 18, attribution: GSI_ATTR });
   const gsiPale = L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", { maxZoom: 18, attribution: GSI_ATTR });
-  const map = L.map('mapEl', { layers: [dark], zoomControl: false }).setView([36.2, 138.2], 5);  // 既定: 日本全体
+  // ベースタイルの選択を記憶 (v86): 前回選んだ地図 (例: 地理院 淡色) で開く。未選択は既定=ダーク。
+  const BASE_LAYERS = [
+    { key: 'dark',    name: 'ダーク',       layer: dark },
+    { key: 'gsiStd',  name: '地理院(標準)', layer: gsiStd },
+    { key: 'gsiPale', name: '地理院(淡色)', layer: gsiPale },
+  ];
+  let savedLayerKey = null; try { savedLayerKey = localStorage.getItem('pms-mapLayer'); } catch {}
+  const initialBase = BASE_LAYERS.find(b => b.key === savedLayerKey) || BASE_LAYERS[0];
+  const map = L.map('mapEl', { layers: [initialBase.layer], zoomControl: false }).setView([36.2, 138.2], 5);  // 既定: 日本全体・前回のタイル
   L.control.zoom({ position: 'bottomleft' }).addTo(map);
-  L.control.layers({ 'ダーク': dark, '地理院(標準)': gsiStd, '地理院(淡色)': gsiPale }, null, { position: 'topright' }).addTo(map);
+  const layersForCtrl = {}; for (const b of BASE_LAYERS) layersForCtrl[b.name] = b.layer;
+  L.control.layers(layersForCtrl, null, { position: 'topright' }).addTo(map);
+  map.on('baselayerchange', (e) => {   // 選んだタイルを保存 → 次回その地図で開く
+    const b = BASE_LAYERS.find(x => x.name === e.name);
+    if (b) { try { localStorage.setItem('pms-mapLayer', b.key); } catch {} }
+  });
 
   // 表示する「日」を入り口で決める。pickDays = 表示する暦日キーの配列 (ヘッダ=ランダム3日 / 写真=その日)、null=従来の期間ブラウズ。
   // focusedDay = 1本の軌跡をタップした時、その日以外を暗くするための注目日。

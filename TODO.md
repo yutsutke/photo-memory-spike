@@ -13,13 +13,14 @@
 
 ---
 
-## 現在地 — BUILD: phase3.35 (地図の入口操作 🎲/📆/↩︎ をアイコンのみに簡素化＝v85)
+## 現在地 — BUILD: phase3.36 (地図のベースタイル選択を記憶＝前回の地図で開く＝v86)
 
 > ### 📍 次セッションの再開ポイント（2026-06-19 更新・まずここを読む）
 > **2026-06-19 やったこと**: 🆕 **v79→v80→v81 = 写真ページ（連想ウォークの中心カード／フル画像）から、位置情報が無くても「🗺 この日の地図へ」で日時からその日の地図に飛べる**（GPS ありは従来「🗺 地図でこの場所を見る」）。v79 は「同じ日に GPS 写真がある時だけ」出す仕様だったが、実機でユーザーが「見つからない」（対象の日が GPS 皆無だった）→ **v80 でゲート撤去・日時さえあれば常に出す**（GPS 皆無の日でも飛べる・飛び先はその日のタイムライン索引・エラーなし）。日時不明の写真のみ非表示。**v81 = no-GPS ボタン直下に注意書き**（飛び先に軌跡が無い時の期待値合わせ・GPS ありには出さない）→ **v82 = その注意書きを「次の一手＝想起のきっかけ」まで拡張**「位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。」（タイムライン確認→位置を直す＝[[editing-triggers-reminiscence]] へ誘導）。
 > **v83 = ヘッダ 🗺 ＝「今日（On This Day・数年分の同じ月日を重ねる）」を毎日の習慣入口に**（例: 今日 6/19 → 2026/6/19・2025/6/19・2023/6/19… 写真がある年だけ昔→今で重ねる＝核②久しぶり×習慣）。既定を `today` に変更し、従来の偶然ランダム3日（核①偶然）は**地図内の🎲に退避**（コントロール＝🎲偶然の3日 / 📆今日 / ↩︎全部・地図を閉じず往復可）。今日の写真ゼロは偶然3日→ブラウズに二段フォールバック。**実機で強い YES**「線が無くてもタイムラインに数年分出るだけで時間の経過を感じ心が動く」（[[on-this-day-daily-entry]]）。
 > **v84 = トップ画面に「過去の今日」フィルタチップ**（全期間→過去の今日→この時季→…）。`pickPool('today')`＝今日とちょうど同じ月日（年問わず・地図 🗺 today と同条件）。チップから引く／🗺 で重ねて地図化、の対。preview E2E green・**チップから引く実機手触りは未確認**。
-> **v85 = 地図入口の 🎲偶然3日 / 📆今日 / ↩︎全部 を「アイコンのみ」に簡素化**（情報過多→[[ui-minimalism-works]]。説明は title と、タイムライン上部の見出し「📆今日 M/D（N年分）」に一本化）。preview E2E green。詳細 CHANGELOG v79–v85・memory [[on-this-day-daily-entry]]。
+> **v85 = 地図入口の 🎲偶然3日 / 📆今日 / ↩︎全部 を「アイコンのみ」に簡素化**（情報過多→[[ui-minimalism-works]]。説明は title と、タイムライン上部の見出し「📆今日 M/D（N年分）」に一本化）。
+> **v86 = 地図のベースタイル選択を記憶**（前回選んだ地図で開く・`localStorage['pms-mapLayer']`・`baselayerchange` で保存／未保存は既定ダーク）。毎日の入口の習慣摩擦を削減。preview E2E green。詳細 CHANGELOG v79–v86・memory [[on-this-day-daily-entry]]。
 > **2026-06-18 やったこと**: ① Apple Developer **登録を申込・支払い済み**（既存 Apple ID 使用・注文 W1884878174・12,980円・**有効化待ち**）② アプリ名を **あの日（🇯🇵）／ Madeleine（🇬🇧 ブランド据え置き）** に改名（web `index.html`・Notion WHY/HOW・DOCMAP・memory 全整合／英語タグライン「A Certain Day: Revived through Photographs and Footprints」確定＝v76）③ **CDN vendoring**（exifr/heic2any/fflate/Leaflet→`vendor/`＝v77）④ **プライバシーポリシー 日英**（`privacy.html`・連絡先 Tanaka Yusuke / yutsutke@gmail.com）⑤ **Capacitor 足場**（8.4.0・appId `io.github.yutsutke.madeleine`・webDir `www`・`scripts/sync-web.mjs`・GitHub Pages はルート据え置き＝v78）。
 > **唯一のブロッカー＝Apple メンバーシップの有効化待ち**（承認されると確認メール → [App Store Connect](https://appstoreconnect.apple.com) が使えるようになる）。2026-06-19 時点で**有効化メールはまだ届いていない**（Gmail 確認済み・申込時の注文/請求メールのみ）。
 > **▶ 次の一手（有効化メールが来たら、この順で私が案内）**: (1) App Store Connect にサインインできるか確認 → (2) **Apple Small Business Program 申請**（手数料15%）→ (3) **Codemagic 接続**（App Store Connect API キー Issuer ID / Key ID 発行 → 証明書を自動生成・Mac 不要）→ (4) **`cap add ios`（CI/Mac で `pod install`）＋ Info.plist 用途文言**（写真/位置）→ (5) **最初の1ビルドを TestFlight へ**（今のコードで・パイプライン de-risk＝「整理の順番」①）。
