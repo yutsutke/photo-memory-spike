@@ -202,6 +202,7 @@
   .map-ctrlbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 96vw; }
   .mc-btn { background: rgba(0,0,0,0.72); color: #ddd; border: 1px solid #444; border-radius: 999px; padding: 7px 13px; font-size: 12px; white-space: nowrap; cursor: pointer; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
   .mc-btn:active { background: #000; }
+  .mc-btn.mc-icon { padding: 6px 11px; font-size: 17px; line-height: 1; }   /* 入口の 🎲/📆/↩︎ はアイコンのみ (情報量を抑える) */
   .mc-btn.on { color: #6ee0a3; border-color: #2a6; }
   .mc-btn.open { background: #222; border-color: #777; }
   .mc-pop { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); z-index: 1250; width: min(300px, 92vw); background: #1b1b1b; border: 1px solid #444; border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); }
@@ -358,7 +359,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.34 (トップに「過去の今日」フィルタチップを追加) · 2026-06-19';
+const BUILD = 'phase3.35 (地図の入口操作 🎲/📆/↩︎ をアイコンのみに簡素化) · 2026-06-19';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1885,7 +1886,7 @@ async function openMapView(focusPhoto) {
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
     `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcMore">⋯ 表示</button>` +
-      `<button class="mc-btn" id="mcRoll" hidden>🎲 もう一度引く</button><button class="mc-btn" id="mcToday" hidden>📆 今日</button><button class="mc-btn" id="mcAll" hidden>↩︎ 全部を見る</button></div>` +
+      `<button class="mc-btn mc-icon" id="mcRoll" hidden title="偶然の3日">🎲</button><button class="mc-btn mc-icon" id="mcToday" hidden title="今日（数年分）">📆</button><button class="mc-btn mc-icon" id="mcAll" hidden title="全部を見る">↩︎</button></div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopMore" hidden></div>` +
     `<div class="mc-pop" id="mcPopSeal" hidden></div>` +
@@ -2198,9 +2199,10 @@ async function openMapView(focusPhoto) {
     const entry = (m === 'random3' || m === 'day' || m === 'today');   // 'today' も入口モード (v83)
     elFilterBtn.style.display = entry ? 'none' : '';
     elMoreBtn.style.display   = entry ? 'none' : '';
-    // 入口モードでは 🎲偶然3日 / 📆今日 / ↩︎全部 を出す。🎲 は random3 中だけ「もう一度引く」。
+    // 入口モードでは 🎲偶然3日 / 📆今日 / ↩︎全部 をアイコンのみで並べる (情報量を抑える)。
+    // 🎲 は random3 中だけ「もう一度引く」の意味になる → title だけ切替 (アイコンは据え置き)。
     mcRoll.hidden = !entry;
-    mcRoll.textContent = (m === 'random3') ? '🎲 もう一度引く' : '🎲 偶然の3日';
+    mcRoll.title = (m === 'random3') ? 'もう一度引く' : '偶然の3日';
     mcToday.hidden = !entry || !hasTodayPhotos;
     mcAll.hidden   = !entry;
   }
