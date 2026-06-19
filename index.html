@@ -358,7 +358,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.31 (「この日の地図へ」に飛び先の注意書きを添える) · 2026-06-19';
+const BUILD = 'phase3.32 (注意書きに「タイムラインで並びを見る/位置を直す=想起」を追記) · 2026-06-19';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1487,7 +1487,7 @@ function showFullImage(photo) {
       `<button class="fix-date">📅 日付を直す</button>` +
     `</div>` +
     // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
-    ((showMapBtn && !fullHasGps) ? `<div class="de-hint map-hint">位置のある写真が無い日でも、その日の写真一覧が開きます</div>` : '') +
+    ((showMapBtn && !fullHasGps) ? `<div class="de-hint map-hint">位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。</div>` : '') +
     `<div class="date-editor" hidden>` +
       `<input type="datetime-local" class="de-input">` +
       `<div class="de-actions"><button class="de-cancel">キャンセル</button><button class="de-save">保存</button></div>` +
@@ -3196,7 +3196,7 @@ function render() {
       if (!centerHasGps) {
         const hint = document.createElement('div');
         hint.className = 'center-map-hint';
-        hint.textContent = '位置のある写真が無い日でも、その日の写真一覧が開きます';
+        hint.textContent = '位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。';
         centerEl.querySelector('.meta').appendChild(hint);
       }
     }
