@@ -13,10 +13,10 @@
 
 ---
 
-## 現在地 — BUILD: phase3.29 (写真ページから位置情報なしでも日時で「その日の地図」へ＝v79)
+## 現在地 — BUILD: phase3.30 (「この日の地図へ」を位置情報なし写真に常時表示＝v80)
 
 > ### 📍 次セッションの再開ポイント（2026-06-19 更新・まずここを読む）
-> **2026-06-19 やったこと**: 🆕 **v79 = 写真ページ（連想ウォークの中心カード／フル画像）から、位置情報が無くても「🗺 この日の地図へ」で日時からその日の地図に飛べる**（GPS ありは従来「🗺 地図でこの場所を見る」）。条件＝同じ日に GPS 写真が1枚でもある時だけ導線を出す（`dayHasGps`）。飛び先で v74 が GPS 無し写真を軌跡上の時刻位置に推定配置。preview E2E green・**実機未確認**。詳細 CHANGELOG v79。
+> **2026-06-19 やったこと**: 🆕 **v79→v80 = 写真ページ（連想ウォークの中心カード／フル画像）から、位置情報が無くても「🗺 この日の地図へ」で日時からその日の地図に飛べる**（GPS ありは従来「🗺 地図でこの場所を見る」）。v79 は「同じ日に GPS 写真がある時だけ」出す仕様だったが、実機でユーザーが「見つからない」（対象の日が GPS 皆無だった）→ **v80 でゲート撤去・日時さえあれば常に出す**（GPS 皆無の日でも飛べる・飛び先はその日のタイムライン索引・エラーなし）。日時不明の写真のみ非表示。preview E2E green・**実機の想起手触りは未確認**。詳細 CHANGELOG v79–v80。
 > **2026-06-18 やったこと**: ① Apple Developer **登録を申込・支払い済み**（既存 Apple ID 使用・注文 W1884878174・12,980円・**有効化待ち**）② アプリ名を **あの日（🇯🇵）／ Madeleine（🇬🇧 ブランド据え置き）** に改名（web `index.html`・Notion WHY/HOW・DOCMAP・memory 全整合／英語タグライン「A Certain Day: Revived through Photographs and Footprints」確定＝v76）③ **CDN vendoring**（exifr/heic2any/fflate/Leaflet→`vendor/`＝v77）④ **プライバシーポリシー 日英**（`privacy.html`・連絡先 Tanaka Yusuke / yutsutke@gmail.com）⑤ **Capacitor 足場**（8.4.0・appId `io.github.yutsutke.madeleine`・webDir `www`・`scripts/sync-web.mjs`・GitHub Pages はルート据え置き＝v78）。
 > **唯一のブロッカー＝Apple メンバーシップの有効化待ち**（承認されると確認メール → [App Store Connect](https://appstoreconnect.apple.com) が使えるようになる）。2026-06-19 時点で**有効化メールはまだ届いていない**（Gmail 確認済み・申込時の注文/請求メールのみ）。
 > **▶ 次の一手（有効化メールが来たら、この順で私が案内）**: (1) App Store Connect にサインインできるか確認 → (2) **Apple Small Business Program 申請**（手数料15%）→ (3) **Codemagic 接続**（App Store Connect API キー Issuer ID / Key ID 発行 → 証明書を自動生成・Mac 不要）→ (4) **`cap add ios`（CI/Mac で `pod install`）＋ Info.plist 用途文言**（写真/位置）→ (5) **最初の1ビルドを TestFlight へ**（今のコードで・パイプライン de-risk＝「整理の順番」①）。
