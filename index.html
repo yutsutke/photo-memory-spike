@@ -358,7 +358,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.33 (🗺=今日：数年分の同じ月日を重ねて表示・毎日の入口) · 2026-06-19';
+const BUILD = 'phase3.34 (トップに「過去の今日」フィルタチップを追加) · 2026-06-19';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -875,6 +875,7 @@ function meaningNeighbors(center, all, limit) {
 // ============================================================
 const FILTERS = [
   { key: 'all',      label: '全期間' },
+  { key: 'today',    label: '過去の今日' },        // 今日と同じ月日 (年問わず) = On This Day。地図 🗺 の today と対 (v84)
   { key: 'season',   label: 'この時季' },
   { key: '3m',       label: '3ヶ月前' },
   { key: '1y',       label: '1年前' },
@@ -914,6 +915,10 @@ function pickPool(filterKey, all) {
   if (!filterKey || filterKey === 'all') return all;
   const now = new Date();
 
+  if (filterKey === 'today') {
+    // 今日とちょうど同じ月日 (年は問わない) = 過去の今日 / On This Day。'season' より精密な記念日プール。
+    return all.filter(p => p.datetime.getMonth() === now.getMonth() && p.datetime.getDate() === now.getDate());
+  }
   if (filterKey === 'season') {
     // 今の MM/DD ±15日 (年は問わない)
     return all.filter(p => monthDayDistance(p.datetime, now) <= 15);
