@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <!-- spike 中は HTML を毎回フレッシュに取りたい (iOS Safari の HTML キャッシュ対策) -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -217,6 +217,8 @@
   .mc-pop-btn:active { opacity: 0.8; }
   .mc-pop-status { font-size: 11px; color: #6ee0a3; margin-top: 8px; min-height: 1.2em; }
   .mc-pop-hint { font-size: 10px; color: #666; margin-top: 10px; line-height: 1.5; }
+  .mc-help-row { font-size: 12px; color: #ccc; padding: 6px 0; line-height: 1.45; display: flex; gap: 9px; align-items: baseline; }
+  .mc-help-row b { flex: 0 0 auto; min-width: 30px; color: #fff; font-weight: 600; }
   .mc-menu-item { display: block; width: 100%; text-align: left; padding: 11px 12px; margin: 6px 0; border: 1px solid #444; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 13px; cursor: pointer; }
   .mc-menu-item:active { background: #000; }
   .lc-chip { flex: 0 0 auto; padding: 6px 12px; border: 1px solid #444; border-radius: 999px; background: transparent; color: #bbb; font-size: 12px; white-space: nowrap; cursor: pointer; }
@@ -258,12 +260,13 @@
   .marker-popup .mp-walk { margin-top: 8px; width: 100%; padding: 8px; border: 0; border-radius: 8px; background: #2a6; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
 
   /* タイムライン シート (モバイル=下部から引き出す / PC=右サイドバー) */
-  .timeline-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; background: #161616; border-top: 1px solid #333; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; max-height: 78vh; transform: translateY(calc(100% - 46px)); transition: transform 0.25s ease; }
+  /* 折りたたみ時はハンドルだけ覗かせる。iOS の下端帯(ホームインジケータ)に隠れて掴めないのを防ぐため safe-area 分持ち上げる (v88) */
+  .timeline-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; background: #161616; border-top: 1px solid #333; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; max-height: 78vh; transform: translateY(calc(100% - 54px - env(safe-area-inset-bottom))); transition: transform 0.25s ease; }
   .timeline-sheet.open { transform: translateY(0); }
-  .sheet-handle { flex: 0 0 auto; height: 46px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; user-select: none; }
-  .sheet-grip { width: 36px; height: 4px; border-radius: 2px; background: #555; }
-  .sheet-title { font-size: 12px; color: #aaa; }
-  .sheet-body { flex: 1 1 auto; overflow-y: auto; padding: 2px 12px 16px; -webkit-overflow-scrolling: touch; }
+  .sheet-handle { flex: 0 0 auto; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; cursor: pointer; user-select: none; background: #1c1c1c; border-radius: 14px 14px 0 0; }
+  .sheet-grip { width: 44px; height: 5px; border-radius: 3px; background: #888; }
+  .sheet-title { font-size: 12px; color: #cfcfcf; font-weight: 600; }
+  .sheet-body { flex: 1 1 auto; overflow-y: auto; padding: 2px 12px calc(16px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; }
   /* 日付/期間フィルタのバー (タイムライン先頭に固定) */
   .tl-filterbar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; margin: 0 -12px 2px; background: #1b1b1b; border-bottom: 1px solid #2a2a2a; }
   .tl-filterbar .fb-text { font-size: 12px; color: #ccc; font-weight: 600; }
@@ -359,7 +362,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.37 (地図 📆今日を◀▶で前後の日にずらす＝過去の昨日/明日/明後日) · 2026-06-22';
+const BUILD = 'phase3.38 (タイムライン下端ハンドルをsafe-area分持ち上げ＋ⓘアイコン説明) · 2026-06-22';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1886,10 +1889,11 @@ async function openMapView(focusPhoto) {
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
     `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcMore">⋯ 表示</button>` +
-      `<button class="mc-btn mc-icon" id="mcRoll" hidden title="偶然の3日">🎲</button><button class="mc-btn mc-icon" id="mcPrev" hidden title="前の日（過去の昨日…）">◀</button><button class="mc-btn mc-icon" id="mcToday" hidden title="今日（数年分）">📆</button><button class="mc-btn mc-icon" id="mcNext" hidden title="次の日（過去の明日…）">▶</button><button class="mc-btn mc-icon" id="mcAll" hidden title="全部を見る">↩︎</button></div>` +
+      `<button class="mc-btn mc-icon" id="mcRoll" hidden title="偶然の3日">🎲</button><button class="mc-btn mc-icon" id="mcPrev" hidden title="前の日（過去の昨日…）">◀</button><button class="mc-btn mc-icon" id="mcToday" hidden title="今日（数年分）">📆</button><button class="mc-btn mc-icon" id="mcNext" hidden title="次の日（過去の明日…）">▶</button><button class="mc-btn mc-icon" id="mcAll" hidden title="全部を見る">↩︎</button><button class="mc-btn mc-icon" id="mcHelp" title="アイコンの説明">ⓘ</button></div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopMore" hidden></div>` +
     `<div class="mc-pop" id="mcPopSeal" hidden></div>` +
+    `<div class="mc-pop" id="mcPopHelp" hidden></div>` +
     `<button class="map-close">✕ 閉じる</button>` +
     `<div class="timeline-sheet">` +
       `<div class="sheet-handle"><span class="sheet-grip"></span><span class="sheet-title">タイムライン</span></div>` +
@@ -2168,9 +2172,11 @@ async function openMapView(focusPhoto) {
   // 状態はタイムラインの日付タップとも共有 (どちらから絞っても applyFilter / mapState.range に集約)。
   const elFilterBtn = overlay.querySelector('#mcFilter');
   const elMoreBtn   = overlay.querySelector('#mcMore');
+  const elHelpBtn   = overlay.querySelector('#mcHelp');
   const popFilter   = overlay.querySelector('#mcPopFilter');
   const popMore     = overlay.querySelector('#mcPopMore');
   const popSeal     = overlay.querySelector('#mcPopSeal');
+  const popHelp     = overlay.querySelector('#mcPopHelp');
 
   const startOfDay = ms => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
   const endOfDay   = ms => startOfDay(ms) + 86400000 - 1;
@@ -2292,8 +2298,8 @@ async function openMapView(focusPhoto) {
   // ───────────────────────────────────────────────────────────────────
 
   function closePops() {
-    popFilter.hidden = true; popMore.hidden = true; popSeal.hidden = true;
-    elFilterBtn.classList.remove('open'); elMoreBtn.classList.remove('open');
+    popFilter.hidden = true; popMore.hidden = true; popSeal.hidden = true; popHelp.hidden = true;
+    elFilterBtn.classList.remove('open'); elMoreBtn.classList.remove('open'); elHelpBtn.classList.remove('open');
   }
   mapState.closePops = closePops;
 
@@ -2403,6 +2409,23 @@ async function openMapView(focusPhoto) {
     const willOpen = popMore.hidden;
     closePops();
     if (willOpen) { popMore.hidden = false; elMoreBtn.classList.add('open'); }
+  });
+
+  // ⓘ アイコンの説明 (v88): アイコンのみのコントロール (v85) は意味が分かりにくい、というユーザー指摘。
+  // 既定はアイコンだけのまま、説明は「押した時だけ開く」凡例に逃がす ([[ui-minimalism-works]] の「使う時だけ広がる」)。
+  popHelp.innerHTML =
+    `<div class="mc-pop-title">この画面のアイコン</div>` +
+    `<div class="mc-help-row"><b>📆</b><span>今日（数年分の同じ月日を重ねる）</span></div>` +
+    `<div class="mc-help-row"><b>◀ ▶</b><span>前後の日へ（過去の昨日・明日・明後日…）</span></div>` +
+    `<div class="mc-help-row"><b>🎲</b><span>偶然の3日（ランダムな3本の軌跡）</span></div>` +
+    `<div class="mc-help-row"><b>↩︎</b><span>全部を見る（全期間に戻る）</span></div>` +
+    `<div class="mc-help-row"><b>📅</b><span>期間でしぼる</span></div>` +
+    `<div class="mc-help-row"><b>⋯</b><span>表示の設定（自分の軌跡・記憶の封印）</span></div>`;
+  elHelpBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = popHelp.hidden;
+    closePops();
+    if (willOpen) { popHelp.hidden = false; elHelpBtn.classList.add('open'); }
   });
 
   // 🔒 封印パネル (v56): いま地図に見えている範囲 × 期間 を条件に封印 + 封印中の一覧/解除。
