@@ -13,7 +13,7 @@
 
 ---
 
-## 現在地 — BUILD: phase3.45 (v93：本命 B 第一歩＝自前 PhotoLibrary プラグイン[全件カウント即時＋オンデマンドサムネ]・Swift import＆SPM 名不一致(exit 74)を修正済み／Codemagic 再ビルド&実機テスト待ち)
+## 現在地 — BUILD: phase3.45 (v93：本命 B 第一歩＝自前 PhotoLibrary プラグインが実機で YES🎉 全件2054を180ms即時＋オンデマンドサムネ7ms/枚・A比約33倍速／次はアプリ本体への統合)
 
 > ### 📍 次セッションの再開ポイント（2026-06-26 セッション3 更新・まずここを読む）
 >
@@ -28,10 +28,11 @@
 >   - **2000枚を約6秒**取得・**日時 2000/2000**・GPS 215/2000・**範囲 2021/8〜2026/6（約5年分）**＝古い写真まで届く＝核「久しぶり」実証。300枚が9秒だったのは許可ダイアログ待ち込みで、2回目以降が真の速度＝十分速い。サムネ OS から描画 OK。プラグインは初回ビルドで一発配線（`platform: ios / Media: 検出 ✅`）。
 >   - **GPS は直近リッチ・古いほど希薄**（直近71%／全体11%）→ 古い写真は日時軸（100%）が普遍の頼り（On This Day・GPSなし写真の軌跡補完 v74-75 と整合）。
 >   - **ボトルネック①（写真全件）＋②（Mac なし署名・v91）が両方消えた＝native の二大リスク解消**。詳細 CHANGELOG v92・memory [[native-photo-access-works]]。
-> - **🧪 本命 B（自前 PhotoLibrary プラグイン）の第一歩を実装済み（v93）／実機テスト待ち**＝`local-plugins/photo-library`（`file:` 参照→`cap sync` が SPM 自動配線・ローカル `npx cap sync ios` で「Found 2 plugins」配線確認済み）。API＝`requestAccess`／`enumerate({limit})`（全件数は即時＋先頭メタ）／`thumbnail({id,size})`（1枚オンデマンド dataURL）。診断オーバーレイに B 列（③全件カウント＋メタ2000／④サムネ48枚オンデマンド）追加。Info.plist に `ITSAppUsesNonExemptEncryption=false`（暗号化質問スキップ）も同梱。
->   - **実機テスト手順**: Codemagic で Start new build → TestFlight 更新（BUILD `phase3.45`・**暗号化質問はもう出ないはず**）→ 🧪写真スパイク → **③** で `PhotoLibrary: 検出 ✅`＋全件数（A の上限超え）＋往復 ms 確認 → **④** でオンデマンドサムネが出るか・ms/枚 確認。
->   - **判定 (a)-(c)**: (a)PhotoLibrary プラグイン検出＝自前プラグインの CI 配線 OK か (b)enumerate の count が真の全件数で即時か (c)thumbnail のオンデマンドが動くか・1枚何 ms か。
->   - **OK なら次＝アプリ本体の取り込み動線に統合**（ピッカー→全ライブラリ／メタは IndexedDB→将来 SQLite／サムネはオンデマンド or キャッシュ／拡大は原寸）＝Phase 1 の本丸。診断 block は統合後に撤去。詳細 CHANGELOG v93。
+> - **✅ 本命 B（自前 PhotoLibrary プラグイン）の第一歩＝実機で YES（v93）**＝Mac なしで初の自前ネイティブコードがビルド・実機動作。`local-plugins/photo-library`（`file:`→cap sync が SPM 配線）／API＝`requestAccess`/`enumerate`/`thumbnail`。実機結果:
+>   - **③ 全件数 2054 枚を即時（往復180ms / native158ms）**＋メタ2000・日時2000/2000・GPS215/2000・範囲2021/8〜2026/6。**④ オンデマンドサムネ 48枚＝7ms/枚**。
+>   - **A 比＝約33倍速＋メモリ軽**（A は全サムネ base64 一括で約6秒／B は列挙とサムネを分離）。本命アーキの優位を実機確認。
+>   - **first-build の罠2つを解消**: SPM 名不一致（exit 74）→package/product/target 名を `PhotoLibrary` に統一／Swift import 漏れ→`UIKit`・`CoreLocation` 追加。教訓は CHANGELOG v93・memory [[native-photo-access-works]]。
+> - **🔴 次の本丸＝B をアプリ本体の取り込み動線に統合（Phase 1）**: ピッカー→全ライブラリ列挙／メタは IndexedDB→将来 SQLite／サムネはオンデマンド or キャッシュ／拡大は原寸／写真キーは UUID 維持（localIdentifier は属性）。診断 block（#spk-*）は統合後に撤去。提出時は Photos の Privacy Manifest（PrivacyInfo.xcprivacy）が要る見込み。
 > - **任意の後始末**: `Info.plist` に `ITSAppUsesNonExemptEncryption=false`（暗号化質問を恒久スキップ）／外部テストするなら Test Information 入力。
 > - **セッション開始時**: Gmail で Apple/App Store 関連を確認（[[session-start-gmail-check]]）。詳細は CHANGELOG v91。下は前セッション（セッション2＝v90）の記録。
 >

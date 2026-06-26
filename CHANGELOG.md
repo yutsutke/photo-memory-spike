@@ -23,11 +23,18 @@
 - **対処（fix・v93）**: プラグインの Package.swift の package 名・product 名・target 名を **`PhotoLibrary`** に統一（media が `CapacitorCommunityMedia` で名前一致させているのと同じ規約）。**教訓: ローカル plugin の Package.swift の名前は「npm 名から cap sync が導出する名前」に必ず一致させる**。ローカルで `npx cap sync ios` → 生成 `CapApp-SPM/Package.swift` の `.product(name:..., package:...)` を読んで一致確認するのが確実。
 - ローカル `cap sync ios` は Windows パスで `CapApp-SPM/Package.swift` を書く（Mac で無効）→ CI が再生成するので**この生成物はコミットしない**。`local-plugins/` 本体・`package.json`(file:)・`package-lock.json` はコミット必須。
 
-**結果 / 観察**
-- （実機ビルド・テスト待ち）。判定したいこと: **(a)** `PhotoLibrary` プラグインが検出されるか（自前プラグインの SPM 配線が CI で通るか） **(b)** `enumerate` の `count`（真の全件数）が A の上限を超えて即時に出るか・往復が速いか **(c)** `thumbnail` のオンデマンド生成が動くか・1枚あたり何 ms か。
+**結果 / 観察（実機 iPhone・B も強い YES）**
+- env: `PhotoLibrary(B): 検出 ✅` ／ `許可: authorized`（自前プラグインが CI で配線・登録され Swift もコンパイル＝**Mac なしで初の自前ネイティブコードがビルドに乗った**）。
+- **③ enumerate**: **全件数(即時) 2054 枚**（ピッカー無しの真の総数）＋先頭2000のメタを **往復 180ms / native内部 158ms**。日時 2000/2000・GPS 215/2000・範囲 2021/8/5〜2026/6/26。
+- **④ thumbnail（オンデマンド）**: 48/48 枚を **341ms＝7ms/枚**。サムネ描画 OK。
+- **A 比（同規模 約2000枚）**: A は「全サムネ base64 一括」で約6000ms。B は**全件カウント＋2000メタが180ms＝約33倍速**、しかもサムネは要る分だけ7ms/枚＝**メモリも軽い**。「列挙(メタ)とサムネ生成を分離」する本命アーキの優位を実機で確認。
+
+**教訓**
+- 自前 Capacitor プラグインの first-build 失敗は2種に切り分ける: ①`showBuildSettings`/exit 74＝**SPM 配線**（package/product 名を cap sync 導出名に一致）②`error:` 行＝**Swift コンパイル**。ローカル `cap sync ios`（①の名前一致）＋目視レビューで import 確認（②）を push 前にやると、高コストな実機ビルドを節約できた（今回 2サイクルで配線確立）。
+- B の本質的優位＝**列挙(メタ)とサムネ生成の分離**。A は両者が密結合で全件 base64＝スケールに弱い。
 
 **残課題 / 次の方向**
-- B 版 API が実機 OK なら、**アプリ本体の取り込み動線に統合**（ピッカー→全ライブラリ列挙へ・メタは IndexedDB→将来 SQLite・サムネはオンデマンド or キャッシュ・拡大は原寸）＝Phase 1 の本丸。
+- B 版 API は実機 OK（v93・第一歩完了）。次は **アプリ本体の取り込み動線に統合**（ピッカー→全ライブラリ列挙へ・メタは IndexedDB→将来 SQLite・サムネはオンデマンド or キャッシュ・拡大は原寸）＝Phase 1 の本丸。
 - 写真キーは OS の localIdentifier を直接 DB キーにせず UUID 維持（機種変更耐性・Notion §⑥）＝localIdentifier はメタの一属性として保持。
 - 最終提出時は Photos アクセスの Privacy Manifest（PrivacyInfo.xcprivacy）が要る見込み（TestFlight は警告止まりで通る）。
 - 診断 block は本体統合が済んだら撤去。memory [[native-photo-access-works]]。
