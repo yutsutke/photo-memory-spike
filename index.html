@@ -362,7 +362,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.42 (native 写真全件アクセスの最小スパイク: @capacitor-community/media で件数/サムネ/EXIF を実機診断・web は無影響) · 2026-06-26';
+const BUILD = 'phase3.43 (B: 自前 PhotoLibrary プラグイン＝全件カウント即時＋オンデマンドサムネ・診断に③④追加／Info.plist で暗号化質問を恒久スキップ) · 2026-06-26';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -4235,6 +4235,10 @@ async function loadRestInBackground() {
   #spk-overlay.show{display:block;}
   #spk-overlay h2{font-size:16px;margin:0 0 10px;}
   #spk-overlay .row{margin:6px 0;}
+  #spk-overlay .spk-sec{color:#b9a7e0;font-weight:600;margin-top:14px;
+    border-top:1px solid #2a2a35;padding-top:10px;}
+  #spk-statB{white-space:pre-wrap;background:#15151c;border-radius:8px;
+    padding:10px;margin:8px 0;font:12px/1.5 ui-monospace,monospace;}
   #spk-overlay button{font:600 14px system-ui;color:#fff;background:#6b4ea0;
     border:none;border-radius:8px;padding:11px 14px;margin:6px 8px 6px 0;}
   #spk-overlay #spk-close{background:#333;}
@@ -4258,6 +4262,10 @@ async function loadRestInBackground() {
   // Media プラグインの取得（Plugins 経由 or registerPlugin のどちらでも拾えるよう二段構え）
   var Media = (Cap.Plugins && Cap.Plugins.Media) ||
               (typeof Cap.registerPlugin === 'function' ? Cap.registerPlugin('Media') : null);
+  // 自前 PhotoLibrary プラグイン（Approach B）
+  var PL = (Cap.Plugins && Cap.Plugins.PhotoLibrary) ||
+           (typeof Cap.registerPlugin === 'function' ? Cap.registerPlugin('PhotoLibrary') : null);
+  var lastBItems = [];   // B③ enumerate の結果（B④ サムネ用に id を保持）
 
   function plat(){ try { return Cap.getPlatform ? Cap.getPlatform() : '?'; } catch(e){ return '?'; } }
   function fmtDate(s){ if(!s) return '日時なし';
@@ -4279,19 +4287,29 @@ async function loadRestInBackground() {
   ov.innerHTML =
     '<h2>🧪 写真全件アクセス 診断</h2>' +
     '<div class="row" id="spk-env"></div>' +
+    '<div class="row"><button id="spk-close">閉じる</button></div>' +
+    '<div class="spk-sec">— A：コミュニティ媒体プラグイン（全サムネ base64 一括）—</div>' +
     '<div class="row">' +
-      '<button id="spk-run300">① まず 300枚で確認</button>' +
-      '<button id="spk-run2000">② 大量 2000枚で確認</button>' +
-      '<button id="spk-close">閉じる</button>' +
+      '<button id="spk-run300">① 300枚</button>' +
+      '<button id="spk-run2000">② 2000枚</button>' +
     '</div>' +
-    '<div id="spk-stat">（①か②を押すと結果が出ます。許可ダイアログが出たら「すべての写真へのアクセスを許可」を選んでください）</div>' +
+    '<div id="spk-stat">（A の①②、または B の③④を押すと結果。許可ダイアログは「すべての写真へのアクセスを許可」を選ぶ）</div>' +
+    '<div class="spk-sec">— B：自前 PhotoLibrary（全件カウント即時＋サムネはオンデマンド）—</div>' +
+    '<div class="row">' +
+      '<button id="spk-runB1">③ 全件カウント＋メタ2000</button>' +
+      '<button id="spk-runB2">④ サムネ48枚をオンデマンド</button>' +
+    '</div>' +
+    '<div id="spk-statB">（③＝全件数を即時に＋先頭2000のメタ／④＝③の先頭48枚をオンデマンド生成）</div>' +
     '<div id="spk-grid"></div>';
   document.body.appendChild(ov);
 
   var statEl = ov.querySelector('#spk-stat');
+  var statBEl = ov.querySelector('#spk-statB');
   var gridEl = ov.querySelector('#spk-grid');
   ov.querySelector('#spk-env').textContent =
-    'platform: ' + plat() + ' / Media プラグイン: ' + (Media ? '検出 ✅' : '未検出 ❌（cap sync 要）');
+    'platform: ' + plat() +
+    ' / Media(A): ' + (Media ? '検出 ✅' : '未検出 ❌') +
+    ' / PhotoLibrary(B): ' + (PL ? '検出 ✅' : '未検出 ❌（cap sync 要）');
 
   fab.addEventListener('click', function(){ ov.classList.add('show'); });
   ov.querySelector('#spk-close').addEventListener('click', function(){ ov.classList.remove('show'); });
@@ -4346,6 +4364,77 @@ async function loadRestInBackground() {
   }
   ov.querySelector('#spk-run300').addEventListener('click', function(){ run(300); });
   ov.querySelector('#spk-run2000').addEventListener('click', function(){ run(2000); });
+
+  // ===== B：自前 PhotoLibrary プラグイン =====
+  var nowMs = function(){ return (window.performance && performance.now) ? performance.now() : Date.now(); };
+
+  // ③ 全件メタ列挙（カウントは即時・サムネ含まず）
+  async function runB1(){
+    gridEl.innerHTML = '';
+    if(!PL){ statBEl.textContent = '❌ PhotoLibrary プラグイン未検出。Codemagic の cap sync が走ったか確認。'; return; }
+    statBEl.textContent = '⏳ requestAccess → enumerate(limit=2000) 実行中…';
+    var t0 = nowMs();
+    try{
+      var acc = await PL.requestAccess();
+      var res = await PL.enumerate({ limit: 2000 });
+      var dt = Math.round(nowMs() - t0);
+      var items = (res && res.items) || [];
+      lastBItems = items;
+      var gps = 0, withDate = 0, dates = [];
+      for(var i=0;i<items.length;i++){
+        var it = items[i];
+        if(typeof it.lat === 'number') gps++;
+        if(it.date){ withDate++; dates.push(it.date); }
+      }
+      dates.sort();
+      var range = dates.length ? (fmtDate(dates[0]) + ' 〜 ' + fmtDate(dates[dates.length-1])) : '—';
+      statBEl.textContent =
+        '✅ 許可: ' + ((acc && acc.status) || '?') + '\n' +
+        '・全件数(即時): ' + (res && res.count) + ' 枚  ← ピッカー無しの真の総数\n' +
+        '・返したメタ: ' + items.length + ' 件  （往復 ' + dt + ' ms / native内部 ' + (res && res.ms) + ' ms）\n' +
+        '・日時あり: ' + withDate + ' / ' + items.length + '\n' +
+        '・GPSあり : ' + gps + ' / ' + items.length + '\n' +
+        '・日時レンジ: ' + range + '\n' +
+        '→ ④で先頭48件のサムネをオンデマンド生成';
+    }catch(err){
+      statBEl.textContent = '❌ enumerate エラー: ' + ((err && (err.message || err.errorMessage)) || String(err)) +
+        '\n許可が「選択した写真のみ」だと件数が減ります（設定→あの日→写真→すべての写真）。';
+    }
+  }
+
+  // ④ 先頭48件のサムネをオンデマンド生成（1枚ずつ＝本命の遅延ロードの型）
+  async function runB2(){
+    if(!PL){ statBEl.textContent = '❌ PhotoLibrary プラグイン未検出。'; return; }
+    if(!lastBItems.length){ statBEl.textContent = '先に「③ 全件カウント」を押してください（id 一覧が要る）。'; return; }
+    gridEl.innerHTML = '';
+    var lim = Math.min(48, lastBItems.length);
+    statBEl.textContent = '⏳ サムネ ' + lim + '枚をオンデマンド生成中…';
+    var imgs = [], frag = document.createDocumentFragment();
+    for(var j=0;j<lim;j++){
+      var it = lastBItems[j];
+      var fig = document.createElement('figure');
+      var img = document.createElement('img');
+      var cap = document.createElement('figcaption');
+      cap.textContent = fmtDate(it.date) +
+        (typeof it.lat === 'number' ? ('\n📍' + it.lat.toFixed(3) + ',' + it.lng.toFixed(3)) : '\n📍なし');
+      fig.appendChild(img); fig.appendChild(cap); frag.appendChild(fig);
+      imgs.push(img);
+    }
+    gridEl.appendChild(frag);
+    var t0 = nowMs(), okN = 0;
+    for(var k=0;k<lim;k++){
+      try{
+        var r = await PL.thumbnail({ id: lastBItems[k].id, size: 96 });
+        if(r && r.dataUrl){ imgs[k].src = r.dataUrl; okN++; }
+      }catch(e){ /* 1枚失敗は無視 */ }
+    }
+    var dt = Math.round(nowMs() - t0);
+    statBEl.textContent = '✅ オンデマンド サムネ ' + okN + ' / ' + lim + ' 枚  （' +
+      dt + ' ms ・ ' + Math.round(dt / Math.max(1, lim)) + ' ms/枚）';
+  }
+
+  ov.querySelector('#spk-runB1').addEventListener('click', function(){ runB1(); });
+  ov.querySelector('#spk-runB2').addEventListener('click', function(){ runB2(); });
 })();
 </script>
 </body>

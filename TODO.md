@@ -13,7 +13,7 @@
 
 ---
 
-## 現在地 — BUILD: phase3.42 (v92：写真全件アクセス スパイク＝実機で強い YES🎉 2000枚6秒・約5年分・日時100%／ボトルネック①クリア・次は本命 B＝自前 Photos プラグイン)
+## 現在地 — BUILD: phase3.43 (v93：本命 B 第一歩＝自前 PhotoLibrary プラグイン[全件カウント即時＋オンデマンドサムネ]を実装・診断に③④追加／Codemagic ビルド&実機テスト待ち)
 
 > ### 📍 次セッションの再開ポイント（2026-06-26 セッション3 更新・まずここを読む）
 >
@@ -28,7 +28,10 @@
 >   - **2000枚を約6秒**取得・**日時 2000/2000**・GPS 215/2000・**範囲 2021/8〜2026/6（約5年分）**＝古い写真まで届く＝核「久しぶり」実証。300枚が9秒だったのは許可ダイアログ待ち込みで、2回目以降が真の速度＝十分速い。サムネ OS から描画 OK。プラグインは初回ビルドで一発配線（`platform: ios / Media: 検出 ✅`）。
 >   - **GPS は直近リッチ・古いほど希薄**（直近71%／全体11%）→ 古い写真は日時軸（100%）が普遍の頼り（On This Day・GPSなし写真の軌跡補完 v74-75 と整合）。
 >   - **ボトルネック①（写真全件）＋②（Mac なし署名・v91）が両方消えた＝native の二大リスク解消**。詳細 CHANGELOG v92・memory [[native-photo-access-works]]。
-> - **🔴 次の本丸＝本命 B（自前 Photos プラグイン）の実装**＝`PHAsset.fetchAssets` で全件メタデータ即時列挙＋`PHImageManager` でオンデマンドサムネ＋拡大時に原寸。理由＝community プラグインは全サムネ base64 一括＝数千〜数万枚をメモリ保持できない。Mac なしでは pbxproj 手編集を避け**ローカル Capacitor プラグイン package（file: 参照→cap sync が SPM 配線）**が堅い。スパイク診断 block（index.html 末尾 #spk-*）は B 実装時に撤去。
+> - **🧪 本命 B（自前 PhotoLibrary プラグイン）の第一歩を実装済み（v93）／実機テスト待ち**＝`local-plugins/photo-library`（`file:` 参照→`cap sync` が SPM 自動配線・ローカル `npx cap sync ios` で「Found 2 plugins」配線確認済み）。API＝`requestAccess`／`enumerate({limit})`（全件数は即時＋先頭メタ）／`thumbnail({id,size})`（1枚オンデマンド dataURL）。診断オーバーレイに B 列（③全件カウント＋メタ2000／④サムネ48枚オンデマンド）追加。Info.plist に `ITSAppUsesNonExemptEncryption=false`（暗号化質問スキップ）も同梱。
+>   - **実機テスト手順**: Codemagic で Start new build → TestFlight 更新（BUILD `phase3.43`・**暗号化質問はもう出ないはず**）→ 🧪写真スパイク → **③** で `PhotoLibrary: 検出 ✅`＋全件数（A の上限超え）＋往復 ms 確認 → **④** でオンデマンドサムネが出るか・ms/枚 確認。
+>   - **判定 (a)-(c)**: (a)PhotoLibrary プラグイン検出＝自前プラグインの CI 配線 OK か (b)enumerate の count が真の全件数で即時か (c)thumbnail のオンデマンドが動くか・1枚何 ms か。
+>   - **OK なら次＝アプリ本体の取り込み動線に統合**（ピッカー→全ライブラリ／メタは IndexedDB→将来 SQLite／サムネはオンデマンド or キャッシュ／拡大は原寸）＝Phase 1 の本丸。診断 block は統合後に撤去。詳細 CHANGELOG v93。
 > - **任意の後始末**: `Info.plist` に `ITSAppUsesNonExemptEncryption=false`（暗号化質問を恒久スキップ）／外部テストするなら Test Information 入力。
 > - **セッション開始時**: Gmail で Apple/App Store 関連を確認（[[session-start-gmail-check]]）。詳細は CHANGELOG v91。下は前セッション（セッション2＝v90）の記録。
 >

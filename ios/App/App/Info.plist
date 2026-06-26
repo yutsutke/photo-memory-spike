@@ -47,6 +47,8 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>あなたの写真から「久しぶりの記憶」をそっと呼び起こすために、写真ライブラリを読み込みます。写真は端末内だけで処理し、外部に送信することはありません。</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

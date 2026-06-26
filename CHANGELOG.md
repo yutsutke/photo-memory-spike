@@ -5,6 +5,30 @@
 
 ---
 
+## v93 — 自前 Photos プラグイン（Approach B 第一歩）＋診断に B 列・暗号化質問を恒久スキップ (2026-06-26)
+
+**背景**
+- v92 で capability（全ライブラリ到達）が YES。次は製品でそのまま使う本命アーキ＝「全件メタを即時列挙＋サムネはオンデマンド」を自前 Capacitor プラグインとして第一歩実装し、実機で B 版 API を検証する。
+
+**設計判断**
+- **ローカル Capacitor プラグイン package（`local-plugins/photo-library`・root package.json から `file:` 参照）** として作成。理由＝Mac なしで pbxproj/storyboard を手編集する事故を避ける。`cap sync` が `package.json` の `capacitor.ios.src` と `Package.swift`(SPM) を読んで CapApp-SPM に自動配線（媒体プラグインと同じ仕組みを node_modules の実物から真似た）。
+- **ローカルで `npx cap sync ios` を実行して push 前に配線を確認**（`Found 2 Capacitor plugins: @capacitor-community/media, photo-library` ＋ 生成 Package.swift に `PhotoLibrary` 追加を確認）。生成される `CapApp-SPM/Package.swift` は環境依存パス（Windows はバックスラッシュ）になるので**コミットせず CI 再生成に任せる**（v92 と同じ運用・`git checkout` で戻す）。
+- プラグイン API（最小3つ）: `requestAccess()`（PHPhotoLibrary 読み書き許可）/ `enumerate({limit})`（`PHAsset.fetchAssets` で**全件数は即時**＋先頭 limit 件のメタ＝id/日時/GPS/サイズ・サムネ無し）/ `thumbnail({id,size})`（`PHImageManager` で**1枚オンデマンド**・dataURL 返却）。
+- 診断オーバーレイに **B 列（③全件カウント＋メタ2000 / ④サムネ48枚オンデマンド）** を追加し、A（媒体プラグイン）と1ビルドで比較可能に。
+- ついでに **Info.plist に `ITSAppUsesNonExemptEncryption=false`** を追加＝毎ビルドの暗号化コンプライアンス質問を恒久スキップ（標準 HTTPS のみ＝免除）。
+
+**ハマり回避メモ**
+- ローカル `cap sync ios` は Windows パスで `CapApp-SPM/Package.swift` を書く（Mac で無効）。だが CI が `cap sync ios` で正パス再生成するので**この生成物はコミットしない**のが要点。`local-plugins/` 本体・`package.json`(file:)・`package-lock.json` はコミットが必要。
+
+**結果 / 観察**
+- （実機ビルド・テスト待ち）。判定したいこと: **(a)** `PhotoLibrary` プラグインが検出されるか（自前プラグインの SPM 配線が CI で通るか） **(b)** `enumerate` の `count`（真の全件数）が A の上限を超えて即時に出るか・往復が速いか **(c)** `thumbnail` のオンデマンド生成が動くか・1枚あたり何 ms か。
+
+**残課題 / 次の方向**
+- B 版 API が実機 OK なら、**アプリ本体の取り込み動線に統合**（ピッカー→全ライブラリ列挙へ・メタは IndexedDB→将来 SQLite・サムネはオンデマンド or キャッシュ・拡大は原寸）＝Phase 1 の本丸。
+- 写真キーは OS の localIdentifier を直接 DB キーにせず UUID 維持（機種変更耐性・Notion §⑥）＝localIdentifier はメタの一属性として保持。
+- 最終提出時は Photos アクセスの Privacy Manifest（PrivacyInfo.xcprivacy）が要る見込み（TestFlight は警告止まりで通る）。
+- 診断 block は本体統合が済んだら撤去。memory [[native-photo-access-works]]。
+
 ## v92 — ネイティブ写真全件アクセスの最小スパイク（Approach A: コミュニティプラグインで可否判定） (2026-06-26)
 
 **背景**
