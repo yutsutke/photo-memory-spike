@@ -5,6 +5,25 @@
 
 ---
 
+## v101 — spike 撤去：🧪「写真スパイク」診断パネルを本体から削除 (2026-06-27)
+
+**背景**
+- App Store 提出ビルド（1.0(9)）を回した流れで、ユーザー「写真スパイクがまだ残ってる。もう使わないよね」。`#spk-*`「🧪 写真スパイク」＝v92-93 の「写真全件アクセス 診断」自己完結スパイク（A:`@capacitor-community/media` 一括 vs B:自前 PhotoLibrary を実機計測）。**B は v94 で本体統合済み＝役目終了**。提出前の整理（TODO「診断 block 撤去」）を実行。
+
+**設計判断**
+- block は末尾に自己完結（HTMLコメント＋`<style>`＋`<script>` IIFE・約227行・`window.Capacitor.isNativePlatform()` の時だけ FAB を出す造り）。main app と疎結合（main は `#spk-*` を一切参照しない）だったので、**block ごと丸削除**。main app の `</script>` が直接 `</body>` に。
+- 削除は node で marker（🧪 ネイティブ写真全件アクセス 最小スパイク）の直前 `<!--` 〜 直前の `</script>` を slice。`@capacitor-community/media` は **この block 専用**だった（grep で確認）→ 撤去で未使用化。package.json から外せばビルドが軽く、提出前のデッドな写真アクセスプラグインを消せる（**ユーザー確認のうえ別途・cap sync と次ビルドが要る**）。
+
+**結果 / 観察**
+- ブラウザ検証: 構文 OK（inline script 2→1）。reload 後 `#spk-fab`/`#spk-overlay` 消滅・`あの日` 通常 boot・コンソールエラー0。web 体験は無傷（元々 native 限定 FAB なので web には出ていない）。
+- 実機（native）では左下の紫 `🧪 写真スパイク` が消える＝次ビルドで確認。
+
+**教訓**
+- 検証スパイクは「末尾に自己完結 block＋native 限定で出す」造りにしておくと、役目を終えた時に**丸ごと安全に外せる**（main と疎結合・web に出ない）。block 冒頭コメントに「検証が済んだら撤去」と書いてあったので回収漏れしない＝撤去予定はコード内に明記しておくと効く。
+
+**残課題 / 次の方向**
+- `@capacitor-community/media`（A 専用・未使用化）を package.json から外すか＝ユーザー確認。提出前 Privacy Manifest（PrivacyInfo.xcprivacy）も残課題。
+
 ## v100 — 連想ウォーク中央の写真をタップで全画面 (2026-06-27)
 
 **背景**
