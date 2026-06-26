@@ -27,9 +27,8 @@ workflows:
       # ↓ Codemagic UI で登録した App Store Connect API キーの「名前」に書き換える
       app_store_connect: MadeleineASC
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: io.github.yutsutke.madeleine
+      vars:
+        BUNDLE_ID: "io.github.yutsutke.madeleine"
       node: 22
       xcode: latest
     scripts:
@@ -41,8 +40,17 @@ workflows:
           npm run sync:web
           npx cap sync ios
 
-      - name: 自動署名プロファイルを Xcode プロジェクトへ適用
-        script: xcode-project use-profiles
+      # 新規アカウントは証明書/プロファイルが未作成なので --create で自動生成する。
+      # （ios_signing ブロックの自動署名は「既存を探すだけ」で無い時に作らず
+      #  "No matching profiles found" で落ちるため、明示スクリプトに切替）
+      - name: 署名ファイルを取得/作成し Xcode に適用
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
 
       - name: ビルド番号を採番（Codemagic の連番を使う）
         script: |
