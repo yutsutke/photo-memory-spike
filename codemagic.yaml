@@ -1,0 +1,66 @@
+# ────────────────────────────────────────────────────────────────────────────
+# Codemagic CI/CD — あの日 (Madeleine) iOS → TestFlight
+#
+# 狙い: Mac を持たずに、App Store Connect API キーによる「自動署名」で
+#       iOS アプリをビルドし TestFlight へ自動アップロードする。
+#
+# 前提（Codemagic の Web UI で一度だけ設定する。詳細は会話のガイド参照）:
+#   1. App Store Connect で API キー（Issuer ID / Key ID / .p8）を発行
+#   2. Codemagic の Team settings → Integrations → App Store Connect に
+#      その API キーを登録し、名前を付ける（下の app_store_connect に書く名前）
+#   3. このリポを Codemagic に接続し、このワークフローを選ぶ
+#
+# 技術メモ:
+#   - Capacitor 8 は CocoaPods ではなく Swift Package Manager (SPM)。
+#     → `pod install` は不要。xcodebuild がビルド時に SPM を解決する。
+#   - web 本体はリポのルート（GitHub Pages 配信元）。CI で sync:web → www/ を生成し
+#     `cap sync ios` で ios/App/App/public/ にバンドルする。
+#   - 署名は CODE_SIGN_STYLE=Automatic ＋ `xcode-project use-profiles`。
+# ────────────────────────────────────────────────────────────────────────────
+
+workflows:
+  ios-testflight:
+    name: あの日 iOS → TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      # ↓ Codemagic UI で登録した App Store Connect API キーの「名前」に書き換える
+      app_store_connect: MadeleineASC
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: io.github.yutsutke.madeleine
+      node: 22
+      xcode: latest
+    scripts:
+      - name: npm 依存をインストール
+        script: npm install
+
+      - name: web を www/ へ同期し Capacitor iOS を sync
+        script: |
+          npm run sync:web
+          npx cap sync ios
+
+      - name: 自動署名プロファイルを Xcode プロジェクトへ適用
+        script: xcode-project use-profiles
+
+      - name: ビルド番号を採番（Codemagic の連番を使う）
+        script: |
+          cd ios/App
+          agvtool new-version -all "$BUILD_NUMBER"
+
+      - name: IPA をビルド（App Store 配布用）
+        script: |
+          xcode-project build-ipa \
+            --project "ios/App/App.xcodeproj" \
+            --scheme "App"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        # 最初のビルドは TestFlight まで（審査提出はしない）
+        submit_to_testflight: true

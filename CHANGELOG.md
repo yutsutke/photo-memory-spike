@@ -5,6 +5,33 @@
 
 ---
 
+## v89 — native: iOS プラットフォーム生成＋Codemagic で TestFlight パイプライン足場 (2026-06-26)
+
+**背景**
+- Apple のメンバーシップ有効化（6/25）＋ App Store Connect 初期設定完了（6/26・有料契約/税務/口座/ASBP 申請送信）でブロッカーが消えた。本命の前進＝**「整理の順番①＝今のコードで TestFlight まで通す」**（パイプライン de-risk＝Mac なし署名の最大リスクを早期に潰す）に着手。ASBP 承認待ちとは無関係に進められる。
+
+**設計判断**
+- **`npx cap add ios` で iOS プラットフォームを生成しコミット**（`ios/` を追跡。生成物＝`public/`・`capacitor.config.json`・`config.xml`・`capacitor-cordova-ios-plugins` は gitignore 済み、CI の `cap sync` で再生成）。Info.plist 等の手編集を永続化するため platform はリポに持つ方針（毎ビルド再生成しない）。
+- **Capacitor 8 = Swift Package Manager (SPM)**。Podfile が無い → **CI に `pod install` 不要**。`xcodebuild` がビルド時に SPM を解決する。TODO のボトルネック②（Mac なし署名）が一段軽くなった。
+- **Info.plist 用途文言（日本語）**: `NSPhotoLibraryUsageDescription`（写真＝コア「久しぶり＝全ライブラリ」）／`NSPhotoLibraryAddUsageDescription`（取り込み画像の任意保存）／`NSLocationWhenInUseUsageDescription`（位置ロガー）。いずれも「端末内だけで処理・外部送信しない」を明記（プライバシーポリシーと整合）。**位置は When-In-Use のみ**（背景常時＝Always は審査リスク・post-v1＝[[location-logger]]）。
+- **共有スキーム `App.xcscheme` を手作成しコミット**（CI の `xcodebuild -scheme App` が確実に検出できるよう。BlueprintIdentifier＝native target UUID `504EC3031FED79650016851F`）。
+- **`VERSIONING_SYSTEM = "apple-generic"` を App ターゲットに追加** → CI で `agvtool new-version -all "$BUILD_NUMBER"`（Codemagic 連番）でビルド番号を自動採番できる。
+- **`codemagic.yaml`**: `mac_mini_m2`／`xcode: latest`／`node: 22`。流れ＝`npm install` → `npm run sync:web && npx cap sync ios` → `xcode-project use-profiles`（自動署名）→ ビルド番号採番 → `xcode-project build-ipa` → `publishing.app_store_connect`（`auth: integration`・`submit_to_testflight: true`）。署名は App Store Connect API キー（Codemagic の Team integration に登録した名前を `integrations.app_store_connect` に書く＝既定プレースホルダ `MadeleineASC`）。
+
+**ハマったところ**
+- Capacitor 8 が CocoaPods でなく SPM だと最初は気付かず pod install 前提で考えていた → `cap add ios` 後に Podfile 不在＋`Package.swift` 生成を確認して CI を SPM 前提に修正（`pod install` ステップを削除）。次の Claude は「Capacitor 8 = SPM・Podfile 無し」を前提に。
+
+**結果 / 観察**
+- Windows で `cap add ios` / `cap sync ios` が成功（pod install はスキップ＝CI 不要）。`git add -n` で生成物が正しく除外され platform 本体＋スキームのみ追跡されることを確認。**xcodebuild 実ビルドは Codemagic（Mac）でのみ可能＝CI 接続後に初検証**（Windows では検証不能）。
+
+**教訓**
+- Mac 無し署名の de-risk は「足場を全部コミットしてから CI を一度回す」のが最短。ローカル（Windows）で潰せるのは構成の正しさ（ファイル追跡・YAML 構文・SPM 構成）まで。署名・SPM 解決・アーカイブの真の検証は最初の1ビルドでしか分からない＝だからこそ早く回す。
+
+**残課題 / 次の方向**
+- **ユーザー操作（CI 接続）**: ① App Store Connect で API キー発行（Issuer ID / Key ID / .p8）② Codemagic にサインアップ＆リポ接続＆API キーを integration 登録（名前を `codemagic.yaml` の `MadeleineASC` に合わせる or yaml を書き換え）③ App レコード作成（bundle `io.github.yutsutke.madeleine`）④ 初ビルド実行 → TestFlight。
+- 初ビルドで詰まりやすい点: スキーム検出・SPM 解決・自動署名（Bundle ID 登録漏れ）・`agvtool`（apple-generic 入れたので可）。ログで切り分け。
+- 🔴 並行 de-risk＝**ネイティブ写真全件アクセスの最小スパイク**（PHAsset 全件・`@capacitor-community/media` 等）はパイプラインと独立に進められる。
+
 ## v88 — 実機フィードバック: タイムライン下端ハンドルを safe-area 分持ち上げ＋ⓘアイコン説明 (2026-06-22)
 
 **背景**
