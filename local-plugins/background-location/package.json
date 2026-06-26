@@ -1,0 +1,26 @@
+{
+  "name": "background-location",
+  "version": "0.0.1",
+  "description": "Local Capacitor plugin: background location logging. Significant-location-change survives app close (low battery); continuous updates while backgrounded. Buffers points natively and drains them to JS (on-device only). For 'photo-memory-spike'.",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "ios/Sources",
+    "Package.swift"
+  ],
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native",
+    "location",
+    "background"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  }
+}

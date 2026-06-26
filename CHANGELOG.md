@@ -5,6 +5,35 @@
 
 ---
 
+## v96 — 位置ロガーをネイティブ背景記録に（アプリを閉じても記録） (2026-06-26)
+
+**背景**
+- [[location-logger]] で「閉じている間も記録する常時ログは native の本命・post-v1」と置いていた項目を、自前プラグインの土台（PhotoLibrary）が実機で通った今、ユーザー要望で un-park。「位置ロガーがアプリを閉じても機能するようにしたい」。
+
+**設計判断**
+- **自前 Swift プラグイン `BackgroundLocation`**（PhotoLibrary と同じローカル SPM プラグイン方式）をユーザーが選択（依存を増やさずフル制御・local-first）。コミュニティ製（@capacitor-community/background-geolocation）は不採用。
+- **iOS の現実に合わせた2モード**:
+  - **重要な移動 = Significant Location Change (SLC)**: 基地局ベース・約500m・超低電池。**アプリを完全終了しても iOS が背景でアプリを起こして配送**＝「閉じても効く」の中核。今の「重要な移動=500m」と一致。
+  - **こまめ = 標準の継続更新**（`allowsBackgroundLocationUpdates`・distanceFilter 25m・accuracy best）＝背景中（別アプリ/ロック）でも記録、高精度だが電池を使う。保険で SLC も併用。
+- **終了後の復帰**: `BackgroundLocationManager` を singleton にし `init` で前回モードを UserDefaults から復元して監視を再アーム。プラグインの `load()`（起動時＝背景再起動含む）で singleton を生かす。
+- **JS 不在中の永続化**: 記録点はネイティブが **UserDefaults にバッファ**（座標+時刻+精度のみ）。JS は起動/前面復帰/8秒タイマーで `drain()` し、**既存の track ストアへ合流**（keyPath=id で冪等・座標+時刻のみ＝機種変更で移せる §⑥）。downstream（地図の青緑軌跡・GPSなし写真の補完 v74）は無改修。
+- **権限**: `NSLocationAlwaysAndWhenInUseUsageDescription` 追加＋`UIBackgroundModes=location`。WhenInUse→Always の段階要求（`didChangeAuthorization` で昇格）。requestAlways はユーザー操作（モード選択）の文脈でだけ（起動 resume では再要求しない＝ナグらない）。
+- **web は完全に従来どおり**: `BgLoc` は native のみ。web は前面のみの `navigator.geolocation`（`visibilitychange` で停止）を維持。全分岐 `if (BgLoc)`。
+
+**検証（実機前にブラウザで）**
+- 全 inline script 構文 OK。web preview で BgLoc=null・IS_NATIVE=false・コンソールエラー無し・ロガーパネルは web 版文言、を確認＝web 経路は無傷。
+- ローカル `npx cap sync ios` で **3プラグイン認識**＋生成 `CapApp-SPM/Package.swift` の `.product(name:"BackgroundLocation",package:"BackgroundLocation")` 一致を確認（v93 の exit-74 を事前回避）。生成物（Windows パス）は revert（CI 再生成）。
+- **実機が要るのは CLLocationManager の背景挙動（SLC 配送・終了後の復帰・Always 許可フロー・電池）＝次の TestFlight で確認**。
+
+**教訓**
+- 自前ネイティブの2個目。PhotoLibrary の規約（package/product/target 名一致＝`BackgroundLocation`、import Foundation/CoreLocation/Capacitor）がそのまま効いた。
+- 「閉じても」の肝は **singleton + load() で起動時に監視を再アーム**＋**ネイティブ側バッファ（JS 不在でも記録を落とさない）**。WKWebView/IndexedDB は背景で動かないので、永続化はネイティブに置くのが必須。
+
+**残課題 / 次の方向**
+- 実機 TestFlight で: 散歩中アプリを閉じて軌跡が貯まるか／完全終了→SLC で復帰して点が入るか／Always 許可フロー／電池感／前面復帰で drain される手触り。
+- 完全終了からの SLC 復帰が弱ければ AppDelegate でも singleton を起こす配線（モジュール import の確認が要る）を追加。
+- App Store 審査で Always 位置の用途説明を準備（「あとから軌跡を振り返る」＝正当だが要注意項目）。track は将来 SQLite。
+
 ## v95 — 全ライブラリ reminiscence が実機で強い YES ＋ 拡大表示の旧 iOS 回避策2つを撤去 (2026-06-26)
 
 **背景**

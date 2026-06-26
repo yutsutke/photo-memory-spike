@@ -55,5 +55,11 @@
 	<string>取り込んだ画像を、あなたが選んだときだけ写真ライブラリへ保存します。</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>その日の軌跡をあとから振り返り、思い出を呼び起こすために、アプリの利用中に位置情報を記録します。位置情報は端末内だけに保存し、外部に送信することはありません。</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>アプリを閉じている間も、その日の移動の軌跡をそっと記録して、あとから「久しぶりの記憶」を思い出として振り返れるようにします（「位置ロガー」をオンにした時だけ）。位置情報は端末内だけに保存し、外部に送信することはありません。</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 </dict>
 </plist>

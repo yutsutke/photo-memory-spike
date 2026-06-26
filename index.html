@@ -360,7 +360,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.47 (v95：拡大表示から「📷写真アプリで開く」「日付コピー」を撤去＝native で全ライブラリを綺麗に表示しアプリ内完結／実機で全ライブラリ reminiscence が強い YES) · 2026-06-26';
+const BUILD = 'phase3.48 (v96：位置ロガーをネイティブ背景記録に＝アプリを閉じても記録〔自前 BackgroundLocation プラグイン・重要な移動=SLC で終了後も復帰／こまめ=背景更新〕。点は端末内にバッファ→起動/復帰で track へ合流) · 2026-06-26';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -789,6 +789,12 @@ const IS_NATIVE = !!(_cap && typeof _cap.isNativePlatform === 'function' && _cap
 const PhotoLib = IS_NATIVE
   ? ((_cap.Plugins && _cap.Plugins.PhotoLibrary) ||
      (typeof _cap.registerPlugin === 'function' ? _cap.registerPlugin('PhotoLibrary') : null))
+  : null;
+// バックグラウンド位置ロガー (自前 BackgroundLocation プラグイン, v96)。web では null
+// （web は前面のみの navigator.geolocation を使う）。native は閉じても記録＝SLC/背景更新。
+const BgLoc = IS_NATIVE
+  ? ((_cap.Plugins && _cap.Plugins.BackgroundLocation) ||
+     (typeof _cap.registerPlugin === 'function' ? _cap.registerPlugin('BackgroundLocation') : null))
   : null;
 
 const NATIVE_IMPORT_DELAY = 8;   // ネイティブ1枚ごとの間 (ms)。web の HEIC デコードより遥かに軽いので短い
@@ -1892,8 +1898,58 @@ function loggerOnError(e) {
   loggerRefreshUI();
 }
 
+// ── ネイティブ背景ロガー (v96): アプリを閉じても効く。点はネイティブが UserDefaults にバッファし、
+//    JS は起動/復帰/タイマーで drain して track ストアへ合流させる（座標+時刻のみ・端末内だけ）──
+let loggerDrainTimer = null;
+let loggerNativeAuth = '';     // 'always'|'whenInUse'|'denied'|'restricted'|'notDetermined'
+async function drainNativeTrack() {
+  if (!BgLoc) return;
+  let res; try { res = await BgLoc.drain(); } catch { return; }
+  const pts = (res && res.points) || [];
+  let added = 0;
+  for (const p of pts) {
+    if (!p || typeof p.lat !== 'number' || typeof p.lng !== 'number') continue;
+    const t = Math.round(p.t || Date.now());
+    try { await trackPut({ id: p.id || crypto.randomUUID(), t, lat: p.lat, lng: p.lng, acc: Math.round(p.acc || 0), mode: loggerMode }); added++; } catch {}
+    if (!loggerLast || t >= loggerLast.t) loggerLast = { t, lat: p.lat, lng: p.lng };
+  }
+  if (added) {
+    loggerRefreshUI();
+    if (mapState && mapState.refreshTrack) mapState.refreshTrack();   // 地図が開いていれば軌跡を更新
+  }
+}
+function startNativeDrainTimer() {
+  stopNativeDrainTimer();
+  loggerDrainTimer = setInterval(() => { if (document.visibilityState === 'visible' && loggerOn()) drainNativeTrack(); }, 8000);
+}
+function stopNativeDrainTimer() { if (loggerDrainTimer) { clearInterval(loggerDrainTimer); loggerDrainTimer = null; } }
+function loggerSyncStatusFromAuth() {
+  if (!BgLoc) return;
+  if (loggerNativeAuth === 'denied' || loggerNativeAuth === 'restricted')
+    loggerStatus = '位置情報が許可されていません（設定 →「あの日」→ 位置情報 →「常に許可」）';
+  else if (loggerNativeAuth === 'whenInUse')
+    loggerStatus = '「常に許可」にすると、アプリを閉じている間も記録できます（設定 → 位置情報）';
+  else loggerStatus = '';
+  loggerRefreshUI();
+}
+async function refreshNativeAuth() {
+  if (!BgLoc) return;
+  try { const r = await BgLoc.status(); loggerNativeAuth = (r && r.status) || ''; loggerSyncStatusFromAuth(); } catch {}
+}
+
 function startLogger() {
-  if (!loggerOn() || loggerWatchId != null) return;
+  if (!loggerOn()) return;
+  if (BgLoc) {                       // ネイティブ＝アプリを閉じても背景で記録（SLC/背景更新）
+    BgLoc.start({ mode: loggerMode })
+      .then(r => { if (r && r.status) { loggerNativeAuth = r.status; loggerSyncStatusFromAuth(); } })
+      .catch(() => { loggerStatus = '位置記録を開始できませんでした'; loggerRefreshUI(); });
+    drainNativeTrack();              // 直前まで背景でたまった点を即合流
+    startNativeDrainTimer();
+    loggerRefreshUI();
+    return;
+  }
+  // --- web（前面のみ）既存ロジック ---
+  if (loggerWatchId != null) return;
   if (!navigator.geolocation) { loggerStatus = 'この端末は位置情報に未対応です'; loggerRefreshUI(); return; }
   if (document.visibilityState === 'hidden') return;   // 前面でしか記録できない
   const opts = loggerMode === 'frequent'
@@ -1906,6 +1962,7 @@ function startLogger() {
 }
 
 function stopLogger() {
+  if (BgLoc) { try { BgLoc.stop(); } catch {} stopNativeDrainTimer(); return; }   // ネイティブは背景記録ごと停止
   if (loggerWatchId != null) { try { navigator.geolocation.clearWatch(loggerWatchId); } catch {} loggerWatchId = null; }
   loggerReleaseWake();
 }
@@ -1916,7 +1973,11 @@ function setLoggerMode(m) {
   stopLogger();
   loggerLast = null;
   loggerStatus = '';
-  if (loggerOn()) startLogger();
+  if (loggerOn()) {
+    // ネイティブはユーザー操作の文脈で「常に許可」を要求（背景記録の前提）。許可は idempotent。
+    if (BgLoc) { BgLoc.requestAlways().then(r => { if (r && r.status) { loggerNativeAuth = r.status; loggerSyncStatusFromAuth(); } }).catch(() => {}); }
+    startLogger();
+  }
   loggerRefreshUI();
 }
 
@@ -1929,8 +1990,12 @@ function loggerRefreshUI() {
 
 // 画面を背景↔前面に切り替えたら記録を止める/再開する (web は前面でしか記録できない)。
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { if (loggerOn()) startLogger(); }
-  else stopLogger();
+  if (document.visibilityState === 'visible') {
+    if (BgLoc) { if (loggerOn()) { refreshNativeAuth(); drainNativeTrack(); } }   // 復帰時に背景でたまった点を取り込む
+    else { if (loggerOn()) startLogger(); }
+  } else {
+    if (!BgLoc) stopLogger();   // native は背景でも回し続ける（止めない）。web は前面のみなので停止
+  }
 });
 
 // 位置ロガーのパネル (ヘッダ 🛰️)。モード選択 + 状態 + 地図へ + 記録削除。
@@ -1944,11 +2009,13 @@ function openLoggerPanel() {
   card.className = 'ai-modal-card logger-card';
   card.innerHTML =
     `<h2>🛰️ 位置ロガー</h2>` +
-    `<p class="logger-note">アプリを開いている間だけ、いまいる場所を記録します。あとで「🗺 地図」を開くと、その日の軌跡を青緑の線で振り返れます。<br>※ 閉じている間も記録し続ける常時ログは、今後のアプリ版で対応予定です。</p>` +
+    `<p class="logger-note">` + (BgLoc
+      ? 'オンにすると、<b>アプリを閉じている間も</b> その日の移動の軌跡をそっと記録します（端末内だけ・外部送信なし）。あとで「🗺 地図」を開くと、青緑の線で振り返れます。'
+      : 'アプリを開いている間だけ、いまいる場所を記録します。あとで「🗺 地図」を開くと、その日の軌跡を青緑の線で振り返れます。<br>※ 閉じている間も記録し続ける常時ログは、今後のアプリ版で対応予定です。') + `</p>` +
     `<div class="logger-modes">` +
       `<label class="logger-mode"><input type="radio" name="loggerMode" value="off"><span><b>⏸ オフ</b><small>記録しない（既定）</small></span></label>` +
-      `<label class="logger-mode"><input type="radio" name="loggerMode" value="important"><span><b>🚶 重要な移動のみ</b><small>大きく動いた時だけ点を残す（疎・電池にやさしい）</small></span></label>` +
-      `<label class="logger-mode"><input type="radio" name="loggerMode" value="frequent"><span><b>🛰️ こまめに</b><small>開いている間ずっと細かく記録（密な軌跡）</small></span></label>` +
+      `<label class="logger-mode"><input type="radio" name="loggerMode" value="important"><span><b>🚶 重要な移動のみ</b><small>${BgLoc ? 'アプリを閉じていても記録（約500m単位・電池にやさしい・おすすめ）' : '大きく動いた時だけ点を残す（疎・電池にやさしい）'}</small></span></label>` +
+      `<label class="logger-mode"><input type="radio" name="loggerMode" value="frequent"><span><b>🛰️ こまめに</b><small>${BgLoc ? '細かい軌跡（高精度・電池を使う／背景でも記録）' : '開いている間ずっと細かく記録（密な軌跡）'}</small></span></label>` +
     `</div>` +
     `<div class="logger-status" id="loggerStatusLine"></div>` +
     `<div class="logger-actions">` +
@@ -1986,6 +2053,7 @@ function openLoggerPanel() {
       (last ? ` ・ 最終 ${String(last.getHours()).padStart(2,'0')}:${String(last.getMinutes()).padStart(2,'0')}` : ' ・ 現在地を取得中…');
   }
   loggerPanelUpdate = updateLoggerPanel;
+  if (BgLoc) refreshNativeAuth();   // 現在の許可状態をステータス行に反映
   updateLoggerPanel();
   document.body.appendChild(modal);
 }
