@@ -17,8 +17,11 @@
 - 診断オーバーレイに **B 列（③全件カウント＋メタ2000 / ④サムネ48枚オンデマンド）** を追加し、A（媒体プラグイン）と1ビルドで比較可能に。
 - ついでに **Info.plist に `ITSAppUsesNonExemptEncryption=false`** を追加＝毎ビルドの暗号化コンプライアンス質問を恒久スキップ（標準 HTTPS のみ＝免除）。
 
-**ハマり回避メモ**
-- ローカル `cap sync ios` は Windows パスで `CapApp-SPM/Package.swift` を書く（Mac で無効）。だが CI が `cap sync ios` で正パス再生成するので**この生成物はコミットしない**のが要点。`local-plugins/` 本体・`package.json`(file:)・`package-lock.json` はコミットが必要。
+**ハマったところ（初回 CI ビルド失敗→修正）**
+- **症状**: Step6「IPA をビルド」が `Failed to show build settings` / exit 74（Swift コンパイル**前**＝SPM パッケージ解決の失敗）。
+- **原因**: cap sync は npm 名 `photo-library` から SPM 名 **`PhotoLibrary`** を導出し、`CapApp-SPM` に `.product(name:"PhotoLibrary", package:"PhotoLibrary")` を生成する。ところがプラグインの `Package.swift` は package/product を `PhotoLibraryPlugin` と宣言していた＝**product 名の不一致**で解決失敗。
+- **対処（fix・v93）**: プラグインの Package.swift の package 名・product 名・target 名を **`PhotoLibrary`** に統一（media が `CapacitorCommunityMedia` で名前一致させているのと同じ規約）。**教訓: ローカル plugin の Package.swift の名前は「npm 名から cap sync が導出する名前」に必ず一致させる**。ローカルで `npx cap sync ios` → 生成 `CapApp-SPM/Package.swift` の `.product(name:..., package:...)` を読んで一致確認するのが確実。
+- ローカル `cap sync ios` は Windows パスで `CapApp-SPM/Package.swift` を書く（Mac で無効）→ CI が再生成するので**この生成物はコミットしない**。`local-plugins/` 本体・`package.json`(file:)・`package-lock.json` はコミット必須。
 
 **結果 / 観察**
 - （実機ビルド・テスト待ち）。判定したいこと: **(a)** `PhotoLibrary` プラグインが検出されるか（自前プラグインの SPM 配線が CI で通るか） **(b)** `enumerate` の `count`（真の全件数）が A の上限を超えて即時に出るか・往復が速いか **(c)** `thumbnail` のオンデマンド生成が動くか・1枚あたり何 ms か。
