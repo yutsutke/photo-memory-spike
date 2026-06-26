@@ -5,6 +5,26 @@
 
 ---
 
+## v102 — ウォーク入場で上端へスクロール ＋ 未使用プラグイン削除 (2026-06-27)
+
+**背景**
+- 実機: 「初期3枚タップ→ウォークに来ると6枚グリッドの方にスクロールされている。入場時は画面トップ（中央写真）を見せてほしい」。原因＝アプリにスクロール制御コードが無く（grep でヒット0）、`render()` が `#main` の中身を入れ替えても window が前のスクロール位置を保持するため、ホームで下にスクロールした状態でカードを押すとウォークでもその位置（6枚グリッド）に残っていた。
+- ＋ v101 で未使用化した `@capacitor-community/media`（spike A テスト専用）を削除（ユーザー「外しておいて」）。
+
+**設計判断**
+- `showExplore` 冒頭で `enteringWalk = (state !== 'explore')` を取り、`render()` 後に `if (enteringWalk) window.scrollTo(0,0)`。**ウォークへの「入場」時だけ上端へ**（中央＝タップした写真を先頭に見せる）。**ウォーク内の再中心化（近くの6枚/足跡タップ）は位置を保つ**＝歩くたびに飛ばない（reminiscence のリズムを壊さない）。レイアウトは window スクロール（body に overflow 無し・`#main` も非スクロール）なので `window.scrollTo`。
+- `npm uninstall @capacitor-community/media`＝package.json/lock 更新（deps は @capacitor/core・ios＋自前 photo-library・background-location の4つに）。CI が cap sync。
+
+**結果 / 観察**
+- ブラウザ検証（`window.scrollTo` を spy）: state='random'→`showExplore`＝`scrollTo(0,0)` が1回／state='explore'→`showExplore`（再中心化）＝スクロール呼び出し0。構文 OK（inline script 1）。
+- 実機確認は次ビルド。
+
+**教訓**
+- innerHTML 差し替えで画面遷移する作りでは、ブラウザは旧スクロール位置を保持する。「画面が変わったら上端」を期待する遷移には明示 `scrollTo` が要る。ただし**全 render で上端に飛ばすと歩行が鬱陶しい**ので、状態遷移（入場）に限定するのが要点。
+
+**残課題 / 次の方向**
+- 提出前 Privacy Manifest（PrivacyInfo.xcprivacy）。実機で入場スクロールの手触り（再中心化での位置保持が自然か）。
+
 ## v101 — spike 撤去：🧪「写真スパイク」診断パネルを本体から削除 (2026-06-27)
 
 **背景**

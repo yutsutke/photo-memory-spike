@@ -13,7 +13,7 @@
 
 ---
 
-## 現在地 — BUILD: phase3.53 (v101：spike 撤去＝🧪 写真スパイク診断パネル(#spk-*)を本体から削除。v100=ウォーク中央タップで全画面／v97-99=ツールバー統一・地図だけ全画面・位置交換。ブラウザ検証 green・実機確認待ち)
+## 現在地 — BUILD: phase3.54 (v102：ウォーク入場で上端へスクロール（6枚に残る不具合を解消）＋未使用 @capacitor-community/media 削除。v101=spike撤去／v100=中央タップで全画面／v97-99=ツールバー統一・地図だけ全画面・位置交換。ブラウザ検証 green・実機確認待ち)
 
 > ### 📍 次セッションの再開ポイント（2026-06-27 セッション5 更新・まずここを読む）
 >
@@ -21,8 +21,9 @@
 > 1. ✅ **地図ツールバーを1種類に統一（v97）**＝モードで変わっていた二重UI（native=◀▶無しの4アイコン／web=6アイコン／全期間=テキストボタン）を解消。**どのモードでも固定2段**＝1段目 `◀ 📆 ▶`（過去/未来の「今日」・📆=今日へ戻る）／2段目 `🎲 偶然 ／ 📅全期間 ／ ⋯表示`。`✕`のみ（旧「✕ 閉じる」）・`ⓘ`は⋯表示メニューへ統合・`↩︎全部を見る`は廃止（📅全期間が吸収）。🎲偶然(核①)と📆今日リセットの置き場所は **AskUserQuestion でユーザー確認**（2段目に残す／◀📆▶中央）。CSS は `.map-ctrlbar{width:max-content}` で2段とも1行（折り返すと pop と重なる罠を回避）。**ブラウザ geometry 検証 green**（5モード全てボタン不消失・pop非重なり mobile/desktop・⋯→ⓘで凡例）。**実機確認待ち**（GitHub Pages / TestFlight）。詳細 CHANGELOG v97。
 > 2. ✅ **「地図だけ全画面（没入表示）」を追加・整え（v98→v99）**＝ユーザー要望「地図と動線と写真だけ／タイムラインの出ない全画面／解除アイコン1つ」。**右上の常設 `⛶` トグル**（タップで全画面／もう一度で解除）で、ツールバー/タイムライン/ズーム/✕ を隠し地図+動線+写真だけに（attribution はライセンス上 残す）。desktop は `#mapEl` を 320px→0 に広げ `invalidateSize`。overlay の `.immersive` クラス1枚＝CSS で実装（状態集約）。**v99 で位置交換**＝全画面が高頻度なので ⛶ を右上常設に昇格、set-once な「地図の種類(ダーク/地理院)」は Leaflet layers コントロールを撤去して ⋯表示メニューへ（chip・localStorage 保存）。ブラウザ検証 green（トグルON/OFF・各 chrome 開閉・地図種類 chip 切替・desktop で ⛶ がサイドバー非重なり/没入 right:10）。詳細 CHANGELOG v98-99。
 > 3. ✅ **連想ウォーク中央の写真をタップで全画面（v100）**＝実機要望「中央（いま見ている写真）は長押しせずタップで拡大」。当初「タップ=全画面に全面変更」だったが AskUserQuestion で現状の表に落とし、**変えるのは中央写真のタップだけ**に確定（初期3枚=タップでウォーク開始／近くの6枚=タップで歩く、は不変＝核のウォーク操作は触らない）。中央カード `attachPhotoGestures` の onTap=null→`showFullImage` の1点。ブラウザ検証 green（テスト写真注入→中央タップで full-overlay 表示・地図ボタンは誤爆なし）。詳細 CHANGELOG v100。
-> 4. ✅ **spike 撤去（v101）**＝🧪「写真スパイク」診断パネル（`#spk-*`・写真全件アクセス A/B 実機計測の自己診断・v92-93）を本体から削除。B は v94 で本体統合済み＝役目終了。block 全体（HTMLコメント＋`<style>`＋`<script>` IIFE・約227行）を末尾から除去、main app の `</script>` が直接 `</body>` に。ブラウザ検証 green（#spk-fab/#spk-overlay 消滅・boot 正常・コンソールエラー0・inline script 2→1）。**⚠️ `@capacitor-community/media`（A テスト専用）が未使用化＝package.json から外すとビルドが軽く提出前のデッドな写真アクセスプラグインを消せる（要 cap sync・次ビルド反映）＝ユーザー確認待ち**。詳細 CHANGELOG v101。
-> 5. 📝 **App Store 提出は案B＝コア先行→後で Always 追加（決定・記録のみ／実行はあと）**。初回審査は位置を外して写真コアを先に通し、Always 背景ロガー（v96 実装済）は実績後のアップデートで追加。フォールバックは `if(BgLoc)`/track 隔離で綺麗。「常に許可で通る前例」＝Arc/OwnTracks（端末内ライフログ）等。memory [[location-logger]] に記録。
+> 4. ✅ **spike 撤去（v101）**＝🧪「写真スパイク」診断パネル（`#spk-*`・写真全件アクセス A/B 実機計測の自己診断・v92-93）を本体から削除。B は v94 で本体統合済み＝役目終了。block 全体（HTMLコメント＋`<style>`＋`<script>` IIFE・約227行）を末尾から除去、main app の `</script>` が直接 `</body>` に。ブラウザ検証 green（#spk-fab/#spk-overlay 消滅・boot 正常・コンソールエラー0・inline script 2→1）。**✅ `@capacitor-community/media`（A テスト専用・未使用化）を v102 で削除**（deps は @capacitor/core・ios＋自前 photo-library・background-location の4つに・cap sync は CI）。
+> 5. ✅ **ウォーク入場で上端へスクロール（v102・不具合修正）**＝実機「初期3枚タップ→ウォークに来ると6枚グリッドにスクロールされている／入場時は画面トップを見せて」。原因＝スクロール制御コードが無く `render()` が #main を入れ替えても window が旧スクロール位置を保持。修正＝`showExplore` で `enteringWalk=(state!=='explore')` を取り render() 後 `if(enteringWalk) window.scrollTo(0,0)`＝**入場時だけ上端へ（中央写真を先頭に）／ウォーク内の再中心化は位置保持（歩行で飛ばない）**。ブラウザ検証 green（spy: 入場で[0,0]・再中心化は無スクロール）。詳細 CHANGELOG v102。
+> 6. 📝 **App Store 提出は案B＝コア先行→後で Always 追加（決定・記録のみ／実行はあと）**。初回審査は位置を外して写真コアを先に通し、Always 背景ロガー（v96 実装済）は実績後のアップデートで追加。フォールバックは `if(BgLoc)`/track 隔離で綺麗。「常に許可で通る前例」＝Arc/OwnTracks（端末内ライフログ）等。memory [[location-logger]] に記録。
 > - **次段**: 実機で2段ツールバーの手触り（押し心地・📆中央リセットの分かりやすさ）→ ストア素材/収益化/起動時 自動差分同期（下の v96 ブロック参照）。
 
 
@@ -34,7 +35,7 @@
 > - **✅ 実機 TestFlight で本物の PhotoLibrary を通した＝🎉強い YES**（ユーザー:「完璧だね。すごい速さで写真を取り込んだ。しかも止まらなかった。2000枚もあったのに」）。web/iPad の raw JPEG デコード OOM（v35-37）が native では起きない＝案1軽量版の狙いどおり。**ボトルネック①（写真全件）完全クローズ**。
 > - **🎉 v95＝全ライブラリでの reminiscence も実機で全項目 強い YES**: On This Day「あのときから何年…同じ年数の未来の自分はどこに」（過去↔未来）／連想ウォーク「あーなつかしい、あれどこだっけ、そうそう」（偶然×久しぶり）／地図「そんな道歩いたな、**写真に無い記憶も思い出す**」（軌跡が記憶の鍵）／**タイムラインから位置を直す行為自体が想起**（[[editing-triggers-reminiscence]] 再確認）／拡大512px「めっちゃきれい」（原寸 fullImage は保留）／差分同期「完璧」。**+ 拡大表示の旧 iOS 回避策「📷写真アプリで開く」「日付コピー」を撤去**（native でアプリ内完結・preview 確認済）。
 > - **🛰️ v96＝位置ロガーをネイティブ背景記録に（アプリを閉じても記録）**: 自前 `BackgroundLocation` プラグイン。重要な移動=SLC（低電池・完全終了でも iOS が背景再起動して配送）／こまめ=背景更新（高精度・電池使う）。点はネイティブが UserDefaults にバッファ→JS が起動/前面復帰/8秒で drain して track へ合流（既存の地図軌跡・GPSなし補完は無改修）。Info.plist に Always 文言＋`UIBackgroundModes=location`。web は前面のみのまま（全分岐 `if(BgLoc)`）。**cap sync で SPM 名一致確認済・web preview 無傷／実機 TestFlight 待ち**（散歩で閉じて貯まるか・終了後の SLC 復帰・電池・Always 許可フロー）。詳細 CHANGELOG v96・memory [[location-logger]]。
-> - **次段**: ストア素材（アイコン/スクショ/説明文）or 収益化（AdMob/IAP）or 起動時 自動差分同期。拡大=原寸 fullImage は保留（512 で実機満足）。提出前 Privacy Manifest（PrivacyInfo.xcprivacy）。診断 block（#spk-*）撤去は ✅v101 完了（`@capacitor-community/media` が未使用化→外すか確認中）。詳細 CHANGELOG v94-v96・memory [[native-photo-access-works]] [[location-logger]]。
+> - **次段**: ストア素材（アイコン/スクショ/説明文）or 収益化（AdMob/IAP）or 起動時 自動差分同期。拡大=原寸 fullImage は保留（512 で実機満足）。提出前 Privacy Manifest（PrivacyInfo.xcprivacy）。診断 block（#spk-*）撤去は ✅v101 完了（`@capacitor-community/media` も ✅v102 で削除）。詳細 CHANGELOG v94-v96・memory [[native-photo-access-works]] [[location-logger]]。
 > - **セッション開始時**: Gmail で Apple/App Store 関連を確認（[[session-start-gmail-check]]）。下は前セッション（セッション3＝v93）の記録。
 >
 > ### 📍 次セッションの再開ポイント（2026-06-26 セッション3 更新）
