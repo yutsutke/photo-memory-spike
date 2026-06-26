@@ -313,6 +313,17 @@
   .marker-popup .mp-del { margin-top: 6px; width: 100%; padding: 7px; border: 1px solid #633; border-radius: 8px; background: #2a1a1a; color: #e88; font-size: 12px; cursor: pointer; }
   .tl-empty { color: #888; font-size: 12px; text-align: center; padding: 20px; }
 
+  /* 没入フルスクリーン (v98): 地図 + 動線 + 写真だけ。ツールバー/タイムライン/ズーム/レイヤを隠し、解除アイコン1つだけ残す（地図の出典 attribution はライセンス上 残す）。 */
+  .map-immersive-exit { position: absolute; top: 10px; left: 10px; z-index: 1300; display: none; background: rgba(0,0,0,0.72); color: #2ee6c0; border: 1px solid #2ee6c0; border-radius: 999px; padding: 7px 12px; font-size: 17px; line-height: 1; cursor: pointer; }
+  .map-immersive-exit:active { background: #000; }
+  .map-overlay.immersive .map-ctrlbar,
+  .map-overlay.immersive .timeline-sheet,
+  .map-overlay.immersive .map-close,
+  .map-overlay.immersive .leaflet-control-zoom,
+  .map-overlay.immersive .leaflet-control-layers { display: none; }
+  .map-overlay.immersive .map-immersive-exit { display: block; }
+  .map-overlay.immersive #mapEl { right: 0; }
+
   @media (min-width: 720px) {
     .timeline-sheet { left: auto; right: 0; top: 0; bottom: 0; width: 320px; max-height: none; border-radius: 0; border-top: 0; border-left: 1px solid #333; transform: none; box-shadow: -4px 0 20px rgba(0,0,0,0.4); }
     .timeline-sheet .sheet-handle { height: 40px; cursor: default; }
@@ -361,7 +372,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.49 (v97：地図ツールバーを1種類に統一＝どのモードでも ◀📆▶／🎲 📅全期間 ⋯表示 の固定2段。✕のみ・ⓘは⋯表示メニューへ) · 2026-06-27';
+const BUILD = 'phase3.50 (v98：地図に「地図だけ全画面」＝⋯表示→⛶ で動線と写真だけの没入表示・ツールバー/タイムライン/コントロールを隠し解除アイコン1つ) · 2026-06-27';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -2173,6 +2184,7 @@ async function openMapView(focusPhoto) {
     `<div class="mc-pop" id="mcPopSeal" hidden></div>` +
     `<div class="mc-pop" id="mcPopHelp" hidden></div>` +
     `<button class="map-close">✕</button>` +
+    `<button class="map-immersive-exit" title="全画面を解除（タップで戻る）">⛶</button>` +
     `<div class="timeline-sheet">` +
       `<div class="sheet-handle"><span class="sheet-grip"></span><span class="sheet-title">タイムライン</span></div>` +
       `<div class="sheet-body"></div>` +
@@ -2207,7 +2219,8 @@ async function openMapView(focusPhoto) {
   mapState = { overlay, map, range: { start: null, end: null }, tripLayers: [], filteredGps: [], lineGps: [],
                pickDays: null, pickMode: null, focusedDay: null,
                trackLayers: [], showTrack: true,        // 🛰️ 位置ロガーの軌跡 (v73)
-               estLayers: [], showEstimated: true };    // 📍 GPSなし写真を軌跡の時刻位置に配置 (v74)
+               estLayers: [], showEstimated: true,      // 📍 GPSなし写真を軌跡の時刻位置に配置 (v74)
+               immersive: false };                       // ⛶ 没入フルスクリーン (v98)
 
   // GPS 写真を撮影順に。除外・封印は出さない (初期表示の判定用。再描画は applyFilter が allPhotos から都度算出)。
   const gps = allPhotos.filter(p => visible(p) && p.lat != null && p.lng != null)
@@ -2566,6 +2579,17 @@ async function openMapView(focusPhoto) {
   }
   mapState.closePops = closePops;
 
+  // ⛶ 没入フルスクリーン (v98): 地図 + 動線 + 写真だけにする。ツールバー/タイムライン/各コントロールを CSS で隠し、解除アイコン1つだけ。
+  // desktop は #mapEl が 320px サイドバー分ぶん広がるので invalidateSize で再描画。
+  function setImmersive(on) {
+    mapState.immersive = on;
+    overlay.classList.toggle('immersive', on);
+    if (on) closePops();
+    requestAnimationFrame(() => { try { map.invalidateSize(); } catch {} });
+  }
+  mapState.setImmersive = setImmersive;
+  overlay.querySelector('.map-immersive-exit').addEventListener('click', () => setImmersive(false));
+
   // 日付/期間フィルタパネル (date 入力 2つ + 適用 / 全期間)
   popFilter.innerHTML =
     `<div class="mc-pop-title">日付・期間で絞り込み</div>` +
@@ -2659,6 +2683,7 @@ async function openMapView(focusPhoto) {
     `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> 🛰️ 自分の軌跡（ロガー）</label>` +
     `<label class="mc-pop-check"><input type="checkbox" id="mmEst"> 📍 GPSなし写真を軌跡から配置</label>` +
     `<button class="mc-menu-item" id="mmSeal">🔒 記憶の封印</button>` +
+    `<button class="mc-menu-item" id="mmFull">⛶ 地図だけ表示（全画面）</button>` +
     `<button class="mc-menu-item" id="mmHelp">ⓘ アイコンの説明</button>`;
   const mmTrack = popMore.querySelector('#mmTrack');
   mmTrack.checked = mapState.showTrack;
@@ -2668,6 +2693,8 @@ async function openMapView(focusPhoto) {
   mmEst.addEventListener('change', () => { mapState.showEstimated = mmEst.checked; refreshTrack(); });
   const mmSeal = popMore.querySelector('#mmSeal');
   mmSeal.addEventListener('click', () => { closePops(); openSealPanel(); });
+  const mmFull = popMore.querySelector('#mmFull');
+  mmFull.addEventListener('click', (e) => { e.stopPropagation(); closePops(); setImmersive(true); });   // ⛶ 地図だけ全画面 (v98)
   const mmHelp = popMore.querySelector('#mmHelp');
   mmHelp.addEventListener('click', (e) => { e.stopPropagation(); closePops(); popHelp.hidden = false; });   // ⓘ アイコンの説明 (v97: ⋯表示メニューから開く)
   elMoreBtn.addEventListener('click', (e) => {
@@ -2684,7 +2711,8 @@ async function openMapView(focusPhoto) {
     `<div class="mc-help-row"><b>◀ 📆 ▶</b><span>過去／未来の「今日」を辿る（📆＝今日に戻る・数年分の同じ月日を重ねる）</span></div>` +
     `<div class="mc-help-row"><b>🎲</b><span>偶然の3日（ランダムな3本の軌跡）</span></div>` +
     `<div class="mc-help-row"><b>📅</b><span>期間でしぼる／全期間に戻る</span></div>` +
-    `<div class="mc-help-row"><b>⋯</b><span>表示の設定（自分の軌跡・GPSなし写真・記憶の封印・アイコンの説明）</span></div>`;
+    `<div class="mc-help-row"><b>⋯</b><span>表示の設定（自分の軌跡・GPSなし写真・記憶の封印・アイコンの説明）</span></div>` +
+    `<div class="mc-help-row"><b>⛶</b><span>地図だけの全画面（動線と写真だけ・タップで解除）</span></div>`;
 
   // 🔒 封印パネル (v56): いま地図に見えている範囲 × 期間 を条件に封印 + 封印中の一覧/解除。
   // 期間は地図のフィルタ状態 (mapState.range)、場所は地図の表示範囲 (map.getBounds()) を流用する。
