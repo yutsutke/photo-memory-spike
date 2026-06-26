@@ -13,7 +13,7 @@
 
 ---
 
-## 現在地 — BUILD: phase3.42 (v92：写真全件アクセスの最小スパイクを実装＝@capacitor-community/media で件数/サムネ/EXIF を実機診断・Codemagic ビルド&実機テスト待ち)
+## 現在地 — BUILD: phase3.42 (v92：写真全件アクセス スパイク＝実機で強い YES🎉 2000枚6秒・約5年分・日時100%／ボトルネック①クリア・次は本命 B＝自前 Photos プラグイン)
 
 > ### 📍 次セッションの再開ポイント（2026-06-26 セッション3 更新・まずここを読む）
 >
@@ -24,10 +24,11 @@
 >   3. ✅ **暗号化コンプライアンス回答**（標準暗号=HTTPS のみ→免除・仏配信いいえ）→ ビルド 1.0(3)「提出準備完了」。
 >   4. ✅ **内部テストグループ「自分」に追加→iPhone の TestFlight でインストール・起動成功**。外部テスト submit だけ Test Information 未入力で赤（内部テストはレビュー不要なので無関係）。
 > - **🟢 強い signal**: 実機で **200枚をピック→アプリ画面復帰まで約17秒**＝web/Safari より明確に速い（WKWebView）。※まだ web の `<input>` ピッカー経由＝native の「全ライブラリ一括」は未着手。
-> - **🧪 写真全件アクセスの最小スパイクを実装済み（v92・Approach A）／実機テスト待ち**＝「久しぶり=全ライブラリ」の生命線の de-risk。`@capacitor-community/media` を入れ、index.html 末尾に**自己完結のオーバーレイ診断**を追加（ネイティブ時だけ浮きボタン「🧪 写真スパイク」が出る・web は無影響）。
->   - **実機テスト手順**: ① Codemagic で **手動でビルド開始**（codemagic.io/app/6a3e20ec4f57d6c27a45f181・yaml 変更不要＝`npm install`→`cap sync ios` がプラグイン配線）→ ② TestFlight で更新（BUILD 表示が `phase3.42` か確認）→ ③ 左下の「🧪 写真スパイク」→「① 300枚」→**許可ダイアログで「すべての写真へのアクセスを許可」**→ 件数/サムネ/日時/GPS を確認 → ④「② 2000枚」でスケール感。
->   - **観察ポイント (a)-(d)**: (a)件数が「選択写真」より遥かに多い＝全ライブラリに届くか (b)サムネが出るか (c)日時＋GPS が載るか (d)許可ダイアログの挙動（「すべて」を選べるか／「選択のみ」だと何が見えるか）。
->   - **YES なら次＝本命 B（自前 Photos プラグイン: 全件カウント即時＋オンデマンドサムネ＋原寸取得）** に進む。診断 block は検証後に撤去。詳細 CHANGELOG v92。
+> - **✅ 写真全件アクセス スパイク（v92・Approach A）＝実機で強い YES**＝「久しぶり=全ライブラリ」の生命線 de-risk 完了。`@capacitor-community/media` の getMedias を実機 iPhone で叩いた結果:
+>   - **2000枚を約6秒**取得・**日時 2000/2000**・GPS 215/2000・**範囲 2021/8〜2026/6（約5年分）**＝古い写真まで届く＝核「久しぶり」実証。300枚が9秒だったのは許可ダイアログ待ち込みで、2回目以降が真の速度＝十分速い。サムネ OS から描画 OK。プラグインは初回ビルドで一発配線（`platform: ios / Media: 検出 ✅`）。
+>   - **GPS は直近リッチ・古いほど希薄**（直近71%／全体11%）→ 古い写真は日時軸（100%）が普遍の頼り（On This Day・GPSなし写真の軌跡補完 v74-75 と整合）。
+>   - **ボトルネック①（写真全件）＋②（Mac なし署名・v91）が両方消えた＝native の二大リスク解消**。詳細 CHANGELOG v92・memory [[native-photo-access-works]]。
+> - **🔴 次の本丸＝本命 B（自前 Photos プラグイン）の実装**＝`PHAsset.fetchAssets` で全件メタデータ即時列挙＋`PHImageManager` でオンデマンドサムネ＋拡大時に原寸。理由＝community プラグインは全サムネ base64 一括＝数千〜数万枚をメモリ保持できない。Mac なしでは pbxproj 手編集を避け**ローカル Capacitor プラグイン package（file: 参照→cap sync が SPM 配線）**が堅い。スパイク診断 block（index.html 末尾 #spk-*）は B 実装時に撤去。
 > - **任意の後始末**: `Info.plist` に `ITSAppUsesNonExemptEncryption=false`（暗号化質問を恒久スキップ）／外部テストするなら Test Information 入力。
 > - **セッション開始時**: Gmail で Apple/App Store 関連を確認（[[session-start-gmail-check]]）。詳細は CHANGELOG v91。下は前セッション（セッション2＝v90）の記録。
 >
@@ -73,7 +74,7 @@
 > - **⛰ ボトルネック（リスク順＝先に潰す順）**: ①🔴🔴写真全件アクセス（公式 Camera はピッカー止まり→`@capacitor-community/media` or カスタムプラグイン）②✅**Mac なし署名＝解決（v91・実機起動まで確認）**（Codemagic の鍵＝Secure env `CERTIFICATE_PRIVATE_KEY`＋`fetch-signing-files --create`）③🟠Apple 承認待ち ④🟠審査4.2（web ラッパー薄さ→native 要素で実質）⑤🟡IndexedDB→SQLite 移行（**track 含む**・写真キーは OS id にせず UUID 維持＝[[seal-protects-core]] でなく §⑥）⑥🟡AI on-device の持ち方 ⑦🟢マネタイズ/i18n/ストア素材。
 > - **Phase 0-6**（戦略の正＝Notion HOW「アプリ化・ストア公開 方針メモ」。以下はリポ実行チェックリスト）:
 >   - **Phase 0 登録・準備**: [x] Apple Developer 登録＝**有効化済み 2026-06-25**(個人・有効期限2027-06-25・Team ID 25TM5C27YT) [~] Small Business Program(手数料15%)＝**申請送信済 2026-06-26・承認待ち** [x] **有料アプリ契約署名＋税務(W-8BEN 租税条約 Art.7(1) 0%)＋銀行口座(三井住友 JPY)＝全て有効 2026-06-26** [~] Node+Capacitor 確認(Node v24/npm OK・Capacitor CLI 未導入) [x] プライバシーポリシー **ドラフト**(`privacy.html`・日英トグル・自己完結=外部依存なし／公開URL=yutsutke.github.io/photo-memory-spike/privacy.html／連絡先記入済み=Tanaka Yusuke / yutsutke@gmail.com／広告・IAP 節は実装時に最終確定)
->   - **Phase 1 Capacitor化+native要素+i18n**: [~] 🟡写真全件アクセス de-risk（**v92 で最小スパイク実装＝@capacitor-community/media・実機テスト待ち**→YES なら自前 Photos プラグインへ） [x] **Capacitor 足場**(package.json/capacitor.config.json/webDir=www/sync スクリプト・8.4.0・v78・GitHub Pages はルート維持) [x] **`cap add ios`＝完了(v89・`ios/` コミット・Capacitor 8 は SPM＝Podfile 無し)＋Info.plist 用途文言(写真/位置 When-In-Use)＋共有スキーム＋apple-generic versioning** [x] **CDN vendoring**(exifr/heic2any/fflate/Leaflet→ローカル同梱・4.2対策 ＝v77 完了・`vendor/`／地図タイルとCLIPは対象外) [ ] IndexedDB→SQLite(track 含む) [ ] onboarding(許可+「数枚→全ライブラリ」段階導線) [ ] アイコン/スプラッシュ/i18n(en/ja) [ ] AI(CLIP)の持ち方決定 [ ] 拡大=原寸オンデマンド/写真アプリ動線見直し/外部画像は実体保持（下記📷方針）
+>   - **Phase 1 Capacitor化+native要素+i18n**: [~] 🟢写真全件アクセス＝**capability 実機 YES（v92・2000枚6秒/約5年/日時100%）**・本実装(自前 Photos プラグイン B)は未 [x] **Capacitor 足場**(package.json/capacitor.config.json/webDir=www/sync スクリプト・8.4.0・v78・GitHub Pages はルート維持) [x] **`cap add ios`＝完了(v89・`ios/` コミット・Capacitor 8 は SPM＝Podfile 無し)＋Info.plist 用途文言(写真/位置 When-In-Use)＋共有スキーム＋apple-generic versioning** [x] **CDN vendoring**(exifr/heic2any/fflate/Leaflet→ローカル同梱・4.2対策 ＝v77 完了・`vendor/`／地図タイルとCLIPは対象外) [ ] IndexedDB→SQLite(track 含む) [ ] onboarding(許可+「数枚→全ライブラリ」段階導線) [ ] アイコン/スプラッシュ/i18n(en/ja) [ ] AI(CLIP)の持ち方決定 [ ] 拡大=原寸オンデマンド/写真アプリ動線見直し/外部画像は実体保持（下記📷方針）
 >     - **📷 画質・写真表示・外部画像の方針（2026-06-17 相談で確定）**:
 >       - **拡大表示＝フル解像度**: ライブラリ写真は PHAsset 参照で**原寸をオンデマンド取得**（PHImageManager・サムネ即出し→裏でフル差替え）。512px 止まりは web/IndexedDB の容量制約（spike v23・[[storage-tradeoffs-accepted]]）→ **native で解消**。
 >       - **「写真アプリで開く」は品質目的としては撤去**（アプリ内フル表示で完結＝reminiscence を切らさない）。残すなら system 共有シートの二次動線のみ。「この1枚を Apple Photos で開く」綺麗な公式 API は native でも無いが、もう不要。
