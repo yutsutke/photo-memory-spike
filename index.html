@@ -197,13 +197,14 @@
   .map-close { position: absolute; top: 10px; left: 10px; z-index: 1200; background: rgba(0,0,0,0.7); color: #fff; border: 1px solid #444; border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
   .map-close:active { background: #000; }
   /* マップ上のコントロール (📅 日付/期間フィルタ と 〰 線の日数。アイコン → 開くパネル) */
-  .map-ctrlbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 96vw; }
+  .map-ctrlbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1200; display: flex; flex-direction: column; align-items: center; gap: 6px; width: max-content; max-width: 96vw; }   /* width:max-content = 2段を広い方の行に合わせ、行内が折り返さない (折り返すと pop と被る) */
+  .mc-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
   .mc-btn { background: rgba(0,0,0,0.72); color: #ddd; border: 1px solid #444; border-radius: 999px; padding: 7px 13px; font-size: 12px; white-space: nowrap; cursor: pointer; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
   .mc-btn:active { background: #000; }
-  .mc-btn.mc-icon { padding: 6px 11px; font-size: 17px; line-height: 1; }   /* 入口の 🎲/📆/↩︎ はアイコンのみ (情報量を抑える) */
+  .mc-btn.mc-icon { padding: 6px 11px; font-size: 17px; line-height: 1; }   /* ◀ 📆 ▶ / 🎲 はアイコンのみ (情報量を抑える) */
   .mc-btn.on { color: #6ee0a3; border-color: #2a6; }
   .mc-btn.open { background: #222; border-color: #777; }
-  .mc-pop { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); z-index: 1250; width: min(300px, 92vw); background: #1b1b1b; border: 1px solid #444; border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); }
+  .mc-pop { position: absolute; top: 86px; left: 50%; transform: translateX(-50%); z-index: 1250; width: min(300px, 92vw); background: #1b1b1b; border: 1px solid #444; border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); }
   .mc-pop[hidden] { display: none; }
   .mc-pop-title { font-size: 13px; font-weight: 600; color: #eee; margin-bottom: 10px; }
   .mc-pop-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -240,7 +241,7 @@
   .seal-del { flex: 0 0 auto; padding: 5px 12px; border: 1px solid #555; border-radius: 999px; background: #2a2a2a; color: #ddd; font-size: 12px; cursor: pointer; }
   .seal-del:active { opacity: 0.8; }
   /* 狭い画面では閉じる/レイヤ切替(上端の左右)と重なるので1段下げる */
-  @media (max-width: 719px) { .map-ctrlbar { top: 52px; } .mc-pop { top: 92px; } }
+  @media (max-width: 719px) { .map-ctrlbar { top: 52px; } .mc-pop { top: 128px; } }
   .map-empty-note { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 1100; background: rgba(0,0,0,0.78); color: #ddd; border: 1px solid #444; border-radius: 8px; padding: 8px 14px; font-size: 12px; text-align: center; max-width: 80%; }
 
   /* 写真サムネのマーカー (L.divIcon の中身) */
@@ -360,7 +361,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.48 (v96：位置ロガーをネイティブ背景記録に＝アプリを閉じても記録〔自前 BackgroundLocation プラグイン・重要な移動=SLC で終了後も復帰／こまめ=背景更新〕。点は端末内にバッファ→起動/復帰で track へ合流) · 2026-06-26';
+const BUILD = 'phase3.49 (v97：地図ツールバーを1種類に統一＝どのモードでも ◀📆▶／🎲 📅全期間 ⋯表示 の固定2段。✕のみ・ⓘは⋯表示メニューへ) · 2026-06-27';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -2163,13 +2164,15 @@ async function openMapView(focusPhoto) {
   overlay.className = 'map-overlay';
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
-    `<div class="map-ctrlbar"><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcMore">⋯ 表示</button>` +
-      `<button class="mc-btn mc-icon" id="mcRoll" hidden title="偶然の3日">🎲</button><button class="mc-btn mc-icon" id="mcPrev" hidden title="前の日（過去の昨日…）">◀</button><button class="mc-btn mc-icon" id="mcToday" hidden title="今日（数年分）">📆</button><button class="mc-btn mc-icon" id="mcNext" hidden title="次の日（過去の明日…）">▶</button><button class="mc-btn mc-icon" id="mcAll" hidden title="全部を見る">↩︎</button><button class="mc-btn mc-icon" id="mcHelp" title="アイコンの説明">ⓘ</button></div>` +
+    `<div class="map-ctrlbar">` +
+      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcPrev" title="前の日（過去の昨日…）">◀</button><button class="mc-btn mc-icon" id="mcToday" title="今日（数年分の同じ月日）">📆</button><button class="mc-btn mc-icon" id="mcNext" title="次の日（過去の明日…）">▶</button></div>` +
+      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcRoll" title="偶然の3日">🎲</button><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcMore">⋯ 表示</button></div>` +
+    `</div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopMore" hidden></div>` +
     `<div class="mc-pop" id="mcPopSeal" hidden></div>` +
     `<div class="mc-pop" id="mcPopHelp" hidden></div>` +
-    `<button class="map-close">✕ 閉じる</button>` +
+    `<button class="map-close">✕</button>` +
     `<div class="timeline-sheet">` +
       `<div class="sheet-handle"><span class="sheet-grip"></span><span class="sheet-title">タイムライン</span></div>` +
       `<div class="sheet-body"></div>` +
@@ -2447,7 +2450,6 @@ async function openMapView(focusPhoto) {
   // 状態はタイムラインの日付タップとも共有 (どちらから絞っても applyFilter / mapState.range に集約)。
   const elFilterBtn = overlay.querySelector('#mcFilter');
   const elMoreBtn   = overlay.querySelector('#mcMore');
-  const elHelpBtn   = overlay.querySelector('#mcHelp');
   const popFilter   = overlay.querySelector('#mcPopFilter');
   const popMore     = overlay.querySelector('#mcPopMore');
   const popSeal     = overlay.querySelector('#mcPopSeal');
@@ -2486,24 +2488,12 @@ async function openMapView(focusPhoto) {
   const mcPrev  = overlay.querySelector('#mcPrev');
   const mcToday = overlay.querySelector('#mcToday');
   const mcNext  = overlay.querySelector('#mcNext');
-  const mcAll   = overlay.querySelector('#mcAll');
 
-  // 入口モード (random3=もう一度引く / day=写真入口) は 📅期間/⋯表示 を隠し 🎲 / ↩︎全部を見る を出す。
-  // 'days' (全期間の文脈で組む非連続の複数日) は 📅/⋯ を残し、解除はタイムラインの「✕ 全部を見る」で行う。
+  // v97: ツールバーはどのモードでも同じ並びに固定 (◀ 📆 ▶ / 🎲 📅全期間 ⋯表示)。モードで出し入れしない
+  // (= 以前の「入口モードはアイコン列／ブラウズはテキスト」の二重 UI を解消)。モード差は 🎲 の意味だけ:
+  // random3 中は「もう一度引く」、それ以外は「偶然の3日」(アイコンは据え置き・title だけ切替)。
   function updateCtrlMode() {
-    const m = mapState.pickMode;
-    const entry = (m === 'random3' || m === 'day' || m === 'today');   // 'today' も入口モード (v83)
-    elFilterBtn.style.display = entry ? 'none' : '';
-    elMoreBtn.style.display   = entry ? 'none' : '';
-    // 入口モードでは 🎲偶然3日 / 📆今日 / ↩︎全部 をアイコンのみで並べる (情報量を抑える)。
-    // 🎲 は random3 中だけ「もう一度引く」の意味になる → title だけ切替 (アイコンは据え置き)。
-    mcRoll.hidden = !entry;
-    mcRoll.title = (m === 'random3') ? 'もう一度引く' : '偶然の3日';
-    mcToday.hidden = !entry || !hasTodayPhotos;
-    // ◀▶ は 'today' モードのとき「過去の今日」を前後の日にずらす入口 (v87)。並び= 🎲 ◀ 📆 ▶ ↩︎。
-    mcPrev.hidden = (m !== 'today');
-    mcNext.hidden = (m !== 'today');
-    mcAll.hidden   = !entry;
+    mcRoll.title = (mapState.pickMode === 'random3') ? 'もう一度引く' : '偶然の3日';
   }
   mapState.updateCtrlMode = updateCtrlMode;
 
@@ -2538,7 +2528,6 @@ async function openMapView(focusPhoto) {
   }
   mapState.pickToday = pickToday;
   mapState.todayOffset = 0;   // 📆 起点からの日数ずれ (v87)。◀▶ で増減・📆 で 0 に戻す。
-  const hasTodayPhotos = pickToday().length > 0;   // 📆今日ボタンの出し分け (今日と同月日の写真があるか)
 
   // offset → 相対の日本語ラベル (見出し用)。0=今日 / ±1=昨日・明日 / ±2=一昨日・明後日 / それ以上は N日前/後。
   function relDayLabel(off) {
@@ -2569,12 +2558,11 @@ async function openMapView(focusPhoto) {
   mcToday.addEventListener('click', () => { gotoTodayOffset(0); });                                            // 今日 (数年分) に戻る = offset 0 (v83/v87)
   mcPrev.addEventListener('click', () => { gotoTodayOffset((mapState.todayOffset || 0) - 1); });               // 前の日へ (過去の昨日…) v87
   mcNext.addEventListener('click', () => { gotoTodayOffset((mapState.todayOffset || 0) + 1); });               // 次の日へ (過去の明日…) v87
-  mcAll.addEventListener('click', () => clearPick());
   // ───────────────────────────────────────────────────────────────────
 
   function closePops() {
     popFilter.hidden = true; popMore.hidden = true; popSeal.hidden = true; popHelp.hidden = true;
-    elFilterBtn.classList.remove('open'); elMoreBtn.classList.remove('open'); elHelpBtn.classList.remove('open');
+    elFilterBtn.classList.remove('open'); elMoreBtn.classList.remove('open');
   }
   mapState.closePops = closePops;
 
@@ -2670,7 +2658,8 @@ async function openMapView(focusPhoto) {
     `<div class="mc-pop-title">表示の設定</div>` +
     `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> 🛰️ 自分の軌跡（ロガー）</label>` +
     `<label class="mc-pop-check"><input type="checkbox" id="mmEst"> 📍 GPSなし写真を軌跡から配置</label>` +
-    `<button class="mc-menu-item" id="mmSeal">🔒 記憶の封印</button>`;
+    `<button class="mc-menu-item" id="mmSeal">🔒 記憶の封印</button>` +
+    `<button class="mc-menu-item" id="mmHelp">ⓘ アイコンの説明</button>`;
   const mmTrack = popMore.querySelector('#mmTrack');
   mmTrack.checked = mapState.showTrack;
   mmTrack.addEventListener('change', () => { mapState.showTrack = mmTrack.checked; refreshTrack(); });
@@ -2679,6 +2668,8 @@ async function openMapView(focusPhoto) {
   mmEst.addEventListener('change', () => { mapState.showEstimated = mmEst.checked; refreshTrack(); });
   const mmSeal = popMore.querySelector('#mmSeal');
   mmSeal.addEventListener('click', () => { closePops(); openSealPanel(); });
+  const mmHelp = popMore.querySelector('#mmHelp');
+  mmHelp.addEventListener('click', (e) => { e.stopPropagation(); closePops(); popHelp.hidden = false; });   // ⓘ アイコンの説明 (v97: ⋯表示メニューから開く)
   elMoreBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const willOpen = popMore.hidden;
@@ -2690,18 +2681,10 @@ async function openMapView(focusPhoto) {
   // 既定はアイコンだけのまま、説明は「押した時だけ開く」凡例に逃がす ([[ui-minimalism-works]] の「使う時だけ広がる」)。
   popHelp.innerHTML =
     `<div class="mc-pop-title">この画面のアイコン</div>` +
-    `<div class="mc-help-row"><b>📆</b><span>今日（数年分の同じ月日を重ねる）</span></div>` +
-    `<div class="mc-help-row"><b>◀ ▶</b><span>前後の日へ（過去の昨日・明日・明後日…）</span></div>` +
+    `<div class="mc-help-row"><b>◀ 📆 ▶</b><span>過去／未来の「今日」を辿る（📆＝今日に戻る・数年分の同じ月日を重ねる）</span></div>` +
     `<div class="mc-help-row"><b>🎲</b><span>偶然の3日（ランダムな3本の軌跡）</span></div>` +
-    `<div class="mc-help-row"><b>↩︎</b><span>全部を見る（全期間に戻る）</span></div>` +
-    `<div class="mc-help-row"><b>📅</b><span>期間でしぼる</span></div>` +
-    `<div class="mc-help-row"><b>⋯</b><span>表示の設定（自分の軌跡・記憶の封印）</span></div>`;
-  elHelpBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const willOpen = popHelp.hidden;
-    closePops();
-    if (willOpen) { popHelp.hidden = false; elHelpBtn.classList.add('open'); }
-  });
+    `<div class="mc-help-row"><b>📅</b><span>期間でしぼる／全期間に戻る</span></div>` +
+    `<div class="mc-help-row"><b>⋯</b><span>表示の設定（自分の軌跡・GPSなし写真・記憶の封印・アイコンの説明）</span></div>`;
 
   // 🔒 封印パネル (v56): いま地図に見えている範囲 × 期間 を条件に封印 + 封印中の一覧/解除。
   // 期間は地図のフィルタ状態 (mapState.range)、場所は地図の表示範囲 (map.getBounds()) を流用する。
