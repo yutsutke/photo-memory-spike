@@ -13,14 +13,14 @@
 
 ---
 
-## 現在地 — BUILD: phase3.46 (v94：本丸＝B をアプリ本体に統合。ネイティブ「全ライブラリ取り込み」→既存の連想ウォーク/地図/On This Day がそのまま動く配線。中核ロジックはブラウザ検証済み・実機 TestFlight 待ち)
+## 現在地 — BUILD: phase3.46 (v94：本丸＝B をアプリ本体に統合。ネイティブ「全ライブラリ取り込み」→既存の連想ウォーク/地図/On This Day がそのまま動く。🎉実機 YES＝約2000枚を高速取り込み・止まらない＝ボトルネック①完全クローズ)
 
 > ### 📍 次セッションの再開ポイント（2026-06-26 セッション4 更新・まずここを読む）
 >
 > **🎉 Phase 1 の本丸＝B（自前 PhotoLibrary）をアプリ本体に統合。ネイティブで「全ライブラリ取り込み」→ 既存の連想ウォーク/地図/タイムライン/On This Day/色・意味の近傍が全ライブラリでそのまま動く配線が入った（BUILD `phase3.46`・push 済み）。**
 > - **やったこと（案1＝既存パイプラインに流し込む・軽量版）**: enumerate で全件メタ→`thumbnail({id,size:512})` のサムネ Blob をそのまま thumb に保存（再エンコード無し）＋色は 16×16 で抽出→**web と同一形の record を dbPut**＝downstream 無改修。写真キーは UUID 維持・**assetId(localIdentifier) を dedup `asset|<id>` と差分同期に使用**（機種変更耐性）。再実行は**差分（新しく撮った写真）だけ追加**。導線は空状態「📚 ライブラリ全体から始める」＋取り込みメニュー「📚 ライブラリ全体（おすすめ）」、**全て `isNativePlatform()` 分岐＝web は従来どおり**。fast-track→背景の二段は web と同じ。新規コード＝`importNativeLibrary`/`importNativeAsset`/`importOneNative`/`processNativeRest`/`collectImportedAssetIds`/`colorFromBlob`/`dataUrlToBlob`（index.html・importOne 直後に集約）。
 > - **検証済み（実機前にブラウザで固めた）**: ①全 inline script を `vm.Script` で parse＝構文事故ゼロ ②web は IS_NATIVE=false でネイティブ UI を隠し従来描画・コンソールエラー無し ③**記録生成パイプライン本体を page context で関数テスト**＝ダミー JPEG→record が web と同一形（id/assetId/`dedup='asset|…'`/datetime=Date/thumb=Blob/color=F32(48)/dateSource）・色抽出が実色と一致・差分集合回収・dedup→duplicate・no-datetime→skip。
-> - **🔴 次＝実機 TestFlight で本物の PhotoLibrary を通す**（ブラウザで動かせないのは requestAccess/enumerate/thumbnail と IS_NATIVE 分岐だけ）。観察: 「📚」→数百〜2054枚が背景取り込み→連想ウォーク/地図/On This Day が全ライブラリで動くか／取り込み速度・体感・メモリ／差分同期（再押しで新規だけ）／拡大画質（今は512流用）。
+> - **✅ 実機 TestFlight で本物の PhotoLibrary を通した＝🎉強い YES**（ユーザー:「完璧だね。すごい速さで写真を取り込んだ。しかも止まらなかった。2000枚もあったのに」）。web/iPad の raw JPEG デコード OOM（v35-37）が native では起きない＝案1軽量版の狙いどおり。**ボトルネック①（写真全件）完全クローズ**。残る観察＝**全ライブラリでの reminiscence の体感**（連想ウォーク/地図/On This Day が古い写真まで含めて効くか）／差分同期（📚再押しで新規だけ）／拡大画質（今は512流用）。
 > - **次段（実機 OK が出てから）**: 拡大=原寸オンデマンド（プラグインに `fullImage({id})` 追加）／起動時 自動差分同期／提出前 Privacy Manifest（PrivacyInfo.xcprivacy）／診断 block（#spk-*）撤去。詳細 CHANGELOG v94・memory [[native-photo-access-works]]。
 > - **セッション開始時**: Gmail で Apple/App Store 関連を確認（[[session-start-gmail-check]]）。下は前セッション（セッション3＝v93）の記録。
 >
