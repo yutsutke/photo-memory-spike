@@ -32,7 +32,37 @@
 >   - **③ 全件数 2054 枚を即時（往復180ms / native158ms）**＋メタ2000・日時2000/2000・GPS215/2000・範囲2021/8〜2026/6。**④ オンデマンドサムネ 48枚＝7ms/枚**。
 >   - **A 比＝約33倍速＋メモリ軽**（A は全サムネ base64 一括で約6秒／B は列挙とサムネを分離）。本命アーキの優位を実機確認。
 >   - **first-build の罠2つを解消**: SPM 名不一致（exit 74）→package/product/target 名を `PhotoLibrary` に統一／Swift import 漏れ→`UIKit`・`CoreLocation` 追加。教訓は CHANGELOG v93・memory [[native-photo-access-works]]。
-> - **🔴 次の本丸＝B をアプリ本体の取り込み動線に統合（Phase 1）**: ピッカー→全ライブラリ列挙／メタは IndexedDB→将来 SQLite／サムネはオンデマンド or キャッシュ／拡大は原寸／写真キーは UUID 維持（localIdentifier は属性）。診断 block（#spk-*）は統合後に撤去。提出時は Photos の Privacy Manifest（PrivacyInfo.xcprivacy）が要る見込み。
+> - **🔴 次の本丸＝B をアプリ本体の取り込み動線に統合（Phase 1）**。下に**一気にやる用の実装プラン**を用意済み（2026-06-26・Explore でコードをマップして作成）。次セッションはこれを読めば探索ゼロで着手できる。
+>
+> ### 🛠️ 次セッション実装プラン — B をアプリ本体に統合（一気にやる用）
+> **ゴール**: ネイティブで「全ライブラリ取り込み」→ 既存の連想ウォーク/地図/タイムライン/On This Day が**そのまま全ライブラリで動く**。web のピッカーは残す（両対応・`Capacitor.isNativePlatform()` で分岐）。
+>
+> **★ 唯一の設計判断（最初に決める）＝サムネをどう持つか**:
+> - **(推奨) 案1: 既存パイプラインに流し込む**＝ネイティブ enumerate で全件メタ→各写真の512pxサムネを `PhotoLibrary.thumbnail({id,size:512})` で取得し、**既存と同一形の record（thumb=Blob）を `dbPut`**。downstream（表示/色/CLIP/地図/walk）は**完全に無改修**。storage は512サムネを IndexedDB に持つ＝[[storage-tradeoffs-accepted]] で受容済み。低リスク・最速。ユーザーは2054枚＝余裕。
+> - 案2: 参照＋オンデマンド（メタのみ保存・`thumbUrl` を非同期化）＝超省メモリ・数万枚向きだが、`thumbUrl()`(同期・L1344)と全表示経路の大改修。**スケールが問題化してから**。
+> - → **案1で実装**。enumerate の「即時全件」は取り込み進捗UI/差分同期に活かす（B の利点は死なない）。
+>
+> **写真 record の形（再導出不要・index.html L757-768）**: `{id:crypto.randomUUID(), name, datetime:Date, lat, lng, blob:null, thumb:Blob(512px), color:Float32Array(48), dedup:string, dateSource, importedAt, ＋assetId(新規=localIdentifier)}`。runtime: excluded(永続)/_sealed/embedding。DB=`photos`(keyPath id・index datetime/dedup)＋`track`(v2)。
+>
+> **統合の継ぎ目（関数:行）**:
+> - 取り込み入口 `$picker.change`(L3970)→`importFiles()`(L3480) … ここにネイティブ分岐を足す
+> - File→record `importOne()`(L718) … ネイティブは EXIF/HEIC 不要（enumerate が日時/GPS・thumbnail がサムネ）→ **別関数 `importNativeAsset(meta, thumbBlob)` を新設**して record 直組み
+> - 表示 `thumbUrl()`(L1344)=`URL.createObjectURL(photo.thumb)` … **案1なら無改修**
+> - 色 `createThumbnail()`(L653)内 `extractColorFeature()`(L599) … 512サムネを canvas 描画して color 抽出
+> - CLIP `extractEmbeddingForPhoto()`(L3691)=`p.thumb` 読む … **無改修**
+> - dedup `dbHasDedup()` … ネイティブは **assetId をキー**に（再取り込みで重複しない）
+>
+> **実装ステップ（小さく・各段で実機確認できる順）**:
+> 1. `importNativeAsset(meta, thumbBlob)` 新設: id=UUID, datetime=`new Date(meta.date)`, lat/lng, thumb=(512 dataURL→`await (await fetch(d)).blob()`), color=512から抽出, dedup=assetId, assetId=meta.id → `dbPut`+`addPhotos`
+> 2. 「📚 全ライブラリを取り込む」導線（ネイティブ時の空状態/onboarding）: 押下→`requestAccess()`→`enumerate({limit:0})`→DB既存 assetId と diff→新規だけ背景で `thumbnail({id,size:512})`→`importNativeAsset`。進捗は既存の📥`updateBgStatus` に乗せる
+> 3. 背景取り込みは既存 `runBackgroundImport()`/`enqueueBackground()`(L3528) の枠＋スロットル流用
+> 4. 色/CLIP backfill はそのまま動く（record.thumb があるため）
+> 5. 差分同期: 起動 or ボタンで enumerate→未取り込み assetId だけ追加（新しく撮った写真が入る）
+> 6. 拡大=原寸: プラグインに `fullImage({id})` を足してオンデマンド（512即出し→裏で原寸差替え）※第一歩は enumerate/thumbnail で足りる
+> 7. 動いたら診断 block（#spk-*）を撤去
+>
+> **テスト**: build→TestFlight→「全ライブラリ取り込み」→数百枚入ったら 連想ウォーク/地図/On This Day が全ライブラリで動くか・色/意味の近傍・拡大画質を実機確認。
+> **注意/宿題**: ①写真キーは UUID 維持（assetId は属性・機種変更耐性 §⑥）②提出前に Photos の Privacy Manifest（PrivacyInfo.xcprivacy・required-reason API）を plugin/app に追加（TestFlight は警告止まり）③onboarding は「数枚で試す(既存picker)／全ライブラリ」の段階導線（核＝偶然/久しぶり/よみがえる・[[ui-minimalism-works]]）。詳細マップは会話の Explore 結果・memory [[native-photo-access-works]]。
 > - **任意の後始末**: `Info.plist` に `ITSAppUsesNonExemptEncryption=false`（暗号化質問を恒久スキップ）／外部テストするなら Test Information 入力。
 > - **セッション開始時**: Gmail で Apple/App Store 関連を確認（[[session-start-gmail-check]]）。詳細は CHANGELOG v91。下は前セッション（セッション2＝v90）の記録。
 >
