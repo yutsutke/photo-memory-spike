@@ -13,9 +13,22 @@
 
 ---
 
-## 現在地 — BUILD: phase3.40 (codemagic 署名を --create 明示生成に修正＝v90／初TestFlightビルドを Codemagic で実行中・署名後の archive で詰まり)
+## 現在地 — BUILD: phase3.41 (v91：Codemagic 署名突破→初 TestFlight 到達・実機 iPhone で起動成功🎉／Mac なし署名を de-risk 完了)
 
-> ### 📍 次セッションの再開ポイント（2026-06-26 セッション2 更新・まずここを読む）
+> ### 📍 次セッションの再開ポイント（2026-06-26 セッション3 更新・まずここを読む）
+>
+> **🎉 初 TestFlight ビルドが実機 iPhone で起動。Mac なし署名（ボトルネック②）を de-risk 完了。**
+> - **この回（セッション3）でやったこと**:
+>   1. ✅ **v90 の archive 失敗（exit 65）を解消**＝真因は use-profiles ではなく **`fetch-signing-files --create` に証明書の秘密鍵が無かった**こと。ローカルで RSA 鍵生成→Codemagic の **Secure 環境変数 `CERTIFICATE_PRIVATE_KEY`（グループ `signing`）** に登録＋`codemagic.yaml` に `--certificate-key @env:CERTIFICATE_PRIVATE_KEY` 追加（commit `21d81e3`）。
+>   2. ✅ **再ビルド成功**＝署名 3s / IPA 45s / App.ipa 1.40MB / App Store Connect アップロード＆Apple 処理完了。
+>   3. ✅ **暗号化コンプライアンス回答**（標準暗号=HTTPS のみ→免除・仏配信いいえ）→ ビルド 1.0(3)「提出準備完了」。
+>   4. ✅ **内部テストグループ「自分」に追加→iPhone の TestFlight でインストール・起動成功**。外部テスト submit だけ Test Information 未入力で赤（内部テストはレビュー不要なので無関係）。
+> - **🟢 強い signal**: 実機で **200枚をピック→アプリ画面復帰まで約17秒**＝web/Safari より明確に速い（WKWebView）。※まだ web の `<input>` ピッカー経由＝native の「全ライブラリ一括」は未着手。
+> - **🔴 次セッションの最優先＝ネイティブ写真全件アクセスの最小スパイク**（PHAsset 全件列挙＋OS サムネ/EXIF＝「久しぶり=全ライブラリ」の生命線）。署名パイプラインが通ったので、次の本丸はここ。
+> - **任意の後始末**: `Info.plist` に `ITSAppUsesNonExemptEncryption=false`（暗号化質問を恒久スキップ）／外部テストするなら Test Information 入力。
+> - **セッション開始時**: Gmail で Apple/App Store 関連を確認（[[session-start-gmail-check]]）。詳細は CHANGELOG v91。下は前セッション（セッション2＝v90）の記録。
+>
+> ### 📍 次セッションの再開ポイント（2026-06-26 セッション2 更新・archive 失敗→v91 で解決済み）
 >
 > **🚦 いまの最前線＝Codemagic で初ビルドを TestFlight へ。署名は通過、archive で「provisioning profile が無い」で2回目失敗中。**
 > - **この回（セッション2）でやったこと（Chrome 拡張で一緒に操作）**:
@@ -54,7 +67,7 @@
 > ### 🚀 製品化決定（2026-06-17）— このリポを「製品本体」にして native 化（App Store 申請）
 > - spike は **v75** で reminiscence + 地図/位置の体験検証を終え卒業。コードを 2 リポ（spike/madeleine）で**コピー二重管理**していたのをやめ、**このリポに統合＝今後の web 編集・Capacitor・Apple 申請は全部ここで**。`madeleine` リポは畳む（凍結・参照のみ。GitHub 削除は別途ユーザー確認）。public のまま製品化（ローカル完結で秘密ロジック無し）。
 > - **最初の3手**（並行可）: ① ✅ **Apple Developer 登録を申込＝完了**（2026-06-18 申込・支払い済み、注文 W1884878174・12,980円／**承認・有効化待ち**＝唯一のクリティカルパスが走り出した）② ✅ **Node + Capacitor 確認＝完了**（Node v24/npm OK・**Capacitor 8.4.0 導入＝足場完了**: appId `io.github.yutsutke.madeleine`/appName Madeleine/webDir=`www`/ルート→www 同期スクリプト・v78）③ 🔴 **ネイティブ写真全件アクセスの最小スパイク**（PHAsset 全件列挙 + OS サムネ/EXIF＝「久しぶり=全ライブラリ」の生命線・最優先 de-risk）。
-> - **⛰ ボトルネック（リスク順＝先に潰す順）**: ①🔴🔴写真全件アクセス（公式 Camera はピッカー止まり→`@capacitor-community/media` or カスタムプラグイン）②🔴Mac なし署名（Codemagic 自動署名・**Xcode 26/iOS 26 SDK 必須**・詰まれば MacinCloud 保険）③🟠Apple 承認待ち ④🟠審査4.2（web ラッパー薄さ→native 要素で実質）⑤🟡IndexedDB→SQLite 移行（**track 含む**・写真キーは OS id にせず UUID 維持＝[[seal-protects-core]] でなく §⑥）⑥🟡AI on-device の持ち方 ⑦🟢マネタイズ/i18n/ストア素材。
+> - **⛰ ボトルネック（リスク順＝先に潰す順）**: ①🔴🔴写真全件アクセス（公式 Camera はピッカー止まり→`@capacitor-community/media` or カスタムプラグイン）②✅**Mac なし署名＝解決（v91・実機起動まで確認）**（Codemagic の鍵＝Secure env `CERTIFICATE_PRIVATE_KEY`＋`fetch-signing-files --create`）③🟠Apple 承認待ち ④🟠審査4.2（web ラッパー薄さ→native 要素で実質）⑤🟡IndexedDB→SQLite 移行（**track 含む**・写真キーは OS id にせず UUID 維持＝[[seal-protects-core]] でなく §⑥）⑥🟡AI on-device の持ち方 ⑦🟢マネタイズ/i18n/ストア素材。
 > - **Phase 0-6**（戦略の正＝Notion HOW「アプリ化・ストア公開 方針メモ」。以下はリポ実行チェックリスト）:
 >   - **Phase 0 登録・準備**: [x] Apple Developer 登録＝**有効化済み 2026-06-25**(個人・有効期限2027-06-25・Team ID 25TM5C27YT) [~] Small Business Program(手数料15%)＝**申請送信済 2026-06-26・承認待ち** [x] **有料アプリ契約署名＋税務(W-8BEN 租税条約 Art.7(1) 0%)＋銀行口座(三井住友 JPY)＝全て有効 2026-06-26** [~] Node+Capacitor 確認(Node v24/npm OK・Capacitor CLI 未導入) [x] プライバシーポリシー **ドラフト**(`privacy.html`・日英トグル・自己完結=外部依存なし／公開URL=yutsutke.github.io/photo-memory-spike/privacy.html／連絡先記入済み=Tanaka Yusuke / yutsutke@gmail.com／広告・IAP 節は実装時に最終確定)
 >   - **Phase 1 Capacitor化+native要素+i18n**: [ ] 🔴写真全件アクセス de-risk [x] **Capacitor 足場**(package.json/capacitor.config.json/webDir=www/sync スクリプト・8.4.0・v78・GitHub Pages はルート維持) [x] **`cap add ios`＝完了(v89・`ios/` コミット・Capacitor 8 は SPM＝Podfile 無し)＋Info.plist 用途文言(写真/位置 When-In-Use)＋共有スキーム＋apple-generic versioning** [x] **CDN vendoring**(exifr/heic2any/fflate/Leaflet→ローカル同梱・4.2対策 ＝v77 完了・`vendor/`／地図タイルとCLIPは対象外) [ ] IndexedDB→SQLite(track 含む) [ ] onboarding(許可+「数枚→全ライブラリ」段階導線) [ ] アイコン/スプラッシュ/i18n(en/ja) [ ] AI(CLIP)の持ち方決定 [ ] 拡大=原寸オンデマンド/写真アプリ動線見直し/外部画像は実体保持（下記📷方針）
@@ -63,8 +76,8 @@
 >       - **「写真アプリで開く」は品質目的としては撤去**（アプリ内フル表示で完結＝reminiscence を切らさない）。残すなら system 共有シートの二次動線のみ。「この1枚を Apple Photos で開く」綺麗な公式 API は native でも無いが、もう不要。
 >       - **外部画像（IG/X/フォルダ/スクショ）は非対称**: 写真ライブラリに居ない＝PHAsset 無し → **アプリが実体をフル/高解像度で自前保存**（巨大物だけ縮小）。「写真アプリで開く」は対象外。任意で取り込み時「写真アプリに保存」して PHAsset 化も可（**強制しない**＝カメラロールを汚したくない人向け）。
 >       - **容量**: ライブラリ＝サムネ＋参照で軽い／外部＝実体保持だが枚数少で許容。コア拡張「取り込んだ画像も一級市民」（[[external-import-savedate-works]]）と整合。
->   - **Phase 2 Codemagic 自動署名**: [ ] App Store Connect API キー(Issuer/Key ID/.p8)＝**ユーザー操作** [ ] Codemagic で証明書自動生成(yaml の `ios_signing`+`use-profiles` で自動・キー登録待ち) [ ] 最初のアーカイブ→TestFlight
->   - **Phase 3 定常ビルド**: [x] **codemagic.yaml 作成＝完了(v89・mac_mini_m2/xcode latest・SPM なので pod 無し・agvtool で連番)** [ ] push でビルド&TestFlight 自動(CI 接続後に有効化)
+>   - **Phase 2 Codemagic 自動署名**: [x] App Store Connect API キー(Issuer/Key ID/.p8)＝発行済 [x] **証明書/プロファイル自動生成＝`fetch-signing-files --create`＋秘密鍵 `CERTIFICATE_PRIVATE_KEY`（v91 で突破）** [x] **最初のアーカイブ→TestFlight＝完了（実機 iPhone 起動 2026-06-26）**
+>   - **Phase 3 定常ビルド**: [x] **codemagic.yaml 作成＝完了(v89・mac_mini_m2/xcode latest・SPM なので pod 無し・agvtool で連番)** [x] **ビルド&TestFlight 自動＝v91 で疎通（署名→IPA→アップロード→内部テスト）**
 >   - **Phase 4 収益化**: [ ] AdMob 非パーソナライズ(npa=1) [ ] ¥300 IAP(RevenueCat)+「購入を復元」必須 [ ] 広告は外周のみ(reminiscence 画面に出さない)
 >   - **Phase 5 ストア素材・申請**: [ ] スクショ/説明文/年齢レーティング(日英) [ ] プライバシーラベル+ポリシー公開 [ ] TestFlight 最終確認 [ ] 申請(4.2 来たら native 要素足して再提出)
 >   - **Phase 6 公開後→Android**（同じ Capacitor。12人/14日クローズドテストはこの段階）

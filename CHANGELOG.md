@@ -5,6 +5,37 @@
 
 ---
 
+## v91 — Codemagic 署名突破＋初 TestFlight 到達（実機 iPhone で起動・取り込み高速の初期signal） (2026-06-26)
+
+**背景**
+- v90 の宿題＝archive が `error: "App" requires a provisioning profile`（exit 65）で詰まっていた。失敗ビルドのログを Chrome 拡張で一緒に読んで原因を確定し、初 TestFlight・実機起動まで通した回。
+
+**ハマり → 真因 → 対処（核心）**
+- **症状**: 署名ステップで `Cannot save Signing Certificates without certificate private key` / `Did not find any certificates` / `Did not find matching provisioning profiles` → 証明書が1枚も用意できず、archive が `CODE_SIGN_STYLE=Manual` で必須プロファイル無しのまま exit 65。
+- **真因**: v90 の診断（use-profiles の適用ミス）は表層。**本質は「`fetch-signing-files --create` に証明書の秘密鍵を渡していなかった」**。Mac なし CI で証明書を作る時は、永続的な秘密鍵を環境変数で渡す必要がある（無いと作った証明書の private key が保存できない）。
+- **対処（commit `21d81e3` / v91）**:
+  - ローカルで RSA 秘密鍵生成（`ssh-keygen -t rsa -b 2048 -m PEM ...`）。
+  - Codemagic に **Secure 環境変数 `CERTIFICATE_PRIVATE_KEY`（グループ `signing`）** として登録（public リポなので yaml には置けない＝UI 登録／秘密情報の入力はユーザー操作）。
+  - `codemagic.yaml`: `environment.groups: [signing]` 追加 ＋ `fetch-signing-files` に `--certificate-key @env:CERTIFICATE_PRIVATE_KEY` 追加。
+  - → 再ビルドで **署名 3s ✅ / IPA ビルド 45s ✅ / App.ipa 1.40MB 生成 ✅ / App Store Connect へアップロード＆Apple 処理完了 ✅**。
+
+**もう1つの小さな関門（解決済み）**
+- post-processing「App Store distribution」が赤 = バイナリは TestFlight に乗ったが、**外部テスト提出に必要な Test Information 未入力**で submit だけ失敗。内部テストはレビュー不要なので無関係。
+- App Store Connect で **暗号化コンプライアンス**（標準暗号化=HTTPS のみ→免除／フランス配信=いいえ）を回答 → ビルド 1.0(3)「提出準備完了」→ **内部テストグループ「自分」に自分を追加 → iPhone の TestFlight でインストール・起動成功**。
+
+**結果 / 観察（強い signal）**
+- **Mac を一台も持たずに署名済み iOS アプリを実機（iPhone）で起動**＝このプロジェクト最大級のリスク「Mac なし署名」を実機で de-risk 完了（ボトルネック②クリア）。
+- **取り込みが web/Safari より明確に速い**：実機で **200枚をピック→アプリ画面復帰まで約17秒**。WKWebView（native ラッパー）が モバイル Safari より速いため。※これはまだ **web の `<input>` ピッカー**での結果＝native の「全ライブラリ一括アクセス」プラグインは未着手（次の de-risk）。
+
+**教訓**
+- Codemagic（Mac なし自動署名）の本当の必須要素は **`CERTIFICATE_PRIVATE_KEY`（永続秘密鍵）を Secure env で渡すこと**。これが無いと「証明書が作れない→プロファイルも当たらない→archive が manual で必須プロファイル無し」で落ちる。**エラーは下流（profile 無い）に出るが根は上流（証明書の鍵）**。ログのステップ名（署名適用 vs build-ipa）で切り分けると速い。
+- 「web 体験ロジックをそのまま native でラップ」戦略は性能面でも追い風（取り込みが速くなった）。整理（写真全件 native 化・SQLite）は段階的でよい。
+
+**残課題 / 次の方向**
+- 🔴 **ネイティブ写真全件アクセスの最小スパイク**（PHAsset 全件列挙＋OS サムネ/EXIF＝「久しぶり=全ライブラリ」の生命線・最優先 de-risk）。
+- 実機で web 体験（連想ウォーク・地図・取り込み）が web 版と同じ手触りか継続観察。
+- 任意の後始末: `Info.plist` に `ITSAppUsesNonExemptEncryption=false`（暗号化質問を恒久スキップ）／外部テストするなら Test Information 入力／毎ビルドの external 提出失敗が気になるなら yaml 調整。
+
 ## v90 — Codemagic 接続＋初TestFlightビルド実行（署名は通過・archive で詰まり中） (2026-06-26)
 
 **背景**
