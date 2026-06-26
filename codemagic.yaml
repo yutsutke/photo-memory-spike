@@ -9,6 +9,10 @@
 #   2. Codemagic の Team settings → Integrations → App Store Connect に
 #      その API キーを登録し、名前を付ける（下の app_store_connect に書く名前）
 #   3. このリポを Codemagic に接続し、このワークフローを選ぶ
+#   4. 配布証明書の「秘密鍵」を Codemagic に登録（これが今回の修正の肝）:
+#      ローカルで RSA 鍵を生成（ssh-keygen -t rsa -b 2048 -m PEM -f key -q -N ""）し、
+#      その中身を Codemagic の環境変数 CERTIFICATE_PRIVATE_KEY（Secure・グループ signing）に貼る。
+#      これが無いと fetch-signing-files が証明書を作れず（秘密鍵不足）archive が exit 65 で落ちる。
 #
 # 技術メモ:
 #   - Capacitor 8 は CocoaPods ではなく Swift Package Manager (SPM)。
@@ -27,6 +31,8 @@ workflows:
       # ↓ Codemagic UI で登録した App Store Connect API キーの「名前」に書き換える
       app_store_connect: MadeleineASC
     environment:
+      groups:
+        - signing
       vars:
         BUNDLE_ID: "io.github.yutsutke.madeleine"
       node: 22
@@ -48,6 +54,7 @@ workflows:
           keychain initialize
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
             --create
           keychain add-certificates
           xcode-project use-profiles
