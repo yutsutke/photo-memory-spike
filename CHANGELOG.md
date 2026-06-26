@@ -5,6 +5,30 @@
 
 ---
 
+## v90 — Codemagic 接続＋初TestFlightビルド実行（署名は通過・archive で詰まり中） (2026-06-26)
+
+**背景**
+- v89 のリポ足場が出来たので、Chrome 拡張で画面を一緒に操作しながら Apple/Codemagic 側を一気に接続し、初ビルドを TestFlight まで回そうとした回。
+
+**やったこと（Apple / Codemagic 側・全てユーザー操作を Claude が誘導）**
+- **Apple Developer**: App ID `io.github.yutsutke.madeleine`（Explicit）登録。
+- **App Store Connect**: アプリレコード作成。名前は「あの日」単独が商標で使用済みだったため **「あの日 — 写真と足跡」**に（公開前に再変更可）。primary 日本語 / SKU `madeleine-001`。
+- **App Store Connect API キー**（Users and Access→Integrations）: 名前 `Codemagic CI`・権限 **App Manager**。Issuer ID `cc160ccb-f80f-4f15-acdd-3d6b6b333c96` / Key ID `FNMWA45D94` / .p8 はユーザーが DL 保管（1回限り）。⚠️ API キー/.p8 の入力は Claude は代行せず、値を提示してユーザーが入力（認証情報入力の安全方針）。
+- **Codemagic**: Personal Account（無料 Individual）・GitHub OAuth(All repos) でサインアップ→リポ `photo-memory-spike` 追加（app id `6a3e20ec4f57d6c27a45f181`）→ Developer Portal integration を **「MadeleineASC」**で登録（yaml の `integrations.app_store_connect` と一致）。
+
+**ハマったところ（2件・1件目は解決・2件目が次セッションの宿題）**
+- **① 初ビルド「No matching profiles found」**: codemagic.yaml の `environment.ios_signing` ブロックによる自動署名は「既存プロファイルを探すだけ」で、新規アカウントは証明書もプロファイルも無く失敗。→ **`ios_signing` ブロックを撤去し、明示スクリプト `keychain initialize` → `app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create` → `keychain add-certificates` → `xcode-project use-profiles` に切替**（commit `fe1a572`）。
+- **② 2回目ビルド: 署名ファイル作成は通過したが Step 6「IPA をビルド」で失敗（未解決）**: `error: "App" requires a provisioning profile. Select a provisioning profile in the Signing & Capabilities editor. (in target 'App')`。archive 行に `CODE_SIGN_STYLE=Manual` はあるが PROVISIONING_PROFILE_SPECIFIER / DEVELOPMENT_TEAM が未注入。exit 65。＝`use-profiles` がプロファイルを App ターゲットへ適用できていない。
+
+**次の方向（次セッション最優先）**
+- まず**失敗ビルドの署名ステップのログ**を読む（fetch-signing-files が profile を何個どこに保存し use-profiles が何個適用したか）。
+- 修正候補（順に）: ①`fetch-signing-files` に `--platform IOS` 追加 ②`use-profiles` と `build-ipa` を同一スクリプトステップにまとめる ③プロジェクトに `DEVELOPMENT_TEAM = 25TM5C27YT` を明示注入 ④最終手段＝Codemagic UI「Code signing identities」へ手動で配布証明書＋プロファイルをアップロードする方式に切替。
+- 完全独立で進められる de-risk＝**ネイティブ写真全件アクセスの最小スパイク**（[[product-core-defined]] 核②の生命線）。署名で長引くならこちらを先行してよい。
+
+**教訓**
+- 新規 Apple アカウント＋Codemagic の初回は「自動署名ブロックだけ」では証明書/プロファイルが作られず詰まる。`fetch-signing-files --create` で明示生成が要る。だが --create で作っても `use-profiles` の適用まで通って初めて archive が通る＝**署名は『作成』と『プロジェクトへの適用』の2段で、それぞれ別に失敗しうる**。1ビルドごとに失敗ステップが1つずつ前進するので、ログのステップ名で切り分けるのが速い。
+- 認証情報（.p8/API キー）の入力はユーザーに委ね、Claude は値の提示と画面誘導に徹する運用がうまく回った。
+
 ## v89 — native: iOS プラットフォーム生成＋Codemagic で TestFlight パイプライン足場 (2026-06-26)
 
 **背景**

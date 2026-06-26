@@ -13,9 +13,26 @@
 
 ---
 
-## 現在地 — BUILD: phase3.39 (native: cap add ios＋codemagic.yaml＝TestFlight パイプライン足場＝v89)
+## 現在地 — BUILD: phase3.40 (codemagic 署名を --create 明示生成に修正＝v90／初TestFlightビルドを Codemagic で実行中・署名後の archive で詰まり)
 
-> ### 📍 次セッションの再開ポイント（2026-06-26 更新・まずここを読む）
+> ### 📍 次セッションの再開ポイント（2026-06-26 セッション2 更新・まずここを読む）
+>
+> **🚦 いまの最前線＝Codemagic で初ビルドを TestFlight へ。署名は通過、archive で「provisioning profile が無い」で2回目失敗中。**
+> - **この回（セッション2）でやったこと（Chrome 拡張で一緒に操作）**:
+>   1. ✅ **Apple Developer で App ID 登録**: `io.github.yutsutke.madeleine`（Explicit・Team `25TM5C27YT`）。
+>   2. ✅ **App Store Connect でアプリレコード作成**: 名前 **「あの日 — 写真と足跡」**（「あの日」単独は商標で使用済み→改名・公開前に再変更可）／primary lang 日本語／SKU `madeleine-001`／iOS 1.0 提出準備中。
+>   3. ✅ **App Store Connect API キー発行**（Users and Access→Integrations）: 名前 `Codemagic CI`・権限 **App Manager**。**Issuer ID `cc160ccb-f80f-4f15-acdd-3d6b6b333c96`／Key ID `FNMWA45D94`／.p8 は DL済み（1回限り・ユーザー保管）**。
+>   4. ✅ **Codemagic 接続**: Personal Account（無料 Individual）・GitHub OAuth（All repositories）でサインアップ→リポ `photo-memory-spike` 追加（Codemagic app id `6a3e20ec4f57d6c27a45f181`）→ **Developer Portal integration を「MadeleineASC」で登録**（Key `FNMWA45D94`・yaml の `integrations.app_store_connect` と一致）。
+>   5. 🔁 **ビルド実行2回**: ①commit `48e6945` → 署名で即失敗「No matching profiles found」→ **v90 で `app-store-connect fetch-signing-files --create` に切替**（commit `fe1a572`）→ ②再実行で**署名ファイル作成は通過**したが **Step 6「IPA をビルド」で失敗**＝`error: "App" requires a provisioning profile ... (target 'App')`／archive 行に `CODE_SIGN_STYLE=Manual`／exit 65。
+> - **🔴 次セッションの最優先＝この archive 失敗を直す**。署名ファイル(--create)は出来たのに `xcode-project use-profiles` がプロファイルを App ターゲットに適用できていない（Manual なのに PROVISIONING_PROFILE_SPECIFIER / DEVELOPMENT_TEAM 未設定）。
+>   - **まず: 失敗ビルドの「署名ファイルを取得/作成し Xcode に適用」ステップのログを読む**（fetch-signing-files が profile を何個・どこに保存し、use-profiles が何個適用したか）。Codemagic build URL = `codemagic.io/app/6a3e20ec4f57d6c27a45f181`。
+>   - **試す修正候補（順に）**: ①`fetch-signing-files` に `--platform IOS` も付ける ②`use-profiles` の直後で同一スクリプト内に `build-ipa` を置く（今は別ステップ）③ build-ipa に team を明示：プロジェクトに `DEVELOPMENT_TEAM = 25TM5C27YT` を入れる or `xcode-project use-profiles --warn-only` で適用結果を確認 ④最終手段＝Codemagic UI の「Code signing identities」に手動で配布証明書＋プロファイルをアップロードする方式へ切替。
+>   - 参考: Codemagic「Building a native iOS app / Signing」「fetch-signing-files」「use-profiles」の各 docs。Capacitor 8 は SPM（Podfile 無し）。
+> - **🔴 これと完全独立で進められる de-risk＝ネイティブ写真全件アクセスの最小スパイク**（`@capacitor-community/media` 等で PHAsset 全件列挙＋OSサムネ/EXIF が取れるか調査→設計メモ。「久しぶり=全ライブラリ」の生命線）。署名で詰まったらこちらを先に進めてもよい。
+> - **セッション開始時**: Gmail で「ASBP 承認メール」を確認（[[session-start-gmail-check]]・前回は受領止まりで承認待ち）。
+> - 詳細は CHANGELOG v90。下は前セッション（v79–v89）の記録。
+>
+> ### 📍 次セッションの再開ポイント（2026-06-26 セッション1 更新）
 > **🧭 最短サマリ（次に開いたらまずこれ）**: web 強化（v87/v88）＋ **Apple の課金土台を一気に整えた**回（**v79–v88 / BUILD `phase3.38` / 全て push 済み・git clean**）。web の軸＝「過去の今日（On This Day）」習慣の入口育成（v87=📆を◀▶で前後の日にずらす＝過去の昨日・明日・明後日…／v88=タイムライン下端ハンドルを safe-area 分持ち上げ＋ⓘアイコン説明）。**実機で強い YES**＝v83「線が無くてもタイムラインに数年分出るだけで時間の経過を感じ心が動く」（[[on-this-day-daily-entry]]）。**🍎 Apple＝メンバーシップ有効化（2026-06-25）＋ App Store Connect 初期設定を 2026-06-26 に一気に完了**（有料アプリ契約署名・W-8BEN 租税条約0%・銀行口座・**ASBP 申請送信＝承認待ち**・Team ID `25TM5C27YT`）。**唯一のブロッカーは解消済み・native は前進フェーズ（下の「▶ 次の一手 (3)〜(5)」）**。
 > **▶ 次の3択（どれでもOK・前提情報は全部このすぐ下にある）**:
 > - 〔A〕**実機（iPhone Safari）で v79–v88 をまとめて触る** ＝唯一の未確認。観察: **v88=①タイムライン下端ハンドルが safe-area 分持ち上がって掴める位置に出るか（v87 実機で「消えた・下すぎて触れない」指摘の対処・`viewport-fit=cover`）②ⓘで開くアイコン凡例が役立つか**／過去の今日チップ／🗺今日（数年分の重なり・写真が少ない日の寂しさ）／📆◀▶で前後の日にずらす＝過去の昨日/明日/明後日（矢印の発見しやすさ・相対ラベル・予定立て/振り返り・写真ゼロの日「0年分」）／位置なし写真→その日の地図→タイムラインから位置を直す＝想起（[[editing-triggers-reminiscence]]）。`?v=338` でキャッシュ回避。**ハンドルがまだ掴みにくければ「📆入口でシートを少し開いて出す」案あり**（CHANGELOG v88 残課題）。
