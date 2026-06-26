@@ -111,8 +111,6 @@
   /* v24: フル表示の下部キャプション。日時 (純正写真アプリで辿る鍵) + 写真アプリ動線 */
   .full-cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2001; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.72)); display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .full-cap .dt { color: #fff; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
-  .full-cap .dt small { color: #9a9a9a; font-size: 11px; margin-left: 8px; }
-  .full-cap .to-photos { background: #2a2a2a; color: #e0e0e0; border: 1px solid #4a4a4a; border-radius: 999px; padding: 9px 20px; font-size: 14px; }
   .full-cap .full-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .full-cap .fix-date { background: #2a2a2a; color: #e0e0e0; border: 1px solid #4a4a4a; border-radius: 999px; padding: 9px 20px; font-size: 14px; cursor: pointer; }
   .full-cap .date-editor { display: flex; flex-direction: column; align-items: center; gap: 8px; background: rgba(18,18,18,0.96); border: 1px solid #2a6; border-radius: 12px; padding: 12px 14px; }
@@ -362,7 +360,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.46 (B をアプリ本体に統合＝ネイティブで全ライブラリ取り込み→既存の連想ウォーク/地図/On This Day がそのまま動く・案1軽量版/差分同期/段階導線) · 2026-06-26';
+const BUILD = 'phase3.47 (v95：拡大表示から「📷写真アプリで開く」「日付コピー」を撤去＝native で全ライブラリを綺麗に表示しアプリ内完結／実機で全ライブラリ reminiscence が強い YES) · 2026-06-26';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1699,12 +1697,9 @@ function showFullImage(photo) {
   overlay.className = 'full-overlay';
   overlay.innerHTML = `<img src="${url}">`;
 
-  // v24: ここ=「鮮明に見たい」瞬間。原画は持たないので、日時 (純正写真アプリで辿る鍵) を大きく出し、
-  // タップでコピー + 写真アプリ起動を試みる動線を置く。Web は写真アプリの特定写真を直接開けない
-  // (識別子を持てず、写真へのディープリンク URL も無い) → 日時で自分で辿ってもらう。
-  // 表示は時刻まで (同じ日に複数枚ある時、純正アプリで目視特定する手がかり)。
-  // ただし v25: コピーは「日付のみ」。純正写真アプリの検索は日付では効くが時刻を入れると不一致になる
-  // (実機確認)。和暦形式 (2021年6月5日) が日本語端末の写真検索に通りやすい。
+  // ここ=「鮮明に見たい」瞬間。native は全ライブラリのサムネ(512px)を表示し実機で「めっちゃきれい」＝
+  // アプリ内で完結する。日時は想起の手がかりとして大きく出すだけにする (v95: 旧「📷写真アプリで開く」と
+  // 「日付コピー→純正アプリで日付検索」は不要になり撤去。原寸が要れば将来 fullImage でオンデマンド)。
   const d = photo.datetime;
   const dtStr = d ? fmtDate(d) : '日時不明';
   // 地図への導線。GPS があれば「その場所」へ、無くても日時さえあれば「その日の地図」へ (v80: 常に出す)。
@@ -1714,10 +1709,9 @@ function showFullImage(photo) {
   const cap = document.createElement('div');
   cap.className = 'full-cap';
   cap.innerHTML =
-    `<div class="dt">📅 ${dtStr}${srcTagHtml(photo)}<small>タップで日付をコピー</small></div>` +
+    `<div class="dt">📅 ${dtStr}${srcTagHtml(photo)}</div>` +
     `<div class="full-actions">` +
       (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '') +
-      `<button class="to-photos">📷 写真アプリで開く</button>` +
       `<button class="fix-date">📅 日付を直す</button>` +
     `</div>` +
     // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
@@ -1728,14 +1722,6 @@ function showFullImage(photo) {
       `<div class="de-hint">本当に撮った日時に直すと、タイムライン・地図の並びもそこへ移ります。</div>` +
     `</div>`;
   cap.addEventListener('click', e => e.stopPropagation());  // キャプション操作で overlay を閉じない
-  const $small = cap.querySelector('.dt small');
-  cap.querySelector('.dt').addEventListener('click', async () => {
-    const dd = photo.datetime;                              // 直した後も最新の日付をコピーできるよう都度算出
-    const dOnly = dd ? `${dd.getFullYear()}年${dd.getMonth()+1}月${dd.getDate()}日` : '';
-    if (!dOnly) return;
-    try { await navigator.clipboard.writeText(dOnly); if ($small) $small.textContent = `「${dOnly}」をコピー`; }
-    catch { if ($small) $small.textContent = '長押しでコピー'; }
-  });
   // v79: 🗺 地図へ。地図 overlay (z 150) はフル画像 (z 2000) より背面なので、先にフル画像を閉じる。
   if (showMapBtn) {
     cap.querySelector('.to-map').addEventListener('click', () => {
@@ -1743,10 +1729,6 @@ function showFullImage(photo) {
       openMapView(photo);
     });
   }
-  cap.querySelector('.to-photos').addEventListener('click', () => {
-    // 写真アプリを開く (非公式スキーム、特定写真までは飛べない)。開けなければ無反応。
-    try { window.location.href = 'photos-redirect://'; } catch {}
-  });
   // 📅 日付を直す (v60): 撮影日/保存日が無い・おかしい写真を、本当の日時に直す。直す行為自体が想起の入口。
   const editor = cap.querySelector('.date-editor');
   cap.querySelector('.fix-date').addEventListener('click', () => {
@@ -3159,8 +3141,8 @@ function renderInfoModal() {
       <p style="margin:.8em 0 .2em;color:#fff;">📥 取り込み</p>
       <p style="margin:.2em 0;"><b>📷取り込む</b> から <b>ファイル / フォルダー</b> を選びます。撮影日時(EXIF)があればそれを、なければ<b>保存日（最終更新日）</b>を日時にして取り込みます（色・意味の連想に乗ります）。日時の出所は画像を見ると「撮影日 / 保存日 / 投稿日」と表示されます。細かい基準（撮影日のある画像だけ取り込む等）は <b>⚙️ 詳細設定</b> から。同じ画像を選び直しても<b>重複は自動スキップ</b>。たくさん入れる時・古い端末では小分けが安定。</p>
       <p style="margin:.2em 0;">📦 は <b>Instagram / X(Twitter) のエクスポート(zip)</b> から取り込みます。画像本体から日時が消えていても、同梱データ（Instagram は「情報をダウンロード」の <b>JSON 形式</b>、X は <b>アーカイブ</b>の <code>data/tweets.js</code>）から<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。X は画像投稿のみ対応（動画・テキストは対象外）。容量が大きいと時間がかかるので、期間を絞ると軽いです。</p>
-      <p style="margin:.8em 0 .2em;color:#fff;">🖼 鮮明な写真を見たい時 / 📅 日付を直す</p>
-      <p style="margin:.2em 0;">アプリは軽くするため縮小版を保存しています。元の写真は、長押し→<b>日付をコピー</b>→<b>純正の写真アプリで日付検索</b>すると見つかります。<b>日付がおかしい・抜けている写真</b>は、写真を長押しして開いた画面の <b>「📅 日付を直す」</b>から本当の日時に直せます（タイムラインや地図の並びもそこへ移ります）。</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">🖼 拡大表示 / 📅 日付を直す</p>
+      <p style="margin:.2em 0;">写真を<b>長押し</b>すると拡大表示できます（端末内のサムネ表示・アプリ内で完結）。<b>日付がおかしい・抜けている写真</b>は、開いた画面の <b>「📅 日付を直す」</b>から本当の日時に直せます（タイムラインや地図の並びもそこへ移ります。直す行為そのものが当時の記憶を思い出すきっかけにも）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
       <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（直後のトースト、または右上の <b>♻️</b> からいつでも戻せます）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🗺 地図 / 🔒 封印</p>
