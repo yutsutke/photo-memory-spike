@@ -362,7 +362,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.41 (codemagic: 署名に CERTIFICATE_PRIVATE_KEY を渡す＝証明書秘密鍵不足の archive 失敗を解消) · 2026-06-26';
+const BUILD = 'phase3.42 (native 写真全件アクセスの最小スパイク: @capacitor-community/media で件数/サムネ/EXIF を実機診断・web は無影響) · 2026-06-26';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -4208,6 +4208,144 @@ async function loadRestInBackground() {
   }
   // Phase 2: 残りはユーザーが触り始めた裏で追い読み (await しない)。色 backfill はその完了後。
   loadRestInBackground();
+})();
+</script>
+
+<!-- ============================================================
+     🧪 ネイティブ写真全件アクセス 最小スパイク (v92・2026-06-26)
+     目的: Capacitor native で「全ライブラリ列挙＋OSサムネ＋EXIF(日時/GPS)」が
+           取れるかを実機1ビルドで判定する自己完結の診断。
+     ・ネイティブ(window.Capacitor.isNativePlatform())のときだけ浮きボタンを出す。
+       web (GitHub Pages) では一切出さない＝既存の web 体験に干渉しない。
+     ・@capacitor-community/media の Media.getMedias() を叩いて
+       件数 / 取得時間 / GPS付き枚数 / 日時レンジ / 先頭サムネを表示。
+     検証が済んだら、この block ごと撤去して本命(自前 Photos プラグイン)へ。
+     ============================================================ -->
+<style>
+  #spk-fab{position:fixed;left:calc(env(safe-area-inset-left,0px) + 10px);
+    bottom:calc(env(safe-area-inset-bottom,0px) + 10px);z-index:99999;
+    font:600 13px/1 -apple-system,system-ui,sans-serif;color:#fff;
+    background:#6b4ea0;border:none;border-radius:999px;padding:10px 14px;
+    box-shadow:0 2px 10px rgba(0,0,0,.4);}
+  #spk-overlay{position:fixed;inset:0;z-index:100000;display:none;
+    background:#0b0b0f;color:#eee;overflow:auto;
+    font:14px/1.5 -apple-system,system-ui,sans-serif;
+    padding:calc(env(safe-area-inset-top,0px) + 14px) 14px
+            calc(env(safe-area-inset-bottom,0px) + 28px);}
+  #spk-overlay.show{display:block;}
+  #spk-overlay h2{font-size:16px;margin:0 0 10px;}
+  #spk-overlay .row{margin:6px 0;}
+  #spk-overlay button{font:600 14px system-ui;color:#fff;background:#6b4ea0;
+    border:none;border-radius:8px;padding:11px 14px;margin:6px 8px 6px 0;}
+  #spk-overlay #spk-close{background:#333;}
+  #spk-stat{white-space:pre-wrap;background:#15151c;border-radius:8px;
+    padding:10px;margin:8px 0;font:12px/1.5 ui-monospace,monospace;}
+  #spk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));
+    gap:6px;margin-top:10px;}
+  #spk-grid figure{margin:0;background:#15151c;border-radius:6px;padding:4px;}
+  #spk-grid img{width:100%;height:78px;object-fit:cover;border-radius:4px;
+    background:#222;display:block;}
+  #spk-grid figcaption{font:10px/1.3 ui-monospace,monospace;color:#aaa;
+    margin-top:3px;word-break:break-all;white-space:pre-wrap;}
+</style>
+<script>
+(function(){
+  "use strict";
+  var Cap = window.Capacitor;
+  var isNative = !!(Cap && typeof Cap.isNativePlatform === 'function' && Cap.isNativePlatform());
+  if (!isNative) return;            // web では何も出さない（既存体験を汚さない）
+
+  // Media プラグインの取得（Plugins 経由 or registerPlugin のどちらでも拾えるよう二段構え）
+  var Media = (Cap.Plugins && Cap.Plugins.Media) ||
+              (typeof Cap.registerPlugin === 'function' ? Cap.registerPlugin('Media') : null);
+
+  function plat(){ try { return Cap.getPlatform ? Cap.getPlatform() : '?'; } catch(e){ return '?'; } }
+  function fmtDate(s){ if(!s) return '日時なし';
+    try{ var d=new Date(s); if(isNaN(d.getTime())) return String(s).slice(0,16);
+      return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate(); }catch(e){ return String(s); } }
+  function hasGPS(m){ return !!(m && m.location &&
+    typeof m.location.latitude==='number' &&
+    (m.location.latitude!==0 || m.location.longitude!==0)); }
+
+  // --- 浮きボタン（ネイティブ専用・診断起動） ---
+  var fab = document.createElement('button');
+  fab.id = 'spk-fab';
+  fab.textContent = '🧪 写真スパイク';
+  document.body.appendChild(fab);
+
+  // --- オーバーレイ ---
+  var ov = document.createElement('div');
+  ov.id = 'spk-overlay';
+  ov.innerHTML =
+    '<h2>🧪 写真全件アクセス 診断</h2>' +
+    '<div class="row" id="spk-env"></div>' +
+    '<div class="row">' +
+      '<button id="spk-run300">① まず 300枚で確認</button>' +
+      '<button id="spk-run2000">② 大量 2000枚で確認</button>' +
+      '<button id="spk-close">閉じる</button>' +
+    '</div>' +
+    '<div id="spk-stat">（①か②を押すと結果が出ます。許可ダイアログが出たら「すべての写真へのアクセスを許可」を選んでください）</div>' +
+    '<div id="spk-grid"></div>';
+  document.body.appendChild(ov);
+
+  var statEl = ov.querySelector('#spk-stat');
+  var gridEl = ov.querySelector('#spk-grid');
+  ov.querySelector('#spk-env').textContent =
+    'platform: ' + plat() + ' / Media プラグイン: ' + (Media ? '検出 ✅' : '未検出 ❌（cap sync 要）');
+
+  fab.addEventListener('click', function(){ ov.classList.add('show'); });
+  ov.querySelector('#spk-close').addEventListener('click', function(){ ov.classList.remove('show'); });
+
+  async function run(quantity){
+    gridEl.innerHTML = '';
+    if(!Media){ statEl.textContent='❌ Media プラグインが見つかりません。Codemagic の cap sync が走ったか確認。'; return; }
+    statEl.textContent = '⏳ getMedias(quantity='+quantity+') 実行中…';
+    var now = function(){ return (window.performance && performance.now) ? performance.now() : Date.now(); };
+    var t0 = now();
+    try{
+      var res = await Media.getMedias({
+        quantity: quantity,
+        thumbnailWidth: 96, thumbnailHeight: 96, thumbnailQuality: 70,
+        types: 'photos',
+        sort: [{ key:'creationDate', ascending:false }]
+      });
+      var dt = Math.round(now() - t0);
+      var medias = (res && res.medias) || [];
+      var n = medias.length, gps = 0, withDate = 0, dates = [];
+      for(var i=0;i<n;i++){
+        if(hasGPS(medias[i])) gps++;
+        if(medias[i].creationDate){ withDate++; dates.push(medias[i].creationDate); }
+      }
+      dates.sort();
+      var range = dates.length ? (fmtDate(dates[0]) + ' 〜 ' + fmtDate(dates[dates.length-1])) : '—';
+      statEl.textContent =
+        '✅ 取得 ' + n + ' 枚  （' + dt + ' ms）\n' +
+        '・日時あり: ' + withDate + ' / ' + n + '\n' +
+        '・GPSあり : ' + gps + ' / ' + n + '\n' +
+        '・日時レンジ: ' + range + '\n' +
+        '（先頭48枚のサムネを下に表示）';
+      var lim = Math.min(48, n), frag = document.createDocumentFragment();
+      for(var j=0;j<lim;j++){
+        var m = medias[j];
+        var fig = document.createElement('figure');
+        var img = document.createElement('img');
+        img.src = m.data ? ('data:image/jpeg;base64,' + m.data) : '';
+        var cap = document.createElement('figcaption');
+        cap.textContent = fmtDate(m.creationDate) +
+          (hasGPS(m) ? ('\n📍' + m.location.latitude.toFixed(3) + ',' + m.location.longitude.toFixed(3)) : '\n📍なし');
+        fig.appendChild(img); fig.appendChild(cap); frag.appendChild(fig);
+      }
+      gridEl.appendChild(frag);
+    }catch(err){
+      var dt2 = Math.round(now() - t0);
+      statEl.textContent = '❌ エラー（' + dt2 + ' ms）: ' +
+        ((err && (err.message || err.errorMessage)) || String(err)) +
+        '\n\nヒント: 写真の許可が「選択した写真のみ」だと全件は見えません。' +
+        '\niOS 設定 → あの日 → 写真 → 「すべての写真」を選んでから再実行してください。';
+    }
+  }
+  ov.querySelector('#spk-run300').addEventListener('click', function(){ run(300); });
+  ov.querySelector('#spk-run2000').addEventListener('click', function(){ run(2000); });
 })();
 </script>
 </body>

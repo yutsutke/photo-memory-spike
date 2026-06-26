@@ -5,6 +5,28 @@
 
 ---
 
+## v92 — ネイティブ写真全件アクセスの最小スパイク（Approach A: コミュニティプラグインで可否判定） (2026-06-26)
+
+**背景**
+- 署名パイプライン(v91)が通り、残る最大の de-risk＝「ネイティブで全ライブラリ（ピッカーでなく）にサムネ＋EXIF 付きで届くか」を実機1ビルドで判定する番。最小スパイクの趣旨に沿い、まず手数の最も少ない方法で capability を確かめる。
+
+**設計判断**
+- 2案を一次ソースで比較 → **A＝`@capacitor-community/media`（コミュニティプラグイン）を採用**。ネイティブ手編集ゼロ（`npm install`＋web JS のみ／`cap sync` が CI で自動配線）＝初回ビルド成功率が最も高く「最小スパイク」に合う。`getMedias()` が 件数・base64 サムネ・`creationDate`・`location`(GPS) を返すので、**列挙＋サムネ＋EXIF の3点を1ビルドで判定**できる。
+- **採用しなかった案 B＝自前 Swift プラグイン（Photos framework 直叩き）**: 全件カウント即時＋オンデマンドサムネ＝本命アーキだが、Mac なしで Xcode プロジェクト(pbxproj)/プラグイン登録を手編集する罠が多く初回ビルドで詰まりやすい。**capability が YES と出てから B に進む**（A の弱点＝base64 一括返却でスケールに弱い、は B で解消）。ユーザーも「まず最小で可否確認(A)」を選択。
+- スパイクは **完全自己完結のオーバーレイ診断**として index.html 末尾に追加。`window.Capacitor.isNativePlatform()` が真のときだけ浮きボタン「🧪 写真スパイク」を出し、**web(GitHub Pages)では何も出さない＝既存体験に非干渉**（preview で `#spk-fab` 非生成・コンソールエラー無しを確認）。検証が済んだら block ごと撤去して本実装へ。
+- 診断は「①300枚」「②2000枚」の2ボタン＝まず安全に、次にスケール感を見る。結果に 件数 / 取得時間 / 日時あり数 / GPSあり数 / 日時レンジ / 先頭48サムネ を表示。
+
+**実装メモ**
+- `@capacitor-community/media@^9.1.0`（v9 系が Capacitor 8 対応・`Package.swift` あり＝SPM 互換・`jsName="Media"`＝コードの `Capacitor.Plugins.Media` と一致を確認）。プラグイン取得は `Plugins.Media` ∥ `registerPlugin('Media')` の二段構えで堅牢化。
+- Info.plist は v89 で `NSPhotoLibraryUsageDescription`（読み取り）既設＝追加不要。CI は既存 codemagic.yaml の `npm install`→`npx cap sync ios` でプラグインを配線（**yaml 変更不要**）。
+
+**結果 / 観察**
+- （実機ビルド・テスト待ち）。判定したいこと: **(a)** ピッカー無しで件数が「選択写真」より遥かに多いか＝全ライブラリに届くか **(b)** サムネが OS から出るか **(c)** `creationDate`＋GPS が載るか **(d)** 許可ダイアログで「すべての写真」を選べるか／「選択した写真のみ」だと何が見えるか。
+
+**残課題 / 次の方向**
+- 実機で ①→② を回し上記 (a)-(d) を観察。**YES なら B（自前 Photos プラグイン: 全件カウント＋オンデマンドサムネ＋原寸取得）** に進む。NO/制約は診断の env 行（プラグイン検出）と stat（権限・件数）で切り分け可能。
+- 検証完了後はこの診断 block を撤去（本実装に置換）。
+
 ## v91 — Codemagic 署名突破＋初 TestFlight 到達（実機 iPhone で起動・取り込み高速の初期signal） (2026-06-26)
 
 **背景**
