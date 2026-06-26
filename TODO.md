@@ -13,7 +13,7 @@
 
 ---
 
-## 現在地 — BUILD: phase3.43 (v93：本命 B 第一歩＝自前 PhotoLibrary プラグイン[全件カウント即時＋オンデマンドサムネ]を実装・診断に③④追加／Codemagic ビルド&実機テスト待ち)
+## 現在地 — BUILD: phase3.44 (v93：本命 B 第一歩＝自前 PhotoLibrary プラグイン[全件カウント即時＋オンデマンドサムネ]を実装・診断に③④追加・Swift import 修正済み／Codemagic ビルド&実機テスト待ち)
 
 > ### 📍 次セッションの再開ポイント（2026-06-26 セッション3 更新・まずここを読む）
 >
@@ -29,7 +29,7 @@
 >   - **GPS は直近リッチ・古いほど希薄**（直近71%／全体11%）→ 古い写真は日時軸（100%）が普遍の頼り（On This Day・GPSなし写真の軌跡補完 v74-75 と整合）。
 >   - **ボトルネック①（写真全件）＋②（Mac なし署名・v91）が両方消えた＝native の二大リスク解消**。詳細 CHANGELOG v92・memory [[native-photo-access-works]]。
 > - **🧪 本命 B（自前 PhotoLibrary プラグイン）の第一歩を実装済み（v93）／実機テスト待ち**＝`local-plugins/photo-library`（`file:` 参照→`cap sync` が SPM 自動配線・ローカル `npx cap sync ios` で「Found 2 plugins」配線確認済み）。API＝`requestAccess`／`enumerate({limit})`（全件数は即時＋先頭メタ）／`thumbnail({id,size})`（1枚オンデマンド dataURL）。診断オーバーレイに B 列（③全件カウント＋メタ2000／④サムネ48枚オンデマンド）追加。Info.plist に `ITSAppUsesNonExemptEncryption=false`（暗号化質問スキップ）も同梱。
->   - **実機テスト手順**: Codemagic で Start new build → TestFlight 更新（BUILD `phase3.43`・**暗号化質問はもう出ないはず**）→ 🧪写真スパイク → **③** で `PhotoLibrary: 検出 ✅`＋全件数（A の上限超え）＋往復 ms 確認 → **④** でオンデマンドサムネが出るか・ms/枚 確認。
+>   - **実機テスト手順**: Codemagic で Start new build → TestFlight 更新（BUILD `phase3.44`・**暗号化質問はもう出ないはず**）→ 🧪写真スパイク → **③** で `PhotoLibrary: 検出 ✅`＋全件数（A の上限超え）＋往復 ms 確認 → **④** でオンデマンドサムネが出るか・ms/枚 確認。
 >   - **判定 (a)-(c)**: (a)PhotoLibrary プラグイン検出＝自前プラグインの CI 配線 OK か (b)enumerate の count が真の全件数で即時か (c)thumbnail のオンデマンドが動くか・1枚何 ms か。
 >   - **OK なら次＝アプリ本体の取り込み動線に統合**（ピッカー→全ライブラリ／メタは IndexedDB→将来 SQLite／サムネはオンデマンド or キャッシュ／拡大は原寸）＝Phase 1 の本丸。診断 block は統合後に撤去。詳細 CHANGELOG v93。
 > - **任意の後始末**: `Info.plist` に `ITSAppUsesNonExemptEncryption=false`（暗号化質問を恒久スキップ）／外部テストするなら Test Information 入力。

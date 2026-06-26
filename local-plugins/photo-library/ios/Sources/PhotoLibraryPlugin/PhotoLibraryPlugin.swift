@@ -1,4 +1,6 @@
 import Foundation
+import UIKit          // UIImage.jpegData / CGSize
+import CoreLocation   // CLLocation.coordinate
 import Capacitor
 import Photos
 
