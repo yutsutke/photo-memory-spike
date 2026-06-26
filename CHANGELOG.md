@@ -5,6 +5,34 @@
 
 ---
 
+## v94 — B をアプリ本体に統合（ネイティブ全ライブラリ取り込み→既存の体験ロジックがそのまま動く） (2026-06-26)
+
+**背景**
+- v93 で自前 PhotoLibrary プラグインの API（requestAccess/enumerate/thumbnail）が実機 YES。Phase 1 の本丸＝この B をアプリ本体の取り込み動線に統合し、ネイティブで「全ライブラリ取り込み」したものが既存の体験ロジック（連想ウォーク/地図/タイムライン/On This Day/色・意味の近傍）で**そのまま動く**状態にする。
+
+**設計判断**
+- **案1（既存パイプラインに流し込む）を採用** — enumerate で全件メタ→各写真のサムネを `thumbnail({id,size:512})` で取得し、**web と同一形の record（thumb=Blob, color=Float32Array(48)）を dbPut**。downstream（表示 thumbUrl / 色 backfill / CLIP / 地図 / walk）は**完全無改修**で乗る。案2（メタのみ保存＋オンデマンド参照）は超省メモリだが全表示経路の大改修＝スケールが問題化してから。2054枚は案1で余裕（[[storage-tradeoffs-accepted]]）。
+- **案1の中でさらに軽量版** — サムネは createThumbnail で再エンコードせず、**OS 生成サムネ Blob をそのまま thumb に保存**し、色だけ backfillColors と同じ 16×16 縮小で抽出（再エンコード無し＝速い・PHImageManager は向き補正済みを返すので回転不要・色は backfill 済み web 写真と同じ精度で整合）。
+- **写真キーは UUID 維持・assetId(localIdentifier) は属性** — dedup キー `asset|<localIdentifier>` と差分同期に使う（機種変更耐性・Notion §⑥）。dedup インデックスの `asset|` 範囲走査（collectDummyKeys と同型・値を読まずキーだけ）で「取り込み済み assetId 集合」を高速回収→**再実行は差分（新しく撮った写真）だけ追加**。
+- **段階導線**（核＝偶然/久しぶり/よみがえる × [[ui-minimalism-works]]） — ネイティブの空状態は「📚 ライブラリ全体から始める」を主役に、web ピッカーは「数枚だけ選んで試す」副導線へ。取り込みメニューにも「📚 ライブラリ全体（おすすめ）」を追加。**全て `Capacitor.isNativePlatform()` で分岐＝web は完全に従来どおり**。
+- fast-track（先頭6枚で即遊べる）→残りは背景低優先（`NATIVE_IMPORT_DELAY=8ms`・web の HEIC デコードより遥かに軽い）で web の importFiles と同じ二段構え。進捗は既存 🌀 `updateBgStatus`、サマリ・色/embedding backfill も既存関数を再利用＝新規写真にも自動で色・意味軸が乗る。
+- 新規コードは index.html の importOne 直後に1ブロック集約: `importNativeLibrary`/`importNativeAsset`/`importOneNative`/`processNativeRest`/`collectImportedAssetIds`/`colorFromBlob`/`dataUrlToBlob` ＋ `IS_NATIVE`/`PhotoLib` 参照。
+
+**検証（実機前にブラウザで中核ロジックを固めた）**
+- ネイティブの**記録生成パイプライン本体**は Capacitor 非依存なので preview の page context で関数単体テスト＝ダミー JPEG(canvas)→`dataUrlToBlob`→`importNativeAsset` に流し、record が web と同一形（id=UUID36 / assetId / `dedup='asset|...'` / datetime=Date / blob=null / thumb=Blob / **color=F32(48)・実色と一致** / dateSource='exif'）、`collectImportedAssetIds` が回収、再取り込み→`duplicate`、date=null→`no-datetime` skip を確認。
+- 全 inline script を `vm.Script` で parse 検査＝web もろとも壊れる構文事故ゼロ。web は IS_NATIVE=false でネイティブ UI を隠して従来通り描画（コンソールエラー無し・空状態スナップショット確認）。
+- **実機が要るのは PhotoLibrary プラグイン呼び出し（requestAccess/enumerate/thumbnail）と IS_NATIVE 分岐のみ**＝次の TestFlight で確認。
+
+**教訓**
+- 「downstream を無改修にする」設計（record の形を web と一字一句同じにする）が効いた＝統合の継ぎ目を `importNativeAsset` 1点に閉じ込められ、表示/色/CLIP/地図/walk を一切触らずに済んだ。新ランタイム統合は「既存の中心データ構造に合わせて作る」と影響範囲が激減する。
+- Capacitor 非依存な純ロジック（record 生成・色・dedup・差分集合）は**ブラウザ page context で関数単体テストできる**＝高コストな実機ビルドの前に大半を固められる。実機でしか分からないのはプラグイン境界だけに絞る。
+
+**残課題 / 次の方向**
+- 実機 TestFlight で: 「📚 ライブラリ全体」→数百〜2054枚が背景取り込みされ、連想ウォーク/地図/On This Day/色・意味の近傍が全ライブラリで動くか／取り込み速度・体感・メモリ／差分同期（再実行で新規だけ）。
+- 拡大=原寸: 今は512サムネを拡大にも流用（web と同じ）。プラグインに `fullImage({id})` を足してオンデマンド原寸差替えは次段（native での容量制約解消・[[storage-tradeoffs-accepted]]）。
+- 起動時の自動差分同期は今は手動（📚再押し）。自動化は許可ダイアログの出方を実機で見てから。
+- 提出前 Privacy Manifest（PrivacyInfo.xcprivacy）／診断 block（#spk-*）撤去は本体統合の実機確認が済んでから（今回は比較用に残置）。memory [[native-photo-access-works]]。
+
 ## v93 — 自前 Photos プラグイン（Approach B 第一歩）＋診断に B 列・暗号化質問を恒久スキップ (2026-06-26)
 
 **背景**

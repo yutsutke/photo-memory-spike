@@ -13,9 +13,18 @@
 
 ---
 
-## 現在地 — BUILD: phase3.45 (v93：本命 B 第一歩＝自前 PhotoLibrary プラグインが実機で YES🎉 全件2054を180ms即時＋オンデマンドサムネ7ms/枚・A比約33倍速／次はアプリ本体への統合)
+## 現在地 — BUILD: phase3.46 (v94：本丸＝B をアプリ本体に統合。ネイティブ「全ライブラリ取り込み」→既存の連想ウォーク/地図/On This Day がそのまま動く配線。中核ロジックはブラウザ検証済み・実機 TestFlight 待ち)
 
-> ### 📍 次セッションの再開ポイント（2026-06-26 セッション3 更新・まずここを読む）
+> ### 📍 次セッションの再開ポイント（2026-06-26 セッション4 更新・まずここを読む）
+>
+> **🎉 Phase 1 の本丸＝B（自前 PhotoLibrary）をアプリ本体に統合。ネイティブで「全ライブラリ取り込み」→ 既存の連想ウォーク/地図/タイムライン/On This Day/色・意味の近傍が全ライブラリでそのまま動く配線が入った（BUILD `phase3.46`・push 済み）。**
+> - **やったこと（案1＝既存パイプラインに流し込む・軽量版）**: enumerate で全件メタ→`thumbnail({id,size:512})` のサムネ Blob をそのまま thumb に保存（再エンコード無し）＋色は 16×16 で抽出→**web と同一形の record を dbPut**＝downstream 無改修。写真キーは UUID 維持・**assetId(localIdentifier) を dedup `asset|<id>` と差分同期に使用**（機種変更耐性）。再実行は**差分（新しく撮った写真）だけ追加**。導線は空状態「📚 ライブラリ全体から始める」＋取り込みメニュー「📚 ライブラリ全体（おすすめ）」、**全て `isNativePlatform()` 分岐＝web は従来どおり**。fast-track→背景の二段は web と同じ。新規コード＝`importNativeLibrary`/`importNativeAsset`/`importOneNative`/`processNativeRest`/`collectImportedAssetIds`/`colorFromBlob`/`dataUrlToBlob`（index.html・importOne 直後に集約）。
+> - **検証済み（実機前にブラウザで固めた）**: ①全 inline script を `vm.Script` で parse＝構文事故ゼロ ②web は IS_NATIVE=false でネイティブ UI を隠し従来描画・コンソールエラー無し ③**記録生成パイプライン本体を page context で関数テスト**＝ダミー JPEG→record が web と同一形（id/assetId/`dedup='asset|…'`/datetime=Date/thumb=Blob/color=F32(48)/dateSource）・色抽出が実色と一致・差分集合回収・dedup→duplicate・no-datetime→skip。
+> - **🔴 次＝実機 TestFlight で本物の PhotoLibrary を通す**（ブラウザで動かせないのは requestAccess/enumerate/thumbnail と IS_NATIVE 分岐だけ）。観察: 「📚」→数百〜2054枚が背景取り込み→連想ウォーク/地図/On This Day が全ライブラリで動くか／取り込み速度・体感・メモリ／差分同期（再押しで新規だけ）／拡大画質（今は512流用）。
+> - **次段（実機 OK が出てから）**: 拡大=原寸オンデマンド（プラグインに `fullImage({id})` 追加）／起動時 自動差分同期／提出前 Privacy Manifest（PrivacyInfo.xcprivacy）／診断 block（#spk-*）撤去。詳細 CHANGELOG v94・memory [[native-photo-access-works]]。
+> - **セッション開始時**: Gmail で Apple/App Store 関連を確認（[[session-start-gmail-check]]）。下は前セッション（セッション3＝v93）の記録。
+>
+> ### 📍 次セッションの再開ポイント（2026-06-26 セッション3 更新）
 >
 > **🎉 初 TestFlight ビルドが実機 iPhone で起動。Mac なし署名（ボトルネック②）を de-risk 完了。**
 > - **この回（セッション3）でやったこと**:
@@ -108,7 +117,7 @@
 > - **⛰ ボトルネック（リスク順＝先に潰す順）**: ①🔴🔴写真全件アクセス（公式 Camera はピッカー止まり→`@capacitor-community/media` or カスタムプラグイン）②✅**Mac なし署名＝解決（v91・実機起動まで確認）**（Codemagic の鍵＝Secure env `CERTIFICATE_PRIVATE_KEY`＋`fetch-signing-files --create`）③🟠Apple 承認待ち ④🟠審査4.2（web ラッパー薄さ→native 要素で実質）⑤🟡IndexedDB→SQLite 移行（**track 含む**・写真キーは OS id にせず UUID 維持＝[[seal-protects-core]] でなく §⑥）⑥🟡AI on-device の持ち方 ⑦🟢マネタイズ/i18n/ストア素材。
 > - **Phase 0-6**（戦略の正＝Notion HOW「アプリ化・ストア公開 方針メモ」。以下はリポ実行チェックリスト）:
 >   - **Phase 0 登録・準備**: [x] Apple Developer 登録＝**有効化済み 2026-06-25**(個人・有効期限2027-06-25・Team ID 25TM5C27YT) [~] Small Business Program(手数料15%)＝**申請送信済 2026-06-26・承認待ち** [x] **有料アプリ契約署名＋税務(W-8BEN 租税条約 Art.7(1) 0%)＋銀行口座(三井住友 JPY)＝全て有効 2026-06-26** [~] Node+Capacitor 確認(Node v24/npm OK・Capacitor CLI 未導入) [x] プライバシーポリシー **ドラフト**(`privacy.html`・日英トグル・自己完結=外部依存なし／公開URL=yutsutke.github.io/photo-memory-spike/privacy.html／連絡先記入済み=Tanaka Yusuke / yutsutke@gmail.com／広告・IAP 節は実装時に最終確定)
->   - **Phase 1 Capacitor化+native要素+i18n**: [~] 🟢写真全件アクセス＝**capability 実機 YES（v92・2000枚6秒/約5年/日時100%）**・本実装(自前 Photos プラグイン B)は未 [x] **Capacitor 足場**(package.json/capacitor.config.json/webDir=www/sync スクリプト・8.4.0・v78・GitHub Pages はルート維持) [x] **`cap add ios`＝完了(v89・`ios/` コミット・Capacitor 8 は SPM＝Podfile 無し)＋Info.plist 用途文言(写真/位置 When-In-Use)＋共有スキーム＋apple-generic versioning** [x] **CDN vendoring**(exifr/heic2any/fflate/Leaflet→ローカル同梱・4.2対策 ＝v77 完了・`vendor/`／地図タイルとCLIPは対象外) [ ] IndexedDB→SQLite(track 含む) [ ] onboarding(許可+「数枚→全ライブラリ」段階導線) [ ] アイコン/スプラッシュ/i18n(en/ja) [ ] AI(CLIP)の持ち方決定 [ ] 拡大=原寸オンデマンド/写真アプリ動線見直し/外部画像は実体保持（下記📷方針）
+>   - **Phase 1 Capacitor化+native要素+i18n**: [~] 🟢写真全件アクセス＝**capability 実機 YES（v92）＋本命 B プラグイン実機 YES（v93）＋アプリ本体へ統合（v94・案1軽量版・web 検証済／実機 TestFlight 待ち）** [x] **Capacitor 足場**(package.json/capacitor.config.json/webDir=www/sync スクリプト・8.4.0・v78・GitHub Pages はルート維持) [x] **`cap add ios`＝完了(v89・`ios/` コミット・Capacitor 8 は SPM＝Podfile 無し)＋Info.plist 用途文言(写真/位置 When-In-Use)＋共有スキーム＋apple-generic versioning** [x] **CDN vendoring**(exifr/heic2any/fflate/Leaflet→ローカル同梱・4.2対策 ＝v77 完了・`vendor/`／地図タイルとCLIPは対象外) [ ] IndexedDB→SQLite(track 含む) [~] onboarding(許可+「数枚→全ライブラリ」段階導線＝v94 で空状態/取り込みメニューに実装・実機確認待ち) [ ] アイコン/スプラッシュ/i18n(en/ja) [ ] AI(CLIP)の持ち方決定 [ ] 拡大=原寸オンデマンド/写真アプリ動線見直し/外部画像は実体保持（下記📷方針）
 >     - **📷 画質・写真表示・外部画像の方針（2026-06-17 相談で確定）**:
 >       - **拡大表示＝フル解像度**: ライブラリ写真は PHAsset 参照で**原寸をオンデマンド取得**（PHImageManager・サムネ即出し→裏でフル差替え）。512px 止まりは web/IndexedDB の容量制約（spike v23・[[storage-tradeoffs-accepted]]）→ **native で解消**。
 >       - **「写真アプリで開く」は品質目的としては撤去**（アプリ内フル表示で完結＝reminiscence を切らさない）。残すなら system 共有シートの二次動線のみ。「この1枚を Apple Photos で開く」綺麗な公式 API は native でも無いが、もう不要。
