@@ -17,14 +17,18 @@
 
 > ### 📍 次セッションの再開ポイント（2026-06-27 セッション5 更新・まずここを読む）
 >
-> **この回でやったこと**:
+> **この回でやったこと（地図/ウォーク UI の仕上げ v97-103＋spike撤去＝実機/ユーザー確認済み「すっきり」「完璧」・位置ロガーも実機 YES）**:
 > 1. ✅ **地図ツールバーを1種類に統一（v97）**＝モードで変わっていた二重UI（native=◀▶無しの4アイコン／web=6アイコン／全期間=テキストボタン）を解消。**どのモードでも固定2段**＝1段目 `◀ 📆 ▶`（過去/未来の「今日」・📆=今日へ戻る）／2段目 `🎲 偶然 ／ 📅全期間 ／ ⋯表示`。`✕`のみ（旧「✕ 閉じる」）・`ⓘ`は⋯表示メニューへ統合・`↩︎全部を見る`は廃止（📅全期間が吸収）。🎲偶然(核①)と📆今日リセットの置き場所は **AskUserQuestion でユーザー確認**（2段目に残す／◀📆▶中央）。CSS は `.map-ctrlbar{width:max-content}` で2段とも1行（折り返すと pop と重なる罠を回避）。**ブラウザ geometry 検証 green**（5モード全てボタン不消失・pop非重なり mobile/desktop・⋯→ⓘで凡例）。**実機確認待ち**（GitHub Pages / TestFlight）。詳細 CHANGELOG v97。
 > 2. ✅ **「地図だけ全画面（没入表示）」を追加・整え（v98→v99）**＝ユーザー要望「地図と動線と写真だけ／タイムラインの出ない全画面／解除アイコン1つ」。**右上の常設 `⛶` トグル**（タップで全画面／もう一度で解除）で、ツールバー/タイムライン/ズーム/✕ を隠し地図+動線+写真だけに（attribution はライセンス上 残す）。desktop は `#mapEl` を 320px→0 に広げ `invalidateSize`。overlay の `.immersive` クラス1枚＝CSS で実装（状態集約）。**v99 で位置交換**＝全画面が高頻度なので ⛶ を右上常設に昇格、set-once な「地図の種類(ダーク/地理院)」は Leaflet layers コントロールを撤去して ⋯表示メニューへ（chip・localStorage 保存）。ブラウザ検証 green（トグルON/OFF・各 chrome 開閉・地図種類 chip 切替・desktop で ⛶ がサイドバー非重なり/没入 right:10）。詳細 CHANGELOG v98-99。
 > 3. ✅ **連想ウォーク中央の写真をタップで全画面（v100）**＝実機要望「中央（いま見ている写真）は長押しせずタップで拡大」。当初「タップ=全画面に全面変更」だったが AskUserQuestion で現状の表に落とし、**変えるのは中央写真のタップだけ**に確定（初期3枚=タップでウォーク開始／近くの6枚=タップで歩く、は不変＝核のウォーク操作は触らない）。中央カード `attachPhotoGestures` の onTap=null→`showFullImage` の1点。ブラウザ検証 green（テスト写真注入→中央タップで full-overlay 表示・地図ボタンは誤爆なし）。詳細 CHANGELOG v100。
 > 4. ✅ **spike 撤去（v101）**＝🧪「写真スパイク」診断パネル（`#spk-*`・写真全件アクセス A/B 実機計測の自己診断・v92-93）を本体から削除。B は v94 で本体統合済み＝役目終了。block 全体（HTMLコメント＋`<style>`＋`<script>` IIFE・約227行）を末尾から除去、main app の `</script>` が直接 `</body>` に。ブラウザ検証 green（#spk-fab/#spk-overlay 消滅・boot 正常・コンソールエラー0・inline script 2→1）。**✅ `@capacitor-community/media`（A テスト専用・未使用化）を v102 で削除**（deps は @capacitor/core・ios＋自前 photo-library・background-location の4つに・cap sync は CI）。
 > 5. ✅ **ウォークは毎回上端へスクロール（v102→v103・不具合修正）**＝実機「初期3枚タップ→ウォークに来ると6枚グリッドにスクロールされている／入場時は画面トップを見せて」。原因＝スクロール制御コードが無く `render()` が #main を入れ替えても window が旧スクロール位置を保持。修正＝`showExplore` で `enteringWalk=(state!=='explore')` を取り render() 後 `if(enteringWalk) window.scrollTo(0,0)`＝**毎回上端へ（入場・近くの6枚タップ・足跡タップすべて）＝歩いた先の中央写真を先頭に**（v102 は入場のみ→v103 で再中心化も統一＝ユーザー要望「6枚から選んだ後の遷移も入場と同じに」）。ブラウザ検証 green（spy: 入場・再中心化とも [0,0]）。詳細 CHANGELOG v102-103。
 > 6. 📝 **App Store 提出は案B＝コア先行→後で Always 追加（決定・記録のみ／実行はあと）**。初回審査は位置を外して写真コアを先に通し、Always 背景ロガー（v96 実装済）は実績後のアップデートで追加。フォールバックは `if(BgLoc)`/track 隔離で綺麗。「常に許可で通る前例」＝Arc/OwnTracks（端末内ライフログ）等。memory [[location-logger]] に記録。
-> - **次段**: 実機で2段ツールバーの手触り（押し心地・📆中央リセットの分かりやすさ）→ ストア素材/収益化/起動時 自動差分同期（下の v96 ブロック参照）。
+> - **▶ 次セッションはここから**（このセッション＝地図/ウォーク UI 仕上げ v97-103＋spike撤去＋ロガー実機 YES が全部 done・push 済み）:
+>   - **A＝本命: App Store 提出準備（案B・コア先行）** ① v1 は位置を見せない方針＝Info.plist の Always 用途文言／`UIBackgroundModes=location`（必要なら background-location プラグイン自体）をどこまで外すか判断（ロガー実装は `if(BgLoc)`/track 隔離なので宣言だけ落とせる・後追いアップデートで復活）② ストア素材（アイコン/スクショ/説明文/プライバシーポリシー）③ Privacy Manifest（PrivacyInfo.xcprivacy）
+>   - **B＝任意の検証**: 位置ロガー 完全終了(force-quit)→SLC 復帰（残り1点・背景動作=4分は確認済）／こまめ(25m)モードの密度・電池
+>   - **C＝その先**: 収益化（AdMob/IAP）・起動時 自動差分同期・原寸 fullImage（512px で実機満足のため保留中）
+>   - **状態**: web=GitHub Pages `phase3.55`／native=次 TestFlight ビルドに今回分（v97-103＋spike撤去＋@capacitor-community/media 削除＋ウォーク入場スクロール）がまとまって乗る。直近 TestFlight は 1.0(9)=Jun 27。
 
 
 > ### 📍 次セッションの再開ポイント（2026-06-26 セッション4 更新・まずここを読む）
