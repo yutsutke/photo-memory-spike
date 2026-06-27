@@ -374,7 +374,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.59 (v107：アプリアイコン差し替え＝ユーザー作の玉ボケ案を full-bleed 1024 正方形に再構成（角丸/影/背景枠を除去・アルファ無し RGB＝Apple 要件）。v106=位置プラグイン除外／v105=Privacy Manifest／v104=位置宣言削除。案B ストア素材を前進) · 2026-06-27';
+const BUILD = 'phase3.60 (v108：版表示をヘッダ→ℹ️情報モーダル＋コンソールに移動（スクショ/本番でヘッダをすっきり）。?shot で web を v1見え＝位置UIオフのスクショ用モード。v107=アイコン／v104-106=位置オフ＋Privacy Manifest) · 2026-06-27';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -812,7 +812,10 @@ const IS_NATIVE = !!(_cap && typeof _cap.isNativePlatform === 'function' && _cap
 //   ③ ios/App/App/Info.plist の NSLocation* / UIBackgroundModes=location を戻す。
 // web (審査対象外＝GitHub Pages) は IS_NATIVE=false なので常に従来どおり前面ロガーが使える。
 const NATIVE_LOCATION = false;
-const LOCATION_AVAILABLE = !IS_NATIVE || NATIVE_LOCATION;   // この build で位置機能を出すか
+// スクショ用モード (v108): web を URL の ?shot で「native v1 見え」にする＝位置 UI(🛰️/地図トグル)
+// を隠し、App Store スクショを提出物(位置オフ)と一致させる。例: …/index.html?shot
+const SHOT_MODE = /(^|[?&#])shot\b/i.test(location.search + location.hash);
+const LOCATION_AVAILABLE = (!IS_NATIVE || NATIVE_LOCATION) && !SHOT_MODE;   // この build で位置機能を出すか
 
 const PhotoLib = IS_NATIVE
   ? ((_cap.Plugins && _cap.Plugins.PhotoLibrary) ||
@@ -1614,8 +1617,9 @@ const $igzip = document.getElementById('igzip');
 const $folder = document.getElementById('folder');
 const $log    = document.getElementById('log');
 
-// バージョン表示 (画面ですぐ確認できるように)
-document.getElementById('ver').textContent = BUILD;
+// バージョン表示 (v108): ヘッダから外し、ℹ️ 情報モーダルの末尾とコンソールに移動
+// （スクショ・本番でヘッダをすっきり。ビルド確認は ℹ️ かコンソールで）。
+console.log('BUILD:', BUILD);
 console.log(`[photo-memory-spike] build=${BUILD}`);
 
 function logErr(msg) {
@@ -3265,6 +3269,7 @@ function renderInfoModal() {
       <p style="margin:.2em 0;"><b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。<b>複数日にまたがる旅行は1本の線で、日が変わるごとに色が変わります</b>（昔→今が色で読めます。1日以上あくと別の線）。<b>撮ったのに位置が入っていない写真</b>は、タイムライン（または地図のピン）の <b>「📍 位置を設定／位置を直す」</b>から、<b>地図のピンをドラッグ</b>して後から位置を付けられます（近い時間に位置のある写真があれば、その近くから始まります）。地図上部は <b>📅 期間</b> と <b>⋯ 表示</b> の2つ。<b>⋯</b> から <b>🔒 記憶の封印</b>（いま見えている<b>範囲</b>と<b>期間</b>を指定して、よみがえってほしくない場所・時期を3枚引き・連想・地図・タイムラインに出さない。<b>削除ではない</b>ので写真は残り、一覧から<b>いつでも解除</b>。位置情報のない写真は「期間」で封印できます）。タイムラインの各写真とマーカーには <b>🗑 削除</b> もあります（除外＝右上の <b>♻️</b> から戻せます）。</p>
       <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
       <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
+      <p style="margin:1.4em 0 0;color:#555;font-size:11px;">バージョン ${BUILD}</p>
     </div>`;
 
   const actions = document.createElement('div');
