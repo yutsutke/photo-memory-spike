@@ -5,6 +5,30 @@
 
 ---
 
+## v104 — iOS 初回審査は「位置情報を完全オフ」で提出する準備（案B＝コア先行） (2026-06-27)
+
+**背景**
+- App Store 提出準備に着手（前セッションの再開ポイント A）。方針＝**案B＝写真コアを先に審査に通し、Always 背景ロガー（v96 実装済）は承認後のアップデートで追加**。初回 v1 に Always/背景位置を載せると 4.2・プライバシーで審査の注目を浴びやすいため。
+- セッション開始時に AskUserQuestion で「v1 で位置をどこまで外すか」を確認 → ユーザー選択＝**完全に外す**（前面ロガーも含めて native v1 では位置ゼロ・プライバシーラベルも「位置なし」）。
+
+**設計判断**
+- **単一フラグ `NATIVE_LOCATION = false`（index.html）＋ 派生 `LOCATION_AVAILABLE = !IS_NATIVE || NATIVE_LOCATION`** で位置機能を一括スイッチ。承認後の更新で `true` に戻すだけで native のロガー/軌跡が復活する＝**最小・最も復元しやすい形**を選択（プラグイン自体の npm uninstall は見送り。`file:` 依存を外すと CI の cap sync / iOS SPM 配線が壊れやすく、次の更新で戻すコストも高い。JS で「呼ばない」を保証すれば審査上の決定要因＝Info.plist 宣言・プライバシーラベル・到達可能な位置要求は全て消える）。
+- web（GitHub Pages＝審査対象外）は `IS_NATIVE=false` で常に `LOCATION_AVAILABLE=true`＝**従来どおり前面ロガーが使える**（退行なし）。位置オフは native build だけに効く。
+- ゲート箇所（すべて `LOCATION_AVAILABLE` で分岐）: ① `BgLoc` を `(IS_NATIVE && NATIVE_LOCATION)` 時のみ生成（位置オフ build では null）② `startLogger()` 先頭で早期 return（あらゆる経路で geolocation/BgLoc を呼ばせない最終チョークポイント）③ ヘッダ 🛰️ ボタンを非表示＋クリック未配線 ④ boot の前回モード自動再開を停止 ⑤ 地図「⋯表示」メニューの「🛰️ 自分の軌跡」「📍 GPSなし写真を軌跡から配置」トグルを非表示（描画しないので `querySelector` 結果に null ガードを追加）。
+- **Info.plist（ios/App/App/Info.plist）から位置宣言を削除**＝`NSLocationWhenInUseUsageDescription` / `NSLocationAlwaysAndWhenInUseUsageDescription` / `UIBackgroundModes=location`。写真の用途文言と `ITSAppUsesNonExemptEncryption=false` は維持。削除箇所に「承認後に戻す」breadcrumb コメントを残置。
+
+**結果 / 観察**
+- ブラウザ検証（一時的に 5274 で起動・5273 は別チャット占有）: web 実行で `IS_NATIVE=false / NATIVE_LOCATION=false / LOCATION_AVAILABLE=true / BgLoc=null`、🛰️ ボタン表示維持・boot のコンソール warn/error 0・BUILD=phase3.56 表示。inline script の `vm.Script` parse＝1ブロック 0 エラー。native 位置オフ経路を再現したメニュー描画シミュレーション＝軌跡/推定トグルが消え、封印・説明は残り、`if(mmTrack)` ガードが安全に skip。
+- **native（位置オフ）の実機確認は次 TestFlight ビルドで**（web では IS_NATIVE を切れないため原理的に未確認＝フラグ分岐とプラグイン非生成は静的レビュー＋シミュレーションで担保）。
+
+**教訓**
+- 「審査用に機能を一時的に落とす」は **削除でなくフラグ**が筋が良い（次の更新で全部戻すのが前提なら、可逆性＝レビューの宿題を減らす）。位置の到達経路は複数（ボタン・boot 自動再開・visibilitychange・地図メニュー）あるので、**最終チョークポイント（startLogger の早期 return）＋入口非表示**の二段で「絶対呼ばれない」を担保するのが安全。
+- ローカル静的サーバ（`python -m http.server <port>`）は autoPort と相性が悪い（PORT env を読まない）。別チャットがポート占有中の検証は、launch.json を一時的に別ポートへ→検証→戻す、が現実的。
+
+**残課題 / 次の方向**
+- 残る案B: ② ストア素材（アイコン/スクショ/説明文）＋ プライバシーラベル入力（位置=なし／写真=端末内のみ）③ **Privacy Manifest（PrivacyInfo.xcprivacy）**＝app と photo-library プラグインに required-reason API を記載（提出に必須・TestFlight は警告止まり）。
+- 承認後の更新で `NATIVE_LOCATION=true` ＋ Info.plist の位置宣言を復活（Always 用途文言・UIBackgroundModes）。プラグインは repo に残置済みなので配線変更は不要。
+
 ## v103 — ウォークの再中心化（近くの6枚/足跡）も毎回上端へスクロール (2026-06-27)
 
 **背景**

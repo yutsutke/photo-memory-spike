@@ -13,9 +13,24 @@
 
 ---
 
-## 現在地 — BUILD: phase3.55 (v103：ウォークは入場も再中心化（近くの6枚/足跡タップ）も毎回上端へスクロール。v102=入場スクロール＋media削除／v101=spike撤去／v100=中央タップで全画面／v97-99=ツールバー統一・地図だけ全画面・位置交換。ブラウザ検証 green・実機確認待ち)
+## 現在地 — BUILD: phase3.56 (v104：iOS 初回審査は位置情報を完全オフで提出する準備＝案B コア先行。NATIVE_LOCATION フラグで native のロガー/軌跡を停止＋Info.plist の位置宣言を削除（web は従来どおり）。v103=ウォーク再中心化も上端へ／v102=入場スクロール＋media削除／v101=spike撤去。ブラウザ検証 green・native 実機は次ビルド)
 
-> ### 📍 次セッションの再開ポイント（2026-06-27 セッション5 更新・まずここを読む）
+> ### 📍 次セッションの再開ポイント（2026-06-27 セッション6 更新・まずここを読む）
+>
+> **この回でやったこと（案B 提出準備の第一歩＝iOS v1 を「位置情報 完全オフ」にした・ブラウザ検証 green / native 実機は次ビルド）**:
+> - セッション開始の挨拶 → DOCMAP/TODO + Gmail 確認。**Gmail 要対応の新着なし**: ASBP は「申請受領（6/26）」止まりで**承認メール未着＝承認待ち継続**／TestFlight 1.0(9)（6/27）が最新（既知・1.0(4-9) は CI 連続ビルドのルーチン）／App Review からの連絡・却下なし。
+> - **位置スコープを AskUserQuestion で確認 → ユーザー選択＝「完全に外す」**（v1 は前面ロガー含め位置ゼロ・プライバシーラベルも位置なし）。
+> - ✅ **v104 実装（最も復元しやすい形）**: 単一フラグ **`NATIVE_LOCATION = false`** ＋ 派生 `LOCATION_AVAILABLE = !IS_NATIVE || NATIVE_LOCATION` で位置機能を一括スイッチ。承認後の更新で **`true` に戻すだけ**で native のロガー/軌跡が復活。**プラグインは npm uninstall せず repo に残置**（`file:` 依存を外すと CI の cap sync / iOS SPM 配線が壊れやすく戻すコスト高。JS で「呼ばない」を保証すれば審査上の決定要因は全部消える）。
+>   - ゲート（全て `LOCATION_AVAILABLE` 分岐・[index.html](index.html)）: `BgLoc` を位置オフ build では null／`startLogger()` 先頭で早期 return（最終チョークポイント）／🛰️ ヘッダボタン非表示＋クリック未配線／boot の前回モード自動再開を停止／地図「⋯表示」の「🛰️ 自分の軌跡」「📍 GPSなし写真を軌跡から配置」トグルを非表示（null ガード追加）。
+>   - **[Info.plist](ios/App/App/Info.plist) から位置宣言を削除**＝`NSLocationWhenInUseUsageDescription` / `NSLocationAlwaysAndWhenInUseUsageDescription` / `UIBackgroundModes=location`。写真用途文言と `ITSAppUsesNonExemptEncryption=false` は維持。削除箇所に「承認後に戻す」コメント残置。
+>   - **検証**: web 実行 `IS_NATIVE=false/NATIVE_LOCATION=false/LOCATION_AVAILABLE=true/BgLoc=null`・🛰️ 表示維持・boot エラー0・`vm.Script` parse 0エラー・native 位置オフ経路のメニュー描画シミュレーションで軌跡トグル消滅＆null ガード安全。詳細 CHANGELOG v104。
+> - **▶ 次セッションはここから**（案B の残り。native の位置オフは**次 TestFlight ビルドで実機確認**＝web では IS_NATIVE を切れないため原理的に未確認）:
+>   - **A＝本命: 案B の続き** ② **ストア素材**（アイコン/スクショ/説明文）＋ **App Store Connect のプライバシーラベル入力**（位置=なし／写真=端末内のみ・外部送信なし）③ **Privacy Manifest（PrivacyInfo.xcprivacy）**＝app と photo-library プラグインに required-reason API を記載（提出必須・TestFlight は警告止まり）。
+>   - **B＝提出して審査に出す**: 次ビルド（位置オフ）が実機で写真コア通り起動するか確認 → App Store 審査へ submit（外部テスト Test Information も）。
+>   - **C＝承認後**: `NATIVE_LOCATION=true` ＋ Info.plist の位置宣言を復活（Always 用途文言・UIBackgroundModes）でロガーをアップデート投入／収益化（AdMob/IAP）。
+>   - **状態**: web=GitHub Pages `phase3.56`／native=次 TestFlight ビルドに v104（位置オフ）が乗る。直近 TestFlight は 1.0(9)=Jun 27。**ASBP 承認待ち**（セッション開始時に Gmail 確認＝[[session-start-gmail-check]]）。
+
+> ### 📍 次セッションの再開ポイント（2026-06-27 セッション5 更新）
 >
 > **この回でやったこと（地図/ウォーク UI の仕上げ v97-103＋spike撤去＝実機/ユーザー確認済み「すっきり」「完璧」・位置ロガーも実機 YES）**:
 > 1. ✅ **地図ツールバーを1種類に統一（v97）**＝モードで変わっていた二重UI（native=◀▶無しの4アイコン／web=6アイコン／全期間=テキストボタン）を解消。**どのモードでも固定2段**＝1段目 `◀ 📆 ▶`（過去/未来の「今日」・📆=今日へ戻る）／2段目 `🎲 偶然 ／ 📅全期間 ／ ⋯表示`。`✕`のみ（旧「✕ 閉じる」）・`ⓘ`は⋯表示メニューへ統合・`↩︎全部を見る`は廃止（📅全期間が吸収）。🎲偶然(核①)と📆今日リセットの置き場所は **AskUserQuestion でユーザー確認**（2段目に残す／◀📆▶中央）。CSS は `.map-ctrlbar{width:max-content}` で2段とも1行（折り返すと pop と重なる罠を回避）。**ブラウザ geometry 検証 green**（5モード全てボタン不消失・pop非重なり mobile/desktop・⋯→ⓘで凡例）。**実機確認待ち**（GitHub Pages / TestFlight）。詳細 CHANGELOG v97。

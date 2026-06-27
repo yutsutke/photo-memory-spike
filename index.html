@@ -374,7 +374,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.55 (v103：ウォークは入場も再中心化（近くの6枚/足跡タップ）も毎回上端へスクロール＝歩いた先の中央写真を先頭に) · 2026-06-27';
+const BUILD = 'phase3.56 (v104：iOS 初回審査は位置情報を完全オフで提出する準備＝案B コア先行。NATIVE_LOCATION フラグで native のロガー/軌跡を停止し Info.plist の位置宣言を削除。web は従来どおり) · 2026-06-27';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -800,13 +800,22 @@ async function importOne(file, override) {
 // ============================================================
 const _cap = window.Capacitor || null;
 const IS_NATIVE = !!(_cap && typeof _cap.isNativePlatform === 'function' && _cap.isNativePlatform());
+
+// 位置機能スイッチ (v104): iOS の初回 App Store 審査は「位置情報を完全オフ」で提出する
+// (案B＝写真コアを先に通す)。承認後のアップデートで NATIVE_LOCATION を true に戻すと、
+// 位置ロガー (🛰️) と地図の軌跡が native でも復活する。その際は ios/App/App/Info.plist の
+// NSLocation* / UIBackgroundModes=location も一緒に戻すこと。
+// web (審査対象外＝GitHub Pages) は IS_NATIVE=false なので常に従来どおり前面ロガーが使える。
+const NATIVE_LOCATION = false;
+const LOCATION_AVAILABLE = !IS_NATIVE || NATIVE_LOCATION;   // この build で位置機能を出すか
+
 const PhotoLib = IS_NATIVE
   ? ((_cap.Plugins && _cap.Plugins.PhotoLibrary) ||
      (typeof _cap.registerPlugin === 'function' ? _cap.registerPlugin('PhotoLibrary') : null))
   : null;
-// バックグラウンド位置ロガー (自前 BackgroundLocation プラグイン, v96)。web では null
-// （web は前面のみの navigator.geolocation を使う）。native は閉じても記録＝SLC/背景更新。
-const BgLoc = IS_NATIVE
+// バックグラウンド位置ロガー (自前 BackgroundLocation プラグイン, v96)。web / 位置オフ build では
+// null（web は前面のみの navigator.geolocation を使う）。native は閉じても記録＝SLC/背景更新。
+const BgLoc = (IS_NATIVE && NATIVE_LOCATION)
   ? ((_cap.Plugins && _cap.Plugins.BackgroundLocation) ||
      (typeof _cap.registerPlugin === 'function' ? _cap.registerPlugin('BackgroundLocation') : null))
   : null;
@@ -1952,6 +1961,7 @@ async function refreshNativeAuth() {
 }
 
 function startLogger() {
+  if (!LOCATION_AVAILABLE) return;   // 位置オフ build (iOS v1) では一切記録しない (v104)
   if (!loggerOn()) return;
   if (BgLoc) {                       // ネイティブ＝アプリを閉じても背景で記録（SLC/背景更新）
     BgLoc.start({ mode: loggerMode })
@@ -2677,18 +2687,25 @@ async function openMapView(focusPhoto) {
   // 今は「記憶の封印」のみ (ユーザー要望: 封印が表示の中にある UI は継続)。期間(📅)だけは常時トップに残す。
   popMore.innerHTML =
     `<div class="mc-pop-title">表示の設定</div>` +
-    `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> 🛰️ 自分の軌跡（ロガー）</label>` +
-    `<label class="mc-pop-check"><input type="checkbox" id="mmEst"> 📍 GPSなし写真を軌跡から配置</label>` +
+    // 位置オフ build (iOS v1) では軌跡まわりのトグルを出さない (v104)。記録が無いので元々空動作。
+    (LOCATION_AVAILABLE
+      ? `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> 🛰️ 自分の軌跡（ロガー）</label>` +
+        `<label class="mc-pop-check"><input type="checkbox" id="mmEst"> 📍 GPSなし写真を軌跡から配置</label>`
+      : '') +
     `<button class="mc-menu-item" id="mmSeal">🔒 記憶の封印</button>` +
     `<button class="mc-menu-item" id="mmHelp">ⓘ アイコンの説明</button>` +
     `<div class="mc-pop-sub">地図の種類</div>` +
     `<div class="mc-pop-chips" id="mmLayers"></div>`;
   const mmTrack = popMore.querySelector('#mmTrack');
-  mmTrack.checked = mapState.showTrack;
-  mmTrack.addEventListener('change', () => { mapState.showTrack = mmTrack.checked; refreshTrack(); });
+  if (mmTrack) {
+    mmTrack.checked = mapState.showTrack;
+    mmTrack.addEventListener('change', () => { mapState.showTrack = mmTrack.checked; refreshTrack(); });
+  }
   const mmEst = popMore.querySelector('#mmEst');
-  mmEst.checked = mapState.showEstimated;
-  mmEst.addEventListener('change', () => { mapState.showEstimated = mmEst.checked; refreshTrack(); });
+  if (mmEst) {
+    mmEst.checked = mapState.showEstimated;
+    mmEst.addEventListener('change', () => { mapState.showEstimated = mmEst.checked; refreshTrack(); });
+  }
   const mmSeal = popMore.querySelector('#mmSeal');
   mmSeal.addEventListener('click', () => { closePops(); openSealPanel(); });
   const mmHelp = popMore.querySelector('#mmHelp');
@@ -4265,7 +4282,9 @@ function onDocClickForMenu(e) {
 document.getElementById('btnAdd').addEventListener('click', (e) => openImportMenu(e.currentTarget));
 document.getElementById('btnAI').addEventListener('click', openAIModal);
 document.getElementById('btnInfo').addEventListener('click', openInfoModal);
-document.getElementById('btnLogger').addEventListener('click', openLoggerPanel);   // 🛰️ 位置ロガー (v73)
+// 🛰️ 位置ロガー (v73)。位置オフ build (iOS v1) ではボタンごと隠す (v104)。
+if (LOCATION_AVAILABLE) document.getElementById('btnLogger').addEventListener('click', openLoggerPanel);
+else document.getElementById('btnLogger').classList.add('hidden');
 document.getElementById('btnIg').addEventListener('click', () => $igzip.click());
 document.getElementById('btnMap').addEventListener('click', () => openMapView());
 document.getElementById('btnTrash').addEventListener('click', openExcludedModal);
@@ -4507,7 +4526,7 @@ async function loadRestInBackground() {
     logErr('heic2any ロード失敗 (HEIC が混じると失敗します)');
   }
   requestPersistentStorage();  // await しない (起動を遅らせない)
-  if (loggerOn()) startLogger(); else loggerRefreshUI();   // 前回モードが ON なら位置記録を再開 (v73)
+  if (LOCATION_AVAILABLE && loggerOn()) startLogger(); else loggerRefreshUI();   // 前回モードが ON なら位置記録を再開 (v73・位置オフ build は再開しない v104)
   try {
     // Phase 1 (v28→v29): UUID 空間の「ランダムな開始点」から INITIAL_LOAD 件読んで即 UI。
     // v28 は先頭固定で毎回同じ初期プールだった (ユーザー指摘) → 毎起動でランダムに回す。
