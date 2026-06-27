@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Privacy Manifest (v104)。このアプリはローカル完結＝写真も位置も端末から出さない。
+	     データ収集（端末外への送信）は一切ないので NSPrivacyCollectedDataTypes は空＝
+	     App Store のプライバシーラベルは「Data Not Collected」。トラッキングもなし。
+	     required-reason API は自前 BackgroundLocation プラグインの UserDefaults のみ
+	     （自アプリ専用キー pms_bgloc_* の読み書き＝CA92.1）。Photos/CoreLocation は
+	     required-reason API ではない（用途文言で管理）。photo-library は対象 API なし。 -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

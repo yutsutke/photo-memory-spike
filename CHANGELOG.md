@@ -5,6 +5,28 @@
 
 ---
 
+## v105 — Privacy Manifest（PrivacyInfo.xcprivacy）を追加＝App Store 提出必須を充足 (2026-06-27)
+
+**背景**
+- 案B 提出準備の残作業①。2024-05 以降、App Store 提出には **Privacy Manifest** が必須（required-reason API の未宣言は ITMS-91053 でリジェクト）。TestFlight は警告止まりだが正式提出前に潰す。
+
+**設計判断**
+- **実コードを読んで required-reason API を確定**（推測で書かない）: 自前2プラグインの Swift を精査 → ① photo-library＝PhotoKit/UIImage/CoreLocation/Date のみ＝**対象 API なし**（Photos は用途文言で管理・required-reason ではない）② background-location＝`UserDefaults.standard` で自アプリ専用キー（`pms_bgloc_buffer`/`pms_bgloc_mode`）を読み書き＝**`NSPrivacyAccessedAPICategoryUserDefaults` / 理由 `CA92.1`**（同一アプリ内の情報アクセス）。CoreLocation は manifest 対象外。位置オフ build でもプラグインはバイナリにコンパイルされる＝Apple の静的スキャンが UserDefaults を検出するので宣言は必須。
+- **データ収集＝空（Data Not Collected）/ トラッキング＝なし**: 写真も位置も端末内処理で外部送信が一切ないため、Apple の定義（収集＝端末外への送信）に照らし `NSPrivacyCollectedDataTypes` は空配列。App Store のプライバシーラベルも「収集なし」と一致させる（ローカル完結の強みをそのまま宣言）。
+- **配置＝App ターゲットに1枚**（`ios/App/App/PrivacyInfo.xcprivacy`）。自前プラグインは local SPM で App バイナリに静的リンクされるため、app 直下の manifest が全 first-party のコンパイル済みコードをカバー（per-plugin manifest は SPM resources 配線が要り脆い＝見送り）。Capacitor framework は自前の manifest を同梱済み。
+- **pbxproj に手動登録**（4部位＝PBXFileReference / PBXBuildFile / App グループ children / Resources ビルドフェーズ）。`cap sync`（Capacitor 8＝SPM）は App ターゲットのリソース一覧を書き換えないので手動追加が CI を通して永続する。UUID は既存衝突を避けて `AA0104A1…` を採番（FileRef×3・BuildFile×2 の相互参照を確認）。
+
+**ハマったところ / 検証**
+- Windows・Mac なしのため Xcode で開けない → **ローカル検証を二重で**: ① `node` + `plist` パッケージで PrivacyInfo.xcprivacy をパース＝構造一致（tracking=false / 収集空 / UserDefaults+CA92.1）② 同じく Info.plist をパース＝位置キー全消去・写真キー維持・暗号化フラグ維持。pbxproj は ASCII 旧形式でパーサが無い（Capacitor 8 が SPM 化で xcode パーサ依存を落としたため node_modules に無い）→ **編集後に再読して4部位の整合とインデントを目視確認**。真の検証は次 Codemagic ビルド。
+
+**教訓**
+- Privacy Manifest は「使ってる API を実コードで確認して必要分だけ」が鉄則（過不足どちらもリジェクト要因）。ローカル完結アプリは収集＝空にできて素直＝プライバシーは設計の勝ち筋。
+- Capacitor 8（SPM）では App の `project.pbxproj` は cap sync で再生成されない＝リソース追加は手で入れれば永続。pbxproj パーサが無い環境では XML plist は `plist` パッケージで、pbxproj は再読で担保。
+
+**残課題 / 次の方向**
+- 案B 残り: ② ストア素材（アイコン/スクショ/説明文）＋ App Store Connect のプライバシーラベル入力（収集なし・トラッキングなしで manifest と一致）③ 次ビルド → 審査 submit。
+- 承認後の位置復活時（[[location-logger]] / v104）も UserDefaults 宣言はそのまま有効（プラグインは残置のため）。Always 復活時に位置の収集は依然「端末内のみ＝収集なし」を維持できる。
+
 ## v104 — iOS 初回審査は「位置情報を完全オフ」で提出する準備（案B＝コア先行） (2026-06-27)
 
 **背景**

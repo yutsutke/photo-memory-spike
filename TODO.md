@@ -13,7 +13,7 @@
 
 ---
 
-## 現在地 — BUILD: phase3.56 (v104：iOS 初回審査は位置情報を完全オフで提出する準備＝案B コア先行。NATIVE_LOCATION フラグで native のロガー/軌跡を停止＋Info.plist の位置宣言を削除（web は従来どおり）。v103=ウォーク再中心化も上端へ／v102=入場スクロール＋media削除／v101=spike撤去。ブラウザ検証 green・native 実機は次ビルド)
+## 現在地 — BUILD: phase3.57 (v105：Privacy Manifest（PrivacyInfo.xcprivacy）を App ターゲットに追加＝収集データなし/トラッキングなし/required-reason は UserDefaults CA92.1 のみ。提出必須を充足。v104=位置情報を完全オフで提出準備（NATIVE_LOCATION フラグ＋Info.plist 位置宣言削除）。案B＝コア先行。plist 検証 green・native 実機/ビルドは次 Codemagic)
 
 > ### 📍 次セッションの再開ポイント（2026-06-27 セッション6 更新・まずここを読む）
 >
@@ -24,11 +24,12 @@
 >   - ゲート（全て `LOCATION_AVAILABLE` 分岐・[index.html](index.html)）: `BgLoc` を位置オフ build では null／`startLogger()` 先頭で早期 return（最終チョークポイント）／🛰️ ヘッダボタン非表示＋クリック未配線／boot の前回モード自動再開を停止／地図「⋯表示」の「🛰️ 自分の軌跡」「📍 GPSなし写真を軌跡から配置」トグルを非表示（null ガード追加）。
 >   - **[Info.plist](ios/App/App/Info.plist) から位置宣言を削除**＝`NSLocationWhenInUseUsageDescription` / `NSLocationAlwaysAndWhenInUseUsageDescription` / `UIBackgroundModes=location`。写真用途文言と `ITSAppUsesNonExemptEncryption=false` は維持。削除箇所に「承認後に戻す」コメント残置。
 >   - **検証**: web 実行 `IS_NATIVE=false/NATIVE_LOCATION=false/LOCATION_AVAILABLE=true/BgLoc=null`・🛰️ 表示維持・boot エラー0・`vm.Script` parse 0エラー・native 位置オフ経路のメニュー描画シミュレーションで軌跡トグル消滅＆null ガード安全。詳細 CHANGELOG v104。
-> - **▶ 次セッションはここから**（案B の残り。native の位置オフは**次 TestFlight ビルドで実機確認**＝web では IS_NATIVE を切れないため原理的に未確認）:
->   - **A＝本命: 案B の続き** ② **ストア素材**（アイコン/スクショ/説明文）＋ **App Store Connect のプライバシーラベル入力**（位置=なし／写真=端末内のみ・外部送信なし）③ **Privacy Manifest（PrivacyInfo.xcprivacy）**＝app と photo-library プラグインに required-reason API を記載（提出必須・TestFlight は警告止まり）。
->   - **B＝提出して審査に出す**: 次ビルド（位置オフ）が実機で写真コア通り起動するか確認 → App Store 審査へ submit（外部テスト Test Information も）。
->   - **C＝承認後**: `NATIVE_LOCATION=true` ＋ Info.plist の位置宣言を復活（Always 用途文言・UIBackgroundModes）でロガーをアップデート投入／収益化（AdMob/IAP）。
->   - **状態**: web=GitHub Pages `phase3.56`／native=次 TestFlight ビルドに v104（位置オフ）が乗る。直近 TestFlight は 1.0(9)=Jun 27。**ASBP 承認待ち**（セッション開始時に Gmail 確認＝[[session-start-gmail-check]]）。
+> - ✅ **v105 実装＝Privacy Manifest（提出必須を充足）**: [PrivacyInfo.xcprivacy](ios/App/App/PrivacyInfo.xcprivacy) を App ターゲットに追加し [project.pbxproj](ios/App/App.xcodeproj/project.pbxproj) へ4部位登録（FileRef/BuildFile/App グループ/Resources フェーズ・UUID `AA0104A1…`・`cap sync` は App のリソース一覧を再生成しないので永続）。中身＝**トラッキングなし／収集データ空（Data Not Collected＝ローカル完結で外部送信ゼロ）／required-reason は `UserDefaults`(CA92.1) のみ**（自前2プラグインの Swift を実読で確定＝photo-library は対象 API なし・background-location が UserDefaults 使用。位置オフ build でもバイナリにコンパイルされる＝宣言必須）。検証＝`node`+`plist` で manifest/Info.plist を機械パース（構造一致・位置キー全消去）。pbxproj は再読で4部位整合を目視。詳細 CHANGELOG v105。
+> - **▶ 次セッションはここから**（案B の残り。native の位置オフ＋manifest は**次 Codemagic ビルドで実機/ビルド確認**＝Windows・Mac なしで Xcode を開けないため）:
+>   - **A＝本命: 案B の続き** ② **ストア素材**（アイコン/スクショ/説明文）＋ **App Store Connect のプライバシーラベル入力**（収集なし・トラッキングなしで manifest と一致／写真=端末内のみ）。← 多くは手元作業＋ASC 操作（Chrome 拡張で一緒に）
+>   - **B＝提出して審査に出す**: 次 Codemagic ビルド（位置オフ＋manifest）が ① 署名/IPA 成功 ② 実機で写真コア通り起動 ③ App Store Connect で manifest 警告（ITMS-91053）が消えたか を確認 → 審査へ submit（外部テスト Test Information も）。
+>   - **C＝承認後**: `NATIVE_LOCATION=true` ＋ Info.plist の位置宣言を復活（Always 用途文言・UIBackgroundModes）でロガーをアップデート投入（manifest の UserDefaults 宣言はそのまま有効）／収益化（AdMob/IAP）。
+>   - **状態**: web=GitHub Pages `phase3.57`／native=次 Codemagic ビルドに v104（位置オフ）＋v105（Privacy Manifest）が乗る。直近 TestFlight は 1.0(9)=Jun 27。**ASBP 承認待ち**（セッション開始時に Gmail 確認＝[[session-start-gmail-check]]）。
 
 > ### 📍 次セッションの再開ポイント（2026-06-27 セッション5 更新）
 >
