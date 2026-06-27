@@ -13,7 +13,7 @@
 
 ---
 
-## 現在地 — BUILD: phase3.61 (v109：iOS 初回提出は iPhone 専用化＝iPad スクショ要件を外しコアに忠実に。**案B 提出フロー実行中**＝ASC メタデータ全入力済・App プライバシー「データ収集なし」公開済・コンテンツ配信権/価格(無料 全地域)も解消。残ブロッカーは iPad スクショ→ iPhone 専用で消す。次＝iPhone専用ビルドの再生成(push→Codemagic)→新ビルド選択→審査用に追加→輸出/DSA確認→**最終提出**。v108=版表示ℹ️移動／v107=アイコン)
+## 現在地 — BUILD: phase3.61 (v109：🎉 **v1.0 を App Store 審査に正式提出＝「審査待ち（Waiting for Review）」**（2026-06-28）。ビルド15・iPhone専用・新アイコン・案B＝位置オフ＋広告なし＝データ収集なしラベル・無料・4+。輸出/DSA 追加質問ゼロで送信完了。**次＝審査結果待ち（最大48h・メール）**。承認後 v1.1＝iPad 対応に戻す＋位置復活＋広告。)
 
 > ### 📍 次セッションの再開ポイント（2026-06-28 セッション7 更新・まずここを読む）
 >
@@ -24,9 +24,11 @@
 > - ✅ **②解消**＝コンテンツ配信権「はい（必要な権利を保有）」（地図の第三者タイル=CARTO/OSM/地理院を attribution 付きで表示するため）→保存済。
 > - ✅ **③解消**＝価格「無料」（基準 US $0.00／全174地域 $0.00 自動算出）→確認済。
 > - ✅ **①の方針決定（AskUserQuestion）＝iPhone 専用にする**（[project.pbxproj](ios/App/App.xcodeproj/project.pbxproj) の `TARGETED_DEVICE_FAMILY` を Debug/Release とも `"1,2"`→`"1"`）。理由＝コアは電話前提・iPad 未設計レイアウトを審査/ユーザーに見せるリスク回避。BUILD も v109 に。詳細 CHANGELOG v109。
+> - 🎉 **提出完了**: push → Codemagic が iPhone 専用ビルド **15** 生成（ユーザー「終了」確認）→ ASC でビルドを 14→15 に差し替え保存 → 「審査用に追加」で3ブロッカー全消（iPad はビルド 15 で消滅）→「提出物の下書き」で 1.0(15) 提出準備完了 →（最終ボタン直前でユーザー確認＝「提出する」）→「審査へ提出」→ **輸出/DSA 追加質問ゼロで送信成功 → ステータス「審査待ち」**。
 > - **▶ 次セッションはここから**:
->   - **A＝再ビルド待ち→選択→提出**: push 済みなら Codemagic が iPhone 専用ビルド(>14)を生成中。①ASC で**新ビルドの処理完了を待つ**（[TestFlight タブ](https://appstoreconnect.apple.com/apps/6784557053/testflight/ios) で確認）②バージョン 1.0 ページで**ビルドを新番号に差し替え**③「審査用に追加」を再実行（iPad ブロッカーが消えているはず）④輸出コンプライアンス（`ITSAppUsesNonExemptEncryption=false` で自動スキップ見込み）／EU DSA トレーダー情報が出たら確認⑤**最終「提出」の直前でユーザー確認してから submit**。
->   - **状態**: web=GitHub Pages（push 後 `phase3.61`）／native=Codemagic 再ビルドに v109（iPhone 専用）が乗る。ASBP 承認状況はセッション開始時に Gmail 確認（[[session-start-gmail-check]]）。
+>   - **A＝審査結果待ち**（最大48h・完了でメール）。**セッション開始時に Gmail で App Review の結果を確認**（[[session-start-gmail-check]]）。①承認→公開設定（手動/自動リリース）②リジェクト→ガイドライン理由を読んで対応（薄い web ラッパー＝4.2 が出たら native 要素を増やす等）。審査中の新ビルド差し替えは「このバージョンを審査から削除」が要る点に注意。
+>   - **B＝承認後 v1.1**: iPad 対応に戻す（`"1"`→`"1,2"`＋iPad スクショ・要 iPad レイアウト確認）／位置ロガー復活（① `NATIVE_LOCATION=true` ② package.json に background-location を戻して npm install ③ Info.plist の NSLocation*/UIBackgroundModes）／広告 AdMob npa=1＋¥300 除去（[[monetization-v1-adfree]]）。まとめて1版で出すのが効率的。
+>   - **状態**: web=GitHub Pages `phase3.61`／native=ビルド15（iPhone専用）が審査中。ASBP 承認は有効化済（2026-06-25）。
 
 > ### 📍 次セッションの再開ポイント（2026-06-27 セッション6 更新・まずここを読む）
 >

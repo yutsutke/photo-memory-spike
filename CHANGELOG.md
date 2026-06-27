@@ -20,8 +20,13 @@
 - **価格=無料（基準 US $0.00／全 174 地域 $0.00 自動算出）**。[[monetization-v1-adfree]] の通り v1 は広告なし・無料。
 - **App プライバシー「公開」も実行**（「データの収集なし」ラベルを公開済みに）＝提出の前提。
 
+**結果 / 観察**
+- 🎉 **2026-06-28 v1.0 を App Store 審査に正式提出＝「審査待ち（Waiting for Review）」**。push → Codemagic が iPhone 専用ビルド **15** を生成（ユーザーが「終了」を確認）→ ASC でビルドを 14→15 に差し替え保存 → 「審査用に追加」で**3ブロッカーが全て解消済**（iPad はビルド 15 が iPhone 専用なので消滅）→「提出物の下書き」に 1.0(15) が「提出準備完了」で表示 →（最終ボタン直前でユーザー確認）→「審査へ提出」。**輸出コンプライアンスは `ITSAppUsesNonExemptEncryption=false` で自動スキップ・EU DSA 質問も出ず**＝追加質問ゼロでそのまま送信完了。
+- Mac を一台も持たずに spike から製品の初回ストア提出まで到達（[[madeleine-product-repo]] にマイルストーン記録）。
+
 **残課題 / 次の方向**
-- push → Codemagic 再ビルド（iPhone 専用）→ ASC 処理完了を待ち、**新ビルドを選択**→「審査用に追加」再実行→輸出コンプライアンス（`ITSAppUsesNonExemptEncryption=false` で自動スキップ見込み）／EU DSA トレーダー情報が出たら確認→**最終「提出」の直前でユーザー確認**。
+- 審査結果待ち（最大48h・完了でメール）。次セッション開始時に Gmail で App Review の結果を確認（[[session-start-gmail-check]]）。リジェクト時はガイドライン理由を読んで対応（薄い web ラッパー＝4.2 が出たら native 要素を増やす／その他は個別）。
+- 承認後 v1.1: iPad 対応に戻す（`"1"`→`"1,2"`＋iPad スクショ）／位置ロガー復活（NATIVE_LOCATION=true＋background-location を package.json に戻す＋Info.plist の位置キー）／広告 AdMob npa=1＋¥300 除去（[[monetization-v1-adfree]]）。
 
 ## v108 — 版表示をヘッダ→ℹ️へ移動＋スクショ用 ?shot モード（ストア掲載の下ごしらえ） (2026-06-27)
 
