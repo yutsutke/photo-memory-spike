@@ -13,11 +13,11 @@
 
 ---
 
-## 現在地 — BUILD: phase3.58 (v106：ITMS-90683 解消＝background-location プラグインを package.json から外しビルドから除外（CLLocationManager がバイナリに残ると位置 purpose string を要求されるため＝v104「残置」を訂正）。v105=Privacy Manifest／v104=位置宣言削除＋NATIVE_LOCATION フラグ。案B＝コア先行で位置 v1 完全オフを徹底。次 Codemagic ビルド 1.0(11) で警告解消を確認)
+## 現在地 — BUILD: phase3.59 (v107：アプリアイコン差し替え＝ユーザー作の玉ボケ案を full-bleed 1024 正方形に再構成（角丸/影/背景枠を除去・RGB/アルファ無し＝Apple 要件）。✅ 1.0(11) で ITMS-90683/91053 警告ゼロを実機確認済（v104 位置オフ＋v105 Privacy Manifest＋v106 位置プラグイン除外が効いた）。案B＝コア先行・ストア素材フェーズ)
 
 > ### 📍 次セッションの再開ポイント（2026-06-27 セッション6 更新・まずここを読む）
 >
-> **この回でやったこと（案B 提出準備の第一歩＝iOS v1 を「位置情報 完全オフ」にした・ブラウザ検証 green / native 実機は次ビルド）**:
+> **この回でやったこと（案B 提出準備を大きく前進＝v104–v107。位置 v1 完全オフ＋Privacy Manifest＋アイコン。1.0(11) で警告ゼロを実機確認）**:
 > - セッション開始の挨拶 → DOCMAP/TODO + Gmail 確認。**Gmail 要対応の新着なし**: ASBP は「申請受領（6/26）」止まりで**承認メール未着＝承認待ち継続**／TestFlight 1.0(9)（6/27）が最新（既知・1.0(4-9) は CI 連続ビルドのルーチン）／App Review からの連絡・却下なし。
 > - **位置スコープを AskUserQuestion で確認 → ユーザー選択＝「完全に外す」**（v1 は前面ロガー含め位置ゼロ・プライバシーラベルも位置なし）。
 > - ✅ **v104 実装（最も復元しやすい形）**: 単一フラグ **`NATIVE_LOCATION = false`** ＋ 派生 `LOCATION_AVAILABLE = !IS_NATIVE || NATIVE_LOCATION` で位置機能を一括スイッチ。承認後の更新で **`true` に戻すだけ**で native のロガー/軌跡が復活。**プラグインは npm uninstall せず repo に残置**（…と当初判断したが **⚠️ v106 で訂正**＝JS で「呼ばない」だけでは Apple 静的スキャンを欺けず ITMS-90683 が出た。下の v106 参照）。
@@ -26,11 +26,13 @@
 >   - **検証**: web 実行 `IS_NATIVE=false/NATIVE_LOCATION=false/LOCATION_AVAILABLE=true/BgLoc=null`・🛰️ 表示維持・boot エラー0・`vm.Script` parse 0エラー・native 位置オフ経路のメニュー描画シミュレーションで軌跡トグル消滅＆null ガード安全。詳細 CHANGELOG v104。
 > - ✅ **v105 実装＝Privacy Manifest（提出必須を充足）**: [PrivacyInfo.xcprivacy](ios/App/App/PrivacyInfo.xcprivacy) を App ターゲットに追加し [project.pbxproj](ios/App/App.xcodeproj/project.pbxproj) へ4部位登録（FileRef/BuildFile/App グループ/Resources フェーズ・UUID `AA0104A1…`・`cap sync` は App のリソース一覧を再生成しないので永続）。中身＝**トラッキングなし／収集データ空（Data Not Collected＝ローカル完結で外部送信ゼロ）／required-reason は `UserDefaults`(CA92.1) のみ**（自前2プラグインの Swift を実読で確定＝photo-library は対象 API なし・background-location が UserDefaults 使用。位置オフ build でもバイナリにコンパイルされる＝宣言必須）。検証＝`node`+`plist` で manifest/Info.plist を機械パース（構造一致・位置キー全消去）。pbxproj は再読で4部位整合を目視。詳細 CHANGELOG v105。
 > - ✅ **v106 実装＝ITMS-90683 解消（位置 v1 完全オフを徹底）**: 1.0(10)（v104+v105）アップロードで警告 **ITMS-90683「Missing purpose string」**（When-In-Use/Always）。原因＝background-location の `CLLocationManager` がバイナリに残り、Apple 静的スキャンが purpose string を要求。**v104「プラグイン残置」は不十分だったと判明**→ [package.json](package.json) から `background-location` を削除（CI の `cap sync ios` が [Package.swift](ios/App/CapApp-SPM/Package.swift) を photo-library のみで再生成＝委ねられた Package.swift は CLI 管理で package.json から注入する作り）。ソースは `local-plugins/background-location/` に残置（復活用）。`package-lock.json` 再生成（extraneous 除去）。JS は無改修で安全（`NATIVE_LOCATION=false` で BgLoc 三項が短絡）。検証＝node_modules/lock から消失・photo-library 維持・`vm.Script` 0エラー。**真の確認は次ビルド 1.0(11)**。詳細 CHANGELOG v106。
-> - **▶ 次セッションはここから**（案B の残り。native 側の3点 v104/v105/v106 は**次 Codemagic ビルド 1.0(11) でまとめて確認**＝Windows・Mac なしで Xcode を開けないため）:
->   - **🔴 最優先＝次ビルド 1.0(11) の確認**: ① 署名/IPA 成功 ② **ITMS-90683（位置 purpose string）が消えたか**（v106 の本丸）③ **ITMS-91053（Privacy Manifest）が消えたか**（v105）④ 実機（内部テスト）で 🛰️ ボタン消滅・地図の軌跡トグル無し・位置許可ダイアログ出ず・写真コア通常動作・版表示 `phase3.58`。**もし 90683 が When-In-Use だけ残れば** photo-library の `import CoreLocation`（PHAsset.location 読みのデータ型）も外す（KVC 化）＝CHANGELOG v106 残課題。
->   - **A＝本命: 案B の続き（ストア素材）** ② **スクショ**（実機キャプチャ・6.7" 1セット〜）＋**説明文/キーワード/プロモ文**（日本語・私がドラフト可）＋ **ASC プライバシーラベル**＝「データを収集していません」（manifest と一致）。アイコン 1024px は ✅ repo にあり（RGB/アルファ無し確認済）。年齢レーティング 4+ 見込み。← ASC 操作は Chrome 拡張で一緒に。
->   - **B＝審査 submit**: 上記が揃ったら App Store 審査へ（外部テストは不要・やるなら Test Information 入力）。
->   - **C＝承認後**: 位置を復活（① `NATIVE_LOCATION=true` ② package.json に background-location を戻して npm install ③ Info.plist の NSLocation*/UIBackgroundModes を戻す）でロガーをアップデート投入（manifest の UserDefaults 宣言はそのまま有効）／収益化（AdMob/IAP）。
+> - ✅ **v107 実装＝アプリアイコン差し替え（案B ストア素材を前進）**: ユーザー作の玉ボケ案（`Desktop/anohi.jpg`・暗い背景＋暖色の玉ボケ＝写真/記憶のあたたかさ）を提供。受領版は「角丸＋影＋背景枠つきプレビュー」だったので **full-bleed 1024 正方形に再構成**（本体 `[140..893]` をクロップ→1024 全面・角丸クリップ175＋ビネット縦グラデで角の背景枠除去・**RGB/アルファ無し**＝Apple 要件）。System.Drawing(.NET) 生成→node で IHDR 検証→ユーザー原寸 OK→[AppIcon-512@2x.png](ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png) 上書き（Contents.json は単一 1024 universal のまま無改修）。詳細 CHANGELOG v107。
+> - ✅ **1.0(11) 実機確認＝警告ゼロ**（ユーザー ASC スクショ）: 1.0(10) の黄色⚠️（ITMS-90683/91053）が 1.0(11) で消滅＝**v104 位置オフ＋v105 Privacy Manifest＋v106 位置プラグイン除外が効いた**。native の提出要件はクリーン。
+> - **▶ 次セッションはここから**（案B ストア素材の続き）:
+>   - **A＝本命: 残りストア素材** ① **スクショ**（実機キャプチャ・6.7" 1セット〜＝内部テストで撮る）② **説明文/キーワード/プロモ文**（日本語・私がドラフト可）③ **ASC プライバシーラベル**＝「データを収集していません」（manifest と一致）④ 年齢レーティング 4+ 見込み。← ✅ アイコン(v107)・✅ プライバシーポリシー URL・✅ カテゴリ/主言語(ja) は済。ASC 操作は Chrome 拡張で一緒に。
+>   - **B＝審査 submit**: 上記が揃ったら App Store 審査へ（**次ビルド 1.0(12) に v107 アイコンが乗る**＝アイコン反映を実機/ASC で確認してから submit。外部テストは不要・やるなら Test Information 入力）。
+>   - **C＝承認後**: 位置を復活（① `NATIVE_LOCATION=true` ② package.json に background-location を戻して npm install ③ Info.plist の NSLocation*/UIBackgroundModes を戻す）でロガーをアップデート投入／収益化（AdMob/IAP）。
+>   - **メモ**: 万一 photo-library の `import CoreLocation`（PHAsset.location データ型）で位置警告が再発したら KVC 化で外す（CHANGELOG v106 残課題・1.0(11) では出ていない）。
 >   - **状態**: web=GitHub Pages `phase3.58`／native=次 Codemagic ビルド 1.0(11) に v104（位置オフ）＋v105（Privacy Manifest）＋v106（プラグイン除外）が乗る。直近アップロードは 1.0(10)=v104+v105（ITMS-90683/91053 警告あり）。**ASBP 承認待ち**（セッション開始時に Gmail 確認＝[[session-start-gmail-check]]）。**外部テスト提出の赤（Test Information 未入力）は内部テスト/審査に無関係＝無視でOK**。
 
 > ### 📍 次セッションの再開ポイント（2026-06-27 セッション5 更新）
