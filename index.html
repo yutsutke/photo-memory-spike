@@ -374,7 +374,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.57 (v105：Privacy Manifest 追加＝PrivacyInfo.xcprivacy（収集データなし/トラッキングなし/required-reason は UserDefaults CA92.1 のみ）を App ターゲットに登録＝提出必須を充足。native のみ・web 挙動は v104 と不変) · 2026-06-27';
+const BUILD = 'phase3.58 (v106：ITMS-90683 解消＝background-location プラグインを package.json から外しビルドから除外（CLLocationManager がバイナリに残ると位置 purpose string を要求されるため）。位置は v1 完全オフを徹底。v105=Privacy Manifest／v104=位置宣言削除＋NATIVE_LOCATION フラグ。承認後に復活) · 2026-06-27';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -801,10 +801,15 @@ async function importOne(file, override) {
 const _cap = window.Capacitor || null;
 const IS_NATIVE = !!(_cap && typeof _cap.isNativePlatform === 'function' && _cap.isNativePlatform());
 
-// 位置機能スイッチ (v104): iOS の初回 App Store 審査は「位置情報を完全オフ」で提出する
-// (案B＝写真コアを先に通す)。承認後のアップデートで NATIVE_LOCATION を true に戻すと、
-// 位置ロガー (🛰️) と地図の軌跡が native でも復活する。その際は ios/App/App/Info.plist の
-// NSLocation* / UIBackgroundModes=location も一緒に戻すこと。
+// 位置機能スイッチ (v104→v106): iOS の初回 App Store 審査は「位置情報を完全オフ」で提出する
+// (案B＝写真コアを先に通す)。NATIVE_LOCATION=false の間は JS で位置経路を一切通さない。
+// ★ v106 の教訓: JS で呼ばないだけでは不十分だった — background-location プラグインの
+//   CLLocationManager がバイナリに残ると Apple が purpose string を要求する (ITMS-90683)。
+//   そこで package.json から background-location を外し、ビルドからプラグインごと除外した
+//   (ソースは local-plugins/background-location に残置＝復活用)。
+// 承認後に位置を復活する手順 = ① ここを true ② package.json に
+//   "background-location": "file:./local-plugins/background-location" を戻して npm install
+//   ③ ios/App/App/Info.plist の NSLocation* / UIBackgroundModes=location を戻す。
 // web (審査対象外＝GitHub Pages) は IS_NATIVE=false なので常に従来どおり前面ロガーが使える。
 const NATIVE_LOCATION = false;
 const LOCATION_AVAILABLE = !IS_NATIVE || NATIVE_LOCATION;   // この build で位置機能を出すか

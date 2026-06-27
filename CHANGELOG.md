@@ -5,6 +5,30 @@
 
 ---
 
+## v106 — ITMS-90683 解消＝background-location プラグインをビルドから除外（位置 v1 完全オフを徹底） (2026-06-27)
+
+**背景**
+- 1.0(10)（v104+v105）を Codemagic でアップロード → **警告 ITMS-90683「Missing purpose string」**（`NSLocationWhenInUseUsageDescription` と `NSLocationAlwaysAndWhenInUseUsageDescription` が必要だが無い）。
+- **v104 の判断ミスが露見**: 「プラグインは残置して JS で呼ばないだけ」では不十分。background-location の `CLLocationManager`（`requestWhenInUseAuthorization`/`requestAlwaysAuthorization`/`allowsBackgroundLocationUpdates`）が**バイナリにコンパイルされて残る**と、Apple の静的スキャンが「位置 API を参照しているのに purpose string が無い」と警告する。警告が Always/WhenInUse を名指ししたのは、まさに background-location がこれらを呼ぶから（photo-library は位置 authorization を要求しない＝CLLocation データ型を読むだけ）。提出時には**リジェクト要因**。
+
+**設計判断**
+- **位置を本当に外す＝コードをバイナリから消す**。`package.json` の `"background-location": "file:./local-plugins/background-location"` を削除 → CI の `npx cap sync ios` が `CapApp-SPM/Package.swift` を **photo-library のみ**で再生成（委ねられた Package.swift は「DO NOT MODIFY＝CLI 管理」でプラグイン未記載＝CI が package.json から毎回注入する作り。よって package.json を外すだけでビルドから消える）。
+- **プラグインのソースは残置**（`local-plugins/background-location/`）＝承認後の復活用。復活手順 = ① index.html `NATIVE_LOCATION=true` ② package.json に file: 依存を戻して `npm install` ③ Info.plist の NSLocation*/UIBackgroundModes を戻す（3点を Info.plist と index.html のコメントに明記）。
+- JS は無改修で安全＝`NATIVE_LOCATION=false` のとき `BgLoc` の三項が短絡して `registerPlugin('BackgroundLocation')` を呼ばない（プラグイン不在でも事故らない）。
+- `package-lock.json` は一旦 extraneous エントリが残ったので**再生成**してクリーンに（CI は `npm install` だが将来 `npm ci` でも詰まらないように）。
+
+**結果 / 観察**
+- ローカル検証: `npm install` 後 node_modules から background-location 消失・photo-library 維持／lock の background-location 参照 0／inline script `vm.Script` parse 0エラー。**真の確認は次 Codemagic ビルド（ITMS-90683 が消えるか）**。
+- 残リスク: photo-library が `import CoreLocation`＋`CLLocation`（PHAsset.location のデータ型）を使う。これは位置サービス要求ではない（Photos 許可で管理）ので 90683 は出ない見込みだが、次ビルドで When-In-Use 警告が残れば photo-library 側も対処する（KVC で CoreLocation import を外す等）。
+
+**教訓**
+- 「審査用に機能を落とす」時、**JS で呼ばない／Info.plist 宣言を消す だけでは Apple の静的スキャンを欺けない**。purpose string を要求する API（CLLocationManager 等）は、参照がバイナリに残る限り宣言を強制される。完全に外すなら**依存ごとビルドから除外**が必須。フラグ（NATIVE_LOCATION）は JS/UI の可逆スイッチとして有効だが、native の API 除外とセットで初めて「位置ゼロ」になる。
+- Capacitor 8（SPM）でプラグインを抜くのは **package.json から外すだけ**でよい（CI の cap sync が Package.swift を再生成）。委ねられた Package.swift を手で触る必要はない。
+
+**残課題 / 次の方向**
+- 次 Codemagic ビルド（1.0(11)）で ITMS-90683 解消を確認。残れば photo-library の CoreLocation も外す。
+- その後 案B 残り: ストア素材（スクショ・説明文）＋ プライバシーラベル（収集なし）→ 審査 submit。
+
 ## v105 — Privacy Manifest（PrivacyInfo.xcprivacy）を追加＝App Store 提出必須を充足 (2026-06-27)
 
 **背景**
