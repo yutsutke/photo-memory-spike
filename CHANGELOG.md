@@ -5,6 +5,32 @@
 
 ---
 
+## v110 — 初回審査リジェクト対応：アプリ名一致（2.3.8）＋サポートページ（1.5） (2026-06-30)
+
+**背景**
+- v1.0(15) の初回審査結果が 2026-06-29 に到着＝**リジェクト（Changes needed）**。ただし指摘は2点ともメタデータ/設定レベルで、**最も警戒していた 4.2（web ラッパーが薄い）は出ず**・機能/プライバシー/位置/クラッシュの指摘もゼロ。native 要素（自前 PhotoLibrary 等）が効いて「実質的なアプリ」と認められたと読める。レビュー環境＝iPhone 17 Pro Max / 1.0(15) / Review date Jun 29。Submission ID `c4451f04-d791-46e6-9030-95191a096a8c`。
+
+**指摘と対処**
+- **Guideline 2.3.8（Accurate Metadata・名前不一致）**: ストア名「あの日 — 写真と足跡」とデバイス表示名「Madeleine」が乖離（"makes it difficult for users to find apps they have downloaded"）。→ [Info.plist](ios/App/App/Info.plist) の `CFBundleDisplayName` を Madeleine→**「あの日 — 写真と足跡」**に変更（ストア名と完全一致＝最も安全）。**バイナリ変更なので再ビルド必須**（次 Codemagic ビルド 1.0(16)）。原因＝Capacitor の `appName=Madeleine` がそのまま `CFBundleDisplayName` に乗っていた。
+- **Guideline 1.5（Safety・Support URL）**: ASC の Support URL が `…/photo-memory-spike/`（アプリ本体）で、質問/サポートを依頼できる情報ページになっていない。→ **[support.html](support.html) を新設**（使い方・FAQ・連絡先 yutsutke@gmail.com・privacy.html と同トーン/ja-en 切替）。公開 URL=`https://yutsutke.github.io/photo-memory-spike/support.html`。**メタデータのみ＝ASC で URL を差し替えるだけ**（再ビルド不要）。
+
+**設計判断（世界展開と名前の両立）**
+- ユーザー意向＝「ストア名は“あの日 — 写真と足跡”のまま、でも世界展開で Madeleine も活かしたい」。iOS もストアも**名前はロケール別に出し分け可能**なので二択ではない: アプリ側は `InfoPlist.strings`(ja/en) に `CFBundleDisplayName`（ja=あの日 — 写真と足跡 / en=Madeleine）、ストア側は ASC に英語ローカライズを追加し名前=Madeleine。各地域でデバイス名⇄ストア名が一致して 2.3.8 を満たしつつ 🇯🇵あの日/🇬🇧Madeleine の二刀流が成立。
+- **ただし英語展開は v1.1 に回す**（英語ストアはスクショ/説明/キーワード一式が要り、今やると v1 承認が遅れる）。v1 は日本語単独・デバイス名フル一致で最短承認を狙う。
+- ホーム画面のアイコン下ラベルは iOS 仕様で ~11字超は末尾省略（「あの日 — 写真と…」表示）だが、`CFBundleDisplayName` の値自体は完全一致なので審査/設定/検索/Spotlight/ストアではフル表示＝2.3.8 的には完全一致が最安全。
+
+**結果 / 観察**
+- 修正2点を実装＋ BUILD phase3.62。**コア体験のコードには一切触れていない**（Info.plist 1行＋新規 support.html のみ）。
+- 再提出の経路: ① push→Codemagic がビルド 1.0(16) を生成（CFBundleDisplayName 変更が乗る）② ASC でビルドを 15→16 に差し替え ③ Support URL を support.html に更新 ④「審査用に追加」→再提出（typically 48h 以内に応答）。
+
+**教訓**
+- 初回審査の典型リジェクトは「名前の不一致」と「サポート URL がトップページ」の2つ＝**中身でなく“見せ方/設定”で落ちる**。コア体験が薄いと疑われた形跡はなく、native 化（自前プラグイン）の投資が 4.2 回避に効いた可能性が高い。
+- Capacitor の `appName` がそのまま `CFBundleDisplayName` になる。日本語ストア名で出すなら最初からデバイス名も合わせるべきだった（次回アプリでの予防）。
+
+**残課題 / 次の方向**
+- ASC 操作（ビルド差し替え＋Support URL 更新＋再提出）をユーザーと実施。
+- 承認後 v1.1: 英語ローカライズ（InfoPlist.strings＋ASC 英語名 Madeleine）／iPad 対応／位置ロガー復活／広告（[[monetization-v1-adfree]]）。
+
 ## v109 — iOS 初回提出は iPhone 専用に（iPad スクショ要件を外す・提出ブロッカー解消） (2026-06-28)
 
 **背景**

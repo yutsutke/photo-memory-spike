@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>サポート — あの日 (Madeleine)</title>
+<style>
+  :root { font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #111; color: #e6e6e6; line-height: 1.75; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 20px 80px; }
+  header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; border-bottom: 1px solid #262626; padding-bottom: 14px; margin-bottom: 8px; }
+  header.top h1 { font-size: 20px; margin: 0; }
+  header.top .sub { font-size: 12px; color: #8a8a8a; }
+  .lang { margin-left: auto; display: flex; gap: 6px; }
+  .lang button { font: inherit; font-size: 12px; padding: 5px 12px; border: 1px solid #333; background: #1b1b1b; color: #ccc; border-radius: 999px; cursor: pointer; }
+  .lang button[aria-pressed="true"] { background: #13a08c; border-color: #13a08c; color: #fff; }
+  .updated { font-size: 12px; color: #8a8a8a; margin: 6px 0 22px; }
+  .lead { background: #14241f; border: 1px solid #1f4a40; border-radius: 12px; padding: 14px 16px; margin: 0 0 26px; color: #d7f0e9; }
+  h2 { font-size: 16px; margin: 30px 0 8px; padding-top: 4px; border-top: 1px solid #1f1f1f; }
+  h2:first-of-type { border-top: 0; }
+  p { margin: 8px 0; }
+  ul { margin: 8px 0; padding-left: 22px; }
+  li { margin: 5px 0; }
+  strong { color: #fff; }
+  a { color: #6db8ff; }
+  .qa { margin: 14px 0; }
+  .qa .q { color: #fff; font-weight: 600; margin: 0; }
+  .qa .a { margin: 4px 0 0; }
+  .contact { background: #181818; border: 1px solid #262626; border-radius: 12px; padding: 16px 18px; margin: 14px 0; }
+  .contact a { font-size: 16px; }
+  footer { margin-top: 40px; font-size: 12px; color: #777; border-top: 1px solid #222; padding-top: 14px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>あの日 <span class="sub">Madeleine</span></h1>
+    <div class="lang" role="group" aria-label="Language">
+      <button id="btnJa" aria-pressed="true">日本語</button>
+      <button id="btnEn" aria-pressed="false">English</button>
+    </div>
+  </header>
+
+  <!-- ============ 日本語 ============ -->
+  <section id="ja">
+    <p class="updated">サポート / お問い合わせ</p>
+
+    <p class="lead"><strong>困ったときは。</strong> 「あの日（Madeleine）」の使い方・よくある質問・お問い合わせ先をまとめています。ご質問・ご要望・不具合の報告は、いつでも歓迎します。</p>
+
+    <h2>このアプリについて</h2>
+    <p>「あの日」は、あなたの写真から<strong>偶然よみがえる久しぶりの記憶</strong>をそっと呼び起こすアプリです。すべての処理は<strong>あなたの端末の中だけ</strong>で行われ、写真が外部に送られることはありません。アカウント登録も不要です。</p>
+
+    <h2>使い方</h2>
+    <ul>
+      <li><strong>写真を取り込む</strong>: 「ライブラリ全体」から、または数枚を選んで取り込みます。取り込みは端末内で行われます。</li>
+      <li><strong>連想ウォーク</strong>: ランダムに引かれた写真をタップすると、色・意味・時間・場所の近い写真へと連想が広がります。</li>
+      <li><strong>過去の今日</strong>: 今日と同じ月日の写真を数年分重ねて、時間の流れを感じられます。</li>
+      <li><strong>地図と足跡</strong>: 写真の位置や、歩いた軌跡を地図でたどれます。</li>
+      <li><strong>拡大表示</strong>: 写真をタップすると全画面で見られます。</li>
+    </ul>
+
+    <h2>よくある質問</h2>
+    <div class="qa">
+      <p class="q">写真はどこかに送られますか？</p>
+      <p class="a">いいえ。すべて端末内だけで処理され、クラウドや外部サーバーに送信されることはありません。詳しくは<a href="privacy.html">プライバシーポリシー</a>をご覧ください。</p>
+    </div>
+    <div class="qa">
+      <p class="q">アカウント登録は必要ですか？</p>
+      <p class="a">不要です。ダウンロードしてすぐにお使いいただけます。</p>
+    </div>
+    <div class="qa">
+      <p class="q">写真が表示されない／取り込めません。</p>
+      <p class="a">写真へのアクセスが許可されているかご確認ください（設定 ▸ あの日 ▸ 写真 を「すべての写真」に）。許可したあとアプリを開き直すと取り込めます。</p>
+    </div>
+    <div class="qa">
+      <p class="q">データを消したいです。</p>
+      <p class="a">アプリを削除すると、端末内に保存されたすべてのデータ（サムネイル・解析結果・位置の記録など）が消去されます。</p>
+    </div>
+    <div class="qa">
+      <p class="q">機種変更してもデータは引き継げますか？</p>
+      <p class="a">iOS の Quick Start や iCloud バックアップなど、OS の仕組みを通じて新しい端末へ移ります。私たちはそのデータにアクセスできません。</p>
+    </div>
+
+    <h2>お問い合わせ</h2>
+    <p>下記までお気軽にご連絡ください。日本語・英語どちらでも歓迎します。できるだけ早くお返事します。</p>
+    <div class="contact">
+      開発者: Tanaka Yusuke<br>
+      メール: <a href="mailto:yutsutke@gmail.com">yutsutke@gmail.com</a>
+    </div>
+
+    <p><a href="privacy.html">プライバシーポリシー →</a></p>
+  </section>
+
+  <!-- ============ English ============ -->
+  <section id="en" hidden>
+    <p class="updated">Support / Contact</p>
+
+    <p class="lead"><strong>Need help?</strong> Here you'll find how to use “Ano Hi (Madeleine),” frequently asked questions, and how to reach us. Questions, requests, and bug reports are always welcome.</p>
+
+    <h2>About the app</h2>
+    <p>“Ano Hi (Madeleine)” gently brings back <strong>long-forgotten memories that resurface by chance</strong> from your own photos. Everything runs <strong>on your device only</strong> — your photos are never sent anywhere — and no account is required.</p>
+
+    <h2>How to use</h2>
+    <ul>
+      <li><strong>Import photos</strong>: import your whole library, or pick just a few. Importing happens on your device.</li>
+      <li><strong>Association walk</strong>: tap a randomly drawn photo to wander toward photos close in color, meaning, time, or place.</li>
+      <li><strong>On this day</strong>: see photos from the same date across past years, layered so you can feel time passing.</li>
+      <li><strong>Map &amp; footprints</strong>: trace photo locations and the paths you walked on a map.</li>
+      <li><strong>Full screen</strong>: tap a photo to view it full screen.</li>
+    </ul>
+
+    <h2>Frequently asked questions</h2>
+    <div class="qa">
+      <p class="q">Are my photos sent anywhere?</p>
+      <p class="a">No. Everything is processed on your device only and is never uploaded to any cloud or external server. See our <a href="privacy.html">Privacy Policy</a> for details.</p>
+    </div>
+    <div class="qa">
+      <p class="q">Do I need an account?</p>
+      <p class="a">No. Just download it and start using it right away.</p>
+    </div>
+    <div class="qa">
+      <p class="q">Photos don't appear / can't be imported.</p>
+      <p class="a">Check that photo access is allowed (Settings ▸ Ano Hi ▸ Photos ▸ “All Photos”). Reopen the app after granting access.</p>
+    </div>
+    <div class="qa">
+      <p class="q">I want to delete my data.</p>
+      <p class="a">Deleting the app erases all data stored on your device (thumbnails, analysis results, location records, and so on).</p>
+    </div>
+    <div class="qa">
+      <p class="q">Can I keep my data when I switch phones?</p>
+      <p class="a">Your data moves to the new device through OS mechanisms such as iOS Quick Start or iCloud Backup. We have no access to that data.</p>
+    </div>
+
+    <h2>Contact</h2>
+    <p>Please feel free to get in touch. Japanese or English is welcome, and we'll reply as soon as we can.</p>
+    <div class="contact">
+      Developer: Tanaka Yusuke<br>
+      Email: <a href="mailto:yutsutke@gmail.com">yutsutke@gmail.com</a>
+    </div>
+
+    <p><a href="privacy.html">Privacy Policy →</a></p>
+  </section>
+
+  <footer>
+    あの日 (Madeleine) — A Certain Day: Revived through Photographs and Footprints
+  </footer>
+</div>
+
+<script>
+(function () {
+  var ja = document.getElementById('ja'), en = document.getElementById('en');
+  var bja = document.getElementById('btnJa'), ben = document.getElementById('btnEn');
+  function set(lang) {
+    var isJa = lang === 'ja';
+    ja.hidden = !isJa; en.hidden = isJa;
+    bja.setAttribute('aria-pressed', String(isJa));
+    ben.setAttribute('aria-pressed', String(!isJa));
+    document.documentElement.lang = lang;
+    document.title = (isJa ? 'サポート' : 'Support') + ' — あの日 (Madeleine)';
+  }
+  bja.addEventListener('click', function () { set('ja'); });
+  ben.addEventListener('click', function () { set('en'); });
+  // 端末言語が日本語以外なら英語にフォールバック（privacy.html と同じ挙動）
+  set((navigator.language || 'ja').toLowerCase().indexOf('ja') === 0 ? 'ja' : 'en');
+})();
+</script>
+</body>
+</html>
