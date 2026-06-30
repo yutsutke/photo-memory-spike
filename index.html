@@ -127,6 +127,8 @@
   .full-cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2001; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.72)); display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .full-cap .dt { color: #fff; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
   .full-cap .full-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .full-cap .full-count { color: #cfe2ff; font-size: 13px; font-variant-numeric: tabular-nums; opacity: 0.85; }
+  .full-cap .to-walk { background: #1e6b5e; color: #fff; border: 1px solid #1e6b5e; border-radius: 999px; padding: 9px 20px; font-size: 14px; cursor: pointer; font-weight: 600; }
   .full-cap .fix-date { background: #2a2a2a; color: #e0e0e0; border: 1px solid #4a4a4a; border-radius: 999px; padding: 9px 20px; font-size: 14px; cursor: pointer; }
   .full-cap .date-editor { display: flex; flex-direction: column; align-items: center; gap: 8px; background: rgba(18,18,18,0.96); border: 1px solid #2a6; border-radius: 12px; padding: 12px 14px; }
   .full-cap .date-editor[hidden] { display: none; }
@@ -393,7 +395,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.67 (v114：地図の足取りの線を見やすく＝暗い縁取り(casing)＋本線を太め(weight 4-5)。v113=ヘッダ整理／v111-112=トップ1枚スワイプ) · 2026-06-30';
+const BUILD = 'phase3.68 (v115：足跡・タイムラインをタップで拡大→左右スワイプでめくれる(showFullImage を list 対応)。足跡の拡大に「🚶 ここから歩く」で辿り直しも両立。v114=地図線casing／v113=ヘッダ整理) · 2026-06-30';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1744,7 +1746,11 @@ function attachPhotoGestures(el, photo, onTap) {
 }
 
 let fullImageState = null;
-function showFullImage(photo) {
+function showFullImage(photo, opts = {}) {
+  // v115: opts = { list, index, onWalk }。list があれば左右スワイプで list をめくる（足跡・タイムライン）。
+  // onWalk があれば「🚶 ここから歩く」導線を出す（足跡からの拡大で連想ウォークを続けられる＝辿り直しを両立）。
+  const { list = null, index = 0, onWalk = null } = opts;
+  const hasList = Array.isArray(list) && list.length > 1;
   if (fullImageState) closeFullImage();
   // v23: 原画を保存しなくなったので、blob があればそれを、無ければ thumb (512px) を拡大表示。
   // thumb はやや粗いが「原画を持たない代わりに 1万枚入る」容量優先の tradeoff。閉じる時に必ず revoke。
@@ -1766,8 +1772,10 @@ function showFullImage(photo) {
   const cap = document.createElement('div');
   cap.className = 'full-cap';
   cap.innerHTML =
+    (hasList ? `<div class="full-count">${index + 1} / ${list.length}</div>` : '') +
     `<div class="dt">📅 ${dtStr}${srcTagHtml(photo)}</div>` +
     `<div class="full-actions">` +
+      (onWalk ? `<button class="to-walk">🚶 ここから歩く</button>` : '') +
       (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '') +
       `<button class="fix-date">📅 日付を直す</button>` +
     `</div>` +
@@ -1780,6 +1788,9 @@ function showFullImage(photo) {
     `</div>`;
   cap.addEventListener('click', e => e.stopPropagation());  // キャプション操作で overlay を閉じない
   // v79: 🗺 地図へ。地図 overlay (z 150) はフル画像 (z 2000) より背面なので、先にフル画像を閉じる。
+  if (onWalk) {   // v115: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)
+    cap.querySelector('.to-walk').addEventListener('click', () => { closeFullImage(); onWalk(); });
+  }
   if (showMapBtn) {
     cap.querySelector('.to-map').addEventListener('click', () => {
       closeFullImage();
@@ -1801,15 +1812,32 @@ function showFullImage(photo) {
     try { await dbPut(photo); } catch (e) { logErr(`日付の保存に失敗: ${e?.message || e}`); }
     if (mapState && mapState.refreshData) mapState.refreshData();   // タイムライン・線の並びを更新
     render();                                                       // 本体側 (カードの日付表示・件数) も整合
-    showFullImage(photo);                                           // 新しい日付でフル画像を開き直す
+    showFullImage(photo, opts);                                     // 新しい日付でフル画像を開き直す (v115: list/index/onWalk 維持)
   });
   overlay.appendChild(cap);
+
+  // v115: list があれば左右スワイプで前後の写真へ。スワイプ直後の click は閉じない。
+  let sx = 0, sy = 0, swiped = false;
+  if (hasList) {
+    overlay.addEventListener('pointerdown', (e) => { sx = e.clientX; sy = e.clientY; swiped = false; });
+    overlay.addEventListener('pointerup', (e) => {
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        const ni = dx < 0 ? index + 1 : index - 1;
+        if (ni >= 0 && ni < list.length) {
+          swiped = true;
+          showFullImage(list[ni], { list, index: ni, onWalk: onWalk ? (() => showExplore(list[ni])) : null });
+        }
+      }
+    });
+  }
 
   document.body.appendChild(overlay);
   // 長押し解除直後の click が即閉じを起こさないよう少し遅らせる
   const openedAt = Date.now();
   overlay.addEventListener('click', () => {
     if (Date.now() - openedAt < 200) return;
+    if (swiped) { swiped = false; return; }   // v115: スワイプしたら閉じない
     closeFullImage();
   });
   fullImageState = { el: overlay, url };
@@ -3082,8 +3110,8 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
           sheet.classList.remove('open');
           setTimeout(() => map.invalidateSize(), 260);
         }
-      } else {                              // フィルタ圏外 or GPS 無し → フル画像
-        showFullImage(p);
+      } else {                              // フィルタ圏外 or GPS 無し → フル画像 (v115: タイムラインを左右スワイプでめくれる)
+        showFullImage(p, { list: all, index: all.indexOf(p) });
       }
     });
     frag.appendChild(item);
@@ -3792,12 +3820,13 @@ function render() {
         trail.className = 'trail';
         const strip = document.createElement('div');
         strip.className = 'trail-strip';
-        displayTrail.forEach(p => {
+        displayTrail.forEach((p, i) => {
           const step = document.createElement('div');
           const isHere = center && p.id === center.id;
           step.className = 'trail-step' + (isHere ? ' current' : '');
           step.innerHTML = `<img src="${thumbUrl(p)}" loading="lazy">`;
-          if (!isHere) step.addEventListener('click', () => showExplore(p));
+          // v115: タップで拡大表示（足跡内を左右スワイプでめくれる）。拡大の「🚶 ここから歩く」で連想ウォークを続ける（辿り直しを両立）。
+          step.addEventListener('click', () => showFullImage(p, { list: displayTrail, index: i, onWalk: () => showExplore(p) }));
           strip.appendChild(step);
         });
         trail.appendChild(strip);

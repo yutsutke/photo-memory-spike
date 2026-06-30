@@ -5,6 +5,24 @@
 
 ---
 
+## v115 — 足跡・タイムラインをタップで拡大→スワイプでめくる（showFullImage を list 対応） (2026-06-30)
+
+**背景**
+- 実機フィードバック「足跡をタップで画像拡大／足跡内でスワイプでめくる」「タイムラインも同様にスワイプで」。塊B＝拡大表示の共通基盤を1か所拡張して両方カバー。
+
+**設計判断**
+- `showFullImage(photo, opts={list,index,onWalk})` に拡張。`list` があれば overlay の pointerdown/up で deltaX 判定し `list[index±1]` へ再帰遷移（しきい値45px・横優先 |dx|>|dy|*1.4）。カウンター「N / 全N」を表示。**既存の単一呼び出し `showFullImage(photo)` は opts 省略でそのまま動く**（地図 popup・center-card 長押し等は無改修）。
+- スワイプ直後の overlay click は閉じない（`swiped` フラグ）。
+- 足跡: `trail-step` のタップを `showExplore`(遡る)→`showFullImage(p, {list: displayTrail, index, onWalk: ()=>showExplore(p)})` に。**辿り直し（連想ウォークを続ける）は拡大内の「🚶 ここから歩く」導線で両立**＝[[tap-history-wanted]] を壊さない。スワイプで次の写真に移ると onWalk もその写真用に再生成。
+- タイムライン: フル画像分岐(非GPS/圏外)の `showFullImage(p)`→`showFullImage(p, {list: all, index: all.indexOf(p)})`。GPS 写真のタップ=地図フォーカスは維持。
+
+**結果 / 観察**
+- preview green: 拡大にカウンター「1/3」・🚶ここから歩く・🗺地図ボタン／左スワイプ→2/3・右スワイプ→1/3／閉じる OK／console エラー0。実機の手触りは TestFlight 次ビルドで。
+
+**残課題 / 次の方向**
+- タイムラインの list は `all`(全項目)＝フィルタ/折りたたみで非表示の写真もスワイプでめくられる。気になれば表示中のみに絞る。
+- 次＝塊C（連想ウォーク6枚→1枚スワイプ・`.deck`/`makeBigCard` 流用）。
+
 ## v114 — 地図の足取りの線を見やすく（暗い縁取り＋太め） (2026-06-30)
 
 **背景**
