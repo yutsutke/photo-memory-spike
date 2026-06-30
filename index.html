@@ -21,6 +21,12 @@
   header .count { font-size: 12px; color: #8bf; margin-right: 4px; }
   header button { padding: 6px 10px; font-size: 12px; background: #333; color: #eee; border: 0; border-radius: 6px; cursor: pointer; }
   header button:active { background: #555; }
+  /* v113: ヘッダ整理 — 🗺 過去の今日を主役に、残りは ⚙️ ドロップダウンへ */
+  .hdr-primary { background: #1e6b5e; font-weight: 600; }
+  .menu-dropdown { position: absolute; top: 100%; right: 8px; margin-top: 4px; z-index: 50; background: #1c1c1c; border: 1px solid #333; border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 10px 28px rgba(0,0,0,.55); min-width: 230px; }
+  .menu-dropdown button { text-align: left; width: 100%; background: transparent; padding: 11px 14px; border-radius: 8px; font-size: 14px; }
+  .menu-dropdown button:active { background: #2a2a2a; }
+  .menu-dropdown button.hidden { display: none; }
   .import-menu { position: fixed; z-index: 1000; background: #222; border: 1px solid #444; border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.5); min-width: 170px; }
   .import-menu .im-title { font-size: 11px; color: #9af; padding: 2px 6px 5px; }
   .import-menu button { background: #333; color: #eee; border: 1px solid #555; border-radius: 6px; padding: 9px 12px; font-size: 13px; text-align: left; cursor: pointer; }
@@ -350,14 +356,18 @@
   <h1>あの日 <span class="tag">写真と足跡から蘇る</span> <span class="ver" id="ver"></span></h1>
   <span class="count" id="count">— 枚</span>
   <span class="count hidden" id="bgStatus"></span>
-  <button id="btnAdd" class="import-trigger" title="画像を取り込む（ファイル / フォルダ・詳細設定）">📷取り込む</button>
-  <button id="btnMap" title="今日の日付の軌跡を数年分まとめて地図で見る（毎日の入口）">🗺</button>
-  <button id="btnLogger" title="位置ロガー：開いている間だけ軌跡を記録">🛰️</button>
-  <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠</button>
-  <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦</button>
-  <button id="btnTrash" class="hidden" title="削除（除外）した写真を戻す">♻️</button>
-  <button id="btnClear" title="全削除">🗑</button>
-  <button id="btnInfo" title="使い方・注意">ℹ️</button>
+  <!-- v113: ヘッダ整理。よく使う「🗺 過去の今日」を主役に、残りは ⚙️ メニューへ ([[ui-minimalism-works]]) -->
+  <button id="btnMap" class="hdr-primary" title="今日の日付の軌跡を数年分まとめて地図で見る（毎日の入口）">🗺 過去の今日</button>
+  <button id="btnMenu" title="メニュー（取り込み・AI・その他）">⚙️</button>
+  <div id="menuDropdown" class="menu-dropdown hidden">
+    <button id="btnAdd" class="import-trigger" title="画像を取り込む（ファイル / フォルダ）">📷 取り込む</button>
+    <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦 SNS の zip から取り込む</button>
+    <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠 AI で意味の近傍（β）</button>
+    <button id="btnLogger" title="位置ロガー：開いている間だけ軌跡を記録">🛰️ 位置ロガー</button>
+    <button id="btnTrash" class="hidden" title="削除（除外）した写真を戻す">♻️ 削除した写真を戻す</button>
+    <button id="btnClear" title="全削除">🗑 全削除</button>
+    <button id="btnInfo" title="使い方・注意">ℹ️ 使い方・情報</button>
+  </div>
   <button id="btnDev" class="hidden" title="開発: ダミー大量生成 (#dev)">🧪</button>
   <button id="btnDevDel" class="hidden" title="開発: ダミーだけ削除 (本物は残す)">🧹</button>
 </header>
@@ -383,7 +393,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.65 (v112：トップ＝🎲もう一度引く廃止→スワイプ説明／写真に「この日の地図へ」導線追加。連想ウォークの戻る文言を「← トップに戻る」に。v111=トップ1枚大表示＋横スワイプ化) · 2026-06-30';
+const BUILD = 'phase3.66 (v113：ヘッダ整理＝🗺 過去の今日を主役ボタンに、残り(取り込み/AI/復元/削除/情報)を ⚙️ ドロップダウンへ集約。v112=トップ微調整／v111=トップ1枚大表示＋横スワイプ化) · 2026-06-30';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -4327,6 +4337,17 @@ function onDocClickForMenu(e) {
 document.getElementById('btnAdd').addEventListener('click', (e) => openImportMenu(e.currentTarget));
 document.getElementById('btnAI').addEventListener('click', openAIModal);
 document.getElementById('btnInfo').addEventListener('click', openInfoModal);
+// v113: ⚙️ メニューのドロップダウン開閉。外クリック / 項目クリックで閉じる
+// (btnAdd だけは importMenu サブメニューを出すので閉じない＝anchor を残す)。
+(function(){
+  const mBtn = document.getElementById('btnMenu');
+  const dd = document.getElementById('menuDropdown');
+  if (mBtn && dd) {
+    mBtn.addEventListener('click', (e) => { e.stopPropagation(); dd.classList.toggle('hidden'); });
+    dd.addEventListener('click', (e) => { const t = e.target.closest('button'); if (t && t.id === 'btnAdd') return; dd.classList.add('hidden'); });
+    document.addEventListener('click', (e) => { if (!dd.contains(e.target) && !mBtn.contains(e.target)) dd.classList.add('hidden'); });
+  }
+})();
 // 🛰️ 位置ロガー (v73)。位置オフ build (iOS v1) ではボタンごと隠す (v104)。
 if (LOCATION_AVAILABLE) document.getElementById('btnLogger').addEventListener('click', openLoggerPanel);
 else document.getElementById('btnLogger').classList.add('hidden');
