@@ -59,6 +59,14 @@
   .card .meta { padding: 9px 12px 11px; }
   .card .meta .date { color: #eee; font-weight: 600; font-size: 13px; }
   .card .meta .place { color: #8bf; font-size: 11px; margin-top: 3px; }
+  /* v111: トップを 1 枚大表示 + 横スワイプ (scroll-snap) に。currentRandom (ランダム順) を順にめくる */
+  .deck { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; max-width: 600px; margin: 0 auto; scrollbar-width: none; }
+  .deck::-webkit-scrollbar { display: none; }
+  .bigcard { flex: 0 0 100%; scroll-snap-align: center; background: #1a1a1a; border-radius: 12px; overflow: hidden; cursor: pointer; position: relative; }
+  .bigcard:active { transform: scale(0.99); }
+  .bigcard img { width: 100%; height: 68vh; object-fit: cover; display: block; background: #000; }
+  .bigcard .meta { padding: 10px 14px 12px; text-align: center; }
+  .bigcard .meta .date { color: #eee; font-weight: 600; font-size: 13px; }
 
   /* explore */
   .center-card { background: #1a1a1a; border-radius: 12px; overflow: hidden; margin: 0 auto 14px; max-width: 600px; position: relative; }
@@ -374,7 +382,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.63 (v110：初回審査リジェクト対応＝①ホーム表示名を「あの日 — 写真と足跡」に統一(CFBundleDisplayName・2.3.8) ②サポートページ support.html 新設(1.5)・連絡先 anohiapp@gmail.com。英語名は A Past Day — Photos and Footprints に決定(日英対応・v1.1)) · 2026-06-30';
+const BUILD = 'phase3.64 (v111：トップを 1 枚大表示＋横スワイプ(scroll-snap・ランダム順)に変更＝3枚縦リストから。タップで連想ウォークは維持・チップ/🎲も維持。v110=審査リジェクト対応(名前2.3.8＋Support URL 1.5)) · 2026-06-30';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -3185,6 +3193,19 @@ function makeCard(photo, onClick) {
   return card;
 }
 
+// v111: トップの 1 枚大表示カード。makeCard より写真を大きく、メタは日付のみ（没入優先）。タップで連想ウォーク。
+function makeBigCard(photo, onClick) {
+  const card = document.createElement('div');
+  card.className = 'bigcard';
+  card.innerHTML = `<img src="${thumbUrl(photo)}" loading="lazy">
+    <div class="meta">
+      <div class="date">${fmtDate(photo.datetime)}${srcTagHtml(photo)}</div>
+    </div>`;
+  attachPhotoGestures(card, photo, onClick);
+  card.appendChild(makeExcludeBtn(photo));
+  return card;
+}
+
 function makeThumb(photo, onClick) {
   const t = document.createElement('div');
   t.className = 'thumb';
@@ -3559,7 +3580,7 @@ function render() {
     $main.appendChild(note);
 
     // 表示は除外を除いた先頭3枚。除外で次が繰り上がり、取り消しで元に戻る (他の2枚は不動)
-    const visibleRandom = currentRandom.filter(visible).slice(0, 3);
+    const visibleRandom = currentRandom.filter(visible).slice(0, 40);   // v111: 横スワイプで 40 枚までめくれる (端で🎲で次のランダムへ)
     if (currentRandom.length === 0) {
       const msg = document.createElement('p');
       msg.style.cssText = 'text-align:center;color:#888;margin:40px 0;';
@@ -3577,10 +3598,10 @@ function render() {
       msg.textContent = '全部除外されています。引き直すかフィルタを変えてください。';
       $main.appendChild(msg);
     } else {
-      const cards = document.createElement('div');
-      cards.className = 'cards';
-      visibleRandom.forEach(p => cards.appendChild(makeCard(p, () => showExplore(p))));
-      $main.appendChild(cards);
+      const deck = document.createElement('div');
+      deck.className = 'deck';   // v111: 横スワイプ (scroll-snap) で 1 枚ずつ。タップで連想ウォーク
+      visibleRandom.forEach(p => deck.appendChild(makeBigCard(p, () => showExplore(p))));
+      $main.appendChild(deck);
     }
 
     const actions = document.createElement('div');
