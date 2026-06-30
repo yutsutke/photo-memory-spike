@@ -13,21 +13,25 @@
 
 ---
 
-## 現在地 — BUILD: phase3.72（v119：**起動時の自動差分取り込み(native)** を実装＝ライブラリ取り込み済みの人に、開くたび「新しく撮った写真だけ」を**画面を奪わず静かに**追加。①初回プロンプト「自動で取り込む？」(はい/今はしない)②取り込み→⚙️詳細設定で ON/OFF③前面復帰でも差分(60秒throttle)。全経路 IS_NATIVE ガード＝web 無改修。構文 parse green(0エラー)・**実挙動は TestFlight 実機確認**。｜v118：拡大表示を scroll-snap 横スクロール deck に作り直し＝本物のサクサク。🎨UI改善 塊A/B/C すべて✅（v111-118・実機「めっちゃサクサク」YES）。｜v110：✅再提出済み＝「審査待ち（2回目）」→**審査結果待ち**→承認後 ASC で手動公開。英語名 A Past Day — Photos and Footprints・v1.1。**UI改修(v111-118)＋自動取り込み(v119)は審査中の1.0(16)とは別トラック＝承認後の次版に乗せる**。）
+## 現在地 — BUILD: phase3.73（v120：地図「**囲んで比べる**」を実装＝地図で一帯を円で囲む(中心を押して外へドラッグ=半径)→円内の写真を**左右2リール(縦scroll-snap)**で「この場所の、あの頃と今」を見比べる。左=最古/右=最新で対面・各リール独立スクラブ・⋯表示メニューから・GPS必須。preview green(構文0・メニュー項目・円モード・2リール×5・3km→5/50m→1)・**手触りは実機確認**。｜v119：起動時の自動差分取り込み(native)。｜v118：拡大表示を scroll-snap deck 化＝サクサク。🎨UI改善 v111-118 すべて✅（実機YES）。｜v110：✅再提出済み＝「審査待ち（2回目）」→**審査結果待ち**→承認後 ASC で手動公開。英語名 A Past Day・v1.1。**UI改修(v111-118)＋自動取り込み(v119)＋囲んで比べる(v120)は審査中の1.0(16)とは別トラック＝承認後の次版に乗せる**。）
 
-> ### 📍 次セッションの再開ポイント（2026-06-30 セッション9 更新・まずここを読む）
+> ### 📍 次セッションの再開ポイント（2026-06-30〜07-01 セッション9 更新・まずここを読む）
 >
-> **この回でやったこと（次段の機能＝起動時の自動差分取り込みを実装＝v119）**:
-> - セッション開始の挨拶 → DOCMAP/TODO + Gmail 確認。**審査結果の新着メールはまだ無し**（再提出後は TestFlight 通知のみ＝1.0(16)→(17)→(18)。(16)=再提出ビルド／(17)(18)=UI改修 push の Codemagic 自動ビルド）。**審査結果待ち（2回目）継続**。⚠️ ASC の審査トラックが 16 のままか（17/18 に差し替えていないか）は要目視（差し替えると審査リセット）。
+> **この回でやったこと（v119 起動時の自動差分取り込み + v120 地図「囲んで比べる」）**:
+> - セッション開始の挨拶 → DOCMAP/TODO + Gmail 確認。**審査結果の新着メールはまだ無し**（再提出後は TestFlight 通知のみ＝1.0(16)→(17)→(18)。(16)=再提出ビルド／(17)(18)=UI改修 push の Codemagic 自動ビルド）。**審査結果待ち（2回目）継続**。✅ **ASC の審査トラックは 16 のまま**（ユーザーが ASC スクショで確認＝17/18 に差し替わっていない＝審査リセットなし）。
 > - **v119 実装＝起動時の自動差分取り込み（native）**。ユーザー仕様＝①ライブラリ取り込み済みの人に起動時プロンプト「自動で取り込む？」②はい→以後開くたび差分③いいえでも設定で ON 可④後から OFF 可。
 >   - 設計: **静かな背景取り込み**（`runAutoImport()`＝enumerate→差分→`processNativeRest` 再利用・フル画面にしない・新規ゼロなら無音）／**対象判定**＝`collectImportedAssetIds().size>0`（ライブラリ取り込み済みのみ・新規ユーザーは煩わせない）／**初回プロンプトは次の起動で**（boot `maybeAutoImportOnLaunch`・`pms-autoImportAsked` で1回だけ）／**設定トグル**＝取り込み→⚙️詳細設定に native のみチェックボックス（`pms-autoImport`）／**前面復帰でも差分**＝`visibilitychange` に `maybeAutoImportOnResume`（ON時のみ・60秒throttle・iOS は cold launch 稀なので）。全経路 `IS_NATIVE && PhotoLib` ガード＝web 完全無改修。
 >   - 関数（[index.html](index.html)）: `autoImportEnabled/setAutoImport/autoImportAsked/markAutoImportAsked`（L1071-）・`runAutoImport`（L1080）・`maybeAutoImportOnLaunch`（L1107）・`maybeAutoImportOnResume`（L1116）・`promptAutoImport`（L1124）。配線＝boot(L4776)・visibilitychange(L2177)・設定モーダル(L4460,4472)。詳細 CHANGELOG v119。
 >   - 検証＝inline script を `vm.Script` parse＝**0エラー**。web 観測面（取り込み設定モーダル）は native ブロックが空文字で既存と同一・他は IS_NATIVE 早期 return＝**web preview で再現不可の native 機能のためブラウザ検証はスキップ（preview ガイドライン準拠）**。
+> - **v120 実装＝地図「囲んで比べる」**（ユーザーの詳細ハンドオフ）。コア「この場所の、あの頃と今」。地図で一帯を円で囲む（中心を押して外へドラッグ=半径）→円内の写真を**左右2リール（縦 scroll-snap）**で見比べる。
+>   - 設計（ハンドオフ順守）: **左右並置**（重ねない＝画角ズレ自体が年月の証拠）／**半径=手が決める「ここ」の粒度**（座標厳密一致で同一地点を定義しない・`haversine ≤ r`）／**スクラブは全期間・時季自由**（純度版作らない＝偶然のドライブ）／**発見は不随意・操作だけ随意**（左右独立スクロール＝片方止めて送る）／初期 **左=最古・右=最新**で対面／既存部品の組合せ（`.full-slide` の scroll-snap を縦にミラー[[ui-swipe-scroll-snap-works]]・年昇順は pickToday 前例）。入口は **⋯表示メニュー「🫧 囲んで比べる」**（ツールバーは v97 バランスを崩さない・当たれば昇格）。GPS 必須。
+>   - 関数（[index.html](index.html)）: `photosInCircle`・`startEncircleMode`/`endEncircleMode`（透明 `.encircle-layer` で pointer→`containerPointToLatLng`・`map.dragging` 等を一時停止）・`openCompareView`/`closeCompareView`（`compareState`）。CSS=`.encircle-*`/`.compare-overlay`/`.cmp-reel(縦snap)`/`.cmp-slide`。⋯表示に項目追加・`closeMapView` で後始末。詳細 CHANGELOG v120。
+>   - 検証＝preview green（構文0・boot 0・メニュー項目表示・円モード[レイヤが地図被覆/touch-action none/バナー+やめる/件数/end後始末]・比較ビュー[2リール×5・`scroll-snap y mandatory`・スライド全高・左=最古]・`photosInCircle`[3km→5/50m→1・昇順・遠方除外]・haversine[東京⇄大阪402km]）。⚠️**右リール初期最新寄せ(rAF内)は headless preview で rAF 停止のため確認不可＝手動 scrollTop は固定確認・実機で動作（v118 showFullImage と同パターン）**。手触り（円ドラッグ感・年マタギの打率）は実機で。
 > - **▶ 次セッションはここから**:
 >   1. **審査結果待ち（2回目）**＝**セッション開始時に Gmail で結果確認**（[[session-start-gmail-check]]）。①承認→ASC バージョンページで「公開」②再リジェクト→理由を読んで対応。
->   2. **v119 を実機確認**（TestFlight 次ビルド・**承認後の次版**に乗る）: ①ライブラリ取り込み済み端末で2回目起動時にプロンプト ②はい→新しく撮った写真が静かに増える ③⚙️詳細設定でトグル ON/OFF ④前面復帰での差分・電池。
->   3. **承認後 v1.1**: 英語名 A Past Day 実装／iPad 対応／位置ロガー復活／広告（[[monetization-v1-adfree]]）。UI改修(v111-118)＋自動取り込み(v119)も承認後の次版に。
->   - **状態**: web=GitHub Pages `phase3.72`（v119 反映・web は挙動変化なし）／native=ビルド16 が審査中・17/18 は TestFlight 済（審査差し替えはしない）。**Gmail 監視継続**。受信確認リマインド＝anohiapp@gmail.com。
+>   2. **v119・v120 を実機確認**（TestFlight 次ビルド・**承認後の次版**に乗る）: v119＝①2回目起動でプロンプト ②はい→新写真が静かに増える ③⚙️詳細設定で ON/OFF ④前面復帰の差分・電池／v120＝(a)円ドラッグの気持ちよさ (b)年マタギの出会いの打率（チューニング＝薄い年が埋もれる対策の「見えない弱い癖」は手触りを見てから・初版は素朴な時間順）。
+>   3. **承認後 v1.1**: 英語名 A Past Day 実装／iPad 対応／位置ロガー復活／広告（[[monetization-v1-adfree]]）。UI改修(v111-118)＋自動取り込み(v119)＋囲んで比べる(v120)も承認後の次版に。
+>   - **状態**: web=GitHub Pages `phase3.73`（v119/v120 反映）／native=ビルド16 が審査中（✅16 のまま確認済）・17/18 は TestFlight 済（審査差し替えはしない）。**Gmail 監視継続**。受信確認リマインド＝anohiapp@gmail.com。
 >
 > ### 📍 次セッションの再開ポイント（2026-06-30 セッション8 更新・まずここを読む）
 >

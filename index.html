@@ -127,6 +127,26 @@
   .full-deck { position: absolute; inset: 0; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .full-deck::-webkit-scrollbar { display: none; }
   .full-slide { flex: 0 0 100%; height: 100%; scroll-snap-align: center; display: flex; align-items: center; justify-content: center; }
+
+  /* 囲んで比べる (v120): 地図で円を描く透明レイヤ + 左右2リール。リールは .full-slide と同じ scroll-snap を縦に。 */
+  .encircle-layer { position: absolute; inset: 0; z-index: 1500; touch-action: none; cursor: crosshair; }
+  .encircle-banner { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1600; display: flex; align-items: center; gap: 10px; background: rgba(20,22,24,0.92); color: #fff; padding: 8px 12px; border-radius: 999px; font-size: 13px; box-shadow: 0 2px 12px rgba(0,0,0,0.4); max-width: 94vw; }
+  .encircle-banner .enc-cancel { background: #2f3438; color: #fff; border: none; border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+  .encircle-count { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); z-index: 1600; background: rgba(51,193,176,0.95); color: #03201d; font-weight: 700; padding: 6px 16px; border-radius: 999px; font-size: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+  @media (max-width: 719px) { .encircle-banner { top: 52px; } }
+
+  .compare-overlay { position: fixed; inset: 0; z-index: 4000; background: #000; display: flex; flex-direction: column; }
+  .cmp-header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(8px + env(safe-area-inset-top)) 14px 6px; color: #fff; }
+  .cmp-title { font-size: 15px; font-weight: 600; }
+  .cmp-title .cmp-sub { font-weight: 400; opacity: 0.65; font-size: 13px; }
+  .cmp-close { background: rgba(255,255,255,0.12); color: #fff; border: none; border-radius: 999px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; flex: 0 0 auto; }
+  .cmp-hint { flex: 0 0 auto; color: #fff; opacity: 0.6; font-size: 12px; padding: 0 14px 8px; line-height: 1.4; }
+  .cmp-reels { flex: 1 1 auto; display: flex; min-height: 0; gap: 2px; }
+  .cmp-reel { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; overflow-y: auto; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; background: #0a0a0a; }
+  .cmp-reel::-webkit-scrollbar { display: none; }
+  .cmp-slide { flex: 0 0 100%; width: 100%; scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 6px; box-sizing: border-box; }
+  .cmp-slide img { max-width: 100%; max-height: calc(100% - 30px); object-fit: contain; border-radius: 6px; }
+  .cmp-slide .cmp-dt { color: #fff; opacity: 0.8; font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
   /* v24: フル表示の下部キャプション。日時 (純正写真アプリで辿る鍵) + 写真アプリ動線 */
   .full-cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2001; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.72)); display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .full-cap .dt { color: #fff; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
@@ -399,7 +419,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.72 (v119：起動時の自動差分取り込み(native)。ライブラリ取り込み済みの人に開くたび「新しい写真だけ」を静かに追加。初回プロンプト(はい/今はしない)＋⚙️詳細設定でON/OFF＋前面復帰でも差分。web は対象外=IS_NATIVE分岐) · 2026-06-30';
+const BUILD = 'phase3.73 (v120：地図「囲んで比べる」。地図で一帯を円で囲む(中心を押して外へドラッグ=半径)→円内の写真を左右2リール(縦scroll-snap)で「この場所の、あの頃と今」を見比べる。左=最古/右=最新で対面・各リール独立スクラブ。⋯表示メニューから。GPS必須・haversineで円内フィルタ) · 2026-07-01';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -2855,6 +2875,7 @@ async function openMapView(focusPhoto) {
   // 今は「記憶の封印」のみ (ユーザー要望: 封印が表示の中にある UI は継続)。期間(📅)だけは常時トップに残す。
   popMore.innerHTML =
     `<div class="mc-pop-title">表示の設定</div>` +
+    `<button class="mc-menu-item" id="mmCompare">🫧 囲んで比べる</button>` +   // v120: 円で囲む→左右2リールで「あの頃と今」
     // 位置オフ build (iOS v1) では軌跡まわりのトグルを出さない (v104)。記録が無いので元々空動作。
     (LOCATION_AVAILABLE
       ? `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> 🛰️ 自分の軌跡（ロガー）</label>` +
@@ -2874,6 +2895,8 @@ async function openMapView(focusPhoto) {
     mmEst.checked = mapState.showEstimated;
     mmEst.addEventListener('change', () => { mapState.showEstimated = mmEst.checked; refreshTrack(); });
   }
+  const mmCompare = popMore.querySelector('#mmCompare');   // v120: 囲んで比べる = 円ジェスチャを開始
+  mmCompare.addEventListener('click', () => { closePops(); startEncircleMode(); });
   const mmSeal = popMore.querySelector('#mmSeal');
   mmSeal.addEventListener('click', () => { closePops(); openSealPanel(); });
   const mmHelp = popMore.querySelector('#mmHelp');
@@ -3311,11 +3334,147 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
 
 function closeMapView() {
   if (!mapState) return;
+  if (mapState.encircle) endEncircleMode();   // v120: 円ジェスチャ中なら後始末してから閉じる
   try { mapState.map.remove(); } catch {}
   mapState.overlay.remove();
   mapState = null;
 }
-window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mapState) closeMapView(); });
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mapState && !compareState) closeMapView(); });   // 比較ビューが上にある時は先にそちらを閉じる
+
+// ============================================================
+// 囲んで比べる (v120) — 地図で一帯を円で囲み、円内の写真を左右2リールで
+//   「この場所の、あの頃と今」として見比べる。コア(偶然/久しぶり/よみがえる)を地図上で。
+//   remove-to-reveal(囲って外を消す) + なぞって時間を復元。左右並置(重ねない＝画角が
+//   合わなくても成立し、ズレ自体が年月の証拠)。スクラブ軸は全期間・時季自由(純度版は作らない)。
+//   発見は不随意・操作だけ随意。円の半径=手が決める「ここ」の粒度。GPS 必須。
+//   既存部品の組合せ: haversine(円内フィルタ)・scroll-snap(.full-slide を縦に)・年昇順(pickToday)。
+// ============================================================
+
+// 円内(中心+半径m)の表示可能 GPS 写真を、昔→今の順で返す。
+function photosInCircle(lat, lng, radiusM) {
+  return allPhotos
+    .filter(p => visible(p) && p.lat != null && p.lng != null && haversine(lat, lng, p.lat, p.lng) <= radiusM)
+    .sort((a, b) => a.datetime - b.datetime);   // 昔→今 (pickToday と同じ並び)
+}
+
+// 地図に円を描くモードに入る。中心を押して外へドラッグ=半径。離すと円内の写真で比較ビュー。
+function startEncircleMode() {
+  if (!mapState || mapState.encircle) return;
+  const { map, overlay } = mapState;
+  const mapEl = overlay.querySelector('#mapEl');
+  try { map.closePopup(); } catch {}
+  if (mapState.closePops) mapState.closePops();
+  // 描画ジェスチャと衝突しないよう地図のパン/ズームを一時停止 (endEncircleMode で必ず戻す)。
+  try { map.dragging.disable(); map.doubleClickZoom.disable(); map.boxZoom.disable(); if (map.tap) map.tap.disable(); } catch {}
+
+  const layer  = document.createElement('div'); layer.className  = 'encircle-layer';
+  const banner = document.createElement('div'); banner.className = 'encircle-banner';
+  banner.innerHTML = `<span>見たい場所を押して、外へ広げて囲む</span><button class="enc-cancel" type="button">やめる</button>`;
+  const liveCount = document.createElement('div'); liveCount.className = 'encircle-count'; liveCount.hidden = true;
+  overlay.appendChild(layer); overlay.appendChild(banner); overlay.appendChild(liveCount);
+
+  let circle = null, centerLL = null, drawing = false, moveRaf = null;
+  const ptToLatLng = (clientX, clientY) => {
+    const rect = mapEl.getBoundingClientRect();
+    return map.containerPointToLatLng(L.point(clientX - rect.left, clientY - rect.top));
+  };
+  const onDown = (e) => {
+    if (drawing) return;                         // 2本目のタッチ(ピンチ等)は無視
+    if (e.button != null && e.button > 0) return;
+    drawing = true;
+    try { layer.setPointerCapture(e.pointerId); } catch {}
+    centerLL = ptToLatLng(e.clientX, e.clientY);
+    if (circle) map.removeLayer(circle);
+    circle = L.circle(centerLL, { radius: 1, color: '#33c1b0', weight: 2, fillColor: '#33c1b0', fillOpacity: 0.12 }).addTo(map);
+    liveCount.hidden = false; liveCount.textContent = '0枚';
+    e.preventDefault();
+  };
+  const onMove = (e) => {
+    if (!drawing || !centerLL || !circle) return;
+    e.preventDefault();
+    const cur = ptToLatLng(e.clientX, e.clientY);
+    circle.setRadius(map.distance(centerLL, cur));
+    if (moveRaf) return;                          // 件数計算は rAF で間引き (大量写真でも軽く)
+    moveRaf = requestAnimationFrame(() => {
+      moveRaf = null;
+      if (!centerLL || !circle) return;
+      liveCount.textContent = `${photosInCircle(centerLL.lat, centerLL.lng, circle.getRadius()).length}枚`;
+    });
+  };
+  const onUp = (e) => {
+    if (!drawing) return;
+    drawing = false;
+    e.preventDefault();
+    const r = circle ? circle.getRadius() : 0;
+    const list = (centerLL && r > 0) ? photosInCircle(centerLL.lat, centerLL.lng, r) : [];
+    if (list.length >= 2) { endEncircleMode(); openCompareView(list); return; }
+    // 足りない → 円を消してやり直し (モードは継続)。
+    liveCount.hidden = false;
+    liveCount.textContent = (list.length === 1) ? '1枚 — もう少し広く囲んで' : 'この辺りに写真がありません';
+    if (circle) { map.removeLayer(circle); circle = null; }
+    centerLL = null;
+    setTimeout(() => { if (mapState && mapState.encircle) mapState.encircle.liveCount.hidden = true; }, 1500);
+  };
+  layer.addEventListener('pointerdown', onDown);
+  layer.addEventListener('pointermove', onMove);
+  layer.addEventListener('pointerup', onUp);
+  layer.addEventListener('pointercancel', onUp);
+  banner.querySelector('.enc-cancel').addEventListener('click', () => endEncircleMode());
+
+  mapState.encircle = { layer, banner, liveCount, clear: () => { if (circle) { map.removeLayer(circle); circle = null; } } };
+}
+
+function endEncircleMode() {
+  if (!mapState || !mapState.encircle) return;
+  const { map } = mapState;
+  const enc = mapState.encircle;
+  try { enc.clear(); } catch {}
+  enc.layer.remove(); enc.banner.remove(); enc.liveCount.remove();
+  try { map.dragging.enable(); map.doubleClickZoom.enable(); map.boxZoom.enable(); if (map.tap) map.tap.enable(); } catch {}
+  mapState.encircle = null;
+}
+
+// 左右2リール (縦 scroll-snap) の比較ビュー。同じ円内写真を左右独立にスクラブ＝片方を止めて見比べる。
+// 初期は 左=いちばん古い / 右=いちばん新しい ＝「あの頃」と「今」を最初から対面させる。
+let compareState = null;
+function openCompareView(list) {
+  if (!list || list.length < 2) return;
+  if (compareState) closeCompareView();
+  const a = list[0].datetime, b = list[list.length - 1].datetime;
+  const ya = a.getFullYear(), yb = b.getFullYear();
+  const span = (ya === yb) ? `${ya}年` : `${ya}〜${yb}年`;
+  const overlay = document.createElement('div');
+  overlay.className = 'compare-overlay';
+  overlay.innerHTML =
+    `<div class="cmp-header">` +
+      `<div class="cmp-title">この場所の、あの頃と今<span class="cmp-sub"> · ${list.length}枚 · ${span}</span></div>` +
+      `<button class="cmp-close" type="button">✕</button>` +
+    `</div>` +
+    `<div class="cmp-hint">左右それぞれ上下にスワイプして時間を行き来。気になる一枚で片方を止め、もう片方を送って見比べる。</div>` +
+    `<div class="cmp-reels"><div class="cmp-reel" data-side="L"></div><div class="cmp-reel" data-side="R"></div></div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelectorAll('.cmp-reel').forEach(reel => {
+    const frag = document.createDocumentFragment();
+    list.forEach(p => {
+      const slide = document.createElement('div');
+      slide.className = 'cmp-slide';
+      slide.innerHTML = `<img src="${thumbUrl(p)}" loading="lazy"><div class="cmp-dt">📅 ${fmtDate(p.datetime)}</div>`;
+      frag.appendChild(slide);
+    });
+    reel.appendChild(frag);
+  });
+  // 右リールを末尾(最新)へ。左は先頭(最古)のまま＝開いた瞬間に時間の幅が見える。
+  // clientHeight×(n-1) で最後のスライド位置へ (scrollHeight 未確定タイミングに左右されない)。
+  requestAnimationFrame(() => { const reels = overlay.querySelectorAll('.cmp-reel'); if (reels[1]) reels[1].scrollTop = reels[1].clientHeight * (list.length - 1); });
+  compareState = { overlay };
+  overlay.querySelector('.cmp-close').addEventListener('click', closeCompareView);
+}
+function closeCompareView() {
+  if (!compareState) return;
+  compareState.overlay.remove();
+  compareState = null;
+}
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && compareState) closeCompareView(); });
 
 // ワンタップ除外ボタン (✕)。親カードの tap/長押しと衝突しないよう pointer 系を止める。
 function makeExcludeBtn(photo) {
