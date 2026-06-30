@@ -67,6 +67,7 @@
   .bigcard img { width: 100%; height: 68vh; object-fit: cover; display: block; background: #000; }
   .bigcard .meta { padding: 10px 14px 12px; text-align: center; }
   .bigcard .meta .date { color: #eee; font-weight: 600; font-size: 13px; }
+  .swipe-hint { text-align: center; color: #777; font-size: 12px; margin: 14px 0 4px; letter-spacing: 0.04em; }
 
   /* explore */
   .center-card { background: #1a1a1a; border-radius: 12px; overflow: hidden; margin: 0 auto 14px; max-width: 600px; position: relative; }
@@ -382,7 +383,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.64 (v111：トップを 1 枚大表示＋横スワイプ(scroll-snap・ランダム順)に変更＝3枚縦リストから。タップで連想ウォークは維持・チップ/🎲も維持。v110=審査リジェクト対応(名前2.3.8＋Support URL 1.5)) · 2026-06-30';
+const BUILD = 'phase3.65 (v112：トップ＝🎲もう一度引く廃止→スワイプ説明／写真に「この日の地図へ」導線追加。連想ウォークの戻る文言を「← トップに戻る」に。v111=トップ1枚大表示＋横スワイプ化) · 2026-06-30';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -3203,6 +3204,20 @@ function makeBigCard(photo, onClick) {
     </div>`;
   attachPhotoGestures(card, photo, onClick);
   card.appendChild(makeExcludeBtn(photo));
+  // v112: トップの写真からも「この日の地図へ」(GPS あれば その場所へ)。explore 中心カードと同じ導線。
+  // stopPropagation で写真タップ(=連想ウォーク)と衝突させない。
+  const hasGps = photo.lat != null && photo.lng != null;
+  if (hasGps || photo.datetime) {
+    const mapBtn = document.createElement('button');
+    mapBtn.className = 'center-map-btn';
+    mapBtn.textContent = hasGps ? '🗺 地図でこの場所を見る' : '🗺 この日の地図へ';
+    const stop = e => e.stopPropagation();
+    mapBtn.addEventListener('pointerdown', stop);
+    mapBtn.addEventListener('pointerup', stop);
+    mapBtn.addEventListener('pointermove', stop);
+    mapBtn.addEventListener('click', (e) => { e.stopPropagation(); openMapView(photo); });
+    card.querySelector('.meta').appendChild(mapBtn);
+  }
   return card;
 }
 
@@ -3602,13 +3617,12 @@ function render() {
       deck.className = 'deck';   // v111: 横スワイプ (scroll-snap) で 1 枚ずつ。タップで連想ウォーク
       visibleRandom.forEach(p => deck.appendChild(makeBigCard(p, () => showExplore(p))));
       $main.appendChild(deck);
+      // v112: 「もう一度引く」ボタンは廃止 (スワイプで十分・ユーザー要望)。代わりにスワイプを促すヒント。
+      const hint = document.createElement('div');
+      hint.className = 'swipe-hint';
+      hint.textContent = '← スワイプして次の思い出へ →';
+      $main.appendChild(hint);
     }
-
-    const actions = document.createElement('div');
-    actions.className = 'actions';
-    actions.innerHTML = `<button class="primary" id="reroll">🎲 もう一度引く</button>`;
-    $main.appendChild(actions);
-    document.getElementById('reroll').addEventListener('click', drawRandom);
     return;
   }
 
@@ -3781,7 +3795,7 @@ function render() {
 
     const actions = document.createElement('div');
     actions.className = 'actions';
-    actions.innerHTML = `<button class="secondary" id="backRandom">← ランダム3枚に戻る</button>`;
+    actions.innerHTML = `<button class="secondary" id="backRandom">← トップに戻る</button>`;
     $main.appendChild(actions);
     document.getElementById('backRandom').addEventListener('click', drawRandom);
     return;
