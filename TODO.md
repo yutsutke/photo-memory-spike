@@ -13,7 +13,7 @@
 
 ---
 
-## 現在地 — BUILD: phase3.63（v110：🟡 **初回審査リジェクト（Changes needed）に対応**（2026-06-29 受領／2026-06-30 修正）。指摘は2点とも軽微＝**4.2 web ラッパー薄は出ず**・コア無傷。①2.3.8 名前不一致→`CFBundleDisplayName` を「あの日 — 写真と足跡」に統一（要再ビルド 1.0(16)）②1.5 Support URL→`support.html` 新設（連絡先は個人 gmail 直公開を避け `anohiapp@gmail.com`・privacy.html も統一・メタデータのみ）。**次＝push→ビルド16→ASC でビルド差し替え＋Support URL 更新→再提出**。英語名は **A Past Day — Photos and Footprints** に決定（日英対応・実装は v1.1）。）
+## 現在地 — BUILD: phase3.63（v110：✅ **初回リジェクト対応＝完了・再提出済み＝「審査待ち」（2回目）**（2026-06-30）。指摘2点とも軽微＝**4.2 web ラッパー薄は出ず**・コア無傷。①2.3.8 名前不一致→ビルド1.0(16) で `CFBundleDisplayName`「あの日 — 写真と足跡」②1.5 Support URL→`support.html`（連絡先 anohiapp@gmail.com）。審査メモ(対応説明・英文)も添付。**次＝審査結果待ち（最大48h・メール）→承認後は ASC で手動公開**。英語名は **A Past Day — Photos and Footprints** に決定（日英対応・実装は v1.1）。）
 
 > ### 📍 次セッションの再開ポイント（2026-06-30 セッション8 更新・まずここを読む）
 >
@@ -22,12 +22,9 @@
 > - **指摘① Guideline 2.3.8（名前不一致）**: ストア名「あの日 — 写真と足跡」⇄ デバイス名「Madeleine」。→ ✅ [Info.plist](ios/App/App/Info.plist) の `CFBundleDisplayName` を Madeleine→**「あの日 — 写真と足跡」**に（ストア名と完全一致）。**バイナリ変更＝要再ビルド 1.0(16)**。
 > - **指摘② Guideline 1.5（Support URL）**: ASC の Support URL がアプリ本体 URL でサポートページでない。→ ✅ **[support.html](support.html) 新設**（使い方/FAQ・privacy.html と同トーン・ja/en 切替）。公開 URL=`https://yutsutke.github.io/photo-memory-spike/support.html`。連絡先メールは個人 gmail 直公開を避け **support.html・privacy.html とも `anohiapp@gmail.com` に統一**（要受信確認）。**メタデータのみ＝再ビルド不要**。
 > - **英語名＝A Past Day — Photos and Footprints に決定（2026-06-30）**: 日本語「あの日 — 写真と足跡」と完全対応。名前はロケール別に出し分け可＝アプリ `InfoPlist.strings`(ja=あの日 — 写真と足跡 / en=A Past Day — Photos and Footprints)＋ASC 英語ローカライズ名 A Past Day — Photos and Footprints。各地域で device⇄store 一致で 2.3.8 OK。旧英名 Madeleine は内部識別子にのみ残置。**英語素材一式が要るので実装は v1.1**（v1 は日本語単独で最短承認）。次：App Store で英語名の空き確認。
-> - **▶ 次セッションはここから（再提出フロー・Chrome 拡張で ASC 操作）**:
->   1. **Codemagic がビルド 1.0(16) を生成**（push 済みなら自動・CFBundleDisplayName 変更が乗る）→ ASC でビルドを 15→16 に差し替え。
->   2. **ASC で Support URL を `…/support.html` に更新**（App 情報のサポートURL欄）。
->   3. **「審査用に追加」→ 再提出**（typically 48h で応答・輸出/DSA は前回同様ゼロ質問のはず）。
->   4. 承認後＝**リリースは手動**（ASC で「公開」を押すまで非公開・v109 設定済）。
->   - **状態**: web=GitHub Pages `phase3.62`（support.html 公開）／native=ビルド16 待ち。**Gmail 監視継続**（[[session-start-gmail-check]]）。リジェクト済なのでビルド差し替えは自由（審査中の差し替えと違い「審査から削除」不要）。
+> - **✅ 再提出 完了（2026-06-30・Chrome 拡張で ASC 操作）**: ① Codemagic ビルド 1.0(16) 生成（CFBundleDisplayName 修正入り）② ASC で Support URL を `…/support.html` に更新（ユーザー実施）③ ビルドを 16 に差し替え ④ App Review 情報のメモ欄に対応説明（英文）を保存 ⑤「App Review に再提出」→ **ステータス「審査待ち」**（輸出/DSA 追加質問ゼロ）。
+>   - **▶ 次セッションはここから＝審査結果待ち（2回目）**: 最大48h・完了でメール。**セッション開始時に Gmail で結果確認**（[[session-start-gmail-check]]）。①承認→ASC バージョンページで「公開」を押すと App Store に出る（手動・v109 設定済）②再リジェクト→理由を読んで個別対応。
+>   - **状態**: web=GitHub Pages `phase3.63`（support.html 公開・連絡先 anohiapp@gmail.com）／native=ビルド16 が審査中。**Gmail 監視継続**（[[session-start-gmail-check]]）。承認後 v1.1＝英語名 A Past Day — Photos and Footprints 実装・iPad 対応・位置復活・広告。
 
 > ### 📍 次セッションの再開ポイント（2026-06-28 セッション7 更新・まずここを読む）
 >

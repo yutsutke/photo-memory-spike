@@ -21,7 +21,7 @@
 
 **結果 / 観察**
 - 修正2点を実装＋ BUILD phase3.62。**コア体験のコードには一切触れていない**（Info.plist 1行＋新規 support.html のみ）。
-- 再提出の経路: ① push→Codemagic がビルド 1.0(16) を生成（CFBundleDisplayName 変更が乗る）② ASC でビルドを 15→16 に差し替え ③ Support URL を support.html に更新 ④「審査用に追加」→再提出（typically 48h 以内に応答）。
+- **✅ 再提出完了（2026-06-30）＝ステータス「審査待ち（2回目）」**: ① Codemagic ビルド 1.0(16) 生成（CFBundleDisplayName 修正入り）② ASC で Support URL を support.html に更新（ユーザー実施）③ ビルドを 15→16 に差し替え ④ App Review 情報のメモ欄に対応説明（英文：2.3.8/1.5 を直した旨）を保存 ⑤ submission の「App Review に再提出」→ 審査待ち（輸出/DSA 追加質問ゼロ）。Chrome 拡張で ASC を操作。次＝審査結果待ち（最大48h・メール）→承認後は ASC で手動公開。
 
 **教訓**
 - 初回審査の典型リジェクトは「名前の不一致」と「サポート URL がトップページ」の2つ＝**中身でなく“見せ方/設定”で落ちる**。コア体験が薄いと疑われた形跡はなく、native 化（自前プラグイン）の投資が 4.2 回避に効いた可能性が高い。
