@@ -5,6 +5,23 @@
 
 ---
 
+## v118 — 拡大表示をトップと同じ scroll-snap 横スクロール deck に作り直し（本物のサクサク） (2026-06-30)
+
+**背景**
+- v117（overlay 再利用・paint 方式）でも「まだ引っかかる」。ユーザーの指摘「モードやトップはサクサクいくので、それと同じ作り方は？」が的確だった。トップ/モードの deck は CSS `scroll-snap` のブラウザネイティブ横スクロール（GPU・慣性）＝サクサクの正体。拡大表示は JS スワイプ→画像差し替えだったので根本的に引っかかっていた。
+
+**設計判断**
+- `showFullImage` を `.full-deck`(scroll-snap)＋`.full-slide`(各写真) に作り直し＝トップ deck と同じ仕組み。img は `thumbUrl`(id ごとにキャッシュ済み URL＝作成/解放ゼロ・トップ deck と同速)。スクロールはブラウザネイティブ＝JS のスワイプ判定を撤廃。
+- `.full-deck { position:absolute; inset:0; ... }`＝overlay の flex 中央寄せで slide が潰れるのを回避（検証中に scrollWidth=0 で発覚→修正）。
+- cap は scroll イベントで現在 index を検出して塗り替え（rAF 間引き）。初期表示は `scrollIntoView` で startIndex の slide へ。closeFullImage は overlay remove のみ（thumbUrl はキャッシュ共有＝個別 revoke しない）。
+
+**結果 / 観察**
+- preview green: deck・slide 4枚・scrollWidth=clientWidth×4・`scroll-snap-type: x mandatory`・カウンター・console エラー0。**スクロール挙動（初期位置・追従）は preview ヘッドレスが実スクロールを再現しないため実機確認**（scrollLeft 設定/scrollIntoView が効かない＝preview の制約）。
+
+**残課題 / 次の方向**
+- 実機で「サクサク・正しい写真から開く・スクロールでカウンター追従」を確認。
+- list が巨大（タイムライン全期間 2000枚）だと slide 全数 DOM 生成で重い可能性。img は loading=lazy で実ロードは可視分のみだが、必要なら current 周辺の窓化。
+
 ## v117 — 拡大表示のスワイプをサクサクに（overlay 再利用・paint 方式） (2026-06-30)
 
 **背景**

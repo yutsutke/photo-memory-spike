@@ -123,6 +123,10 @@
   /* フル画像は最前面 (地図オーバーレイ z-index:150〜1250 より上。タイムライン/マーカーから開いても隠れない, v54 fix) */
   .full-overlay { position: fixed; inset: 0; background: #000; z-index: 2000; display: flex; align-items: center; justify-content: center; }
   .full-overlay img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  /* v118: 拡大表示も scroll-snap の横スクロール deck に（トップ/モードと同じ＝ネイティブ横スクロールでサクサク） */
+  .full-deck { position: absolute; inset: 0; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .full-deck::-webkit-scrollbar { display: none; }
+  .full-slide { flex: 0 0 100%; height: 100%; scroll-snap-align: center; display: flex; align-items: center; justify-content: center; }
   /* v24: フル表示の下部キャプション。日時 (純正写真アプリで辿る鍵) + 写真アプリ動線 */
   .full-cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2001; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.72)); display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .full-cap .dt { color: #fff; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
@@ -395,7 +399,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.70 (v117：拡大表示のスワイプをサクサクに＝overlay/img を再利用し画像とキャプションだけ差し替える(paint方式・以前は毎回 DOM 再構築していた)。v116=連想ウォーク1枚化／v115=足跡/タイムラインのスワイプ拡大) · 2026-06-30';
+const BUILD = 'phase3.71 (v118：拡大表示をトップ/モードと同じ scroll-snap 横スクロール deck に作り直し＝ブラウザネイティブのスクロールで本当にサクサク。img は thumbUrl(キャッシュ)。v117 の JS paint 方式から転換) · 2026-06-30';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1747,35 +1751,43 @@ function attachPhotoGestures(el, photo, onTap) {
 
 let fullImageState = null;
 function showFullImage(photo, opts = {}) {
-  // v117: overlay/img/cap は1回だけ作り、スワイプ時は paint() で画像とキャプションだけ差し替える
-  //   （以前は再帰で overlay を毎回破棄→再構築していて「サクサクいかない」原因だった）。
-  // opts = { list, index, onWalk }。list があれば左右スワイプで list をめくる（足跡・タイムライン）。
-  // onWalk があれば「🚶 ここから歩く」導線を出す（足跡からの拡大で連想ウォークを続けられる＝辿り直しを両立）。
-  const { list = null, onWalk = null } = opts;
-  const hasList = Array.isArray(list) && list.length > 1;
+  // v118: 拡大表示も CSS scroll-snap の横スクロール deck に（トップ/モードと同じ作り＝ブラウザネイティブの
+  //   横スクロールで「サクサク」）。v115-117 の JS スワイプ→画像差し替えは引っかかったので転換。
+  //   img は thumbUrl(id ごとにキャッシュ済み URL)＝作成/解放コストなし・トップ deck と同じ速さ。
+  // opts = { list, index, onWalk }。list があれば全写真を slide に並べて横スクロール（足跡・タイムライン）。
+  // onWalk があれば「🚶 ここから歩く」導線（足跡からの拡大で連想ウォークを続けられる＝辿り直しを両立）。
+  const onWalk = opts.onWalk || null;
+  const list = (Array.isArray(opts.list) && opts.list.length > 1) ? opts.list : [photo];
+  const startIndex = (Array.isArray(opts.list) && opts.list.length > 1) ? Math.min(Math.max(opts.index || 0, 0), list.length - 1) : 0;
+  const hasList = list.length > 1;
   if (fullImageState) closeFullImage();
 
   const overlay = document.createElement('div');
   overlay.className = 'full-overlay';
-  const imgEl = document.createElement('img');
-  overlay.appendChild(imgEl);
+  const deck = document.createElement('div');
+  deck.className = 'full-deck';
+  list.forEach(p => {
+    const slide = document.createElement('div');
+    slide.className = 'full-slide';
+    const im = document.createElement('img');
+    im.src = thumbUrl(p);   // v118: キャッシュ済み URL を再利用＝作成/解放のコストなし (トップ deck と同じ)
+    im.loading = 'lazy';
+    slide.appendChild(im);
+    deck.appendChild(slide);
+  });
+  overlay.appendChild(deck);
+
   const cap = document.createElement('div');
   cap.className = 'full-cap';
   cap.addEventListener('click', e => e.stopPropagation());  // キャプション操作で overlay を閉じない
   overlay.appendChild(cap);
 
-  fullImageState = { el: overlay, img: imgEl, cap, url: null, list, index: opts.index || 0, onWalk, hasList, swiped: false };
+  fullImageState = { el: overlay, deck, cap, list, index: startIndex, onWalk, hasList };
 
-  // index の写真で画像 + キャプションを塗り替える。overlay/img/cap の要素は再利用＝DOM 破棄なしでサクサク。
-  function paint(i) {
-    const p = hasList ? list[i] : photo;
+  // cap（日付・ボタン）を index の写真で塗る。slide(画像)は固定、cap だけ更新＝軽い。
+  function paintCap(i) {
+    const p = list[i];
     fullImageState.index = i;
-    // 旧 URL を revoke してから新 URL を作る (v23: blob があれば原画、無ければ thumb 512px)。
-    if (fullImageState.url) URL.revokeObjectURL(fullImageState.url);
-    const url = URL.createObjectURL(p.blob || p.thumb);
-    fullImageState.url = url;
-    imgEl.src = url;
-
     const d = p.datetime;
     const dtStr = d ? fmtDate(d) : '日時不明';
     const hasGps = p.lat != null && p.lng != null;
@@ -1796,7 +1808,7 @@ function showFullImage(photo, opts = {}) {
         `<div class="de-actions"><button class="de-cancel">キャンセル</button><button class="de-save">保存</button></div>` +
         `<div class="de-hint">本当に撮った日時に直すと、タイムライン・地図の並びもそこへ移ります。</div>` +
       `</div>`;
-    // v117: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)。スワイプで写真が変わると p も追従。
+    // v117: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)。
     if (onWalk) cap.querySelector('.to-walk').addEventListener('click', () => { closeFullImage(); showExplore(p); });
     if (showMapBtn) cap.querySelector('.to-map').addEventListener('click', () => { closeFullImage(); openMapView(p); });
     // 📅 日付を直す (v60): 直す行為自体が想起の入口。
@@ -1814,38 +1826,45 @@ function showFullImage(photo, opts = {}) {
       try { await dbPut(p); } catch (e) { logErr(`日付の保存に失敗: ${e?.message || e}`); }
       if (mapState && mapState.refreshData) mapState.refreshData();   // タイムライン・線の並びを更新
       render();                                                       // 本体側 (カードの日付表示・件数) も整合
-      paint(i);                                                       // v117: 同じ overlay のまま塗り直す
+      paintCap(i);                                                    // 同じ overlay のまま cap を塗り直す
     });
   }
-  paint(fullImageState.index);
-
-  // v117: スワイプは paint() で差し替えるだけ（overlay 維持）＝サクサク。スワイプ直後の click は閉じない。
-  let sx = 0, sy = 0;
-  if (hasList) {
-    overlay.addEventListener('pointerdown', (e) => { sx = e.clientX; sy = e.clientY; });
-    overlay.addEventListener('pointerup', (e) => {
-      const dx = e.clientX - sx, dy = e.clientY - sy;
-      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-        const ni = dx < 0 ? fullImageState.index + 1 : fullImageState.index - 1;
-        if (ni >= 0 && ni < list.length) { fullImageState.swiped = true; paint(ni); }
-      }
-    });
-  }
+  paintCap(startIndex);
 
   document.body.appendChild(overlay);
-  // 長押し解除直後の click が即閉じを起こさないよう少し遅らせる
+  // 初期位置へスクロール（レイアウト確定後）。scrollIntoView は clientWidth に依存せず確実にその slide へ。
+  if (startIndex > 0) requestAnimationFrame(() => {
+    const target = deck.children[startIndex];
+    if (target && target.scrollIntoView) target.scrollIntoView({ inline: 'center', block: 'nearest' });
+    else deck.scrollLeft = startIndex * deck.clientWidth;
+  });
+
+  // スクロールで現在の写真を検出して cap を更新（rAF で間引き）。スクロール自体はネイティブ＝サクサク。
+  if (hasList) {
+    let raf = null;
+    deck.addEventListener('scroll', () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        const w = deck.clientWidth || 1;
+        const i = Math.round(deck.scrollLeft / w);
+        if (i !== fullImageState.index && i >= 0 && i < list.length) paintCap(i);
+      });
+    });
+  }
+
+  // 画像をタップで閉じる（スクロール=ドラッグ中は click が出ない＝ブラウザ仕様。cap はバブリングを止めてある）。
   const openedAt = Date.now();
   overlay.addEventListener('click', () => {
     if (Date.now() - openedAt < 200) return;
-    if (fullImageState && fullImageState.swiped) { fullImageState.swiped = false; return; }   // スワイプしたら閉じない
     closeFullImage();
   });
 }
 function closeFullImage() {
   if (!fullImageState) return;
-  if (fullImageState.url) URL.revokeObjectURL(fullImageState.url);
   fullImageState.el.remove();
   fullImageState = null;
+  // v118: thumbUrl はキャッシュ共有 URL なので個別 revoke しない（revokeAllThumbUrls が全削除時に担う）。
 }
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && fullImageState) closeFullImage();
