@@ -5,6 +5,21 @@
 
 ---
 
+## v117 — 拡大表示のスワイプをサクサクに（overlay 再利用・paint 方式） (2026-06-30)
+
+**背景**
+- 実機フィードバック「スワイプがサクサクいかない」（v115 の足跡・タイムラインの拡大スワイプ）。原因＝スワイプのたびに `showFullImage` を再帰呼び出しし、overlay を破棄→再構築（createObjectURL/revoke・cap 全再構築・img 要素ごと作り直し）していた。
+
+**設計判断**
+- `showFullImage` を「overlay/img/cap を1回だけ生成し、`paint(i)` で画像 src とキャプションだけ差し替える」方式に。スワイプは `paint(ni)` を呼ぶだけ＝**DOM 破棄/再構築なし・img 要素は再利用**（src 差し替えのみ）。
+- `fullImageState` に img/cap/list/index/onWalk/swiped を保持。日付編集の保存後も `paint(i)` で同じ overlay を塗り直す（開き直さない）。onWalk は paint 内の `p` を参照＝スワイプ先の写真に追従。
+
+**結果 / 観察**
+- preview green: imgReused=true（スワイプ前後で同じ img ノード）・overlay は常に1つ・src だけ変化・カウンター 1/3→2/3・console エラー0。実機の体感は TestFlight 次ビルドで。
+
+**残課題 / 次の方向**
+- まだ重ければ次の一手＝隣の画像の preload（`img.decode()`）や横スライドアニメ。まず overlay 再利用の効果を実機で確認。
+
 ## v116 — 連想ウォークの「近く」も6枚グリッド→1枚大表示＋横スワイプ (2026-06-30)
 
 **背景**

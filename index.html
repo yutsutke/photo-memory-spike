@@ -395,7 +395,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.69 (v116：連想ウォークの「近く」も6枚グリッド→1枚大表示＋横スワイプ(deck/makeBigCard 流用)。タップで歩くは維持。v115=足跡/タイムラインのスワイプ拡大／v114=地図線casing) · 2026-06-30';
+const BUILD = 'phase3.70 (v117：拡大表示のスワイプをサクサクに＝overlay/img を再利用し画像とキャプションだけ差し替える(paint方式・以前は毎回 DOM 再構築していた)。v116=連想ウォーク1枚化／v115=足跡/タイムラインのスワイプ拡大) · 2026-06-30';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1747,87 +1747,87 @@ function attachPhotoGestures(el, photo, onTap) {
 
 let fullImageState = null;
 function showFullImage(photo, opts = {}) {
-  // v115: opts = { list, index, onWalk }。list があれば左右スワイプで list をめくる（足跡・タイムライン）。
+  // v117: overlay/img/cap は1回だけ作り、スワイプ時は paint() で画像とキャプションだけ差し替える
+  //   （以前は再帰で overlay を毎回破棄→再構築していて「サクサクいかない」原因だった）。
+  // opts = { list, index, onWalk }。list があれば左右スワイプで list をめくる（足跡・タイムライン）。
   // onWalk があれば「🚶 ここから歩く」導線を出す（足跡からの拡大で連想ウォークを続けられる＝辿り直しを両立）。
-  const { list = null, index = 0, onWalk = null } = opts;
+  const { list = null, onWalk = null } = opts;
   const hasList = Array.isArray(list) && list.length > 1;
   if (fullImageState) closeFullImage();
-  // v23: 原画を保存しなくなったので、blob があればそれを、無ければ thumb (512px) を拡大表示。
-  // thumb はやや粗いが「原画を持たない代わりに 1万枚入る」容量優先の tradeoff。閉じる時に必ず revoke。
-  const src = photo.blob || photo.thumb;
-  const url = URL.createObjectURL(src);
+
   const overlay = document.createElement('div');
   overlay.className = 'full-overlay';
-  overlay.innerHTML = `<img src="${url}">`;
-
-  // ここ=「鮮明に見たい」瞬間。native は全ライブラリのサムネ(512px)を表示し実機で「めっちゃきれい」＝
-  // アプリ内で完結する。日時は想起の手がかりとして大きく出すだけにする (v95: 旧「📷写真アプリで開く」と
-  // 「日付コピー→純正アプリで日付検索」は不要になり撤去。原寸が要れば将来 fullImage でオンデマンド)。
-  const d = photo.datetime;
-  const dtStr = d ? fmtDate(d) : '日時不明';
-  // 地図への導線。GPS があれば「その場所」へ、無くても日時さえあれば「その日の地図」へ (v80: 常に出す)。
-  const fullHasGps = photo.lat != null && photo.lng != null;
-  const showMapBtn = fullHasGps || !!photo.datetime;
-  const mapBtnLabel = fullHasGps ? '🗺 地図でこの場所を見る' : '🗺 この日の地図へ';
+  const imgEl = document.createElement('img');
+  overlay.appendChild(imgEl);
   const cap = document.createElement('div');
   cap.className = 'full-cap';
-  cap.innerHTML =
-    (hasList ? `<div class="full-count">${index + 1} / ${list.length}</div>` : '') +
-    `<div class="dt">📅 ${dtStr}${srcTagHtml(photo)}</div>` +
-    `<div class="full-actions">` +
-      (onWalk ? `<button class="to-walk">🚶 ここから歩く</button>` : '') +
-      (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '') +
-      `<button class="fix-date">📅 日付を直す</button>` +
-    `</div>` +
-    // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
-    ((showMapBtn && !fullHasGps) ? `<div class="de-hint map-hint">位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。</div>` : '') +
-    `<div class="date-editor" hidden>` +
-      `<input type="datetime-local" class="de-input">` +
-      `<div class="de-actions"><button class="de-cancel">キャンセル</button><button class="de-save">保存</button></div>` +
-      `<div class="de-hint">本当に撮った日時に直すと、タイムライン・地図の並びもそこへ移ります。</div>` +
-    `</div>`;
   cap.addEventListener('click', e => e.stopPropagation());  // キャプション操作で overlay を閉じない
-  // v79: 🗺 地図へ。地図 overlay (z 150) はフル画像 (z 2000) より背面なので、先にフル画像を閉じる。
-  if (onWalk) {   // v115: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)
-    cap.querySelector('.to-walk').addEventListener('click', () => { closeFullImage(); onWalk(); });
-  }
-  if (showMapBtn) {
-    cap.querySelector('.to-map').addEventListener('click', () => {
-      closeFullImage();
-      openMapView(photo);
-    });
-  }
-  // 📅 日付を直す (v60): 撮影日/保存日が無い・おかしい写真を、本当の日時に直す。直す行為自体が想起の入口。
-  const editor = cap.querySelector('.date-editor');
-  cap.querySelector('.fix-date').addEventListener('click', () => {
-    if (photo.datetime) cap.querySelector('.de-input').value = toDatetimeLocalVal(photo.datetime);
-    editor.hidden = false;
-  });
-  cap.querySelector('.de-cancel').addEventListener('click', () => { editor.hidden = true; });
-  cap.querySelector('.de-save').addEventListener('click', async () => {
-    const nd = fromDatetimeLocalVal(cap.querySelector('.de-input').value);
-    if (!nd) { logErr('日時の形式が正しくありません'); return; }
-    photo.datetime = nd;
-    photo.dateSource = 'manual';
-    try { await dbPut(photo); } catch (e) { logErr(`日付の保存に失敗: ${e?.message || e}`); }
-    if (mapState && mapState.refreshData) mapState.refreshData();   // タイムライン・線の並びを更新
-    render();                                                       // 本体側 (カードの日付表示・件数) も整合
-    showFullImage(photo, opts);                                     // 新しい日付でフル画像を開き直す (v115: list/index/onWalk 維持)
-  });
   overlay.appendChild(cap);
 
-  // v115: list があれば左右スワイプで前後の写真へ。スワイプ直後の click は閉じない。
-  let sx = 0, sy = 0, swiped = false;
+  fullImageState = { el: overlay, img: imgEl, cap, url: null, list, index: opts.index || 0, onWalk, hasList, swiped: false };
+
+  // index の写真で画像 + キャプションを塗り替える。overlay/img/cap の要素は再利用＝DOM 破棄なしでサクサク。
+  function paint(i) {
+    const p = hasList ? list[i] : photo;
+    fullImageState.index = i;
+    // 旧 URL を revoke してから新 URL を作る (v23: blob があれば原画、無ければ thumb 512px)。
+    if (fullImageState.url) URL.revokeObjectURL(fullImageState.url);
+    const url = URL.createObjectURL(p.blob || p.thumb);
+    fullImageState.url = url;
+    imgEl.src = url;
+
+    const d = p.datetime;
+    const dtStr = d ? fmtDate(d) : '日時不明';
+    const hasGps = p.lat != null && p.lng != null;
+    const showMapBtn = hasGps || !!p.datetime;
+    const mapBtnLabel = hasGps ? '🗺 地図でこの場所を見る' : '🗺 この日の地図へ';
+    cap.innerHTML =
+      (hasList ? `<div class="full-count">${i + 1} / ${list.length}</div>` : '') +
+      `<div class="dt">📅 ${dtStr}${srcTagHtml(p)}</div>` +
+      `<div class="full-actions">` +
+        (onWalk ? `<button class="to-walk">🚶 ここから歩く</button>` : '') +
+        (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '') +
+        `<button class="fix-date">📅 日付を直す</button>` +
+      `</div>` +
+      // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
+      ((showMapBtn && !hasGps) ? `<div class="de-hint map-hint">位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。</div>` : '') +
+      `<div class="date-editor" hidden>` +
+        `<input type="datetime-local" class="de-input">` +
+        `<div class="de-actions"><button class="de-cancel">キャンセル</button><button class="de-save">保存</button></div>` +
+        `<div class="de-hint">本当に撮った日時に直すと、タイムライン・地図の並びもそこへ移ります。</div>` +
+      `</div>`;
+    // v117: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)。スワイプで写真が変わると p も追従。
+    if (onWalk) cap.querySelector('.to-walk').addEventListener('click', () => { closeFullImage(); showExplore(p); });
+    if (showMapBtn) cap.querySelector('.to-map').addEventListener('click', () => { closeFullImage(); openMapView(p); });
+    // 📅 日付を直す (v60): 直す行為自体が想起の入口。
+    const editor = cap.querySelector('.date-editor');
+    cap.querySelector('.fix-date').addEventListener('click', () => {
+      if (p.datetime) cap.querySelector('.de-input').value = toDatetimeLocalVal(p.datetime);
+      editor.hidden = false;
+    });
+    cap.querySelector('.de-cancel').addEventListener('click', () => { editor.hidden = true; });
+    cap.querySelector('.de-save').addEventListener('click', async () => {
+      const nd = fromDatetimeLocalVal(cap.querySelector('.de-input').value);
+      if (!nd) { logErr('日時の形式が正しくありません'); return; }
+      p.datetime = nd;
+      p.dateSource = 'manual';
+      try { await dbPut(p); } catch (e) { logErr(`日付の保存に失敗: ${e?.message || e}`); }
+      if (mapState && mapState.refreshData) mapState.refreshData();   // タイムライン・線の並びを更新
+      render();                                                       // 本体側 (カードの日付表示・件数) も整合
+      paint(i);                                                       // v117: 同じ overlay のまま塗り直す
+    });
+  }
+  paint(fullImageState.index);
+
+  // v117: スワイプは paint() で差し替えるだけ（overlay 維持）＝サクサク。スワイプ直後の click は閉じない。
+  let sx = 0, sy = 0;
   if (hasList) {
-    overlay.addEventListener('pointerdown', (e) => { sx = e.clientX; sy = e.clientY; swiped = false; });
+    overlay.addEventListener('pointerdown', (e) => { sx = e.clientX; sy = e.clientY; });
     overlay.addEventListener('pointerup', (e) => {
       const dx = e.clientX - sx, dy = e.clientY - sy;
       if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-        const ni = dx < 0 ? index + 1 : index - 1;
-        if (ni >= 0 && ni < list.length) {
-          swiped = true;
-          showFullImage(list[ni], { list, index: ni, onWalk: onWalk ? (() => showExplore(list[ni])) : null });
-        }
+        const ni = dx < 0 ? fullImageState.index + 1 : fullImageState.index - 1;
+        if (ni >= 0 && ni < list.length) { fullImageState.swiped = true; paint(ni); }
       }
     });
   }
@@ -1837,14 +1837,13 @@ function showFullImage(photo, opts = {}) {
   const openedAt = Date.now();
   overlay.addEventListener('click', () => {
     if (Date.now() - openedAt < 200) return;
-    if (swiped) { swiped = false; return; }   // v115: スワイプしたら閉じない
+    if (fullImageState && fullImageState.swiped) { fullImageState.swiped = false; return; }   // スワイプしたら閉じない
     closeFullImage();
   });
-  fullImageState = { el: overlay, url };
 }
 function closeFullImage() {
   if (!fullImageState) return;
-  URL.revokeObjectURL(fullImageState.url);
+  if (fullImageState.url) URL.revokeObjectURL(fullImageState.url);
   fullImageState.el.remove();
   fullImageState = null;
 }
