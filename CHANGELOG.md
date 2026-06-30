@@ -12,10 +12,10 @@
 
 **指摘と対処**
 - **Guideline 2.3.8（Accurate Metadata・名前不一致）**: ストア名「あの日 — 写真と足跡」とデバイス表示名「Madeleine」が乖離（"makes it difficult for users to find apps they have downloaded"）。→ [Info.plist](ios/App/App/Info.plist) の `CFBundleDisplayName` を Madeleine→**「あの日 — 写真と足跡」**に変更（ストア名と完全一致＝最も安全）。**バイナリ変更なので再ビルド必須**（次 Codemagic ビルド 1.0(16)）。原因＝Capacitor の `appName=Madeleine` がそのまま `CFBundleDisplayName` に乗っていた。
-- **Guideline 1.5（Safety・Support URL）**: ASC の Support URL が `…/photo-memory-spike/`（アプリ本体）で、質問/サポートを依頼できる情報ページになっていない。→ **[support.html](support.html) を新設**（使い方・FAQ・連絡先 yutsutke@gmail.com・privacy.html と同トーン/ja-en 切替）。公開 URL=`https://yutsutke.github.io/photo-memory-spike/support.html`。**メタデータのみ＝ASC で URL を差し替えるだけ**（再ビルド不要）。
+- **Guideline 1.5（Safety・Support URL）**: ASC の Support URL が `…/photo-memory-spike/`（アプリ本体）で、質問/サポートを依頼できる情報ページになっていない。→ **[support.html](support.html) を新設**（使い方・FAQ・連絡先・privacy.html と同トーン/ja-en 切替）。公開 URL=`https://yutsutke.github.io/photo-memory-spike/support.html`。**メタデータのみ＝ASC で URL を差し替えるだけ**（再ビルド不要）。連絡先メールは**個人 gmail を直公開するリスクを避け [support.html](support.html)・[privacy.html](privacy.html) とも `anohiapp@gmail.com` に統一**（要受信確認）。
 
 **設計判断（世界展開と名前の両立）**
-- ユーザー意向＝「ストア名は“あの日 — 写真と足跡”のまま、でも世界展開で Madeleine も活かしたい」。iOS もストアも**名前はロケール別に出し分け可能**なので二択ではない: アプリ側は `InfoPlist.strings`(ja/en) に `CFBundleDisplayName`（ja=あの日 — 写真と足跡 / en=Madeleine）、ストア側は ASC に英語ローカライズを追加し名前=Madeleine。各地域でデバイス名⇄ストア名が一致して 2.3.8 を満たしつつ 🇯🇵あの日/🇬🇧Madeleine の二刀流が成立。
+- ユーザー意向＝「ストア名は“あの日 — 写真と足跡”のまま、でも英語名も日本語と対応させたい」。iOS もストアも**名前はロケール別に出し分け可能**なので一国一名ではない: アプリ側は `InfoPlist.strings`(ja/en) に `CFBundleDisplayName`（ja=あの日 — 写真と足跡 / en=A Past Day — Photos and Footprints）、ストア側は ASC に英語ローカライズを追加し名前=A Past Day — Photos and Footprints。各地域でデバイス名⇄ストア名が一致して 2.3.8 を満たす。**英語名は 2026-06-30 にユーザーと「A Past Day — Photos and Footprints」に決定**（日英を完全対応・旧英名 Madeleine は表示名としては卒業＝appId/リポ等の内部識別子にのみ残置）。実装は v1.1（英語ストアのスクショ/説明/キーワードが要るため）。
 - **ただし英語展開は v1.1 に回す**（英語ストアはスクショ/説明/キーワード一式が要り、今やると v1 承認が遅れる）。v1 は日本語単独・デバイス名フル一致で最短承認を狙う。
 - ホーム画面のアイコン下ラベルは iOS 仕様で ~11字超は末尾省略（「あの日 — 写真と…」表示）だが、`CFBundleDisplayName` の値自体は完全一致なので審査/設定/検索/Spotlight/ストアではフル表示＝2.3.8 的には完全一致が最安全。
 

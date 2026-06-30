@@ -13,15 +13,15 @@
 
 ---
 
-## 現在地 — BUILD: phase3.62（v110：🟡 **初回審査リジェクト（Changes needed）に対応**（2026-06-29 受領／2026-06-30 修正）。指摘は2点とも軽微＝**4.2 web ラッパー薄は出ず**・コア無傷。①2.3.8 名前不一致→`CFBundleDisplayName` を「あの日 — 写真と足跡」に統一（要再ビルド 1.0(16)）②1.5 Support URL→`support.html` 新設（メタデータのみ）。**次＝push→ビルド16→ASC でビルド差し替え＋Support URL 更新→再提出**。世界展開は ja=あの日/en=Madeleine のロケール別名で v1.1。）
+## 現在地 — BUILD: phase3.63（v110：🟡 **初回審査リジェクト（Changes needed）に対応**（2026-06-29 受領／2026-06-30 修正）。指摘は2点とも軽微＝**4.2 web ラッパー薄は出ず**・コア無傷。①2.3.8 名前不一致→`CFBundleDisplayName` を「あの日 — 写真と足跡」に統一（要再ビルド 1.0(16)）②1.5 Support URL→`support.html` 新設（連絡先は個人 gmail 直公開を避け `anohiapp@gmail.com`・privacy.html も統一・メタデータのみ）。**次＝push→ビルド16→ASC でビルド差し替え＋Support URL 更新→再提出**。英語名は **A Past Day — Photos and Footprints** に決定（日英対応・実装は v1.1）。）
 
 > ### 📍 次セッションの再開ポイント（2026-06-30 セッション8 更新・まずここを読む）
 >
 > **この回でやったこと（初回審査リジェクトに対応＝v110。指摘2点を修正、再提出の一歩手前まで）**:
 > - セッション開始の挨拶 → DOCMAP/TODO + Gmail 確認。**🟡 審査結果＝リジェクト（Changes needed）**（2026-06-29 受領・Apple メール2通）。レビュー環境 iPhone 17 Pro Max・1.0(15)・Jun 29・Submission ID `c4451f04…`。**朗報＝最も警戒した 4.2（web ラッパー薄）は出ず**・機能/プライバシー/位置/クラッシュ指摘ゼロ＝native 要素が効いて実質アプリと認定と読める。
 > - **指摘① Guideline 2.3.8（名前不一致）**: ストア名「あの日 — 写真と足跡」⇄ デバイス名「Madeleine」。→ ✅ [Info.plist](ios/App/App/Info.plist) の `CFBundleDisplayName` を Madeleine→**「あの日 — 写真と足跡」**に（ストア名と完全一致）。**バイナリ変更＝要再ビルド 1.0(16)**。
-> - **指摘② Guideline 1.5（Support URL）**: ASC の Support URL がアプリ本体 URL でサポートページでない。→ ✅ **[support.html](support.html) 新設**（使い方/FAQ/連絡先 yutsutke@gmail.com・privacy.html と同トーン・ja/en 切替）。公開 URL=`https://yutsutke.github.io/photo-memory-spike/support.html`。**メタデータのみ＝再ビルド不要**。
-> - **世界展開の方針（ユーザー relevant）**: 名前はロケール別に出し分け可＝アプリ `InfoPlist.strings`(ja=あの日/en=Madeleine)＋ASC 英語ローカライズ名 Madeleine。各地域で device⇄store 一致で 2.3.8 OK。**ただし英語素材一式が要るので v1.1**。v1 は日本語単独で最短承認。
+> - **指摘② Guideline 1.5（Support URL）**: ASC の Support URL がアプリ本体 URL でサポートページでない。→ ✅ **[support.html](support.html) 新設**（使い方/FAQ・privacy.html と同トーン・ja/en 切替）。公開 URL=`https://yutsutke.github.io/photo-memory-spike/support.html`。連絡先メールは個人 gmail 直公開を避け **support.html・privacy.html とも `anohiapp@gmail.com` に統一**（要受信確認）。**メタデータのみ＝再ビルド不要**。
+> - **英語名＝A Past Day — Photos and Footprints に決定（2026-06-30）**: 日本語「あの日 — 写真と足跡」と完全対応。名前はロケール別に出し分け可＝アプリ `InfoPlist.strings`(ja=あの日 — 写真と足跡 / en=A Past Day — Photos and Footprints)＋ASC 英語ローカライズ名 A Past Day — Photos and Footprints。各地域で device⇄store 一致で 2.3.8 OK。旧英名 Madeleine は内部識別子にのみ残置。**英語素材一式が要るので実装は v1.1**（v1 は日本語単独で最短承認）。次：App Store で英語名の空き確認。
 > - **▶ 次セッションはここから（再提出フロー・Chrome 拡張で ASC 操作）**:
 >   1. **Codemagic がビルド 1.0(16) を生成**（push 済みなら自動・CFBundleDisplayName 変更が乗る）→ ASC でビルドを 15→16 に差し替え。
 >   2. **ASC で Support URL を `…/support.html` に更新**（App 情報のサポートURL欄）。

@@ -10,7 +10,7 @@
 - **コア (判断軸)**: 偶然よみがえった久しぶりの記憶
 - **体験コピー (外向き・起動画面/ストア)**: 偶然あの時に久しぶりに戻る
 - **3 要素**: ① 偶然 ② 久しぶり ③ よみがえる
-- **名前**: 🇬🇧 **Madeleine**（ブランド名・据え置き）＋ 英語タグライン「A Certain Day: Revived through Photographs and Footprints」/ 🇯🇵 **あの日** ＋ タグライン「写真と足跡から蘇る」（2026-06-17 決定。旧 JP: 写真思い出。アプリ UI は i18n 着手まで日本語のみ表示）
+- **名前**: 🇯🇵 **あの日 — 写真と足跡** / 🇬🇧 **A Past Day — Photos and Footprints**（2026-06-30 決定＝日英を対応させる。旧英名 **Madeleine** は表示名としては卒業＝appId `io.github.yutsutke.madeleine`・リポ名など内部識別子にのみ残置）。英語タグライン「Revived through Photographs and Footprints」。アプリ UI は i18n 着手（v1.1）まで日本語のみ表示。英語名の実装＝`CFBundleDisplayName`(en)＋ASC 英語ローカライズ（App Store で重複要確認）。
 
 > 機能追加・広告・AI・名前など迷ったら、**この 3 要素を強めるか / 壊すか**で判断する。「何かが始まる」(次の旅・行動) は派生効果であってコアではない。
 
