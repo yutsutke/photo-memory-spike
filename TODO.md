@@ -23,8 +23,19 @@
 > - **指摘② Guideline 1.5（Support URL）**: ASC の Support URL がアプリ本体 URL でサポートページでない。→ ✅ **[support.html](support.html) 新設**（使い方/FAQ・privacy.html と同トーン・ja/en 切替）。公開 URL=`https://yutsutke.github.io/photo-memory-spike/support.html`。連絡先メールは個人 gmail 直公開を避け **support.html・privacy.html とも `anohiapp@gmail.com` に統一**（要受信確認）。**メタデータのみ＝再ビルド不要**。
 > - **英語名＝A Past Day — Photos and Footprints に決定（2026-06-30）**: 日本語「あの日 — 写真と足跡」と完全対応。名前はロケール別に出し分け可＝アプリ `InfoPlist.strings`(ja=あの日 — 写真と足跡 / en=A Past Day — Photos and Footprints)＋ASC 英語ローカライズ名 A Past Day — Photos and Footprints。各地域で device⇄store 一致で 2.3.8 OK。旧英名 Madeleine は内部識別子にのみ残置。**英語素材一式が要るので実装は v1.1**（v1 は日本語単独で最短承認）。次：App Store で英語名の空き確認。
 > - **✅ 再提出 完了（2026-06-30・Chrome 拡張で ASC 操作）**: ① Codemagic ビルド 1.0(16) 生成（CFBundleDisplayName 修正入り）② ASC で Support URL を `…/support.html` に更新（ユーザー実施）③ ビルドを 16 に差し替え ④ App Review 情報のメモ欄に対応説明（英文）を保存 ⑤「App Review に再提出」→ **ステータス「審査待ち」**（輸出/DSA 追加質問ゼロ）。
->   - **▶ 次セッションはここから＝審査結果待ち（2回目）**: 最大48h・完了でメール。**セッション開始時に Gmail で結果確認**（[[session-start-gmail-check]]）。①承認→ASC バージョンページで「公開」を押すと App Store に出る（手動・v109 設定済）②再リジェクト→理由を読んで個別対応。
->   - **状態**: web=GitHub Pages `phase3.63`（support.html 公開・連絡先 anohiapp@gmail.com）／native=ビルド16 が審査中。**Gmail 監視継続**（[[session-start-gmail-check]]）。承認後 v1.1＝英語名 A Past Day — Photos and Footprints 実装・iPad 対応・位置復活・広告。
+>
+> **この回の後半＝UI 大改修（v111-118・実機フィードバックで連続改善・🎉実機で全部「めっちゃサクサク」YES）**:
+> - **v111-113**: トップを「3枚縦リスト→1枚大表示＋横スワイプ(scroll-snap・ランダム順・タップで連想ウォーク)」化／🎲もう一度引き廃止→スワイプ説明／写真に「🗺この日の地図へ」／連想ウォークの戻りを「← トップに戻る」／**ヘッダ整理＝🗺過去の今日を主役・残り(取り込み/AI/復元/削除/情報)を⚙️ドロップダウンへ**。実機「完璧」「すっきり」。
+> - **v114**: 地図の足取りの線を見やすく（暗い縁取り casing＋太め・`drawTrips` の `pushCased`）。
+> - **v115→117→118（足跡・タイムラインの拡大スワイプ）**: `showFullImage` を拡張。v115=list 対応(JS スワイプ)→ v117=overlay 再利用 paint→ **v118 で「トップと同じ CSS scroll-snap 横スクロール deck」に作り直して本物のサクサクに**（img=thumbUrl キャッシュ／`.full-deck{position:absolute;inset:0}`）。足跡の拡大に「🚶ここから歩く」で辿り直しも両立。
+> - **v116**: 連想ウォークの「近く6枚グリッド」も 1枚大表示＋横スワイプ(deck/makeBigCard 流用・タップで歩く維持)。
+> - **🎉 教訓**＝サクサクの正体は CSS scroll-snap（ネイティブ横スクロール）、JS のスワイプ判定は本質的に引っかかる（[[ui-swipe-scroll-snap-works]]）。**これら UI は審査中の 1.0(16) とは別トラック＝承認後の次版（1.0.1/1.1）に乗る**（審査中ビルドは差し替えない）。
+>
+> - **▶ 次セッションはここから（2つの待ち＋次の一手）**:
+>   1. **審査結果待ち（2回目）**＝最大48h・完了でメール。**セッション開始時に Gmail で結果確認**（[[session-start-gmail-check]]）。①承認→ASC バージョンページで「公開」を押すと App Store に出る（手動・v109 設定済）②再リジェクト→理由を読んで個別対応。
+>   2. **承認後 v1.1**: 英語名 A Past Day — Photos and Footprints 実装（InfoPlist.strings ja/en＋ASC 英語ローカライズ・App Store で空き確認）／iPad 対応／位置ロガー復活／広告（[[monetization-v1-adfree]]）。**UI 改修(v111-118)も承認後の次版に乗る**。
+>   3. **📝 次段の機能＝起動時の自動差分取り込み（native）**＝「全部取り込み→以後アプリを開くたびに差分」を自動化（ユーザーの想定利用・取り込み操作がほぼ不要に）。UI が一段落したのでこれが有力。
+>   - **状態**: web=GitHub Pages `phase3.71`（UI 改修すべて反映・support.html 公開・連絡先 anohiapp@gmail.com）／native=ビルド16 が審査中。**Gmail 監視継続**（[[session-start-gmail-check]]）。受信確認リマインド＝anohiapp@gmail.com。
 
 > ### 📍 次セッションの再開ポイント（2026-06-28 セッション7 更新・まずここを読む）
 >
