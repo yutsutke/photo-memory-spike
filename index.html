@@ -395,7 +395,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.68 (v115：足跡・タイムラインをタップで拡大→左右スワイプでめくれる(showFullImage を list 対応)。足跡の拡大に「🚶 ここから歩く」で辿り直しも両立。v114=地図線casing／v113=ヘッダ整理) · 2026-06-30';
+const BUILD = 'phase3.69 (v116：連想ウォークの「近く」も6枚グリッド→1枚大表示＋横スワイプ(deck/makeBigCard 流用)。タップで歩くは維持。v115=足跡/タイムラインのスワイプ拡大／v114=地図線casing) · 2026-06-30';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -3772,7 +3772,7 @@ function render() {
       label.textContent = 'この写真はまだ AI 解析されていません (🧠 から追加解析)';
       $main.appendChild(label);
     } else {
-      const ns = currentNeighbors.filter(visible).slice(0, 6);
+      const ns = currentNeighbors.filter(visible).slice(0, 12);   // v116: 1枚大表示＋横スワイプなので多めに (近傍キャッシュ12枚)
       const label = document.createElement('div');
       label.className = 'neighbor-label';
       if (ns.length === 0) {
@@ -3789,10 +3789,15 @@ function render() {
       $main.appendChild(label);
 
       if (ns.length > 0) {
-        const grid = document.createElement('div');
-        grid.className = 'grid';
-        ns.forEach(p => grid.appendChild(makeThumb(p, () => showExplore(p))));
-        $main.appendChild(grid);
+        // v116: 近くの写真も 1 枚大表示＋横スワイプ (トップと同じ deck/makeBigCard)。タップで歩く。
+        const deck = document.createElement('div');
+        deck.className = 'deck';
+        ns.forEach(p => deck.appendChild(makeBigCard(p, () => showExplore(p))));
+        $main.appendChild(deck);
+        const hint = document.createElement('div');
+        hint.className = 'swipe-hint';
+        hint.textContent = '← スワイプで近くの写真へ・タップで歩く →';
+        $main.appendChild(hint);
       }
     }
 
