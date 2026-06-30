@@ -399,7 +399,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.71 (v118：拡大表示をトップ/モードと同じ scroll-snap 横スクロール deck に作り直し＝ブラウザネイティブのスクロールで本当にサクサク。img は thumbUrl(キャッシュ)。v117 の JS paint 方式から転換) · 2026-06-30';
+const BUILD = 'phase3.72 (v119：起動時の自動差分取り込み(native)。ライブラリ取り込み済みの人に開くたび「新しい写真だけ」を静かに追加。初回プロンプト(はい/今はしない)＋⚙️詳細設定でON/OFF＋前面復帰でも差分。web は対象外=IS_NATIVE分岐) · 2026-06-30';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1059,6 +1059,89 @@ async function importNativeLibrary() {
   } finally {
     nativeImportRunning = false; importingNow = false; importBusy = false;
   }
+}
+
+// ============================================================
+// 起動時の自動差分取り込み (native, v119)
+// 「📚 ライブラリ全体」を取り込んだ人に、開くたび「新しく撮った写真だけ」を静かに足す。
+// ① 初回はプロンプトで確認 (はい→以後ON / いいえ→OFFのまま)。どちらでも次回からは出さない。
+// ② 取り込み → ⚙️詳細設定 でいつでも ON/OFF 切替。
+// web は library を列挙できない (ピッカーのみ) ので対象外＝全て IS_NATIVE 分岐。
+// ============================================================
+function autoImportEnabled()  { try { return localStorage.getItem('pms-autoImport') === '1'; } catch { return false; } }
+function setAutoImport(on)     { try { localStorage.setItem('pms-autoImport', on ? '1' : '0'); } catch {} }
+function autoImportAsked()     { try { return localStorage.getItem('pms-autoImportAsked') === '1'; } catch { return false; } }
+function markAutoImportAsked() { try { localStorage.setItem('pms-autoImportAsked', '1'); } catch {} }
+
+let lastAutoImport = 0;   // 連続前面復帰での無駄打ち防止 (throttle 用タイムスタンプ)
+
+// 差分だけを「画面を奪わずに」背景取り込みする。新しい写真が無ければ静かに終了。
+// haveSet を渡せば取り込み済み assetId の再スキャンを省ける (boot で既に取った時)。
+async function runAutoImport(haveSet) {
+  if (!IS_NATIVE || !PhotoLib) return;
+  if (nativeImportRunning || bgNativeRunning || importingNow || importBusy) return;   // 取り込み中は見送り
+  lastAutoImport = Date.now();
+  try {
+    // 許可は初回取り込みで取得済み＝ダイアログは出ない。未許可なら静かに見送る (起動のたびに尋ねない)。
+    let acc; try { acc = await PhotoLib.requestAccess(); } catch { return; }
+    const status = acc && acc.status;
+    if (status === 'denied' || status === 'restricted') return;
+
+    let en; try { en = await PhotoLib.enumerate({ limit: 0 }); } catch { return; }
+    const items = (en && en.items) || [];
+    const have = haveSet || await collectImportedAssetIds();
+    const fresh = items.filter(m => m && m.id && !have.has(m.id));
+    if (!fresh.length) return;   // 新しい写真なし → 何も出さずに終了
+
+    // 背景で差分取り込み (processNativeRest が status/addPhotos/サマリ/色・AI まで担う)。
+    importStats = { added: 0, dup: 0, skipped: 0, failed: 0, heic: 0 };
+    importStatus = { done: 0, total: fresh.length };
+    updateBgStatus();
+    await processNativeRest(fresh, 0, fresh.length);
+  } catch (e) {
+    console.warn(`[auto-import] ${e?.message || e}`);
+  }
+}
+
+// 起動時: ライブラリ取り込み済みの人にだけ、自動取り込み (ON なら実行 / 未確認ならプロンプト)。
+async function maybeAutoImportOnLaunch() {
+  if (!IS_NATIVE || !PhotoLib) return;
+  let have; try { have = await collectImportedAssetIds(); } catch { return; }
+  if (have.size === 0) return;   // 「ライブラリ全体」未取り込み = 対象外 (新規ユーザーを煩わせない)
+  if (autoImportEnabled()) { runAutoImport(have); return; }
+  if (!autoImportAsked()) promptAutoImport(have);
+}
+
+// 前面復帰時 (起動済みアプリを開き直した時)。ON の時だけ throttle 付きで差分取り込み。
+function maybeAutoImportOnResume() {
+  if (!IS_NATIVE || !PhotoLib || !autoImportEnabled()) return;
+  if (Date.now() - lastAutoImport < 60000) return;   // 直近1分の連続復帰では走らせない
+  runAutoImport();
+}
+
+// 初回プロンプト: 開くたび自動取り込みするか確認。はい/いいえどちらでも次回からは出さない
+// (いいえ後は ⚙️詳細設定 でいつでも ON にできる)。
+function promptAutoImport(have) {
+  if (document.getElementById('autoImpPrompt')) return;
+  markAutoImportAsked();   // 一度出したら以後は出さない (背景タップで閉じても同じ＝既定 OFF)
+  const modal = document.createElement('div');
+  modal.className = 'ai-modal';
+  modal.id = 'autoImpPrompt';
+  modal.innerHTML =
+    `<div class="ai-modal-card">` +
+      `<h2>📚 新しい写真を自動で取り込む？</h2>` +
+      `<p>このアプリを開くたびに、<b>新しく撮った写真だけ</b>を自動で取り込めます。取り込みの操作はもう要りません。</p>` +
+      `<p style="font-size:13px;opacity:.7">あとから「取り込む → ⚙️ 詳細設定」でいつでも切り替えられます。</p>` +
+      `<div class="actions">` +
+        `<button id="autoImpNo">今はしない</button>` +
+        `<button class="primary" id="autoImpYes">はい、自動で</button>` +
+      `</div>` +
+    `</div>`;
+  document.body.appendChild(modal);
+  const close = () => modal.remove();
+  modal.querySelector('#autoImpYes').addEventListener('click', () => { setAutoImport(true); close(); runAutoImport(have); });
+  modal.querySelector('#autoImpNo').addEventListener('click', () => { setAutoImport(false); close(); });
+  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });   // 背景タップ = 今はしない
 }
 
 // ============================================================
@@ -2091,6 +2174,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     if (BgLoc) { if (loggerOn()) { refreshNativeAuth(); drainNativeTrack(); } }   // 復帰時に背景でたまった点を取り込む
     else { if (loggerOn()) startLogger(); }
+    maybeAutoImportOnResume();   // 開き直したら新しい写真を差分取り込み (native・ON時のみ・throttle, v119)
   } else {
     if (!BgLoc) stopLogger();   // native は背景でも回し続ける（止めない）。web は前面のみなので停止
   }
@@ -4371,6 +4455,11 @@ function openImportSettings() {
         `<label class="imp-opt"><input type="radio" name="impMode" value="all"><span><b>すべての画像を取り込む</b><small>撮影日時があればそれ・なければ保存日（最終更新日）。おすすめ。</small></span></label>` +
         `<label class="imp-opt"><input type="radio" name="impMode" value="exifOnly"><span><b>撮影日時(EXIF)のある画像だけ</b><small>保存日は使わない。日時が確実な写真だけ入れたい人向け。</small></span></label>` +
       `</div>` +
+      (IS_NATIVE
+        ? `<div class="imp-opts" style="margin-top:12px">` +
+            `<label class="imp-opt"><input type="checkbox" id="autoImpChk"><span><b>起動時に自動で取り込む</b><small>アプリを開くたびに、新しく撮った写真だけを自動で取り込みます。OFF のときはこのメニューから手動で。</small></span></label>` +
+          `</div>`
+        : '') +
       `<div class="actions"><button class="primary" id="impClose">閉じる</button></div>` +
     `</div>`;
   document.body.appendChild(modal);
@@ -4380,6 +4469,15 @@ function openImportSettings() {
     importMode = rb.value;
     try { localStorage.setItem('pms-importMode', importMode); } catch {}
   }));
+  const autoChk = modal.querySelector('#autoImpChk');   // 起動時の自動取り込み ON/OFF (native, v119)
+  if (autoChk) {
+    autoChk.checked = autoImportEnabled();
+    autoChk.addEventListener('change', () => {
+      setAutoImport(autoChk.checked);
+      markAutoImportAsked();                    // 設定で決めたら起動プロンプトはもう出さない
+      if (autoChk.checked) runAutoImport();     // ON にした瞬間に1回だけ差分取り込みを流す
+    });
+  }
   const close = () => modal.remove();
   modal.querySelector('#impClose').addEventListener('click', close);
   modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
@@ -4674,6 +4772,8 @@ async function loadRestInBackground() {
   }
   // Phase 2: 残りはユーザーが触り始めた裏で追い読み (await しない)。色 backfill はその完了後。
   loadRestInBackground();
+  // native: 起動時の自動差分取り込み / 初回プロンプト (await しない=起動を遅らせない, v119)
+  maybeAutoImportOnLaunch();
 })();
 </script>
 </body>

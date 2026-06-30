@@ -5,6 +5,35 @@
 
 ---
 
+## v119 — 起動時の自動差分取り込み（native・開くたび新しい写真だけを静かに追加） (2026-06-30)
+
+**背景**
+- UI 大改修（v111-118）が一段落し、ユーザーが「次段の機能＝起動時の自動差分取り込み」を選択。想定利用＝「最初に全部取り込み→以後はアプリを開くたびに差分」。これまでは毎回 📚 ライブラリ全体 を手動で押す必要があり、取り込み操作が残っていた（web は構造的に自動化不可＝v22 で「アプリを開くと自動で差分 UP は web では不可能」と記録済み。native の PhotoLibrary 列挙でようやく可能に）。
+- ユーザー仕様（原文）: ①ライブラリ全体を取り込んだ人に、起動時「再取り込みしますか」の確認が出る ②はい→以後アプリ起動のたびに差分 ③いいえでも取り込み設定から自動取り込みを選べる ④自動取り込みを選んだ後でも設定で OFF にできる。
+
+**設計判断**
+- **対象は「ライブラリ取り込み済みの人」だけ**＝`collectImportedAssetIds().size > 0`（`dedup='asset|…'` の存在）で判定。新規ユーザー（空 or ピッカーのみ）は煩わせない。仕様の「ライブラリ全体を選択した人」に直結。
+- **静かな背景取り込み（画面を奪わない）**＝`runAutoImport()` は `state='importing'` のフル進捗画面に**しない**。enumerate→差分→`processNativeRest(fresh,0,n)` で背景消化（既存の 🌀 status・addPhotos・サマリ・色/AI backfill を再利用＝downstream 無改修）。手動の `importNativeLibrary`（フル画面・fast-track）とは別物。新しい写真ゼロなら**何も出さずに終了**。
+- **初回プロンプトは「次の起動」で出す**＝仕様の「起動時に確認」に忠実。boot の `maybeAutoImportOnLaunch()` が ON なら実行 / 未確認(`pms-autoImportAsked`≠1)ならプロンプト。はい/いいえどちらでも `markAutoImportAsked()` で以後は出さない（いいえ後は設定で ON にできるため再ナグ不要）。
+- **設定トグル＝取り込み → ⚙️詳細設定**（既存モーダル）に「起動時に自動で取り込む」チェックボックスを native のみ追加。ON にした瞬間 `runAutoImport()` を1回流す。仕様③④（後から ON / いつでも OFF）を満たす。
+- **前面復帰でも差分**＝iOS は cold launch が稀（WKWebView 常駐）なので、`visibilitychange`(visible) に `maybeAutoImportOnResume()` を追加（ON 時のみ・60秒 throttle）。「開くたび」を cold launch だけに限定しない。enumerate は B プラグインで ~180ms（[[native-photo-access-works]]）＝復帰のたびでも軽い。
+- **状態キー**: `pms-autoImport`（ON/OFF）・`pms-autoImportAsked`（プロンプト既出）。全経路 `IS_NATIVE && PhotoLib` ガード＝web は早期 return・設定の追加 HTML も `IS_NATIVE ? … : ''` で空＝web は完全に従来どおり。
+
+**ハマったところ**
+- なし（既存の native 取り込み基盤＝v94 の `processNativeRest`/`collectImportedAssetIds`/`importOneNative` をそのまま再利用できた＝案1軽量版の配当）。許可は初回取り込みで取得済み＝`requestAccess()` を毎回呼んでも iOS はダイアログを再表示しない（既存 importNativeLibrary と同じ前提）。
+
+**結果 / 観察**
+- 検証＝インラインスクリプト全体を `vm.Script` で parse＝**構文エラー0（1 inline script）**。web で観測できる唯一の面（取り込み設定モーダル）は native ブロックが空文字で**既存と完全同一**、他は全分岐 IS_NATIVE 早期 return＝web preview で再現できない native ランタイム機能のためブラウザ検証はスキップ（preview ガイドライン準拠）。
+- **実挙動は TestFlight 実機で確認する種類**（自動取り込みの静かさ・差分の正しさ・プロンプト/トグルの導線・電池）。**審査中の 1.0(16) とは別トラック＝承認後の次版に乗せる**（審査中ビルドは差し替えない）。
+
+**教訓**
+- 「アプリを開くたびに差分」は spike 初期（web・v22）からの宿題だった。native PhotoLibrary の即時 enumerate（軽い）があって初めて「画面を奪わず静かに」成立する。web で諦めた体験が native の土台で自然に解けた一例。
+- 自動化は**既定 OFF＋初回プロンプト＋設定で可逆**が安全（勝手に重い処理を走らせない・ユーザーが主導権を持つ。[[ui-minimalism-works]] の「使う時だけ広がる」と同じ思想）。
+
+**残課題 / 次の方向**
+- 実機確認（TestFlight 次ビルド）: ①ライブラリ取り込み済み端末で2回目起動時にプロンプト ②はい→新しく撮った写真が静かに増える ③⚙️詳細設定でトグル ON/OFF ④前面復帰での差分・電池。
+- 任意の磨き: プロンプト文言／差分件数が多い時の 🌀 進捗の見え方／「N枚追加しました」トーストの要否（今は新規ありなら既存 showImportSummary の緑ログが出る）。
+
 ## v118 — 拡大表示をトップと同じ scroll-snap 横スクロール deck に作り直し（本物のサクサク） (2026-06-30)
 
 **背景**
