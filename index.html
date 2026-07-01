@@ -499,7 +499,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.83 (v130：英語 i18n 下ごしらえ＋世界地図。端末言語(navigator.language)で日本語/英語を出し分け＝t()関数・言語自動判定・主要導線(ヘッダ/空状態/取り込み進捗/モーダル見出し)を英語化。地図は非日本語ロケールで地理院→CARTO Voyager/Positron に差し替え。日本語端末は完全に不変。?lang=en で検証可) · 2026-07-01';
+const BUILD = 'phase3.84 (v131：世界版の続き。①日本語モードの地図に世界の下地(CARTO)を常時敷き、日本人が海外旅行の写真を見ても地理院の外(海外)が真っ白にならずシームレスに。②主要導線の残りを英語化＝フィルタチップ/連想ウォーク/写真詳細/地図(ツールバー/popup/フィルタ/⋯/タイムライン/囲む比較)/ヘッダtitle。日本語端末は不変・?lang=en で検証) · 2026-07-01';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -537,6 +537,14 @@ function applyStaticI18n() {
   setTitle('#btnMap', "See this day's date across past years on the map");
   setTitle('#btnTomorrow', "See tomorrow's date across past years on the map");
   setTitle('#btnMenu', 'Menu (import, AI, and more)');
+  setTitle('#btnAdd', 'Import photos (files / folders)');
+  setTitle('#btnAnniv', 'Saved anniversaries (place × time)');
+  setTitle('#btnIg', 'Import from Instagram / X (export zip)');
+  setTitle('#btnAI', 'Try semantic nearby with AI (beta)');
+  setTitle('#btnLogger', 'Location logger: records your track only while open');
+  setTitle('#btnTrash', 'Restore deleted (excluded) photos');
+  setTitle('#btnClear', 'Delete all');
+  setTitle('#btnInfo', 'Help & notes');
   document.title = 'A Past Day — Photos and Footprints';
 }
 try { applyStaticI18n(); } catch (e) { console.warn('applyStaticI18n', e); }
@@ -1421,18 +1429,18 @@ function meaningNeighbors(center, all, limit) {
 // デフォルトは 'all'。
 // ============================================================
 const FILTERS = [
-  { key: 'all',      label: '全期間' },
-  { key: 'today',    label: '過去の今日' },        // 今日と同じ月日 (年問わず) = On This Day。地図 🗺 の today と対 (v84)
-  { key: 'season',   label: 'この時季' },
-  { key: '3m',       label: '3ヶ月前' },
-  { key: '1y',       label: '1年前' },
-  { key: '3y',       label: '3年前' },
-  { key: '10y',      label: '10年前' },
-  { key: 'oldest',   label: '久しぶり' },        // 撮影日が古い側のプール
-  { key: 'eventDay', label: 'たくさん撮った日' }, // 同日に N枚以上ある日のプール
+  { key: 'all',      label: t('全期間', 'All Time') },
+  { key: 'today',    label: t('過去の今日', 'On This Day') },        // 今日と同じ月日 (年問わず) = On This Day。地図 🗺 の today と対 (v84)
+  { key: 'season',   label: t('この時季', 'This Season') },
+  { key: '3m',       label: t('3ヶ月前', '3 Months Ago') },
+  { key: '1y',       label: t('1年前', '1 Year Ago') },
+  { key: '3y',       label: t('3年前', '3 Years Ago') },
+  { key: '10y',      label: t('10年前', '10 Years Ago') },
+  { key: 'oldest',   label: t('久しぶり', 'Long Ago') },        // 撮影日が古い側のプール
+  { key: 'eventDay', label: t('たくさん撮った日', 'Busy Days') }, // 同日に N枚以上ある日のプール
   // 📍 は GPS つき写真が対象という示唆 (脚注で母数を出すのでこれ単独の役割は副次的)
-  { key: 'near',     label: '近場 📍', needsGPS: true },
-  { key: 'far',      label: '遠出 📍', needsGPS: true },
+  { key: 'near',     label: t('近場 📍', 'Nearby 📍'), needsGPS: true },
+  { key: 'far',      label: t('遠出 📍', 'Far Away 📍'), needsGPS: true },
 ];
 
 // 「久しぶり」「たくさん撮った日」のチューニングパラメータ (鉛筆書き、触ってから調整)
@@ -2048,29 +2056,29 @@ function showFullImage(photo, opts = {}) {
     const p = list[i];
     fullImageState.index = i;
     const d = p.datetime;
-    const dtStr = d ? fmtDate(d) : '日時不明';
+    const dtStr = d ? fmtDate(d) : t('日時不明', 'Unknown date');
     const hasGps = p.lat != null && p.lng != null;
     const showMapBtn = hasGps || !!p.datetime;
-    const mapBtnLabel = hasGps ? '🗺 地図でこの場所を見る' : '🗺 この日の地図へ';
+    const mapBtnLabel = hasGps ? t('🗺 地図でこの場所を見る', '🗺 See this place on the map') : t('🗺 この日の地図へ', '🗺 Map for this day');
     cap.innerHTML =
       (hasList ? `<div class="full-count">${i + 1} / ${list.length}</div>` : '') +
       `<div class="dt">📅 ${dtStr}${srcTagHtml(p)}</div>` +
       `<div class="full-actions">` +
         (annivCtx
-          ? (annivCtx.list.length >= 2 ? `<button class="to-compare">⇆ 左右で比べる</button>` : '') +
-            `<button class="to-annivmap">🗺 足跡の地図</button>` +
-            (annivCtx.anniv ? `<button class="to-annivlog">📖 ログ</button>` : '') +   // v126: 記念日の日別ログ(写真+コメント+未来の予定)
-            (annivCtx.canRegister ? `<button class="to-register">📍 記念日に登録</button>` : '')   // v124: 囲む後もこの deck 動線＝違いは登録ボタンだけ
-          : (onWalk ? `<button class="to-walk">🔮 連想ウォーク</button>` : '') +   // v125: 名前統一（旧「ここから歩く」）
+          ? (annivCtx.list.length >= 2 ? `<button class="to-compare">${t('⇆ 左右で比べる', '⇆ Compare')}</button>` : '') +
+            `<button class="to-annivmap">${t('🗺 足跡の地図', '🗺 Footprint map')}</button>` +
+            (annivCtx.anniv ? `<button class="to-annivlog">${t('📖 ログ', '📖 Log')}</button>` : '') +   // v126: 記念日の日別ログ(写真+コメント+未来の予定)
+            (annivCtx.canRegister ? `<button class="to-register">${t('📍 記念日に登録', '📍 Save as anniversary')}</button>` : '')   // v124: 囲む後もこの deck 動線＝違いは登録ボタンだけ
+          : (onWalk ? `<button class="to-walk">${t('🔮 連想ウォーク', '🔮 Wander')}</button>` : '') +   // v125: 名前統一（旧「ここから歩く」）
             (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '')) +
-        `<button class="fix-date">📅 日付を直す</button>` +
+        `<button class="fix-date">${t('📅 日付を直す', '📅 Fix the date')}</button>` +
       `</div>` +
       // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
-      ((!annivCtx && showMapBtn && !hasGps) ? `<div class="de-hint map-hint">位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。</div>` : '') +
+      ((!annivCtx && showMapBtn && !hasGps) ? `<div class="de-hint map-hint">${t('位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。', 'Even on days with no located photos, that day\'s photo list (timeline) still opens. Browsing the order, or picking a photo to fix its place, can spark a memory too.')}</div>` : '') +
       `<div class="date-editor" hidden>` +
         `<input type="datetime-local" class="de-input">` +
-        `<div class="de-actions"><button class="de-cancel">キャンセル</button><button class="de-save">保存</button></div>` +
-        `<div class="de-hint">本当に撮った日時に直すと、タイムライン・地図の並びもそこへ移ります。</div>` +
+        `<div class="de-actions"><button class="de-cancel">${t('キャンセル', 'Cancel')}</button><button class="de-save">${t('保存', 'Save')}</button></div>` +
+        `<div class="de-hint">${t('本当に撮った日時に直すと、タイムライン・地図の並びもそこへ移ります。', 'Fixing it to the real date moves the photo in the timeline and map order too.')}</div>` +
       `</div>`;
     // v122: 記念日 deck の遷移ボタン（onClose を消してから閉じる＝一覧へ戻さず遷移先へ）。
     if (annivCtx) {
@@ -2080,7 +2088,7 @@ function showFullImage(photo, opts = {}) {
       const lb = cap.querySelector('.to-annivlog');
       if (lb) lb.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openAnnivTimeline(annivCtx.anniv); });
       const rb = cap.querySelector('.to-register');
-      if (rb) rb.addEventListener('click', () => registerAnniversary(annivCtx.circleInfo, annivCtx.list, () => { annivCtx.canRegister = false; rb.textContent = '✓ 記念日に登録'; rb.disabled = true; }));
+      if (rb) rb.addEventListener('click', () => registerAnniversary(annivCtx.circleInfo, annivCtx.list, () => { annivCtx.canRegister = false; rb.textContent = t('✓ 記念日に登録', '✓ Saved as anniversary'); rb.disabled = true; }));
     } else {
       // v117: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)。
       if (onWalk) cap.querySelector('.to-walk').addEventListener('click', () => { closeFullImage(); showExplore(p); });
@@ -2095,7 +2103,7 @@ function showFullImage(photo, opts = {}) {
     cap.querySelector('.de-cancel').addEventListener('click', () => { editor.hidden = true; });
     cap.querySelector('.de-save').addEventListener('click', async () => {
       const nd = fromDatetimeLocalVal(cap.querySelector('.de-input').value);
-      if (!nd) { logErr('日時の形式が正しくありません'); return; }
+      if (!nd) { logErr(t('日時の形式が正しくありません', 'Invalid date/time format')); return; }
       p.datetime = nd;
       p.dateSource = 'manual';
       try { await dbPut(p); } catch (e) { logErr(`日付の保存に失敗: ${e?.message || e}`); }
@@ -2463,9 +2471,9 @@ function buildMarkerPopup(p) {
     `<img class="mp-thumb" src="${thumbUrl(p)}">` +
     `<div class="mp-date">${fmtDate(p.datetime)}${srcTagHtml(p)}</div>` +
     (place ? `<div class="mp-place">${place}</div>` : '') +
-    `<button class="mp-walk">🔮 連想ウォーク</button>` +
-    `<button class="mp-edit" type="button">📍 位置を直す</button>` +
-    `<button class="mp-del" type="button">🗑 画像を削除</button>`;
+    `<button class="mp-walk">${t('🔮 連想ウォーク', '🔮 Wander')}</button>` +
+    `<button class="mp-edit" type="button">${t('📍 位置を直す', '📍 Fix location')}</button>` +
+    `<button class="mp-del" type="button">${t('🗑 画像を削除', '🗑 Delete photo')}</button>`;
   el.querySelector('.mp-thumb').addEventListener('click', () => { const tl = timelineOrderPhotos(); showFullImage(p, { list: tl, index: tl.indexOf(p) }); });   // v125: 拡大をタイムライン順にスワイプ
   el.querySelector('.mp-walk').addEventListener('click', () => { closeMapView(); showExplore(p); });
   el.querySelector('.mp-edit').addEventListener('click', () => { if (mapState && mapState.startLocationEdit) mapState.startLocationEdit(p); });
@@ -2505,11 +2513,11 @@ function buildEstPopup(p, est) {
   el.innerHTML =
     `<img class="mp-thumb" src="${thumbUrl(p)}">` +
     `<div class="mp-date">${fmtDate(p.datetime)}${srcTagHtml(p)}</div>` +
-    `<div class="mp-place mp-est">≈ 軌跡から推定した場所</div>` +
-    `<button class="mp-walk">🔮 連想ウォーク</button>` +
-    `<button class="mp-confirm" type="button">📍 この場所で確定</button>` +
-    `<button class="mp-edit" type="button">✏️ 位置を直して確定</button>` +
-    `<button class="mp-del" type="button">🗑 画像を削除</button>`;
+    `<div class="mp-place mp-est">${t('≈ 軌跡から推定した場所', '≈ Estimated from your track')}</div>` +
+    `<button class="mp-walk">${t('🔮 連想ウォーク', '🔮 Wander')}</button>` +
+    `<button class="mp-confirm" type="button">${t('📍 この場所で確定', '📍 Confirm this spot')}</button>` +
+    `<button class="mp-edit" type="button">${t('✏️ 位置を直して確定', '✏️ Adjust & confirm')}</button>` +
+    `<button class="mp-del" type="button">${t('🗑 画像を削除', '🗑 Delete photo')}</button>`;
   el.querySelector('.mp-thumb').addEventListener('click', () => { const tl = timelineOrderPhotos(); showFullImage(p, { list: tl, index: tl.indexOf(p) }); });   // v125: 拡大をタイムライン順にスワイプ
   el.querySelector('.mp-walk').addEventListener('click', () => { closeMapView(); showExplore(p); });
   el.querySelector('.mp-confirm').addEventListener('click', () => confirmEstimatedPos(p, est));   // 推定のまま確定
@@ -2526,7 +2534,7 @@ async function confirmEstimatedPos(photo, est) {
   photo.lng = +est.lng.toFixed(6);
   photo.geoFromTrack = true;
   if (seals.length) photo._sealed = seals.some(s => sealMatches(s, photo));   // 場所封印に該当しうる
-  try { await dbPut(photo); } catch (e) { logErr(`位置の確定に失敗: ${e?.message || e}`); return; }
+  try { await dbPut(photo); } catch (e) { logErr(t(`位置の確定に失敗: ${e?.message || e}`, `Failed to confirm location: ${e?.message || e}`)); return; }
   if (mapState && mapState.refreshData) mapState.refreshData();   // GPS扱いになり通常マーカー/動線へ
   render();
 }
@@ -2536,24 +2544,24 @@ let mapState = null;
 async function openMapView(focusPhoto, opts) {
   if (mapState) return;
   try { await loadLeaflet(); }
-  catch { logErr('地図ライブラリの読み込みに失敗しました（オフラインの可能性）'); return; }
+  catch { logErr(t('地図ライブラリの読み込みに失敗しました（オフラインの可能性）', 'Failed to load the map library (possibly offline)')); return; }
 
   const overlay = document.createElement('div');
   overlay.className = 'map-overlay';
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
     `<div class="map-ctrlbar">` +
-      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcPrev" title="前の日（過去の昨日…）">◀</button><button class="mc-btn mc-icon" id="mcToday" title="今日（数年分の同じ月日）">📆</button><button class="mc-btn mc-icon" id="mcNext" title="次の日（過去の明日…）">▶</button></div>` +
-      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcRoll" title="偶然の1日">🎲</button><button class="mc-btn" id="mcFilter">📅 全期間</button><button class="mc-btn" id="mcMore">⋯ 表示</button></div>` +
+      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcPrev" title="${t('前の日（過去の昨日…）', 'Previous day (yesterday in past years…)')}">◀</button><button class="mc-btn mc-icon" id="mcToday" title="${t('今日（数年分の同じ月日）', 'Today (this date across years)')}">📆</button><button class="mc-btn mc-icon" id="mcNext" title="${t('次の日（過去の明日…）', 'Next day (tomorrow in past years…)')}">▶</button></div>` +
+      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcRoll" title="${t('偶然の1日', 'A random day')}">🎲</button><button class="mc-btn" id="mcFilter">${t('📅 全期間', '📅 All time')}</button><button class="mc-btn" id="mcMore">${t('⋯ 表示', '⋯ View')}</button></div>` +
     `</div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopMore" hidden></div>` +
     `<div class="mc-pop" id="mcPopSeal" hidden></div>` +
     `<div class="mc-pop" id="mcPopHelp" hidden></div>` +
     `<button class="map-close">✕</button>` +
-    `<button class="map-fs-toggle" title="地図だけ全画面（タップで切替）">⛶</button>` +
+    `<button class="map-fs-toggle" title="${t('地図だけ全画面（タップで切替）', 'Full-screen map (tap to toggle)')}">⛶</button>` +
     `<div class="timeline-sheet">` +
-      `<div class="sheet-handle"><span class="sheet-grip"></span><span class="sheet-title">タイムライン</span></div>` +
+      `<div class="sheet-handle"><span class="sheet-grip"></span><span class="sheet-title">${t('タイムライン', 'Timeline')}</span></div>` +
       `<div class="sheet-body"></div>` +
     `</div>`;
   document.body.appendChild(overlay);
@@ -2582,6 +2590,13 @@ async function openMapView(focusPhoto, opts) {
   let savedLayerKey = null; try { savedLayerKey = localStorage.getItem('pms-mapLayer'); } catch {}
   const initialBase = BASE_LAYERS.find(b => b.key === savedLayerKey) || BASE_LAYERS[0];
   const map = L.map('mapEl', { layers: [initialBase.layer], zoomControl: false }).setView([36.2, 138.2], 5);  // 既定: 日本全体・前回のタイル
+  // v131: 日本語モードは既定=地理院だが、地理院は日本域のみ＝海外旅行の写真を見ると真っ白になる。
+  //   世界の下地(CARTO Positron)を最背面に常時敷く＝地理院タイルが無い海外では下地が透けて見える
+  //   （日本国内=地理院の詳細／海外=CARTO・国境をまたいでもシームレス）。en は BASE_LAYERS 自体が世界対応なので下地不要。
+  const worldUnderlay = (LANG === 'ja')
+    ? L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", { maxZoom: 19, attribution: CARTO_ATTR })
+    : null;
+  if (worldUnderlay) { worldUnderlay.addTo(map); worldUnderlay.bringToBack(); }
   L.control.zoom({ position: 'bottomleft' }).addTo(map);
   // v99: ベースタイルの切替は L.control.layers（右上）をやめ ⋯表示メニュー「地図の種類」へ移動（全画面 ⛶ を右上の常設アイコンに昇格＝位置を交換）。初期レイヤは上の setView で設定済み。
 
@@ -2876,7 +2891,7 @@ async function openMapView(focusPhoto, opts) {
       return;
     }
     const r = mapState.range;
-    if (r.start == null) { elFilterBtn.textContent = '📅 全期間'; elFilterBtn.classList.remove('on'); }
+    if (r.start == null) { elFilterBtn.textContent = t('📅 全期間', '📅 All time'); elFilterBtn.classList.remove('on'); }
     else {
       const single = r.end === endOfDay(r.start);
       elFilterBtn.textContent = single ? `📅 ${fmtMD(r.start)}` : `📅 ${fmtMD(r.start)}〜${fmtMD(r.end)}`;
@@ -2895,7 +2910,7 @@ async function openMapView(focusPhoto, opts) {
   // (= 以前の「入口モードはアイコン列／ブラウズはテキスト」の二重 UI を解消)。モード差は 🎲 の意味だけ:
   // random3 中は「もう一度引く」、それ以外は「偶然の3日」(アイコンは据え置き・title だけ切替)。
   function updateCtrlMode() {
-    mcRoll.title = (mapState.pickMode === 'random3') ? 'もう一度引く' : '偶然の1日';
+    mcRoll.title = (mapState.pickMode === 'random3') ? t('もう一度引く', 'Draw again') : t('偶然の1日', 'A random day');
   }
   mapState.updateCtrlMode = updateCtrlMode;
 
@@ -2933,10 +2948,10 @@ async function openMapView(focusPhoto, opts) {
 
   // offset → 相対の日本語ラベル (見出し用)。0=今日 / ±1=昨日・明日 / ±2=一昨日・明後日 / それ以上は N日前/後。
   function relDayLabel(off) {
-    if (off === 0) return '今日';
-    if (off === -1) return '昨日';   if (off === 1) return '明日';
-    if (off === -2) return '一昨日'; if (off === 2) return '明後日';
-    return off < 0 ? `${-off}日前` : `${off}日後`;
+    if (off === 0) return t('今日', 'Today');
+    if (off === -1) return t('昨日', 'Yesterday');   if (off === 1) return t('明日', 'Tomorrow');
+    if (off === -2) return t('一昨日', '2 days ago'); if (off === 2) return t('明後日', 'In 2 days');
+    return off < 0 ? t(`${-off}日前`, `${-off} days ago`) : t(`${off}日後`, `${off} days later`);
   }
   mapState.relDayLabel = relDayLabel;
 
@@ -2981,12 +2996,12 @@ async function openMapView(focusPhoto, opts) {
 
   // 日付/期間フィルタパネル (date 入力 2つ + 適用 / 全期間)
   popFilter.innerHTML =
-    `<div class="mc-pop-title">日付・期間で絞り込み</div>` +
-    `<label class="mc-pop-row">開始 <input type="date" id="fFrom"></label>` +
-    `<label class="mc-pop-row">終了 <input type="date" id="fTo"></label>` +
-    `<div class="mc-pop-actions"><button class="mc-pop-btn" id="fClear">全期間</button><button class="mc-pop-btn" id="fAdd">＋ 追加</button><button class="mc-pop-btn primary" id="fApply">適用</button></div>` +
+    `<div class="mc-pop-title">${t('日付・期間で絞り込み', 'Filter by date / range')}</div>` +
+    `<label class="mc-pop-row">${t('開始', 'From')} <input type="date" id="fFrom"></label>` +
+    `<label class="mc-pop-row">${t('終了', 'To')} <input type="date" id="fTo"></label>` +
+    `<div class="mc-pop-actions"><button class="mc-pop-btn" id="fClear">${t('全期間', 'All time')}</button><button class="mc-pop-btn" id="fAdd">${t('＋ 追加', '＋ Add')}</button><button class="mc-pop-btn primary" id="fApply">${t('適用', 'Apply')}</button></div>` +
     `<div class="mc-pop-status" id="fStatus"></div>` +
-    `<div class="mc-pop-hint"><b>適用</b>＝その期間「だけ」を続けて表示。<b>＋追加</b>＝その日／期間を今の表示に<b>重ねる</b>（離れた日や旅行を何度でも足せる。各日が別色の軌跡）。タイムラインの日付タップでも足せます。</div>`;
+    `<div class="mc-pop-hint">${t('<b>適用</b>＝その期間「だけ」を続けて表示。<b>＋追加</b>＝その日／期間を今の表示に<b>重ねる</b>（離れた日や旅行を何度でも足せる。各日が別色の軌跡）。タイムラインの日付タップでも足せます。', '<b>Apply</b> = keep showing only that range. <b>＋Add</b> = <b>overlay</b> that day/range onto the current view (add distant days or trips as often as you like; each day is a differently colored track). You can also add days by tapping dates in the timeline.')}</div>`;
   const fFrom = popFilter.querySelector('#fFrom');
   const fTo   = popFilter.querySelector('#fTo');
   if (dataMin != null) { fFrom.min = fTo.min = toInputVal(dataMin); fFrom.max = fTo.max = toInputVal(dataMax); }
@@ -3028,16 +3043,16 @@ async function openMapView(focusPhoto, opts) {
   function refreshFilterStatus(msg) {
     if (msg != null) { fStatus.textContent = msg; return; }
     fStatus.textContent = (mapState.pickMode === 'days' && mapState.pickDays && mapState.pickDays.length)
-      ? `📅 いま ${mapState.pickDays.length}日を重ねて表示中` : '';
+      ? t(`📅 いま ${mapState.pickDays.length}日を重ねて表示中`, `📅 Showing ${mapState.pickDays.length} days overlaid`) : '';
   }
   popFilter.querySelector('#fAdd').addEventListener('click', () => {
     const fromV = fFrom.value, toV = fTo.value;
-    if (!fromV && !toV) { refreshFilterStatus('日付を入れてから「＋ 追加」を押してください'); return; }
+    if (!fromV && !toV) { refreshFilterStatus(t('日付を入れてから「＋ 追加」を押してください', 'Enter a date first, then tap “＋ Add”')); return; }
     let s = startOfDay(fromInputVal(fromV || toV));   // 開始のみ＝その1日 / 終了のみ＝その1日 / 両方＝範囲
     let e = startOfDay(fromInputVal(toV || fromV));
     if (s > e) { const t = s; s = e; e = t; }
     const keys = dayKeysWithPhotos(s, endOfDay(e));
-    if (!keys.length) { refreshFilterStatus('その期間に写真がありません'); return; }
+    if (!keys.length) { refreshFilterStatus(t('その期間に写真がありません', 'No photos in that range')); return; }
     const cur = (mapState.pickMode === 'days' && mapState.pickDays) ? mapState.pickDays.slice() : [];
     const merged = [...new Set([...cur, ...keys])];
     const added = merged.length - cur.length;
@@ -3047,8 +3062,8 @@ async function openMapView(focusPhoto, opts) {
     mapState.range = { start: null, end: null };   // 日選択が「どこまで」を担う
     applyFilter();   // 地図(マーカー/軌跡/fit) + タイムラインの ✓ 強調を更新 (DOM 再構築なし)
     fFrom.value = ''; fTo.value = '';   // 次の期間を続けて足しやすく入力をクリア (パネルは開いたまま)
-    refreshFilterStatus(added ? `✓ ${added}日を追加（いま ${merged.length}日を重ねて表示）`
-                              : `その日はもう表示中（いま ${merged.length}日）`);
+    refreshFilterStatus(added ? t(`✓ ${added}日を追加（いま ${merged.length}日を重ねて表示）`, `✓ Added ${added} day(s) (now showing ${merged.length} days)`)
+                              : t(`その日はもう表示中（いま ${merged.length}日）`, `Already showing that day (${merged.length} days total)`));
   });
 
   // 📅 期間ボタン: トグルで日付パネルを開閉 (開く時に現在の絞り込みを入力欄へ反映)。
@@ -3068,18 +3083,18 @@ async function openMapView(focusPhoto, opts) {
   // ⋯ 表示メニュー (v57→v58): よく使わない設定を1アイコンにまとめる。線のつなぎ方は固定化したので
   // 今は「記憶の封印」のみ (ユーザー要望: 封印が表示の中にある UI は継続)。期間(📅)だけは常時トップに残す。
   popMore.innerHTML =
-    `<div class="mc-pop-title">表示の設定</div>` +
-    `<button class="mc-menu-item" id="mmAnnivLog">📖 記念日のログ</button>` +   // v128: 常時表示。記念日由来の地図→そのログへ／通常地図→記念日一覧へ
-    `<button class="mc-menu-item" id="mmCompare">🫧 囲んで比べる</button>` +   // v120: 円で囲む→左右2リールで「あの頃と今」
-    `<button class="mc-menu-item" id="mmRegister">📍 この辺りを記念日に登録</button>` +   // v125: いま見ている地図の範囲を記念日に
+    `<div class="mc-pop-title">${t('表示の設定', 'Display settings')}</div>` +
+    `<button class="mc-menu-item" id="mmAnnivLog">${t('📖 記念日のログ', '📖 Anniversary log')}</button>` +   // v128: 常時表示。記念日由来の地図→そのログへ／通常地図→記念日一覧へ
+    `<button class="mc-menu-item" id="mmCompare">${t('🫧 囲んで比べる', '🫧 Encircle & compare')}</button>` +   // v120: 円で囲む→左右2リールで「あの頃と今」
+    `<button class="mc-menu-item" id="mmRegister">${t('📍 この辺りを記念日に登録', '📍 Save this area as anniversary')}</button>` +   // v125: いま見ている地図の範囲を記念日に
     // 位置オフ build (iOS v1) では軌跡まわりのトグルを出さない (v104)。記録が無いので元々空動作。
     (LOCATION_AVAILABLE
-      ? `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> 🛰️ 自分の軌跡（ロガー）</label>` +
-        `<label class="mc-pop-check"><input type="checkbox" id="mmEst"> 📍 GPSなし写真を軌跡から配置</label>`
+      ? `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> ${t('🛰️ 自分の軌跡（ロガー）', '🛰️ My track (logger)')}</label>` +
+        `<label class="mc-pop-check"><input type="checkbox" id="mmEst"> ${t('📍 GPSなし写真を軌跡から配置', '📍 Place GPS-less photos from track')}</label>`
       : '') +
-    `<button class="mc-menu-item" id="mmSeal">🔒 記憶の封印</button>` +
-    `<button class="mc-menu-item" id="mmHelp">ⓘ アイコンの説明</button>` +
-    `<div class="mc-pop-sub">地図の種類</div>` +
+    `<button class="mc-menu-item" id="mmSeal">${t('🔒 記憶の封印', '🔒 Seal memories')}</button>` +
+    `<button class="mc-menu-item" id="mmHelp">${t('ⓘ アイコンの説明', 'ⓘ Icon guide')}</button>` +
+    `<div class="mc-pop-sub">${t('地図の種類', 'Map type')}</div>` +
     `<div class="mc-pop-chips" id="mmLayers"></div>`;
   const mmTrack = popMore.querySelector('#mmTrack');
   if (mmTrack) {
@@ -3123,6 +3138,7 @@ async function openMapView(focusPhoto, opts) {
     if (prev) map.removeLayer(prev.layer);
     map.addLayer(next.layer);
     if (next.layer.bringToBack) next.layer.bringToBack();   // ベースタイルは最背面に（マーカー/線の下）
+    if (worldUnderlay) worldUnderlay.bringToBack();          // v131: 世界下地は常に地理院よりさらに背面へ（海外フォールバックを維持）
     curBaseKey = key;
     try { localStorage.setItem('pms-mapLayer', key); } catch {}
     renderLayerChips();
@@ -3347,7 +3363,7 @@ async function openMapView(focusPhoto, opts) {
   if (!gps.length) {
     const note = document.createElement('div');
     note.className = 'map-empty-note';
-    note.textContent = '位置情報のある写真がありません（下のタイムラインから一覧で見られます）';
+    note.textContent = t('位置情報のある写真がありません（下のタイムラインから一覧で見られます）', 'No located photos (browse them in the timeline below)');
     overlay.appendChild(note);
   }
 
@@ -3378,7 +3394,7 @@ async function openMapView(focusPhoto, opts) {
 function buildTimeline(container, map, cluster, markerById, applyFilter) {
   container.innerHTML = '';
   const all = allPhotos.filter(visible).slice().sort((a, b) => b.datetime - a.datetime);
-  if (!all.length) { container.innerHTML = '<div class="tl-empty">写真がありません</div>'; return; }
+  if (!all.length) { container.innerHTML = `<div class="tl-empty">${t('写真がありません', 'No photos')}</div>`; return; }
   const isMobile = () => window.matchMedia('(max-width:719px)').matches;
   const dayStartOf = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const dayEndOf = ms => ms + 86400000 - 1;
@@ -3392,13 +3408,13 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
   // 期間を絞った結果その期間に写真が無いときの注記 (既定は非表示)。
   const emptyNote = document.createElement('div');
   emptyNote.className = 'tl-empty tl-out';
-  emptyNote.textContent = 'この期間に写真はありません';
+  emptyNote.textContent = t('この期間に写真はありません', 'No photos in this range');
   container.appendChild(emptyNote);
   // v125: 位置情報のない写真は地図に出ない → タイムラインに出る、を明示 (GPSなし写真がある時だけ)。
   if (all.some(p => p.lat == null || p.lng == null)) {
     const gpsHint = document.createElement('div');
     gpsHint.className = 'tl-gpshint';
-    gpsHint.textContent = '📍位置情報のない写真は地図に出ません。ここ（タイムライン）に表示されます。';
+    gpsHint.textContent = t('📍位置情報のない写真は地図に出ません。ここ（タイムライン）に表示されます。', '📍 Photos without location don\'t appear on the map. They show here (timeline).');
     container.appendChild(gpsHint);
   }
 
@@ -3431,10 +3447,10 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
     item.innerHTML =
       `<img src="${thumbUrl(p)}">` +
       `<div class="tl-meta"><div class="tl-time">${fmtShortDate(d)}</div>` +
-      `<div class="tl-badge">${hasGps ? '📍 地図で見る' : '位置情報なし'}</div></div>` +
+      `<div class="tl-badge">${hasGps ? t('📍 地図で見る', '📍 See on map') : t('位置情報なし', 'No location')}</div></div>` +
       `<div class="tl-actions">` +
-        `<button class="tl-locedit" type="button">${hasGps ? '位置を直す' : '📍 位置を設定'}</button>` +
-        `<button class="tl-del" type="button" title="削除（♻️で戻せる）">🗑</button>` +
+        `<button class="tl-locedit" type="button">${hasGps ? t('位置を直す', 'Fix location') : t('📍 位置を設定', '📍 Set location')}</button>` +
+        `<button class="tl-del" type="button" title="${t('削除（♻️で戻せる）', 'Delete (restore from ♻️)')}">🗑</button>` +
       `</div>`;
     item.querySelector('.tl-locedit').addEventListener('click', (e) => {
       e.stopPropagation();   // 項目本体のタップ (フォーカス/フル画像) と衝突させない
@@ -3508,14 +3524,14 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
       const pickStarts = new Set(mapState.pickDays.map(dk => { const [y, m, d] = dk.split('-').map(Number); return new Date(y, m, d).getTime(); }));
       const multi = (mapState.pickMode === 'days');   // 飛び飛びの複数日を重ねた選択
       let label;
-      if (mapState.pickMode === 'random3') label = '🎲 ランダムな1日';
-      else if (mapState.pickMode === 'today') { const off = mapState.todayOffset || 0; const td = new Date(); td.setDate(td.getDate() + off); const rel = mapState.relDayLabel ? mapState.relDayLabel(off) : '今日'; label = `📆 ${rel} ${td.getMonth()+1}/${td.getDate()}（${mapState.pickDays.length}年分）`; }
-      else if (multi) label = `📅 ${mapState.pickDays.length}日を重ねて`;
+      if (mapState.pickMode === 'random3') label = t('🎲 ランダムな1日', '🎲 A random day');
+      else if (mapState.pickMode === 'today') { const off = mapState.todayOffset || 0; const td = new Date(); td.setDate(td.getDate() + off); const rel = mapState.relDayLabel ? mapState.relDayLabel(off) : t('今日', 'Today'); label = t(`📆 ${rel} ${td.getMonth()+1}/${td.getDate()}（${mapState.pickDays.length}年分）`, `📆 ${rel} ${td.getMonth()+1}/${td.getDate()} (${mapState.pickDays.length} yr)`); }
+      else if (multi) label = t(`📅 ${mapState.pickDays.length}日を重ねて`, `📅 ${mapState.pickDays.length} days overlaid`);
       else { const parts = mapState.pickDays[0].split('-').map(Number); label = `📅 ${fmtDay(new Date(parts[0], parts[1], parts[2]).getTime())}`; }
       bar.innerHTML = `<span class="fb-text">${label}</span>`;
       const clr = document.createElement('button');
       clr.className = 'fb-clear';
-      clr.textContent = '✕ 全部を見る';
+      clr.textContent = t('✕ 全部を見る', '✕ See all');
       clr.addEventListener('click', () => { if (mapState.clearPick) mapState.clearPick(); });
       bar.appendChild(clr);
       // 選ばれた日だけ表示 + 日見出しタップで折りたたみ (applyFold が ▾/▸、畳んだ日は写真も地図の線/ピンも消える)。
@@ -3593,7 +3609,7 @@ function startEncircleMode() {
 
   const layer  = document.createElement('div'); layer.className  = 'encircle-layer';
   const banner = document.createElement('div'); banner.className = 'encircle-banner';
-  banner.innerHTML = `<span>見たい場所を押して、外へ広げて囲む</span><button class="enc-cancel" type="button">やめる</button>`;
+  banner.innerHTML = `<span>${t('見たい場所を押して、外へ広げて囲む', 'Press a spot and drag outward to encircle it')}</span><button class="enc-cancel" type="button">${t('やめる', 'Cancel')}</button>`;
   const liveCount = document.createElement('div'); liveCount.className = 'encircle-count'; liveCount.hidden = true;
   overlay.appendChild(layer); overlay.appendChild(banner); overlay.appendChild(liveCount);
 
@@ -3610,7 +3626,7 @@ function startEncircleMode() {
     centerLL = ptToLatLng(e.clientX, e.clientY);
     if (circle) map.removeLayer(circle);
     circle = L.circle(centerLL, { radius: 1, color: '#33c1b0', weight: 2, fillColor: '#33c1b0', fillOpacity: 0.12 }).addTo(map);
-    liveCount.hidden = false; liveCount.textContent = '0枚';
+    liveCount.hidden = false; liveCount.textContent = t('0枚', '0 photos');
     e.preventDefault();
   };
   const onMove = (e) => {
@@ -3622,7 +3638,8 @@ function startEncircleMode() {
     moveRaf = requestAnimationFrame(() => {
       moveRaf = null;
       if (!centerLL || !circle) return;
-      liveCount.textContent = `${photosInCircle(centerLL.lat, centerLL.lng, circle.getRadius()).length}枚`;
+      const n = photosInCircle(centerLL.lat, centerLL.lng, circle.getRadius()).length;
+      liveCount.textContent = t(`${n}枚`, `${n} photos`);
     });
   };
   const onUp = (e) => {
@@ -3639,7 +3656,7 @@ function startEncircleMode() {
     }
     // 足りない → 円を消してやり直し (モードは継続)。
     liveCount.hidden = false;
-    liveCount.textContent = (list.length === 1) ? '1枚 — もう少し広く囲んで' : 'この辺りに写真がありません';
+    liveCount.textContent = (list.length === 1) ? t('1枚 — もう少し広く囲んで', '1 photo — encircle a bit wider') : t('この辺りに写真がありません', 'No photos around here');
     if (circle) { map.removeLayer(circle); circle = null; }
     centerLL = null;
     setTimeout(() => { if (mapState && mapState.encircle) mapState.encircle.liveCount.hidden = true; }, 1500);
@@ -3671,20 +3688,20 @@ function openCompareView(list, circleInfo, canRegister, anniv) {
   if (compareState) closeCompareView();
   const a = list[0].datetime, b = list[list.length - 1].datetime;
   const ya = a.getFullYear(), yb = b.getFullYear();
-  const span = (ya === yb) ? `${ya}年` : `${ya}〜${yb}年`;
+  const span = (ya === yb) ? t(`${ya}年`, `${ya}`) : t(`${ya}〜${yb}年`, `${ya}–${yb}`);
   const overlay = document.createElement('div');
   overlay.className = 'compare-overlay';
   overlay.innerHTML =
     `<div class="cmp-header">` +
-      `<div class="cmp-title">この場所の、あの頃と今<span class="cmp-sub"> · ${list.length}枚 · ${span}</span></div>` +
+      `<div class="cmp-title">${t('この場所の、あの頃と今', 'This place, then and now')}<span class="cmp-sub"> · ${t(`${list.length}枚`, `${list.length} photos`)} · ${span}</span></div>` +
       `<div class="cmp-head-btns">` +
-        `<button class="cmp-tripmap" type="button">🗺 足跡の地図</button>` +   // v124: 比較からも足跡の地図へ
-        (anniv ? `<button class="cmp-log" type="button">📖 ログ</button>` : '') +   // v127: 記念日由来なら ログへ
-        ((circleInfo && canRegister) ? `<button class="cmp-anniv" type="button">📍 記念日に登録</button>` : '') +   // v121: 円を名前付き保存 (未登録の時だけ)
+        `<button class="cmp-tripmap" type="button">${t('🗺 足跡の地図', '🗺 Footprint map')}</button>` +   // v124: 比較からも足跡の地図へ
+        (anniv ? `<button class="cmp-log" type="button">${t('📖 ログ', '📖 Log')}</button>` : '') +   // v127: 記念日由来なら ログへ
+        ((circleInfo && canRegister) ? `<button class="cmp-anniv" type="button">${t('📍 記念日に登録', '📍 Save as anniversary')}</button>` : '') +   // v121: 円を名前付き保存 (未登録の時だけ)
         `<button class="cmp-close" type="button">✕</button>` +
       `</div>` +
     `</div>` +
-    `<div class="cmp-hint">左右それぞれ上下にスワイプして時間を行き来。気になる一枚で片方を止め、もう片方を送って見比べる。</div>` +
+    `<div class="cmp-hint">${t('左右それぞれ上下にスワイプして時間を行き来。気になる一枚で片方を止め、もう片方を送って見比べる。', 'Swipe each side up/down to move through time. Stop one on a photo that catches your eye, and scroll the other to compare.')}</div>` +
     `<div class="cmp-reels"><div class="cmp-reel" data-side="L"></div><div class="cmp-reel" data-side="R"></div></div>`;
   document.body.appendChild(overlay);
   overlay.querySelectorAll('.cmp-reel').forEach(reel => {
@@ -4577,7 +4594,7 @@ function render() {
     const modeBar = document.createElement('div');
     modeBar.className = 'mode-toggle';
     const opener = document.createElement('button');
-    opener.textContent = modeToggleVisible ? 'モード ▲' : 'モード ▼';
+    opener.textContent = t('モード', 'Mode') + (modeToggleVisible ? ' ▲' : ' ▼');
     opener.style.cssText = 'border-color:#333;color:#888;';
     opener.addEventListener('click', () => {
       modeToggleVisible = !modeToggleVisible;
@@ -4605,10 +4622,10 @@ function render() {
         });
         return b;
       };
-      toggle.appendChild(mkBtn('mix', '🎲 ミックス'));
-      toggle.appendChild(mkBtn('spacetime', '⏳ 時空'));
-      toggle.appendChild(mkBtn('color', '🎨 カラー'));
-      if (aiEmbeddedCount() >= 3) toggle.appendChild(mkBtn('meaning', '🧠 意味'));
+      toggle.appendChild(mkBtn('mix', t('🎲 ミックス', '🎲 Mix')));
+      toggle.appendChild(mkBtn('spacetime', t('⏳ 時空', '⏳ Time & place')));
+      toggle.appendChild(mkBtn('color', t('🎨 カラー', '🎨 Color')));
+      if (aiEmbeddedCount() >= 3) toggle.appendChild(mkBtn('meaning', t('🧠 意味', '🧠 Meaning')));
       $main.appendChild(toggle);
     }
 
@@ -4616,7 +4633,7 @@ function render() {
     if (backfillStatus && backfillStatus.done < backfillStatus.total) {
       const note = document.createElement('div');
       note.className = 'backfill-note';
-      note.textContent = `🌀 色情報を準備中… ${backfillStatus.done} / ${backfillStatus.total}`;
+      note.textContent = t(`🌀 色情報を準備中… ${backfillStatus.done} / ${backfillStatus.total}`, `🌀 Preparing color data… ${backfillStatus.done} / ${backfillStatus.total}`);
       $main.appendChild(note);
     }
 
@@ -4624,27 +4641,27 @@ function render() {
     if (exploreMode === 'color' && !center.color) {
       const label = document.createElement('div');
       label.className = 'neighbor-label';
-      label.textContent = 'この写真の色情報がまだありません';
+      label.textContent = t('この写真の色情報がまだありません', 'No color data for this photo yet');
       $main.appendChild(label);
     } else if (exploreMode === 'meaning' && !center.embedding) {
       const label = document.createElement('div');
       label.className = 'neighbor-label';
-      label.textContent = 'この写真はまだ AI 解析されていません (🧠 から追加解析)';
+      label.textContent = t('この写真はまだ AI 解析されていません (🧠 から追加解析)', 'This photo isn\'t analyzed by AI yet (analyze from 🧠)');
       $main.appendChild(label);
     } else {
       const ns = currentNeighbors.filter(visible).slice(0, 12);   // v116: 1枚大表示＋横スワイプなので多めに (近傍キャッシュ12枚)
       const label = document.createElement('div');
       label.className = 'neighbor-label';
       if (ns.length === 0) {
-        label.textContent = '近くに写真がありません';
+        label.textContent = t('近くに写真がありません', 'No nearby photos');
       } else if (exploreMode === 'color') {
-        label.textContent = `色の近く ${ns.length} 枚`;
+        label.textContent = t(`色の近く ${ns.length} 枚`, `${ns.length} nearby · color`);
       } else if (exploreMode === 'spacetime') {
-        label.textContent = `この時空の近く ${ns.length} 枚`;
+        label.textContent = t(`この時空の近く ${ns.length} 枚`, `${ns.length} nearby · time & place`);
       } else if (exploreMode === 'meaning') {
-        label.textContent = `意味の近く ${ns.length} 枚`;
+        label.textContent = t(`意味の近く ${ns.length} 枚`, `${ns.length} nearby · meaning`);
       } else {
-        label.textContent = `この写真のまわり ${ns.length} 枚`;
+        label.textContent = t(`この写真のまわり ${ns.length} 枚`, `${ns.length} around this photo`);
       }
       $main.appendChild(label);
 
@@ -4656,7 +4673,7 @@ function render() {
         $main.appendChild(deck);
         const hint = document.createElement('div');
         hint.className = 'swipe-hint';
-        hint.textContent = '← スワイプで近くの写真へ・タップで歩く →';
+        hint.textContent = t('← スワイプで近くの写真へ・タップで歩く →', '← Swipe for nearby photos · tap to wander →');
         $main.appendChild(hint);
       }
     }
@@ -4670,7 +4687,7 @@ function render() {
       const trailBar = document.createElement('div');
       trailBar.className = 'mode-toggle';   // モード opener と同じ見た目・配置
       const trailOpener = document.createElement('button');
-      trailOpener.textContent = trailVisible ? '🔖 足跡 ▲' : `🔖 足跡 ${displayTrail.length} ▼`;
+      trailOpener.textContent = trailVisible ? t('🔖 足跡 ▲', '🔖 Footprints ▲') : t(`🔖 足跡 ${displayTrail.length} ▼`, `🔖 Footprints ${displayTrail.length} ▼`);
       trailOpener.style.cssText = 'border-color:#333;color:#888;';
       trailOpener.addEventListener('click', () => {
         trailVisible = !trailVisible;
@@ -4709,7 +4726,7 @@ function render() {
 
     const actions = document.createElement('div');
     actions.className = 'actions';
-    actions.innerHTML = `<button class="secondary" id="backRandom">← トップに戻る</button>`;
+    actions.innerHTML = `<button class="secondary" id="backRandom">${t('← トップに戻る', '← Back to top')}</button>`;
     $main.appendChild(actions);
     document.getElementById('backRandom').addEventListener('click', drawRandom);
     return;
