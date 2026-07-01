@@ -5,6 +5,33 @@
 
 ---
 
+## v128 — UI微調整3点（記念日ログ導線・地図種類チップ1行・ヘッダ2段圧縮） (2026-07-01)
+
+**背景**
+- App Store は 1.0(16) が承認済みだが「審査に出した版のUIが今より見劣りする」→ **release せず、UI をブラッシュアップして再提出する方針**（[[madeleine-product-repo]]）。その第一歩の実機フィードバック3点。
+
+**① 地図の「📖 記念日のログ」を常時表示化＝通常地図→記念日一覧へ**
+- 症状: 通常の「この日の地図へ」から入った地図の⋯表示メニューに「📖 記念日のログ」が出るが、タップしても無反応（ユーザー報告）。
+- 原因: `.mc-menu-item { display: block }`（author 規則）が UA の `[hidden]{display:none}` を上書き（同詳細度なら author が UA に勝つ）→ `#mmAnnivLog` の `hidden` 属性が効かず**常時表示**。ハンドラは `mapState.anniv` の時しか動かないので、通常地図では見えるのに無反応だった。**v127 の「記念日由来のときだけ表示」という設計判断は、この上書きにより実際には成立していなかった**。
+- 対処: ハンドラに分岐を追加＝`if (mapState.anniv) openAnnivTimeline(...); else openAnnivList()`。`hidden` 属性と `elMoreBtn` の hidden トグルを撤去（常時表示に正直化）。記念日由来→そのログ（従来どおり・ユーザー要望で維持）／通常地図→記念日一覧（`openAnnivList`＝空も対応・`anniv-z` z5000 で地図の上）。一覧→行タップ→そのログ、と自然にドリルイン。
+
+**② 地図の種類チップ（ダーク/地理院標準/地理院淡色）を1行に**
+- `.mc-pop-chips`（flex-wrap）で2行に折り返していた3ボタンを、`#mmLayers` に限定して `flex-wrap:nowrap`＋各ボタン `flex:1 1 0; min-width:0; font-size:11.5px; text-align:center; white-space:nowrap`＝**均等3分割**。`.mc-pop` 幅300px→各≈85px で「地理院(標準)」もクリップせず収まる。`#mmLayers` スコープなので他の `.mc-pop-btn` は不変。
+
+**③ ヘッダの写真枚数をタイトル行へ移動＝2段に圧縮**
+- 症状: モバイル（≤600px で h1 が `flex-basis:100%`）で 1段目=タイトル／2段目=枚数+過去の今日/明日／3段目=⚙ の**3段**になっていた。
+- 対処: `#count`・`#bgStatus` を `<h1>` 内へ移動。h1 が1行を占めるので枚数がタイトル行に乗り、2段目に `過去の今日 / 過去の明日 / ⚙` が収まる＝**2段**に。JS は `getElementById` 参照なので無改修。
+
+**設計判断 / 教訓**
+- **`hidden` 属性と CSS `display` の競合**: 要素に `.class{display:...}` を当てていると `hidden` 属性（UA の `[hidden]{display:none}`）は効かない。表示/非表示を属性で切るなら、その要素に明示 `display` を持たせない or `[hidden]{display:none!important}` を用意する。今回は「常時表示で分岐動作」に倒したので問題は消えた。
+- preview の合成では地図（データ必須）を開けないので、②は実 `#mmLayers` 構造を注入して offsetTop/クリップを実測、③はヘッダが空状態でも出るので直接検証。①はロジック（分岐＋既存 openAnnivList）で担保。
+
+**結果 / 観察**
+- preview 検証 green（inline script vm.Script 0エラー）: ③ヘッダ2段（枚数がタイトル行・⚙が2段目）／②チップ3つ同一行・クリップなし・見た目均等／desktop も1行で回帰なし。実機の手触りは GitHub Pages。
+
+**残課題 / 次の方向**
+- 実機（GitHub Pages）で3点確認。UI ブラッシュアップが固まったら Codemagic 新ビルドを App Store 再提出（承認済み16は release しない）。
+
 ## v127 — 記念日ログの作り込み（逆時系列・間隔で時間を感じる・一覧直行・写真拡大・相互動線） (2026-07-01)
 
 **背景**

@@ -317,6 +317,9 @@
   .mc-pop-btn { padding: 7px 14px; border: 1px solid #444; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 13px; cursor: pointer; }
   .mc-pop-btn.primary { background: #2a6; border-color: #2a6; color: #fff; font-weight: 600; }
   .mc-pop-btn:active { opacity: 0.8; }
+  /* v128: 地図の種類チップ (ダーク/地理院標準/地理院淡色) を1行に。3つを均等割りして省スペース（崩れずに収まる範囲で） */
+  #mmLayers { flex-wrap: nowrap; }
+  #mmLayers .mc-pop-btn { flex: 1 1 0; min-width: 0; padding: 7px 6px; font-size: 11.5px; text-align: center; white-space: nowrap; }
   .mc-pop-status { font-size: 11px; color: #6ee0a3; margin-top: 8px; min-height: 1.2em; }
   .mc-pop-hint { font-size: 10px; color: #666; margin-top: 10px; line-height: 1.5; }
   .mc-help-row { font-size: 12px; color: #ccc; padding: 6px 0; line-height: 1.45; display: flex; gap: 9px; align-items: baseline; }
@@ -444,9 +447,8 @@
 <body>
 
 <header>
-  <h1>あの日 <span class="tag">写真と足跡から蘇る</span> <span class="ver" id="ver"></span></h1>
-  <span class="count" id="count">— 枚</span>
-  <span class="count hidden" id="bgStatus"></span>
+  <!-- v128: 写真枚数をタイトル行(h1)に入れて2段に圧縮 → ⚙が2段目に収まる -->
+  <h1>あの日 <span class="tag">写真と足跡から蘇る</span> <span class="ver" id="ver"></span> <span class="count" id="count">— 枚</span><span class="count hidden" id="bgStatus"></span></h1>
   <!-- v113: ヘッダ整理。よく使う「🗺 過去の今日」を主役に、残りは ⚙️ メニューへ ([[ui-minimalism-works]]) -->
   <button id="btnMap" class="hdr-primary" title="今日の日付の軌跡を数年分まとめて地図で見る（毎日の入口）">🗺 過去の今日</button>
   <button id="btnTomorrow" class="hdr-primary" title="明日の日付の軌跡を数年分＝明日を計画する前に「過去の明日」を知る">🗺 過去の明日</button>
@@ -486,7 +488,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.80 (v127：記念日ログの作り込み。①時系列を逆に（現在→過去へ遡る）②訪問の間隔が空くほどログ上の間を広げて時間の長さを感じる（◦N年のあいだ）③一覧タップ→ログへ直行④ログの代表写真タップ→拡大＋記念日内を日にち横断スワイプ⑤相互動線＝ログ↔一覧/左右で比べる/足跡の地図、比較と地図からもログへ) · 2026-07-01';
+const BUILD = 'phase3.81 (v128：UI微調整3点。①地図の「📖記念日のログ」を常時表示化＝記念日由来の地図→そのログ／通常の地図→記念日一覧へ（無反応を解消）②地図の種類チップ ダーク/地理院標準/地理院淡色 を1行に③ヘッダの写真枚数をタイトル行へ移動して2段に圧縮＝⚙が2段目に収まる) · 2026-07-01';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -3007,7 +3009,7 @@ async function openMapView(focusPhoto, opts) {
   // 今は「記憶の封印」のみ (ユーザー要望: 封印が表示の中にある UI は継続)。期間(📅)だけは常時トップに残す。
   popMore.innerHTML =
     `<div class="mc-pop-title">表示の設定</div>` +
-    `<button class="mc-menu-item" id="mmAnnivLog" hidden>📖 記念日のログ</button>` +   // v127: 記念日由来の地図のときだけ表示（ログへ戻る動線）
+    `<button class="mc-menu-item" id="mmAnnivLog">📖 記念日のログ</button>` +   // v128: 常時表示。記念日由来の地図→そのログへ／通常地図→記念日一覧へ
     `<button class="mc-menu-item" id="mmCompare">🫧 囲んで比べる</button>` +   // v120: 円で囲む→左右2リールで「あの頃と今」
     `<button class="mc-menu-item" id="mmRegister">📍 この辺りを記念日に登録</button>` +   // v125: いま見ている地図の範囲を記念日に
     // 位置オフ build (iOS v1) では軌跡まわりのトグルを出さない (v104)。記録が無いので元々空動作。
@@ -3030,7 +3032,7 @@ async function openMapView(focusPhoto, opts) {
     mmEst.addEventListener('change', () => { mapState.showEstimated = mmEst.checked; refreshTrack(); });
   }
   const mmAnnivLog = popMore.querySelector('#mmAnnivLog');   // v127: 記念日由来の地図 → ログへ戻る
-  if (mmAnnivLog) mmAnnivLog.addEventListener('click', () => { closePops(); if (mapState && mapState.anniv) openAnnivTimeline(mapState.anniv); });
+  if (mmAnnivLog) mmAnnivLog.addEventListener('click', () => { closePops(); if (mapState && mapState.anniv) openAnnivTimeline(mapState.anniv); else openAnnivList(); });   // v128: 記念日由来→そのログ／通常地図→記念日一覧
   const mmCompare = popMore.querySelector('#mmCompare');   // v120: 囲んで比べる = 円ジェスチャを開始
   mmCompare.addEventListener('click', () => { closePops(); startEncircleMode(); });
   const mmRegister = popMore.querySelector('#mmRegister');   // v125: いま見ている地図の範囲を記念日に登録
@@ -3069,7 +3071,6 @@ async function openMapView(focusPhoto, opts) {
     e.stopPropagation();
     const willOpen = popMore.hidden;
     closePops();
-    if (mmAnnivLog) mmAnnivLog.hidden = !(mapState && mapState.anniv);   // v127: 記念日由来のときだけ「📖ログ」を出す
     if (willOpen) { popMore.hidden = false; elMoreBtn.classList.add('open'); }
   });
 
