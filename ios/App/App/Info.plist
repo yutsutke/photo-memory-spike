@@ -7,9 +7,9 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <!-- v110: App Store の表示名「あの日 — 写真と足跡」と一致させて審査 2.3.8（名前不一致）に対応。
-             旧値は Madeleine（英語ブランド）。世界展開時は InfoPlist.strings(ja/en) で
-             ロケール別に出し分ける（ja=あの日 — 写真と足跡 / en=Madeleine）。詳細 CHANGELOG v110。 -->
+        <!-- v110: App Store 表示名と一致させ審査 2.3.8（名前不一致）に対応。この base 値は最終フォールバック。
+             2026-07-02: 世界展開に伴い InfoPlist.strings(ja/en) でロケール別の表示名を実装
+             （ja=あの日 — 写真と足跡 / en=A Past Day）。dev region=en なので非日本語ロケールは A Past Day に解決。 -->
         <string>あの日 — 写真と足跡</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>

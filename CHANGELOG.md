@@ -5,6 +5,26 @@
 
 ---
 
+## 🌍 native — アプリ表示名を英語ローカライズ（InfoPlist.strings ja/en）＋ 1.1 化（英語圏デビュー準備） (2026-07-02)
+
+**背景**
+- 英語 i18n（v130-133）＋世界地図が入り、配信を英語圏へ拡大（[[post-launch-roadmap]] ① 世界版）に着手。ユーザー選択＝「きちんと英語で出す」。英語アプリ名＝**A Past Day**（App Store 名30字制限のため、フル "A Past Day — Photos and Footprints" は 名前=A Past Day ＋ サブタイトルに分割）。
+
+**やったこと**
+- **端末の表示名をロケール別に**＝`ios/App/App/en.lproj/InfoPlist.strings`（`CFBundleDisplayName="A Past Day"`）と `ja.lproj/InfoPlist.strings`（=`"あの日 — 写真と足跡"`）を新設。
+- `project.pbxproj` に InfoPlist.strings を **variant group** として登録（PBXBuildFile / PBXFileReference×2 / App グループ children / Resources build phase / PBXVariantGroup / knownRegions に `ja` 追加）。PrivacyInfo.xcprivacy を手で追加した v105 と同流儀。Python で UUID アンカー置換（`cap sync` は pbxproj を触らないので永続）。
+- dev region=en なので、**ja 端末→ja.lproj、それ以外→en.lproj(A Past Day)** に解決＝「日本語→日本語／非日本語→英語」戦略と一致。
+- `MARKETING_VERSION` 1.0.1→**1.1**（国際化アップデート）。Info.plist の stale コメント（en=Madeleine）を実態（en=A Past Day）に修正。
+
+**結果 / 観察**
+- pbxproj の4登録点＋knownRegions＋version を再読で目視確認（既存 storyboard variant group と並ぶ構造で整合）。**ビルドは Codemagic 実行（Mac 無し手編集のため成功要確認）**。web（index.html）は無変更＝BUILD phase3.87 据え置き。
+
+**教訓**
+- pbxproj は空白非依存＝挿入テキストのインデントは適当でも可、アンカーは UUID など一意な非空白文字列で。Python で count 検証してから write すれば安全（アンカー不一致なら未書き込みで終わる）。
+
+**次**
+- Codemagic 1.1 の成功確認 → 英語スクショ（ユーザー）→ ASC 英語ローカライズ入力 → 1.1 版作成＋配信 ex-EU → 審査提出 →（承認後）公開＋地域拡大。
+
 ## 🔧 native fix — マーケティングバージョン 1.0 → 1.0.1（公開後に 1.0 の train が閉じたため） (2026-07-02)
 
 **背景 / 症状**
