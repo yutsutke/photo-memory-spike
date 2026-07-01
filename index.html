@@ -499,11 +499,11 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.84 (v131：世界版の続き。①日本語モードの地図に世界の下地(CARTO)を常時敷き、日本人が海外旅行の写真を見ても地理院の外(海外)が真っ白にならずシームレスに。②主要導線の残りを英語化＝フィルタチップ/連想ウォーク/写真詳細/地図(ツールバー/popup/フィルタ/⋯/タイムライン/囲む比較)/ヘッダtitle。日本語端末は不変・?lang=en で検証) · 2026-07-01';
+const BUILD = 'phase3.85 (v132：二次画面の英語化＋i18n関数を t()→tr() に改名（既存の t ローカル変数と衝突＝v130/131 の潜在バグも解消）。記念日(一覧/ログ/基準日/登録/予定/代表写真)・封印・ⓘヘルプ・AIモーダル・削除写真一覧・確認ダイアログ・各トースト・「N枚から」件数を英語化。長文の情報モーダル本文/位置ロガー説明/devは次段。日本語端末は不変・?lang=en で検証) · 2026-07-01';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
-//  - LANG==='ja' のとき t() は第1引数(日本語)をそのまま返す＝日本語端末は完全に不変。
+//  - LANG==='ja' のとき tr() は第1引数(日本語)をそのまま返す＝日本語端末は完全に不変。
 //  - 非日本語は第2引数(英語)、未指定なら日本語にフォールバック（未整備でも壊れない＝段階移行）。
 //  - ?lang=ja / ?lang=en で明示上書き（検証・QA 用。本番は navigator.language）。
 //  英語名 = A Past Day — Photos and Footprints。
@@ -512,7 +512,7 @@ const LANG = (function () {
   try { const q = new URLSearchParams(location.search).get('lang'); if (q === 'ja' || q === 'en') return q; } catch {}
   return String(navigator.language || 'ja').toLowerCase().startsWith('ja') ? 'ja' : 'en';
 })();
-function t(ja, en) { return LANG === 'ja' ? ja : (en != null ? en : ja); }
+function tr(ja, en) { return LANG === 'ja' ? ja : (en != null ? en : ja); }
 try { document.documentElement.lang = LANG; } catch {}
 
 // 静的ヘッダ(HTML 直書き)の英語化。ja では何もしない＝完全に不変。en のとき textContent/title を差し替え。
@@ -736,7 +736,7 @@ async function annivDelete(id) {
 }
 
 // ── 位置ロガーの記録ストア (track, v73) ──────────────────────
-// 1点 = {id, t(epoch ms), lat, lng, acc, mode}。t インデックスで日/期間を範囲取得 (昇順)。
+// 1点 = {id, tr(epoch ms), lat, lng, acc, mode}。t インデックスで日/期間を範囲取得 (昇順)。
 async function trackPut(point) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -1164,7 +1164,7 @@ async function processNativeRest(metas, doneBase, total) {
 // 許可 → 全件メタ即時列挙 → 既存 assetId を除いた差分だけ → fast-track 数枚で即遊べる →
 // 残りは背景。再実行すると差分だけ足す (新しく撮った写真の取り込み = 差分同期)。
 async function importNativeLibrary() {
-  if (!PhotoLib) { alert('ネイティブの写真プラグインが見つかりません (cap sync 未実行?)。'); return; }
+  if (!PhotoLib) { alert(tr('ネイティブの写真プラグインが見つかりません (cap sync 未実行?)。', 'Native photo plugin not found (cap sync not run?).')); return; }
   if (nativeImportRunning || bgNativeRunning || importingNow) return;
   nativeImportRunning = true; importingNow = true; importBusy = true;
   const backToContent = () => {
@@ -1175,10 +1175,10 @@ async function importNativeLibrary() {
     // 1. 許可要求
     let acc;
     try { acc = await PhotoLib.requestAccess(); }
-    catch (e) { logErr(`写真の許可でエラー: ${e?.message || e}`); backToContent(); return; }
+    catch (e) { logErr(tr(`写真の許可でエラー: ${e?.message || e}`, `Photo permission error: ${e?.message || e}`)); backToContent(); return; }
     const status = acc && acc.status;
     if (status === 'denied' || status === 'restricted') {
-      alert('写真へのアクセスが許可されていません。\n設定 →「あの日」→ 写真 →「すべての写真」を選んでから、もう一度お試しください。');
+      alert(tr('写真へのアクセスが許可されていません。\n設定 →「あの日」→ 写真 →「すべての写真」を選んでから、もう一度お試しください。', 'Photo access isn’t allowed.\nOpen Settings → “A Past Day” → Photos → “All Photos”, then try again.'));
       backToContent(); return;
     }
 
@@ -1186,12 +1186,12 @@ async function importNativeLibrary() {
     state = 'importing'; render(); await nextPaint();
     const $text = document.getElementById('prog-text');
     const $bar  = document.getElementById('prog-bar');
-    if ($text) $text.textContent = '写真ライブラリを確認しています…';
+    if ($text) $text.textContent = tr('写真ライブラリを確認しています…', 'Checking your photo library…');
     if ($bar)  $bar.style.width = '0%';
 
     let en;
     try { en = await PhotoLib.enumerate({ limit: 0 }); }
-    catch (e) { logErr(`写真の列挙に失敗: ${e?.message || e}`); backToContent(); return; }
+    catch (e) { logErr(tr(`写真の列挙に失敗: ${e?.message || e}`, `Failed to list photos: ${e?.message || e}`)); backToContent(); return; }
     const items = (en && en.items) || [];
 
     // 3. 既存 assetId を除いた差分
@@ -1199,10 +1199,10 @@ async function importNativeLibrary() {
     const fresh = items.filter(m => m && m.id && !have.has(m.id));
 
     if (status === 'limited') {
-      logInfo('写真アクセスが「選択した写真のみ」です。全ライブラリにするには 設定 → 写真 →「すべての写真」。');
+      logInfo(tr('写真アクセスが「選択した写真のみ」です。全ライブラリにするには 設定 → 写真 →「すべての写真」。', 'Photo access is “Selected Photos only.” For the whole library: Settings → Photos → “All Photos.”'));
     }
     if (!fresh.length) {
-      logInfo(`新しい写真はありません（ライブラリ ${en && en.count != null ? en.count : items.length} 枚 / 取り込み済み ${have.size} 枚）`);
+      logInfo(tr(`新しい写真はありません（ライブラリ ${en && en.count != null ? en.count : items.length} 枚 / 取り込み済み ${have.size} 枚）`, `No new photos (library ${en && en.count != null ? en.count : items.length} / imported ${have.size})`));
       backToContent(); return;
     }
 
@@ -1429,18 +1429,18 @@ function meaningNeighbors(center, all, limit) {
 // デフォルトは 'all'。
 // ============================================================
 const FILTERS = [
-  { key: 'all',      label: t('全期間', 'All Time') },
-  { key: 'today',    label: t('過去の今日', 'On This Day') },        // 今日と同じ月日 (年問わず) = On This Day。地図 🗺 の today と対 (v84)
-  { key: 'season',   label: t('この時季', 'This Season') },
-  { key: '3m',       label: t('3ヶ月前', '3 Months Ago') },
-  { key: '1y',       label: t('1年前', '1 Year Ago') },
-  { key: '3y',       label: t('3年前', '3 Years Ago') },
-  { key: '10y',      label: t('10年前', '10 Years Ago') },
-  { key: 'oldest',   label: t('久しぶり', 'Long Ago') },        // 撮影日が古い側のプール
-  { key: 'eventDay', label: t('たくさん撮った日', 'Busy Days') }, // 同日に N枚以上ある日のプール
+  { key: 'all',      label: tr('全期間', 'All Time') },
+  { key: 'today',    label: tr('過去の今日', 'On This Day') },        // 今日と同じ月日 (年問わず) = On This Day。地図 🗺 の today と対 (v84)
+  { key: 'season',   label: tr('この時季', 'This Season') },
+  { key: '3m',       label: tr('3ヶ月前', '3 Months Ago') },
+  { key: '1y',       label: tr('1年前', '1 Year Ago') },
+  { key: '3y',       label: tr('3年前', '3 Years Ago') },
+  { key: '10y',      label: tr('10年前', '10 Years Ago') },
+  { key: 'oldest',   label: tr('久しぶり', 'Long Ago') },        // 撮影日が古い側のプール
+  { key: 'eventDay', label: tr('たくさん撮った日', 'Busy Days') }, // 同日に N枚以上ある日のプール
   // 📍 は GPS つき写真が対象という示唆 (脚注で母数を出すのでこれ単独の役割は副次的)
-  { key: 'near',     label: t('近場 📍', 'Nearby 📍'), needsGPS: true },
-  { key: 'far',      label: t('遠出 📍', 'Far Away 📍'), needsGPS: true },
+  { key: 'near',     label: tr('近場 📍', 'Nearby 📍'), needsGPS: true },
+  { key: 'far',      label: tr('遠出 📍', 'Far Away 📍'), needsGPS: true },
 ];
 
 // 「久しぶり」「たくさん撮った日」のチューニングパラメータ (鉛筆書き、触ってから調整)
@@ -1714,8 +1714,8 @@ async function importArchiveZip(file) {
       else igCollectDates(text, byPath, byBase, stats);
     });
   } catch (e) {
-    logErr(`zip 解析失敗: ${e?.message || e}`);
-    alert(`zip の解析に失敗しました: ${e?.message || e}`);
+    logErr(tr(`zip 解析失敗: ${e?.message || e}`, `zip parse failed: ${e?.message || e}`));
+    alert(tr(`zip の解析に失敗しました: ${e?.message || e}`, `Failed to parse the zip: ${e?.message || e}`));
     importStats = null; state = allPhotos.length ? 'random' : 'empty'; render(); return;
   }
 
@@ -2056,29 +2056,29 @@ function showFullImage(photo, opts = {}) {
     const p = list[i];
     fullImageState.index = i;
     const d = p.datetime;
-    const dtStr = d ? fmtDate(d) : t('日時不明', 'Unknown date');
+    const dtStr = d ? fmtDate(d) : tr('日時不明', 'Unknown date');
     const hasGps = p.lat != null && p.lng != null;
     const showMapBtn = hasGps || !!p.datetime;
-    const mapBtnLabel = hasGps ? t('🗺 地図でこの場所を見る', '🗺 See this place on the map') : t('🗺 この日の地図へ', '🗺 Map for this day');
+    const mapBtnLabel = hasGps ? tr('🗺 地図でこの場所を見る', '🗺 See this place on the map') : tr('🗺 この日の地図へ', '🗺 Map for this day');
     cap.innerHTML =
       (hasList ? `<div class="full-count">${i + 1} / ${list.length}</div>` : '') +
       `<div class="dt">📅 ${dtStr}${srcTagHtml(p)}</div>` +
       `<div class="full-actions">` +
         (annivCtx
-          ? (annivCtx.list.length >= 2 ? `<button class="to-compare">${t('⇆ 左右で比べる', '⇆ Compare')}</button>` : '') +
-            `<button class="to-annivmap">${t('🗺 足跡の地図', '🗺 Footprint map')}</button>` +
-            (annivCtx.anniv ? `<button class="to-annivlog">${t('📖 ログ', '📖 Log')}</button>` : '') +   // v126: 記念日の日別ログ(写真+コメント+未来の予定)
-            (annivCtx.canRegister ? `<button class="to-register">${t('📍 記念日に登録', '📍 Save as anniversary')}</button>` : '')   // v124: 囲む後もこの deck 動線＝違いは登録ボタンだけ
-          : (onWalk ? `<button class="to-walk">${t('🔮 連想ウォーク', '🔮 Wander')}</button>` : '') +   // v125: 名前統一（旧「ここから歩く」）
+          ? (annivCtx.list.length >= 2 ? `<button class="to-compare">${tr('⇆ 左右で比べる', '⇆ Compare')}</button>` : '') +
+            `<button class="to-annivmap">${tr('🗺 足跡の地図', '🗺 Footprint map')}</button>` +
+            (annivCtx.anniv ? `<button class="to-annivlog">${tr('📖 ログ', '📖 Log')}</button>` : '') +   // v126: 記念日の日別ログ(写真+コメント+未来の予定)
+            (annivCtx.canRegister ? `<button class="to-register">${tr('📍 記念日に登録', '📍 Save as anniversary')}</button>` : '')   // v124: 囲む後もこの deck 動線＝違いは登録ボタンだけ
+          : (onWalk ? `<button class="to-walk">${tr('🔮 連想ウォーク', '🔮 Wander')}</button>` : '') +   // v125: 名前統一（旧「ここから歩く」）
             (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '')) +
-        `<button class="fix-date">${t('📅 日付を直す', '📅 Fix the date')}</button>` +
+        `<button class="fix-date">${tr('📅 日付を直す', '📅 Fix the date')}</button>` +
       `</div>` +
       // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
-      ((!annivCtx && showMapBtn && !hasGps) ? `<div class="de-hint map-hint">${t('位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。', 'Even on days with no located photos, that day\'s photo list (timeline) still opens. Browsing the order, or picking a photo to fix its place, can spark a memory too.')}</div>` : '') +
+      ((!annivCtx && showMapBtn && !hasGps) ? `<div class="de-hint map-hint">${tr('位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。', 'Even on days with no located photos, that day\'s photo list (timeline) still opens. Browsing the order, or picking a photo to fix its place, can spark a memory too.')}</div>` : '') +
       `<div class="date-editor" hidden>` +
         `<input type="datetime-local" class="de-input">` +
-        `<div class="de-actions"><button class="de-cancel">${t('キャンセル', 'Cancel')}</button><button class="de-save">${t('保存', 'Save')}</button></div>` +
-        `<div class="de-hint">${t('本当に撮った日時に直すと、タイムライン・地図の並びもそこへ移ります。', 'Fixing it to the real date moves the photo in the timeline and map order too.')}</div>` +
+        `<div class="de-actions"><button class="de-cancel">${tr('キャンセル', 'Cancel')}</button><button class="de-save">${tr('保存', 'Save')}</button></div>` +
+        `<div class="de-hint">${tr('本当に撮った日時に直すと、タイムライン・地図の並びもそこへ移ります。', 'Fixing it to the real date moves the photo in the timeline and map order too.')}</div>` +
       `</div>`;
     // v122: 記念日 deck の遷移ボタン（onClose を消してから閉じる＝一覧へ戻さず遷移先へ）。
     if (annivCtx) {
@@ -2088,7 +2088,7 @@ function showFullImage(photo, opts = {}) {
       const lb = cap.querySelector('.to-annivlog');
       if (lb) lb.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openAnnivTimeline(annivCtx.anniv); });
       const rb = cap.querySelector('.to-register');
-      if (rb) rb.addEventListener('click', () => registerAnniversary(annivCtx.circleInfo, annivCtx.list, () => { annivCtx.canRegister = false; rb.textContent = t('✓ 記念日に登録', '✓ Saved as anniversary'); rb.disabled = true; }));
+      if (rb) rb.addEventListener('click', () => registerAnniversary(annivCtx.circleInfo, annivCtx.list, () => { annivCtx.canRegister = false; rb.textContent = tr('✓ 記念日に登録', '✓ Saved as anniversary'); rb.disabled = true; }));
     } else {
       // v117: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)。
       if (onWalk) cap.querySelector('.to-walk').addEventListener('click', () => { closeFullImage(); showExplore(p); });
@@ -2103,7 +2103,7 @@ function showFullImage(photo, opts = {}) {
     cap.querySelector('.de-cancel').addEventListener('click', () => { editor.hidden = true; });
     cap.querySelector('.de-save').addEventListener('click', async () => {
       const nd = fromDatetimeLocalVal(cap.querySelector('.de-input').value);
-      if (!nd) { logErr(t('日時の形式が正しくありません', 'Invalid date/time format')); return; }
+      if (!nd) { logErr(tr('日時の形式が正しくありません', 'Invalid date/time format')); return; }
       p.datetime = nd;
       p.dateSource = 'manual';
       try { await dbPut(p); } catch (e) { logErr(`日付の保存に失敗: ${e?.message || e}`); }
@@ -2414,7 +2414,7 @@ function openLoggerPanel() {
   card.querySelector('#loggerCloseBtn').addEventListener('click', closeLoggerPanel);
   card.querySelector('#loggerToMap').addEventListener('click', () => { closeLoggerPanel(); openMapView(); });
   card.querySelector('#loggerClear').addEventListener('click', async () => {
-    if (!confirm('記録した位置の軌跡をすべて消します。よろしいですか？（写真は消えません）')) return;
+    if (!confirm(tr('記録した位置の軌跡をすべて消します。よろしいですか？（写真は消えません）', 'This deletes all recorded location tracks. Are you sure? (Photos are not deleted.)'))) return;
     try { await trackClear(); } catch {}
     loggerLast = null;
     if (mapState && mapState.refreshTrack) mapState.refreshTrack();
@@ -2471,9 +2471,9 @@ function buildMarkerPopup(p) {
     `<img class="mp-thumb" src="${thumbUrl(p)}">` +
     `<div class="mp-date">${fmtDate(p.datetime)}${srcTagHtml(p)}</div>` +
     (place ? `<div class="mp-place">${place}</div>` : '') +
-    `<button class="mp-walk">${t('🔮 連想ウォーク', '🔮 Wander')}</button>` +
-    `<button class="mp-edit" type="button">${t('📍 位置を直す', '📍 Fix location')}</button>` +
-    `<button class="mp-del" type="button">${t('🗑 画像を削除', '🗑 Delete photo')}</button>`;
+    `<button class="mp-walk">${tr('🔮 連想ウォーク', '🔮 Wander')}</button>` +
+    `<button class="mp-edit" type="button">${tr('📍 位置を直す', '📍 Fix location')}</button>` +
+    `<button class="mp-del" type="button">${tr('🗑 画像を削除', '🗑 Delete photo')}</button>`;
   el.querySelector('.mp-thumb').addEventListener('click', () => { const tl = timelineOrderPhotos(); showFullImage(p, { list: tl, index: tl.indexOf(p) }); });   // v125: 拡大をタイムライン順にスワイプ
   el.querySelector('.mp-walk').addEventListener('click', () => { closeMapView(); showExplore(p); });
   el.querySelector('.mp-edit').addEventListener('click', () => { if (mapState && mapState.startLocationEdit) mapState.startLocationEdit(p); });
@@ -2513,11 +2513,11 @@ function buildEstPopup(p, est) {
   el.innerHTML =
     `<img class="mp-thumb" src="${thumbUrl(p)}">` +
     `<div class="mp-date">${fmtDate(p.datetime)}${srcTagHtml(p)}</div>` +
-    `<div class="mp-place mp-est">${t('≈ 軌跡から推定した場所', '≈ Estimated from your track')}</div>` +
-    `<button class="mp-walk">${t('🔮 連想ウォーク', '🔮 Wander')}</button>` +
-    `<button class="mp-confirm" type="button">${t('📍 この場所で確定', '📍 Confirm this spot')}</button>` +
-    `<button class="mp-edit" type="button">${t('✏️ 位置を直して確定', '✏️ Adjust & confirm')}</button>` +
-    `<button class="mp-del" type="button">${t('🗑 画像を削除', '🗑 Delete photo')}</button>`;
+    `<div class="mp-place mp-est">${tr('≈ 軌跡から推定した場所', '≈ Estimated from your track')}</div>` +
+    `<button class="mp-walk">${tr('🔮 連想ウォーク', '🔮 Wander')}</button>` +
+    `<button class="mp-confirm" type="button">${tr('📍 この場所で確定', '📍 Confirm this spot')}</button>` +
+    `<button class="mp-edit" type="button">${tr('✏️ 位置を直して確定', '✏️ Adjust & confirm')}</button>` +
+    `<button class="mp-del" type="button">${tr('🗑 画像を削除', '🗑 Delete photo')}</button>`;
   el.querySelector('.mp-thumb').addEventListener('click', () => { const tl = timelineOrderPhotos(); showFullImage(p, { list: tl, index: tl.indexOf(p) }); });   // v125: 拡大をタイムライン順にスワイプ
   el.querySelector('.mp-walk').addEventListener('click', () => { closeMapView(); showExplore(p); });
   el.querySelector('.mp-confirm').addEventListener('click', () => confirmEstimatedPos(p, est));   // 推定のまま確定
@@ -2534,7 +2534,7 @@ async function confirmEstimatedPos(photo, est) {
   photo.lng = +est.lng.toFixed(6);
   photo.geoFromTrack = true;
   if (seals.length) photo._sealed = seals.some(s => sealMatches(s, photo));   // 場所封印に該当しうる
-  try { await dbPut(photo); } catch (e) { logErr(t(`位置の確定に失敗: ${e?.message || e}`, `Failed to confirm location: ${e?.message || e}`)); return; }
+  try { await dbPut(photo); } catch (e) { logErr(tr(`位置の確定に失敗: ${e?.message || e}`, `Failed to confirm location: ${e?.message || e}`)); return; }
   if (mapState && mapState.refreshData) mapState.refreshData();   // GPS扱いになり通常マーカー/動線へ
   render();
 }
@@ -2544,24 +2544,24 @@ let mapState = null;
 async function openMapView(focusPhoto, opts) {
   if (mapState) return;
   try { await loadLeaflet(); }
-  catch { logErr(t('地図ライブラリの読み込みに失敗しました（オフラインの可能性）', 'Failed to load the map library (possibly offline)')); return; }
+  catch { logErr(tr('地図ライブラリの読み込みに失敗しました（オフラインの可能性）', 'Failed to load the map library (possibly offline)')); return; }
 
   const overlay = document.createElement('div');
   overlay.className = 'map-overlay';
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
     `<div class="map-ctrlbar">` +
-      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcPrev" title="${t('前の日（過去の昨日…）', 'Previous day (yesterday in past years…)')}">◀</button><button class="mc-btn mc-icon" id="mcToday" title="${t('今日（数年分の同じ月日）', 'Today (this date across years)')}">📆</button><button class="mc-btn mc-icon" id="mcNext" title="${t('次の日（過去の明日…）', 'Next day (tomorrow in past years…)')}">▶</button></div>` +
-      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcRoll" title="${t('偶然の1日', 'A random day')}">🎲</button><button class="mc-btn" id="mcFilter">${t('📅 全期間', '📅 All time')}</button><button class="mc-btn" id="mcMore">${t('⋯ 表示', '⋯ View')}</button></div>` +
+      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcPrev" title="${tr('前の日（過去の昨日…）', 'Previous day (yesterday in past years…)')}">◀</button><button class="mc-btn mc-icon" id="mcToday" title="${tr('今日（数年分の同じ月日）', 'Today (this date across years)')}">📆</button><button class="mc-btn mc-icon" id="mcNext" title="${tr('次の日（過去の明日…）', 'Next day (tomorrow in past years…)')}">▶</button></div>` +
+      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcRoll" title="${tr('偶然の1日', 'A random day')}">🎲</button><button class="mc-btn" id="mcFilter">${tr('📅 全期間', '📅 All time')}</button><button class="mc-btn" id="mcMore">${tr('⋯ 表示', '⋯ View')}</button></div>` +
     `</div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopMore" hidden></div>` +
     `<div class="mc-pop" id="mcPopSeal" hidden></div>` +
     `<div class="mc-pop" id="mcPopHelp" hidden></div>` +
     `<button class="map-close">✕</button>` +
-    `<button class="map-fs-toggle" title="${t('地図だけ全画面（タップで切替）', 'Full-screen map (tap to toggle)')}">⛶</button>` +
+    `<button class="map-fs-toggle" title="${tr('地図だけ全画面（タップで切替）', 'Full-screen map (tap to toggle)')}">⛶</button>` +
     `<div class="timeline-sheet">` +
-      `<div class="sheet-handle"><span class="sheet-grip"></span><span class="sheet-title">${t('タイムライン', 'Timeline')}</span></div>` +
+      `<div class="sheet-handle"><span class="sheet-grip"></span><span class="sheet-title">${tr('タイムライン', 'Timeline')}</span></div>` +
       `<div class="sheet-body"></div>` +
     `</div>`;
   document.body.appendChild(overlay);
@@ -2891,7 +2891,7 @@ async function openMapView(focusPhoto, opts) {
       return;
     }
     const r = mapState.range;
-    if (r.start == null) { elFilterBtn.textContent = t('📅 全期間', '📅 All time'); elFilterBtn.classList.remove('on'); }
+    if (r.start == null) { elFilterBtn.textContent = tr('📅 全期間', '📅 All time'); elFilterBtn.classList.remove('on'); }
     else {
       const single = r.end === endOfDay(r.start);
       elFilterBtn.textContent = single ? `📅 ${fmtMD(r.start)}` : `📅 ${fmtMD(r.start)}〜${fmtMD(r.end)}`;
@@ -2910,7 +2910,7 @@ async function openMapView(focusPhoto, opts) {
   // (= 以前の「入口モードはアイコン列／ブラウズはテキスト」の二重 UI を解消)。モード差は 🎲 の意味だけ:
   // random3 中は「もう一度引く」、それ以外は「偶然の3日」(アイコンは据え置き・title だけ切替)。
   function updateCtrlMode() {
-    mcRoll.title = (mapState.pickMode === 'random3') ? t('もう一度引く', 'Draw again') : t('偶然の1日', 'A random day');
+    mcRoll.title = (mapState.pickMode === 'random3') ? tr('もう一度引く', 'Draw again') : tr('偶然の1日', 'A random day');
   }
   mapState.updateCtrlMode = updateCtrlMode;
 
@@ -2948,10 +2948,10 @@ async function openMapView(focusPhoto, opts) {
 
   // offset → 相対の日本語ラベル (見出し用)。0=今日 / ±1=昨日・明日 / ±2=一昨日・明後日 / それ以上は N日前/後。
   function relDayLabel(off) {
-    if (off === 0) return t('今日', 'Today');
-    if (off === -1) return t('昨日', 'Yesterday');   if (off === 1) return t('明日', 'Tomorrow');
-    if (off === -2) return t('一昨日', '2 days ago'); if (off === 2) return t('明後日', 'In 2 days');
-    return off < 0 ? t(`${-off}日前`, `${-off} days ago`) : t(`${off}日後`, `${off} days later`);
+    if (off === 0) return tr('今日', 'Today');
+    if (off === -1) return tr('昨日', 'Yesterday');   if (off === 1) return tr('明日', 'Tomorrow');
+    if (off === -2) return tr('一昨日', '2 days ago'); if (off === 2) return tr('明後日', 'In 2 days');
+    return off < 0 ? tr(`${-off}日前`, `${-off} days ago`) : tr(`${off}日後`, `${off} days later`);
   }
   mapState.relDayLabel = relDayLabel;
 
@@ -2996,12 +2996,12 @@ async function openMapView(focusPhoto, opts) {
 
   // 日付/期間フィルタパネル (date 入力 2つ + 適用 / 全期間)
   popFilter.innerHTML =
-    `<div class="mc-pop-title">${t('日付・期間で絞り込み', 'Filter by date / range')}</div>` +
-    `<label class="mc-pop-row">${t('開始', 'From')} <input type="date" id="fFrom"></label>` +
-    `<label class="mc-pop-row">${t('終了', 'To')} <input type="date" id="fTo"></label>` +
-    `<div class="mc-pop-actions"><button class="mc-pop-btn" id="fClear">${t('全期間', 'All time')}</button><button class="mc-pop-btn" id="fAdd">${t('＋ 追加', '＋ Add')}</button><button class="mc-pop-btn primary" id="fApply">${t('適用', 'Apply')}</button></div>` +
+    `<div class="mc-pop-title">${tr('日付・期間で絞り込み', 'Filter by date / range')}</div>` +
+    `<label class="mc-pop-row">${tr('開始', 'From')} <input type="date" id="fFrom"></label>` +
+    `<label class="mc-pop-row">${tr('終了', 'To')} <input type="date" id="fTo"></label>` +
+    `<div class="mc-pop-actions"><button class="mc-pop-btn" id="fClear">${tr('全期間', 'All time')}</button><button class="mc-pop-btn" id="fAdd">${tr('＋ 追加', '＋ Add')}</button><button class="mc-pop-btn primary" id="fApply">${tr('適用', 'Apply')}</button></div>` +
     `<div class="mc-pop-status" id="fStatus"></div>` +
-    `<div class="mc-pop-hint">${t('<b>適用</b>＝その期間「だけ」を続けて表示。<b>＋追加</b>＝その日／期間を今の表示に<b>重ねる</b>（離れた日や旅行を何度でも足せる。各日が別色の軌跡）。タイムラインの日付タップでも足せます。', '<b>Apply</b> = keep showing only that range. <b>＋Add</b> = <b>overlay</b> that day/range onto the current view (add distant days or trips as often as you like; each day is a differently colored track). You can also add days by tapping dates in the timeline.')}</div>`;
+    `<div class="mc-pop-hint">${tr('<b>適用</b>＝その期間「だけ」を続けて表示。<b>＋追加</b>＝その日／期間を今の表示に<b>重ねる</b>（離れた日や旅行を何度でも足せる。各日が別色の軌跡）。タイムラインの日付タップでも足せます。', '<b>Apply</b> = keep showing only that range. <b>＋Add</b> = <b>overlay</b> that day/range onto the current view (add distant days or trips as often as you like; each day is a differently colored track). You can also add days by tapping dates in the timeline.')}</div>`;
   const fFrom = popFilter.querySelector('#fFrom');
   const fTo   = popFilter.querySelector('#fTo');
   if (dataMin != null) { fFrom.min = fTo.min = toInputVal(dataMin); fFrom.max = fTo.max = toInputVal(dataMax); }
@@ -3043,16 +3043,16 @@ async function openMapView(focusPhoto, opts) {
   function refreshFilterStatus(msg) {
     if (msg != null) { fStatus.textContent = msg; return; }
     fStatus.textContent = (mapState.pickMode === 'days' && mapState.pickDays && mapState.pickDays.length)
-      ? t(`📅 いま ${mapState.pickDays.length}日を重ねて表示中`, `📅 Showing ${mapState.pickDays.length} days overlaid`) : '';
+      ? tr(`📅 いま ${mapState.pickDays.length}日を重ねて表示中`, `📅 Showing ${mapState.pickDays.length} days overlaid`) : '';
   }
   popFilter.querySelector('#fAdd').addEventListener('click', () => {
     const fromV = fFrom.value, toV = fTo.value;
-    if (!fromV && !toV) { refreshFilterStatus(t('日付を入れてから「＋ 追加」を押してください', 'Enter a date first, then tap “＋ Add”')); return; }
+    if (!fromV && !toV) { refreshFilterStatus(tr('日付を入れてから「＋ 追加」を押してください', 'Enter a date first, then tap “＋ Add”')); return; }
     let s = startOfDay(fromInputVal(fromV || toV));   // 開始のみ＝その1日 / 終了のみ＝その1日 / 両方＝範囲
     let e = startOfDay(fromInputVal(toV || fromV));
     if (s > e) { const t = s; s = e; e = t; }
     const keys = dayKeysWithPhotos(s, endOfDay(e));
-    if (!keys.length) { refreshFilterStatus(t('その期間に写真がありません', 'No photos in that range')); return; }
+    if (!keys.length) { refreshFilterStatus(tr('その期間に写真がありません', 'No photos in that range')); return; }
     const cur = (mapState.pickMode === 'days' && mapState.pickDays) ? mapState.pickDays.slice() : [];
     const merged = [...new Set([...cur, ...keys])];
     const added = merged.length - cur.length;
@@ -3062,8 +3062,8 @@ async function openMapView(focusPhoto, opts) {
     mapState.range = { start: null, end: null };   // 日選択が「どこまで」を担う
     applyFilter();   // 地図(マーカー/軌跡/fit) + タイムラインの ✓ 強調を更新 (DOM 再構築なし)
     fFrom.value = ''; fTo.value = '';   // 次の期間を続けて足しやすく入力をクリア (パネルは開いたまま)
-    refreshFilterStatus(added ? t(`✓ ${added}日を追加（いま ${merged.length}日を重ねて表示）`, `✓ Added ${added} day(s) (now showing ${merged.length} days)`)
-                              : t(`その日はもう表示中（いま ${merged.length}日）`, `Already showing that day (${merged.length} days total)`));
+    refreshFilterStatus(added ? tr(`✓ ${added}日を追加（いま ${merged.length}日を重ねて表示）`, `✓ Added ${added} day(s) (now showing ${merged.length} days)`)
+                              : tr(`その日はもう表示中（いま ${merged.length}日）`, `Already showing that day (${merged.length} days total)`));
   });
 
   // 📅 期間ボタン: トグルで日付パネルを開閉 (開く時に現在の絞り込みを入力欄へ反映)。
@@ -3083,18 +3083,18 @@ async function openMapView(focusPhoto, opts) {
   // ⋯ 表示メニュー (v57→v58): よく使わない設定を1アイコンにまとめる。線のつなぎ方は固定化したので
   // 今は「記憶の封印」のみ (ユーザー要望: 封印が表示の中にある UI は継続)。期間(📅)だけは常時トップに残す。
   popMore.innerHTML =
-    `<div class="mc-pop-title">${t('表示の設定', 'Display settings')}</div>` +
-    `<button class="mc-menu-item" id="mmAnnivLog">${t('📖 記念日のログ', '📖 Anniversary log')}</button>` +   // v128: 常時表示。記念日由来の地図→そのログへ／通常地図→記念日一覧へ
-    `<button class="mc-menu-item" id="mmCompare">${t('🫧 囲んで比べる', '🫧 Encircle & compare')}</button>` +   // v120: 円で囲む→左右2リールで「あの頃と今」
-    `<button class="mc-menu-item" id="mmRegister">${t('📍 この辺りを記念日に登録', '📍 Save this area as anniversary')}</button>` +   // v125: いま見ている地図の範囲を記念日に
+    `<div class="mc-pop-title">${tr('表示の設定', 'Display settings')}</div>` +
+    `<button class="mc-menu-item" id="mmAnnivLog">${tr('📖 記念日のログ', '📖 Anniversary log')}</button>` +   // v128: 常時表示。記念日由来の地図→そのログへ／通常地図→記念日一覧へ
+    `<button class="mc-menu-item" id="mmCompare">${tr('🫧 囲んで比べる', '🫧 Encircle & compare')}</button>` +   // v120: 円で囲む→左右2リールで「あの頃と今」
+    `<button class="mc-menu-item" id="mmRegister">${tr('📍 この辺りを記念日に登録', '📍 Save this area as anniversary')}</button>` +   // v125: いま見ている地図の範囲を記念日に
     // 位置オフ build (iOS v1) では軌跡まわりのトグルを出さない (v104)。記録が無いので元々空動作。
     (LOCATION_AVAILABLE
-      ? `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> ${t('🛰️ 自分の軌跡（ロガー）', '🛰️ My track (logger)')}</label>` +
-        `<label class="mc-pop-check"><input type="checkbox" id="mmEst"> ${t('📍 GPSなし写真を軌跡から配置', '📍 Place GPS-less photos from track')}</label>`
+      ? `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> ${tr('🛰️ 自分の軌跡（ロガー）', '🛰️ My track (logger)')}</label>` +
+        `<label class="mc-pop-check"><input type="checkbox" id="mmEst"> ${tr('📍 GPSなし写真を軌跡から配置', '📍 Place GPS-less photos from track')}</label>`
       : '') +
-    `<button class="mc-menu-item" id="mmSeal">${t('🔒 記憶の封印', '🔒 Seal memories')}</button>` +
-    `<button class="mc-menu-item" id="mmHelp">${t('ⓘ アイコンの説明', 'ⓘ Icon guide')}</button>` +
-    `<div class="mc-pop-sub">${t('地図の種類', 'Map type')}</div>` +
+    `<button class="mc-menu-item" id="mmSeal">${tr('🔒 記憶の封印', '🔒 Seal memories')}</button>` +
+    `<button class="mc-menu-item" id="mmHelp">${tr('ⓘ アイコンの説明', 'ⓘ Icon guide')}</button>` +
+    `<div class="mc-pop-sub">${tr('地図の種類', 'Map type')}</div>` +
     `<div class="mc-pop-chips" id="mmLayers"></div>`;
   const mmTrack = popMore.querySelector('#mmTrack');
   if (mmTrack) {
@@ -3153,25 +3153,25 @@ async function openMapView(focusPhoto, opts) {
   // ⓘ アイコンの説明 (v88): アイコンのみのコントロール (v85) は意味が分かりにくい、というユーザー指摘。
   // 既定はアイコンだけのまま、説明は「押した時だけ開く」凡例に逃がす ([[ui-minimalism-works]] の「使う時だけ広がる」)。
   popHelp.innerHTML =
-    `<div class="mc-pop-title">この画面のアイコン</div>` +
-    `<div class="mc-help-row"><b>◀ 📆 ▶</b><span>過去／未来の「今日」を辿る（📆＝今日に戻る・数年分の同じ月日を重ねる）</span></div>` +
-    `<div class="mc-help-row"><b>🎲</b><span>偶然の1日（ランダムな1本の軌跡）</span></div>` +
-    `<div class="mc-help-row"><b>📅</b><span>期間でしぼる／全期間に戻る</span></div>` +
-    `<div class="mc-help-row"><b>⋯</b><span>表示の設定（自分の軌跡・GPSなし写真・記憶の封印・地図の種類・アイコンの説明）</span></div>` +
-    `<div class="mc-help-row"><b>⛶</b><span>地図だけの全画面（右上・動線と写真だけ／もう一度で解除）</span></div>` +
-    `<div class="mc-help-row"><b>📍なし</b><span>位置情報のない写真は地図に出ません。画面下の「タイムライン」にだけ表示されます</span></div>`;
+    `<div class="mc-pop-title">${tr('この画面のアイコン', 'Icons on this screen')}</div>` +
+    `<div class="mc-help-row"><b>◀ 📆 ▶</b><span>${tr('過去／未来の「今日」を辿る（📆＝今日に戻る・数年分の同じ月日を重ねる）', 'Move through past/future “today” (📆 = back to today; overlays this date across years)')}</span></div>` +
+    `<div class="mc-help-row"><b>🎲</b><span>${tr('偶然の1日（ランダムな1本の軌跡）', 'A random day (one random track)')}</span></div>` +
+    `<div class="mc-help-row"><b>📅</b><span>${tr('期間でしぼる／全期間に戻る', 'Filter by range / back to all time')}</span></div>` +
+    `<div class="mc-help-row"><b>⋯</b><span>${tr('表示の設定（自分の軌跡・GPSなし写真・記憶の封印・地図の種類・アイコンの説明）', 'Display settings (your track, GPS-less photos, sealed memories, map type, icon guide)')}</span></div>` +
+    `<div class="mc-help-row"><b>⛶</b><span>${tr('地図だけの全画面（右上・動線と写真だけ／もう一度で解除）', 'Map-only full screen (top-right; tracks & photos only / tap again to exit)')}</span></div>` +
+    `<div class="mc-help-row"><b>📍${tr('なし', 'none')}</b><span>${tr('位置情報のない写真は地図に出ません。画面下の「タイムライン」にだけ表示されます', 'Photos without location don’t appear on the map. They show only in the “Timeline” below.')}</span></div>`;
 
   // 🔒 封印パネル (v56): いま地図に見えている範囲 × 期間 を条件に封印 + 封印中の一覧/解除。
   // 期間は地図のフィルタ状態 (mapState.range)、場所は地図の表示範囲 (map.getBounds()) を流用する。
   popSeal.innerHTML =
-    `<div class="mc-pop-title">🔒 記憶の封印</div>` +
-    `<div class="mc-pop-row"><span>期間</span><span class="seal-val" id="sealRange"></span></div>` +
-    `<label class="mc-pop-check"><input type="checkbox" id="sealBounds" checked> 📍 いま地図に見えている範囲だけ</label>` +
-    `<label class="mc-pop-row">名前 <input type="text" id="sealLabel"></label>` +
+    `<div class="mc-pop-title">${tr('🔒 記憶の封印', '🔒 Seal memories')}</div>` +
+    `<div class="mc-pop-row"><span>${tr('期間', 'Range')}</span><span class="seal-val" id="sealRange"></span></div>` +
+    `<label class="mc-pop-check"><input type="checkbox" id="sealBounds" checked> ${tr('📍 いま地図に見えている範囲だけ', '📍 Only the area currently shown on the map')}</label>` +
+    `<label class="mc-pop-row">${tr('名前', 'Name')} <input type="text" id="sealLabel"></label>` +
     `<div class="seal-preview" id="sealPreview"></div>` +
-    `<div class="mc-pop-actions"><button class="mc-pop-btn primary" id="sealAdd">🔒 封印する</button></div>` +
-    `<div class="mc-pop-hint">封印した写真は3枚引き・連想・地図・タイムラインに出なくなります（削除ではないので blob は残り、下の一覧でいつでも解除できます）。位置情報のない写真は「範囲だけ」では封印されません（期間で封印できます）。</div>` +
-    `<div class="seal-list-title">封印中の記憶</div>` +
+    `<div class="mc-pop-actions"><button class="mc-pop-btn primary" id="sealAdd">${tr('🔒 封印する', '🔒 Seal')}</button></div>` +
+    `<div class="mc-pop-hint">${tr('封印した写真は3枚引き・連想・地図・タイムラインに出なくなります（削除ではないので blob は残り、下の一覧でいつでも解除できます）。位置情報のない写真は「範囲だけ」では封印されません（期間で封印できます）。', 'Sealed photos stop appearing in the draw, wander, map, and timeline (it isn’t deletion — the image stays and you can unseal anytime from the list below). Photos without location can’t be sealed by area alone (seal them by range).')}</div>` +
+    `<div class="seal-list-title">${tr('封印中の記憶', 'Sealed memories')}</div>` +
     `<div class="seal-list" id="sealList"></div>`;
   const sealRangeEl   = popSeal.querySelector('#sealRange');
   const sealBoundsEl  = popSeal.querySelector('#sealBounds');
@@ -3191,14 +3191,14 @@ async function openMapView(focusPhoto, opts) {
     return spec;
   }
   function rangeLabel(from, to) {
-    if (from == null) return '全期間';
+    if (from == null) return tr('全期間', 'All time');
     return to === endOfDay(from) ? fmtYMD(from) : `${fmtYMD(from)}〜${fmtYMD(to)}`;
   }
   function autoSealLabel(spec) {
     const parts = [];
     if (spec.from != null) parts.push(rangeLabel(spec.from, spec.to));
-    if (spec.bounds) parts.push('この辺り');
-    return parts.join(' / ') || '全部';
+    if (spec.bounds) parts.push(tr('この辺り', 'This area'));
+    return parts.join(' / ') || tr('全部', 'Everything');
   }
   function updateSealPreview() {
     const r = mapState.range;
@@ -3207,18 +3207,18 @@ async function openMapView(focusPhoto, opts) {
     const noConstraint = spec.from == null && !spec.bounds;   // 全期間×範囲なし = 全部の封印 → 禁止
     sealLabelEl.placeholder = autoSealLabel(spec);
     if (noConstraint) {
-      sealPreviewEl.textContent = '期間を絞るか、範囲を限定してください';
+      sealPreviewEl.textContent = tr('期間を絞るか、範囲を限定してください', 'Narrow the range or limit the area');
       sealPreviewEl.className = 'seal-preview warn';
       sealAddEl.disabled = true;
       return;
     }
     const n = countSealed(spec);
     if (n === 0) {
-      sealPreviewEl.textContent = 'この条件に当てはまる写真はありません';
+      sealPreviewEl.textContent = tr('この条件に当てはまる写真はありません', 'No photos match these conditions');
       sealPreviewEl.className = 'seal-preview';
       sealAddEl.disabled = true;
     } else {
-      sealPreviewEl.textContent = `この条件に ${n} 枚が当てはまります`;
+      sealPreviewEl.textContent = tr(`この条件に ${n} 枚が当てはまります`, `${n} photo(s) match these conditions`);
       sealPreviewEl.className = 'seal-preview on';
       sealAddEl.disabled = false;
     }
@@ -3363,7 +3363,7 @@ async function openMapView(focusPhoto, opts) {
   if (!gps.length) {
     const note = document.createElement('div');
     note.className = 'map-empty-note';
-    note.textContent = t('位置情報のある写真がありません（下のタイムラインから一覧で見られます）', 'No located photos (browse them in the timeline below)');
+    note.textContent = tr('位置情報のある写真がありません（下のタイムラインから一覧で見られます）', 'No located photos (browse them in the timeline below)');
     overlay.appendChild(note);
   }
 
@@ -3394,7 +3394,7 @@ async function openMapView(focusPhoto, opts) {
 function buildTimeline(container, map, cluster, markerById, applyFilter) {
   container.innerHTML = '';
   const all = allPhotos.filter(visible).slice().sort((a, b) => b.datetime - a.datetime);
-  if (!all.length) { container.innerHTML = `<div class="tl-empty">${t('写真がありません', 'No photos')}</div>`; return; }
+  if (!all.length) { container.innerHTML = `<div class="tl-empty">${tr('写真がありません', 'No photos')}</div>`; return; }
   const isMobile = () => window.matchMedia('(max-width:719px)').matches;
   const dayStartOf = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const dayEndOf = ms => ms + 86400000 - 1;
@@ -3408,13 +3408,13 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
   // 期間を絞った結果その期間に写真が無いときの注記 (既定は非表示)。
   const emptyNote = document.createElement('div');
   emptyNote.className = 'tl-empty tl-out';
-  emptyNote.textContent = t('この期間に写真はありません', 'No photos in this range');
+  emptyNote.textContent = tr('この期間に写真はありません', 'No photos in this range');
   container.appendChild(emptyNote);
   // v125: 位置情報のない写真は地図に出ない → タイムラインに出る、を明示 (GPSなし写真がある時だけ)。
   if (all.some(p => p.lat == null || p.lng == null)) {
     const gpsHint = document.createElement('div');
     gpsHint.className = 'tl-gpshint';
-    gpsHint.textContent = t('📍位置情報のない写真は地図に出ません。ここ（タイムライン）に表示されます。', '📍 Photos without location don\'t appear on the map. They show here (timeline).');
+    gpsHint.textContent = tr('📍位置情報のない写真は地図に出ません。ここ（タイムライン）に表示されます。', '📍 Photos without location don\'t appear on the map. They show here (timeline).');
     container.appendChild(gpsHint);
   }
 
@@ -3447,10 +3447,10 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
     item.innerHTML =
       `<img src="${thumbUrl(p)}">` +
       `<div class="tl-meta"><div class="tl-time">${fmtShortDate(d)}</div>` +
-      `<div class="tl-badge">${hasGps ? t('📍 地図で見る', '📍 See on map') : t('位置情報なし', 'No location')}</div></div>` +
+      `<div class="tl-badge">${hasGps ? tr('📍 地図で見る', '📍 See on map') : tr('位置情報なし', 'No location')}</div></div>` +
       `<div class="tl-actions">` +
-        `<button class="tl-locedit" type="button">${hasGps ? t('位置を直す', 'Fix location') : t('📍 位置を設定', '📍 Set location')}</button>` +
-        `<button class="tl-del" type="button" title="${t('削除（♻️で戻せる）', 'Delete (restore from ♻️)')}">🗑</button>` +
+        `<button class="tl-locedit" type="button">${hasGps ? tr('位置を直す', 'Fix location') : tr('📍 位置を設定', '📍 Set location')}</button>` +
+        `<button class="tl-del" type="button" title="${tr('削除（♻️で戻せる）', 'Delete (restore from ♻️)')}">🗑</button>` +
       `</div>`;
     item.querySelector('.tl-locedit').addEventListener('click', (e) => {
       e.stopPropagation();   // 項目本体のタップ (フォーカス/フル画像) と衝突させない
@@ -3524,14 +3524,14 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
       const pickStarts = new Set(mapState.pickDays.map(dk => { const [y, m, d] = dk.split('-').map(Number); return new Date(y, m, d).getTime(); }));
       const multi = (mapState.pickMode === 'days');   // 飛び飛びの複数日を重ねた選択
       let label;
-      if (mapState.pickMode === 'random3') label = t('🎲 ランダムな1日', '🎲 A random day');
-      else if (mapState.pickMode === 'today') { const off = mapState.todayOffset || 0; const td = new Date(); td.setDate(td.getDate() + off); const rel = mapState.relDayLabel ? mapState.relDayLabel(off) : t('今日', 'Today'); label = t(`📆 ${rel} ${td.getMonth()+1}/${td.getDate()}（${mapState.pickDays.length}年分）`, `📆 ${rel} ${td.getMonth()+1}/${td.getDate()} (${mapState.pickDays.length} yr)`); }
-      else if (multi) label = t(`📅 ${mapState.pickDays.length}日を重ねて`, `📅 ${mapState.pickDays.length} days overlaid`);
+      if (mapState.pickMode === 'random3') label = tr('🎲 ランダムな1日', '🎲 A random day');
+      else if (mapState.pickMode === 'today') { const off = mapState.todayOffset || 0; const td = new Date(); td.setDate(td.getDate() + off); const rel = mapState.relDayLabel ? mapState.relDayLabel(off) : tr('今日', 'Today'); label = tr(`📆 ${rel} ${td.getMonth()+1}/${td.getDate()}（${mapState.pickDays.length}年分）`, `📆 ${rel} ${td.getMonth()+1}/${td.getDate()} (${mapState.pickDays.length} yr)`); }
+      else if (multi) label = tr(`📅 ${mapState.pickDays.length}日を重ねて`, `📅 ${mapState.pickDays.length} days overlaid`);
       else { const parts = mapState.pickDays[0].split('-').map(Number); label = `📅 ${fmtDay(new Date(parts[0], parts[1], parts[2]).getTime())}`; }
       bar.innerHTML = `<span class="fb-text">${label}</span>`;
       const clr = document.createElement('button');
       clr.className = 'fb-clear';
-      clr.textContent = t('✕ 全部を見る', '✕ See all');
+      clr.textContent = tr('✕ 全部を見る', '✕ See all');
       clr.addEventListener('click', () => { if (mapState.clearPick) mapState.clearPick(); });
       bar.appendChild(clr);
       // 選ばれた日だけ表示 + 日見出しタップで折りたたみ (applyFold が ▾/▸、畳んだ日は写真も地図の線/ピンも消える)。
@@ -3609,7 +3609,7 @@ function startEncircleMode() {
 
   const layer  = document.createElement('div'); layer.className  = 'encircle-layer';
   const banner = document.createElement('div'); banner.className = 'encircle-banner';
-  banner.innerHTML = `<span>${t('見たい場所を押して、外へ広げて囲む', 'Press a spot and drag outward to encircle it')}</span><button class="enc-cancel" type="button">${t('やめる', 'Cancel')}</button>`;
+  banner.innerHTML = `<span>${tr('見たい場所を押して、外へ広げて囲む', 'Press a spot and drag outward to encircle it')}</span><button class="enc-cancel" type="button">${tr('やめる', 'Cancel')}</button>`;
   const liveCount = document.createElement('div'); liveCount.className = 'encircle-count'; liveCount.hidden = true;
   overlay.appendChild(layer); overlay.appendChild(banner); overlay.appendChild(liveCount);
 
@@ -3626,7 +3626,7 @@ function startEncircleMode() {
     centerLL = ptToLatLng(e.clientX, e.clientY);
     if (circle) map.removeLayer(circle);
     circle = L.circle(centerLL, { radius: 1, color: '#33c1b0', weight: 2, fillColor: '#33c1b0', fillOpacity: 0.12 }).addTo(map);
-    liveCount.hidden = false; liveCount.textContent = t('0枚', '0 photos');
+    liveCount.hidden = false; liveCount.textContent = tr('0枚', '0 photos');
     e.preventDefault();
   };
   const onMove = (e) => {
@@ -3639,7 +3639,7 @@ function startEncircleMode() {
       moveRaf = null;
       if (!centerLL || !circle) return;
       const n = photosInCircle(centerLL.lat, centerLL.lng, circle.getRadius()).length;
-      liveCount.textContent = t(`${n}枚`, `${n} photos`);
+      liveCount.textContent = tr(`${n}枚`, `${n} photos`);
     });
   };
   const onUp = (e) => {
@@ -3656,7 +3656,7 @@ function startEncircleMode() {
     }
     // 足りない → 円を消してやり直し (モードは継続)。
     liveCount.hidden = false;
-    liveCount.textContent = (list.length === 1) ? t('1枚 — もう少し広く囲んで', '1 photo — encircle a bit wider') : t('この辺りに写真がありません', 'No photos around here');
+    liveCount.textContent = (list.length === 1) ? tr('1枚 — もう少し広く囲んで', '1 photo — encircle a bit wider') : tr('この辺りに写真がありません', 'No photos around here');
     if (circle) { map.removeLayer(circle); circle = null; }
     centerLL = null;
     setTimeout(() => { if (mapState && mapState.encircle) mapState.encircle.liveCount.hidden = true; }, 1500);
@@ -3688,20 +3688,20 @@ function openCompareView(list, circleInfo, canRegister, anniv) {
   if (compareState) closeCompareView();
   const a = list[0].datetime, b = list[list.length - 1].datetime;
   const ya = a.getFullYear(), yb = b.getFullYear();
-  const span = (ya === yb) ? t(`${ya}年`, `${ya}`) : t(`${ya}〜${yb}年`, `${ya}–${yb}`);
+  const span = (ya === yb) ? tr(`${ya}年`, `${ya}`) : tr(`${ya}〜${yb}年`, `${ya}–${yb}`);
   const overlay = document.createElement('div');
   overlay.className = 'compare-overlay';
   overlay.innerHTML =
     `<div class="cmp-header">` +
-      `<div class="cmp-title">${t('この場所の、あの頃と今', 'This place, then and now')}<span class="cmp-sub"> · ${t(`${list.length}枚`, `${list.length} photos`)} · ${span}</span></div>` +
+      `<div class="cmp-title">${tr('この場所の、あの頃と今', 'This place, then and now')}<span class="cmp-sub"> · ${tr(`${list.length}枚`, `${list.length} photos`)} · ${span}</span></div>` +
       `<div class="cmp-head-btns">` +
-        `<button class="cmp-tripmap" type="button">${t('🗺 足跡の地図', '🗺 Footprint map')}</button>` +   // v124: 比較からも足跡の地図へ
-        (anniv ? `<button class="cmp-log" type="button">${t('📖 ログ', '📖 Log')}</button>` : '') +   // v127: 記念日由来なら ログへ
-        ((circleInfo && canRegister) ? `<button class="cmp-anniv" type="button">${t('📍 記念日に登録', '📍 Save as anniversary')}</button>` : '') +   // v121: 円を名前付き保存 (未登録の時だけ)
+        `<button class="cmp-tripmap" type="button">${tr('🗺 足跡の地図', '🗺 Footprint map')}</button>` +   // v124: 比較からも足跡の地図へ
+        (anniv ? `<button class="cmp-log" type="button">${tr('📖 ログ', '📖 Log')}</button>` : '') +   // v127: 記念日由来なら ログへ
+        ((circleInfo && canRegister) ? `<button class="cmp-anniv" type="button">${tr('📍 記念日に登録', '📍 Save as anniversary')}</button>` : '') +   // v121: 円を名前付き保存 (未登録の時だけ)
         `<button class="cmp-close" type="button">✕</button>` +
       `</div>` +
     `</div>` +
-    `<div class="cmp-hint">${t('左右それぞれ上下にスワイプして時間を行き来。気になる一枚で片方を止め、もう片方を送って見比べる。', 'Swipe each side up/down to move through time. Stop one on a photo that catches your eye, and scroll the other to compare.')}</div>` +
+    `<div class="cmp-hint">${tr('左右それぞれ上下にスワイプして時間を行き来。気になる一枚で片方を止め、もう片方を送って見比べる。', 'Swipe each side up/down to move through time. Stop one on a photo that catches your eye, and scroll the other to compare.')}</div>` +
     `<div class="cmp-reels"><div class="cmp-reel" data-side="L"></div><div class="cmp-reel" data-side="R"></div></div>`;
   document.body.appendChild(overlay);
   overlay.querySelectorAll('.cmp-reel').forEach(reel => {
@@ -3775,15 +3775,15 @@ async function registerAnniversary(circleInfo, list, onDone) {
     const have = new Set(near.visits.map(v => v.dayKey));
     const add = fresh.filter(v => !have.has(v.dayKey));
     near.visits = [...near.visits, ...add].sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
-    try { await annivPut(near); } catch (e) { logErr(`記念日の保存: ${e?.message || e}`); return; }
-    logInfo(`📍「${near.name}」に ${add.length}日を追加（訪問 ${near.visits.length}回）`);
+    try { await annivPut(near); } catch (e) { logErr(tr(`記念日の保存: ${e?.message || e}`, `Failed to save anniversary: ${e?.message || e}`)); return; }
+    logInfo(tr(`📍「${near.name}」に ${add.length}日を追加（訪問 ${near.visits.length}回）`, `📍 Added ${add.length} day(s) to “${near.name}” (${near.visits.length} visits)`));
     if (onDone) onDone(near);
   } else {                                 // 新しい場所＝名前をつけて登録
     const name = await promptAnnivName();
     if (name === null) return;             // キャンセル
-    const rec = { id: crypto.randomUUID(), name: name || 'この場所', center: { lat: circleInfo.lat, lng: circleInfo.lng }, radius: circleInfo.radius, created: Date.now(), visits: fresh };
-    try { await annivPut(rec); } catch (e) { logErr(`記念日の保存: ${e?.message || e}`); return; }
-    logInfo(`📍 記念日「${rec.name}」を登録（訪問 ${rec.visits.length}回）`);
+    const rec = { id: crypto.randomUUID(), name: name || tr('この場所', 'This place'), center: { lat: circleInfo.lat, lng: circleInfo.lng }, radius: circleInfo.radius, created: Date.now(), visits: fresh };
+    try { await annivPut(rec); } catch (e) { logErr(tr(`記念日の保存: ${e?.message || e}`, `Failed to save anniversary: ${e?.message || e}`)); return; }
+    logInfo(tr(`📍 記念日「${rec.name}」を登録（訪問 ${rec.visits.length}回）`, `📍 Saved anniversary “${rec.name}” (${rec.visits.length} visits)`));
     if (onDone) onDone(rec);
   }
 }
@@ -3795,10 +3795,10 @@ function promptAnnivName(initial = '') {
     modal.className = 'ai-modal anniv-z';
     modal.innerHTML =
       `<div class="ai-modal-card">` +
-        `<h2>📍 記念日に登録</h2>` +
-        `<p>この場所に名前をつけてください（例: いつもの公園、◯◯のカフェ）。</p>` +
-        `<input type="text" class="anniv-name-input" maxlength="40" placeholder="場所の名前">` +
-        `<div class="actions"><button id="anNameCancel">キャンセル</button><button class="primary" id="anNameSave">保存</button></div>` +
+        `<h2>${tr('📍 記念日に登録', '📍 Save as anniversary')}</h2>` +
+        `<p>${tr('この場所に名前をつけてください（例: いつもの公園、◯◯のカフェ）。', 'Give this place a name (e.g. Our usual park, the café at ◯◯).')}</p>` +
+        `<input type="text" class="anniv-name-input" maxlength="40" placeholder="${tr('場所の名前', 'Place name')}">` +
+        `<div class="actions"><button id="anNameCancel">${tr('キャンセル', 'Cancel')}</button><button class="primary" id="anNameSave">${tr('保存', 'Save')}</button></div>` +
       `</div>`;
     document.body.appendChild(modal);
     const input = modal.querySelector('.anniv-name-input');
@@ -3817,13 +3817,13 @@ let annivModals = [];
 function closeAnnivModals() { annivModals.forEach(m => m.remove()); annivModals = []; }
 async function openAnnivList() {
   let all = [];
-  try { all = await annivGetAll(); } catch (e) { logErr(`記念日の読み込み: ${e?.message || e}`); }
+  try { all = await annivGetAll(); } catch (e) { logErr(tr(`記念日の読み込み: ${e?.message || e}`, `Failed to load anniversaries: ${e?.message || e}`)); }
   all.sort((a, b) => lastVisitDate(b).localeCompare(lastVisitDate(a)));   // 直近の訪問が新しい順
   const modal = document.createElement('div');
   modal.className = 'ai-modal anniv-z';
   let body;
   if (!all.length) {
-    body = `<p class="anniv-empty">まだ記念日がありません。<br>地図で一帯を囲み、比較ビューの「📍 記念日に登録」から作れます。<br><small>同じ場所に毎年通うほど、訪問が積もっていきます。</small></p>`;
+    body = `<p class="anniv-empty">${tr('まだ記念日がありません。<br>地図で一帯を囲み、比較ビューの「📍 記念日に登録」から作れます。<br><small>同じ場所に毎年通うほど、訪問が積もっていきます。</small>', 'No anniversaries yet.<br>Encircle an area on the map, then create one from “📍 Save as anniversary” in the compare view.<br><small>The more you return to the same place each year, the more visits accumulate.</small>')}</p>`;
   } else {
     body = `<div class="anniv-list">` + all.map(a => {
       const t = annivThumb((a.visits[a.visits.length - 1] || {}).photoIds && a.visits[a.visits.length - 1].photoIds[0]);
@@ -3832,12 +3832,12 @@ async function openAnnivList() {
         `<div class="anniv-row-main">` +
           (t ? `<img class="anniv-row-thumb" src="${t}">` : `<div class="anniv-row-thumb noimg">📍</div>`) +
           `<div class="anniv-row-info"><div class="anniv-row-name">${annivEsc(a.name)}</div>` +
-          `<div class="anniv-row-sub">訪問 ${a.visits.length}回${span ? ` · ${span}` : ''}</div></div>` +
+          `<div class="anniv-row-sub">${tr(`訪問 ${a.visits.length}回`, `${a.visits.length} visit(s)`)}${span ? ` · ${span}` : ''}</div></div>` +
         `</div>` +
-        `<button class="anniv-row-del" data-id="${a.id}" title="削除">🗑</button></div>`;
+        `<button class="anniv-row-del" data-id="${a.id}" title="${tr('削除', 'Delete')}">🗑</button></div>`;
     }).join('') + `</div>`;
   }
-  modal.innerHTML = `<div class="ai-modal-card"><h2>📍 記念日</h2>${body}<div class="actions"><button class="primary" id="annivClose">閉じる</button></div></div>`;
+  modal.innerHTML = `<div class="ai-modal-card"><h2>${tr('📍 記念日', '📍 Anniversaries')}</h2>${body}<div class="actions"><button class="primary" id="annivClose">${tr('閉じる', 'Close')}</button></div></div>`;
   document.body.appendChild(modal);
   annivModals.push(modal);
   modal.querySelector('#annivClose').addEventListener('click', closeAnnivModals);
@@ -3848,7 +3848,7 @@ async function openAnnivList() {
   modal.querySelectorAll('.anniv-row-del').forEach(del => del.addEventListener('click', async (e) => {
     e.stopPropagation();
     const a = all.find(x => x.id === del.dataset.id); if (!a) return;
-    if (!confirm(`記念日「${a.name}」を削除しますか？（写真は消えません）`)) return;
+    if (!confirm(tr(`記念日「${a.name}」を削除しますか？（写真は消えません）`, `Delete the anniversary “${a.name}”? (Photos are not deleted.)`))) return;
     try { await annivDelete(a.id); } catch (err) { logErr(`削除失敗: ${err?.message || err}`); }
     closeAnnivModals(); openAnnivList();
   }));
@@ -3891,7 +3891,7 @@ window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && annivModal
 //   コメント/写真/予定はすべて anniv.visits に保存（未来半分のカレンダー書き出しは native フェーズで別途）。
 // ============================================================
 function todayDateStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-async function saveAnniv(a) { try { await annivPut(a); } catch (e) { logErr(`記念日の保存: ${e?.message || e}`); } }
+async function saveAnniv(a) { try { await annivPut(a); } catch (e) { logErr(tr(`記念日の保存: ${e?.message || e}`, `Failed to save anniversary: ${e?.message || e}`)); } }
 
 let annivTLState = null;
 function closeAnnivTimeline() { if (annivTLState) { annivTLState.overlay.remove(); annivTLState = null; } }
@@ -3903,9 +3903,9 @@ function openAnnivTimeline(a) {
   overlay.innerHTML =
     `<div class="atl-header"><div class="atl-title">📖 ${annivEsc(a.name)}</div><button class="atl-close" type="button">✕</button></div>` +
     `<div class="atl-actions">` +
-      `<button class="atl-act" data-act="list">← 一覧</button>` +
-      `<button class="atl-act" data-act="compare">⇆ 比べる</button>` +
-      `<button class="atl-act" data-act="map">🗺 足跡の地図</button>` +
+      `<button class="atl-act" data-act="list">${tr('← 一覧', '← List')}</button>` +
+      `<button class="atl-act" data-act="compare">${tr('⇆ 比べる', '⇆ Compare')}</button>` +
+      `<button class="atl-act" data-act="map">${tr('🗺 足跡の地図', '🗺 Footprint map')}</button>` +
     `</div>` +
     `<div class="atl-body"></div>`;
   document.body.appendChild(overlay);
@@ -3916,7 +3916,7 @@ function openAnnivTimeline(a) {
   overlay.querySelector('[data-act="list"]').addEventListener('click', () => { closeAnnivTimeline(); openAnnivList(); });
   overlay.querySelector('[data-act="compare"]').addEventListener('click', async () => {
     const list = photos.length ? photos : await annivPhotoList(a);
-    if (list.length < 2) { logInfo('比べるには写真が2枚以上必要です'); return; }
+    if (list.length < 2) { logInfo(tr('比べるには写真が2枚以上必要です', 'Need at least 2 photos to compare')); return; }
     closeAnnivTimeline();
     openCompareView(list, { lat: a.center.lat, lng: a.center.lng, radius: a.radius }, false, a);
   });
@@ -3939,13 +3939,13 @@ function renderAnnivTimeline() {
   const baseBar = document.createElement('div');
   baseBar.className = 'atl-basebar';
   baseBar.innerHTML = a.baseDate
-    ? `<span class="atl-base-txt">🎯 基準日 <b>${a.baseDate}</b></span><button class="atl-base-edit" type="button">変更</button><button class="atl-base-clear" type="button">解除</button>`
-    : `<button class="atl-base-set" type="button">🎯 基準日を設定</button><span class="atl-base-hint">各日に「何日前／何日後」を出す</span>`;
+    ? `<span class="atl-base-txt">${tr('🎯 基準日', '🎯 Base date')} <b>${a.baseDate}</b></span><button class="atl-base-edit" type="button">${tr('変更', 'Change')}</button><button class="atl-base-clear" type="button">${tr('解除', 'Clear')}</button>`
+    : `<button class="atl-base-set" type="button">${tr('🎯 基準日を設定', '🎯 Set a base date')}</button><span class="atl-base-hint">${tr('各日に「何日前／何日後」を出す', 'Show “N days before/after” on each day')}</span>`;
   body.appendChild(baseBar);
   const bSet = baseBar.querySelector('.atl-base-set'); if (bSet) bSet.addEventListener('click', () => setAnnivBaseDate(a));
   const bEdit = baseBar.querySelector('.atl-base-edit'); if (bEdit) bEdit.addEventListener('click', () => setAnnivBaseDate(a));
   const bClear = baseBar.querySelector('.atl-base-clear'); if (bClear) bClear.addEventListener('click', async () => { delete a.baseDate; await saveAnniv(a); renderAnnivTimeline(); });
-  if (!visits.length) { const em = document.createElement('div'); em.className = 'atl-empty'; em.textContent = 'まだ記録がありません。'; body.appendChild(em); }
+  if (!visits.length) { const em = document.createElement('div'); em.className = 'atl-empty'; em.textContent = tr('まだ記録がありません。', 'No records yet.'); body.appendChild(em); }
   visits.forEach((v, idx) => {
     const isFuture = !!v.planned || v.date > today;
     const entry = document.createElement('div');
@@ -3956,13 +3956,13 @@ function renderAnnivTimeline() {
     let offsetHtml = '';
     if (a.baseDate) {
       const off = Math.round((dateMs(v.date) - dateMs(a.baseDate)) / 86400000);
-      offsetHtml = off === 0 ? `<span class="atl-offset base">基準日</span>` : `<span class="atl-offset">${Math.abs(off).toLocaleString()}日${off > 0 ? '後' : '前'}</span>`;
+      offsetHtml = off === 0 ? `<span class="atl-offset base">${tr('基準日', 'Base date')}</span>` : `<span class="atl-offset">${tr(`${Math.abs(off).toLocaleString()}日${off > 0 ? '後' : '前'}`, `${Math.abs(off).toLocaleString()} days ${off > 0 ? 'later' : 'before'}`)}</span>`;
     }
     entry.innerHTML =
-      `<div class="atl-date">${v.date}${offsetHtml}${isFuture ? '<span class="atl-badge">これから</span>' : ''}</div>` +
+      `<div class="atl-date">${v.date}${offsetHtml}${isFuture ? `<span class="atl-badge">${tr('これから', 'Upcoming')}</span>` : ''}</div>` +
       photosHtml +
-      (!isFuture ? `<button class="atl-editphotos" type="button">🖼 代表写真を選ぶ</button>` : '') +
-      `<textarea class="atl-comment" rows="2" placeholder="${isFuture ? 'この日にしたいこと・行く理由…' : 'この日のこと・思い出したこと…'}"></textarea>`;
+      (!isFuture ? `<button class="atl-editphotos" type="button">${tr('🖼 代表写真を選ぶ', '🖼 Choose cover photos')}</button>` : '') +
+      `<textarea class="atl-comment" rows="2" placeholder="${isFuture ? tr('この日にしたいこと・行く理由…', 'What you want to do / your reason to go…') : tr('この日のこと・思い出したこと…', 'About this day / what you remembered…')}"></textarea>`;
     body.appendChild(entry);
     const ta = entry.querySelector('.atl-comment');
     ta.value = v.memo || '';                                   // value 経由で入れる（HTML エスケープ不要・安全）
@@ -3972,7 +3972,7 @@ function renderAnnivTimeline() {
     entry.querySelectorAll('.atl-photos img[data-id]').forEach(im => im.addEventListener('click', () => openAnnivPhotoZoom(a, im.dataset.id)));   // v127: 代表写真タップ→拡大(日にち横断スワイプ)
     if (isFuture) {                                            // 予定は削除できる（過去の訪問は写真由来なので消さない）
       const del = document.createElement('button');
-      del.className = 'atl-delplan'; del.type = 'button'; del.textContent = 'この予定を削除';
+      del.className = 'atl-delplan'; del.type = 'button'; del.textContent = tr('この予定を削除', 'Delete this plan');
       del.addEventListener('click', async () => {
         a.visits = a.visits.filter(x => x !== v);
         await saveAnniv(a); renderAnnivTimeline();
@@ -3988,13 +3988,13 @@ function renderAnnivTimeline() {
       const gap = document.createElement('div');
       gap.className = 'atl-gap';
       gap.style.minHeight = h + 'px';
-      if (days >= 45) gap.innerHTML = `<span class="atl-gap-label">${annivEsc(intervalLabel(gapMs))}のあいだ</span>`;
+      if (days >= 45) gap.innerHTML = `<span class="atl-gap-label">${tr(`${annivEsc(intervalLabel(gapMs))}のあいだ`, `${annivEsc(intervalLabel(gapMs))} apart`)}</span>`;
       body.appendChild(gap);
     }
   });
   const add = document.createElement('button');
   add.className = 'atl-add'; add.type = 'button';
-  add.textContent = '＋ あの日の続き';
+  add.textContent = tr('＋ あの日の続き', '＋ Continue that day');
   add.addEventListener('click', () => addPlannedEntry(a));
   body.appendChild(add);
 }
@@ -4019,8 +4019,8 @@ function openAnnivPhotoZoom(a, photoId) {
 function addPlannedEntry(a) {
   const modal = document.createElement('div'); modal.className = 'ai-modal anniv-z';
   modal.innerHTML =
-    `<div class="ai-modal-card"><h2>🗓 あの日の続き</h2><p>また訪れる日を選べます。その日にしたいこと・行く理由を書き残せます。</p>` +
-    `<input type="date" class="atl-date-input"><div class="actions"><button id="atlDpCancel">キャンセル</button><button class="primary" id="atlDpOk">追加</button></div></div>`;
+    `<div class="ai-modal-card"><h2>${tr('🗓 あの日の続き', '🗓 Continue that day')}</h2><p>${tr('また訪れる日を選べます。その日にしたいこと・行く理由を書き残せます。', 'Pick a day to visit again. Jot down what you want to do or your reason to go.')}</p>` +
+    `<input type="date" class="atl-date-input"><div class="actions"><button id="atlDpCancel">${tr('キャンセル', 'Cancel')}</button><button class="primary" id="atlDpOk">${tr('追加', 'Add')}</button></div></div>`;
   document.body.appendChild(modal);
   const input = modal.querySelector('.atl-date-input');
   const t = new Date(); t.setDate(t.getDate() + 1);
@@ -4045,10 +4045,10 @@ function setAnnivBaseDate(a) {
   const past = (a.visits || []).filter(v => !v.planned).map(v => v.date).sort();   // 最古の訪問日＝あの日 を既定候補に
   const def = a.baseDate || past[0] || todayDateStr();
   modal.innerHTML =
-    `<div class="ai-modal-card"><h2>🎯 基準日</h2><p>この日を基準に、各日の「何日前／何日後」を表示します。（例：初めて訪れた日、大切な記念の日）</p>` +
+    `<div class="ai-modal-card"><h2>${tr('🎯 基準日', '🎯 Base date')}</h2><p>${tr('この日を基準に、各日の「何日前／何日後」を表示します。（例：初めて訪れた日、大切な記念の日）', 'Uses this day as the reference to show “N days before/after” on each day. (e.g. the day you first visited, or a meaningful date.)')}</p>` +
     `<input type="date" class="atl-date-input" value="${def}"><div class="actions">` +
-    (a.baseDate ? `<button id="baseClear">解除</button>` : '') +
-    `<button id="baseCancel">キャンセル</button><button class="primary" id="baseOk">設定</button></div></div>`;
+    (a.baseDate ? `<button id="baseClear">${tr('解除', 'Clear')}</button>` : '') +
+    `<button id="baseCancel">${tr('キャンセル', 'Cancel')}</button><button class="primary" id="baseOk">${tr('設定', 'Set')}</button></div></div>`;
   document.body.appendChild(modal);
   const input = modal.querySelector('.atl-date-input');
   if (!input.value) input.value = def;
@@ -4065,12 +4065,12 @@ function setAnnivBaseDate(a) {
 // 代表写真を選ぶ（その日の円内写真から・最大6枚・時刻順）。自動選択(登録時 photoIds)を手動で変更可能。
 function openVisitPhotoPicker(a, visit) {
   const cands = photosInCircle(a.center.lat, a.center.lng, a.radius).filter(p => dayKeyOf(p) === visit.dayKey);
-  if (!cands.length) { logInfo('この日の写真が見つかりませんでした'); return; }
+  if (!cands.length) { logInfo(tr('この日の写真が見つかりませんでした', 'No photos found for this day')); return; }
   const sel = new Set(visit.photoIds || []);
   const modal = document.createElement('div'); modal.className = 'ai-modal anniv-z';
   modal.innerHTML =
-    `<div class="ai-modal-card"><h2>🖼 代表写真を選ぶ</h2><p>${visit.date}（最大6枚）</p>` +
-    `<div class="atl-picker-grid"></div><div class="actions"><button id="pkCancel">キャンセル</button><button class="primary" id="pkSave">保存</button></div></div>`;
+    `<div class="ai-modal-card"><h2>${tr('🖼 代表写真を選ぶ', '🖼 Choose cover photos')}</h2><p>${tr(`${visit.date}（最大6枚）`, `${visit.date} (up to 6)`)}</p>` +
+    `<div class="atl-picker-grid"></div><div class="actions"><button id="pkCancel">${tr('キャンセル', 'Cancel')}</button><button class="primary" id="pkSave">${tr('保存', 'Save')}</button></div></div>`;
   document.body.appendChild(modal);
   const grid = modal.querySelector('.atl-picker-grid');
   cands.forEach(p => {
@@ -4078,7 +4078,7 @@ function openVisitPhotoPicker(a, visit) {
     cell.innerHTML = `<img src="${thumbUrl(p)}">`;
     cell.addEventListener('click', () => {
       if (sel.has(p.id)) { sel.delete(p.id); cell.classList.remove('sel'); }
-      else { if (sel.size >= 6) { logInfo('代表写真は6枚までです'); return; } sel.add(p.id); cell.classList.add('sel'); }
+      else { if (sel.size >= 6) { logInfo(tr('代表写真は6枚までです', 'Up to 6 cover photos')); return; } sel.add(p.id); cell.classList.add('sel'); }
     });
     grid.appendChild(cell);
   });
@@ -4167,14 +4167,14 @@ async function excludePhoto(photo) {
     render();      // 除外写真は filter で消える
   }
   if (mapState && mapState.refreshData) mapState.refreshData();   // 地図が開いていればマーカー/タイムラインから消す (v61)
-  try { await dbPut(photo); } catch (e) { logErr(`除外保存失敗: ${e?.message || String(e)}`); }
+  try { await dbPut(photo); } catch (e) { logErr(tr(`除外保存失敗: ${e?.message || String(e)}`, `Failed to save exclusion: ${e?.message || String(e)}`)); }
 }
 
 async function undoExclude(photo) {
   photo.excluded = false;
   render();
   if (mapState && mapState.refreshData) mapState.refreshData();   // 地図が開いていれば戻す (v61)
-  try { await dbPut(photo); } catch (e) { logErr(`取消保存失敗: ${e?.message || String(e)}`); }
+  try { await dbPut(photo); } catch (e) { logErr(tr(`取消保存失敗: ${e?.message || String(e)}`, `Failed to save undo: ${e?.message || String(e)}`)); }
 }
 
 let toastEl = null, toastTimer = null;
@@ -4183,9 +4183,9 @@ function showUndoToast(photo) {
   const t = document.createElement('div');
   t.className = 'toast';
   const span = document.createElement('span');
-  span.textContent = '1枚を除外しました';
+  span.textContent = tr('1枚を除外しました', 'Excluded 1 photo');
   const btn = document.createElement('button');
-  btn.textContent = '取り消す';
+  btn.textContent = tr('取り消す', 'Undo');
   btn.addEventListener('click', () => { hideToast(); undoExclude(photo); });
   t.appendChild(span);
   t.appendChild(btn);
@@ -4216,9 +4216,9 @@ function renderInfoModal() {
   const card = document.createElement('div');
   card.className = 'ai-modal-card';
   card.innerHTML = `
-    <h2>ℹ️ ${t('使い方・注意', 'Help & Notes')}</h2>
+    <h2>ℹ️ ${tr('使い方・注意', 'Help & Notes')}</h2>
     <div style="text-align:left;font-size:13px;line-height:1.7;color:#ccc;">
-      <p style="margin:.4em 0;color:#9f9;">🔒 ${t('<b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。AI 解析も端末内で行います。', '<b>Your photos stay on this device.</b> Nothing is uploaded to the cloud or any server. AI analysis runs on-device.')}</p>
+      <p style="margin:.4em 0;color:#9f9;">🔒 ${tr('<b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。AI 解析も端末内で行います。', '<b>Your photos stay on this device.</b> Nothing is uploaded to the cloud or any server. AI analysis runs on-device.')}</p>
       <p style="margin:.8em 0 .2em;color:#fff;">📥 取り込み</p>
       <p style="margin:.2em 0;"><b>📷取り込む</b> から <b>ファイル / フォルダー</b> を選びます。撮影日時(EXIF)があればそれを、なければ<b>保存日（最終更新日）</b>を日時にして取り込みます（色・意味の連想に乗ります）。日時の出所は画像を見ると「撮影日 / 保存日 / 投稿日」と表示されます。細かい基準（撮影日のある画像だけ取り込む等）は <b>⚙️ 詳細設定</b> から。同じ画像を選び直しても<b>重複は自動スキップ</b>。たくさん入れる時・古い端末では小分けが安定。</p>
       <p style="margin:.2em 0;">📦 は <b>Instagram / X(Twitter) のエクスポート(zip)</b> から取り込みます。画像本体から日時が消えていても、同梱データ（Instagram は「情報をダウンロード」の <b>JSON 形式</b>、X は <b>アーカイブ</b>の <code>data/tweets.js</code>）から<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。X は画像投稿のみ対応（動画・テキストは対象外）。容量が大きいと時間がかかるので、期間を絞ると軽いです。</p>
@@ -4236,7 +4236,7 @@ function renderInfoModal() {
   const actions = document.createElement('div');
   actions.className = 'actions';
   const closeBtn = document.createElement('button');
-  closeBtn.textContent = t('閉じる', 'Close');
+  closeBtn.textContent = tr('閉じる', 'Close');
   closeBtn.addEventListener('click', closeInfoModal);
   actions.appendChild(closeBtn);
   card.appendChild(actions);
@@ -4272,11 +4272,11 @@ function renderExcludedModal() {
   card.className = 'ai-modal-card';
 
   const h2 = document.createElement('h2');
-  h2.textContent = `🗑 削除した写真 (${excluded.length})`;
+  h2.textContent = tr(`🗑 削除した写真 (${excluded.length})`, `🗑 Deleted photos (${excluded.length})`);
   card.appendChild(h2);
 
   const desc = document.createElement('p');
-  desc.textContent = '✕ で「もう出さない」にした写真です。「戻す」で連想に復活します。';
+  desc.textContent = tr('✕ で「もう出さない」にした写真です。「戻す」で連想に復活します。', 'Photos you hid with ✕ (“don’t show again”). “Restore” brings them back to the wander.');
   card.appendChild(desc);
 
   if (excluded.length === 0) {
@@ -4307,13 +4307,13 @@ function renderExcludedModal() {
   actions.className = 'actions';
   if (excluded.length > 1) {
     const allBtn = document.createElement('button');
-    allBtn.textContent = 'すべて戻す';
+    allBtn.textContent = tr('すべて戻す', 'Restore all');
     allBtn.addEventListener('click', restoreAllExcluded);
     actions.appendChild(allBtn);
   }
   const closeBtn = document.createElement('button');
   closeBtn.className = 'primary';
-  closeBtn.textContent = '閉じる';
+  closeBtn.textContent = tr('閉じる', 'Close');
   closeBtn.addEventListener('click', closeExcludedModal);
   actions.appendChild(closeBtn);
   card.appendChild(actions);
@@ -4349,27 +4349,27 @@ function renderAIModal() {
   const card = document.createElement('div');
   card.className = 'ai-modal-card';
 
-  let body = `<h2>🧠 AI で「意味の近傍」を引く</h2>`;
+  let body = `<h2>${tr('🧠 AI で「意味の近傍」を引く', '🧠 Find “nearby by meaning” with AI')}</h2>`;
 
   if (aiLoading || aiExtracting) {
     // 進行中
     const pct = aiStatus && aiStatus.total ? Math.round(100 * aiStatus.done / aiStatus.total) : 0;
     body += `
-      <p>${aiStatus?.msg || '処理中…'}</p>
+      <p>${aiStatus?.msg || tr('処理中…', 'Processing…')}</p>
       <div class="stat">${aiStatus?.done ?? 0} / ${aiStatus?.total ?? '?'}</div>
       <div class="bar"><div style="width:${pct}%"></div></div>
-      <p style="font-size:11px;color:#888;">画面を閉じても処理は続きます (ヘッダに 🧠 進捗)。タブを背景にすると iOS は処理を遅らせます。</p>
+      <p style="font-size:11px;color:#888;">${tr('画面を閉じても処理は続きます (ヘッダに 🧠 進捗)。タブを背景にすると iOS は処理を遅らせます。', 'Processing continues even if you close this (progress shows in the 🧠 header). iOS slows work when the tab is backgrounded.')}</p>
     `;
   } else {
     // 待機 / 完了
     body += `
-      <p>「色」「時空」と並ぶ 3 つ目の連想軸として、CLIP モデルで写真の <b>意味</b> (被写体・シーン) を埋め込み、コサイン類似で近傍を引きます。explore のモード切替に「🧠 意味」が出ます。</p>
-      <div class="stat">解析済み: ${done.toLocaleString()} 枚 ${capped ? `/ 標本上限 ${MEANING_SAMPLE_CAP.toLocaleString()} (全 ${total.toLocaleString()} 枚中)` : `/ ${total} 枚 ${remain > 0 ? `(未解析 ${remain})` : '(全件解析済)'}`}</div>
-      ${capped ? `<p style="font-size:11px;color:#888;">枚数が多いので意味解析は <b>${MEANING_SAMPLE_CAP.toLocaleString()} 枚のランダム標本</b>に間引きます (発熱・時間対策)。色・時空・ランダム引きは全 ${total.toLocaleString()} 枚を使います。</p>` : ''}
-      ${done > 0 ? `<p style="font-size:11px;color:#888;">explore で写真をタップ → モード「🧠 意味」で確認。</p>` : ''}
-      ${aiLastError ? `<p style="color:#f88;font-size:11px;">エラー: ${aiLastError}</p>` : ''}
-      <p style="font-size:11px;color:#888;">初回はモデル DL (~100MB)。Wi-Fi 推奨。抽出自体は速いです。</p>
-      <p style="font-size:11px;color:#6fce92;">🔒 解析も端末内。写真はどこにもアップロード・送信されません (DL するのは AI モデルだけ)。</p>
+      <p>${tr('「色」「時空」と並ぶ 3 つ目の連想軸として、CLIP モデルで写真の <b>意味</b> (被写体・シーン) を埋め込み、コサイン類似で近傍を引きます。explore のモード切替に「🧠 意味」が出ます。', 'As a third association axis alongside “color” and “time & place,” the CLIP model embeds each photo’s <b>meaning</b> (subject, scene) and finds neighbors by cosine similarity. A “🧠 Meaning” mode appears in the wander view.')}</p>
+      <div class="stat">${tr(`解析済み: ${done.toLocaleString()} 枚 ${capped ? `/ 標本上限 ${MEANING_SAMPLE_CAP.toLocaleString()} (全 ${total.toLocaleString()} 枚中)` : `/ ${total} 枚 ${remain > 0 ? `(未解析 ${remain})` : '(全件解析済)'}`}`, `Analyzed: ${done.toLocaleString()} ${capped ? `/ sample cap ${MEANING_SAMPLE_CAP.toLocaleString()} (of ${total.toLocaleString()})` : `/ ${total} ${remain > 0 ? `(${remain} left)` : '(all analyzed)'}`}`)}</div>
+      ${capped ? `<p style="font-size:11px;color:#888;">${tr(`枚数が多いので意味解析は <b>${MEANING_SAMPLE_CAP.toLocaleString()} 枚のランダム標本</b>に間引きます (発熱・時間対策)。色・時空・ランダム引きは全 ${total.toLocaleString()} 枚を使います。`, `With many photos, meaning analysis is thinned to a <b>random sample of ${MEANING_SAMPLE_CAP.toLocaleString()}</b> (to limit heat and time). Color, time & place, and random draws use all ${total.toLocaleString()}.`)}</p>` : ''}
+      ${done > 0 ? `<p style="font-size:11px;color:#888;">${tr('explore で写真をタップ → モード「🧠 意味」で確認。', 'Tap a photo in the wander view → check it in the “🧠 Meaning” mode.')}</p>` : ''}
+      ${aiLastError ? `<p style="color:#f88;font-size:11px;">${tr(`エラー: ${aiLastError}`, `Error: ${aiLastError}`)}</p>` : ''}
+      <p style="font-size:11px;color:#888;">${tr('初回はモデル DL (~100MB)。Wi-Fi 推奨。抽出自体は速いです。', 'First run downloads the model (~100MB). Wi-Fi recommended. Extraction itself is fast.')}</p>
+      <p style="font-size:11px;color:#6fce92;">${tr('🔒 解析も端末内。写真はどこにもアップロード・送信されません (DL するのは AI モデルだけ)。', '🔒 Analysis runs on-device too. Photos are never uploaded or sent anywhere (only the AI model is downloaded).')}</p>
     `;
   }
 
@@ -4379,24 +4379,24 @@ function renderAIModal() {
   actions.className = 'actions';
   if (aiLoading || aiExtracting) {
     const closeBtn = document.createElement('button');
-    closeBtn.textContent = '閉じる (処理は続く)';
+    closeBtn.textContent = tr('閉じる (処理は続く)', 'Close (keeps running)');
     closeBtn.addEventListener('click', closeAIModal);
     actions.appendChild(closeBtn);
     if (aiExtracting) {
       // 中断ボタン (DL 中は中断できない、抽出ループ中のみ)
       const cancelBtn = document.createElement('button');
-      cancelBtn.textContent = '中断';
+      cancelBtn.textContent = tr('中断', 'Stop');
       cancelBtn.addEventListener('click', () => { aiCancel = true; });
       actions.appendChild(cancelBtn);
     }
   } else {
     const closeBtn = document.createElement('button');
-    closeBtn.textContent = '閉じる';
+    closeBtn.textContent = tr('閉じる', 'Close');
     closeBtn.addEventListener('click', closeAIModal);
     const runBtn = document.createElement('button');
     runBtn.className = 'primary';
     // v27: 解析対象は「標本上限までの残り枠」。上限超え分は間引く (= toAnalyze)。
-    runBtn.textContent = toAnalyze > 0 ? `${toAnalyze.toLocaleString()} 枚を解析` : (room === 0 ? '標本上限に到達' : '解析完了');
+    runBtn.textContent = toAnalyze > 0 ? tr(`${toAnalyze.toLocaleString()} 枚を解析`, `Analyze ${toAnalyze.toLocaleString()}`) : (room === 0 ? tr('標本上限に到達', 'Sample cap reached') : tr('解析完了', 'Analysis complete'));
     runBtn.disabled = (toAnalyze === 0);
     runBtn.addEventListener('click', () => { runEmbeddingExtraction(room); });  // room 枠だけ (シャッフル済=ランダム標本)
     actions.appendChild(closeBtn);
@@ -4421,7 +4421,7 @@ function updateTrashBtn() {
 function render() {
   $main.innerHTML = '';
   const activeCount = allPhotos.reduce((n, p) => n + (visible(p) ? 1 : 0), 0);
-  $count.textContent = activeCount > 0 ? `${activeCount} ${t('枚', 'photos')}` : t('— 枚', '— photos');
+  $count.textContent = activeCount > 0 ? `${activeCount} ${tr('枚', 'photos')}` : tr('— 枚', '— photos');
   renderAIModal();    // モーダルは独立 (state に依存しない overlay)
   renderInfoModal();  // 使い方・注意モーダル (v38)
   renderExcludedModal();  // 削除（除外）一覧モーダル (v48)
@@ -4436,18 +4436,18 @@ function render() {
     // ネイティブ (Capacitor) のときは「ライブラリ全体から始める」を主役に、web ピッカーは
     // 「数枚で試す」副導線に下げる (核＝偶然/久しぶり/よみがえる の段階導線, v94)。
     const nativeBlock = IS_NATIVE ? `
-        <button class="primary" id="emptyNative">📚 ${t('写真ライブラリ全体から始める', 'Start from your whole photo library')}</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">${t('この端末の<b>すべての写真</b>から連想を始めます（端末内だけで処理）。<b>まず数枚で試す</b>なら下のボタンへ。', 'Begin from <b>all the photos</b> on this device (processed only on-device). To <b>try with just a few</b>, use the button below.')}</p>` : '';
+        <button class="primary" id="emptyNative">📚 ${tr('写真ライブラリ全体から始める', 'Start from your whole photo library')}</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">${tr('この端末の<b>すべての写真</b>から連想を始めます（端末内だけで処理）。<b>まず数枚で試す</b>なら下のボタンへ。', 'Begin from <b>all the photos</b> on this device (processed only on-device). To <b>try with just a few</b>, use the button below.')}</p>` : '';
     $main.innerHTML = `
       <div class="empty">
-        <h2>${t('写真を取り込んで始める', 'Start by importing your photos')}</h2>
-        <div class="privacy">🔒 ${t('<b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。すべて端末内 (IndexedDB) に保存され、AI 解析も端末内で行います。', '<b>Your photos stay on this device.</b> Nothing is uploaded to the cloud or any server. Everything is stored locally (IndexedDB), and AI analysis runs on-device.')}</div>
+        <h2>${tr('写真を取り込んで始める', 'Start by importing your photos')}</h2>
+        <div class="privacy">🔒 ${tr('<b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。すべて端末内 (IndexedDB) に保存され、AI 解析も端末内で行います。', '<b>Your photos stay on this device.</b> Nothing is uploaded to the cloud or any server. Everything is stored locally (IndexedDB), and AI analysis runs on-device.')}</div>
         ${nativeBlock}
-        <p>${t('まず 20〜30 枚くらい入れて感触を見るのが目安です。', 'Start with about 20–30 photos to get a feel for it.')}</p>
-        <button class="${IS_NATIVE ? 'secondary' : 'primary'} import-trigger" id="emptyAdd">📷 ${IS_NATIVE ? t('数枚だけ選んで試す', 'Pick a few to try') : t('画像を取り込む', 'Import photos')}</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">${t('押すと <b>ファイル / フォルダー</b> を選べます。撮影日時があればそれを、なければ<b>保存日</b>を使って取り込みます。細かい基準は <b>⚙️ 詳細設定</b> から。', 'Tap to pick <b>files / folders</b>. Uses the capture date if present, otherwise the <b>saved date</b>. Fine-tune under <b>⚙️ Settings</b>.')}</p>
-        <button id="emptyIg" style="margin-top:6px;">📦 ${t('Instagram / X の zip から取り込む', 'Import from Instagram / X zip')}</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">${t('（上級者向け）Instagram「情報をダウンロード」(JSON形式) / X(Twitter) アーカイブの zip。投稿日時を復元します。', '(Advanced) Instagram “Download your information” (JSON) / X (Twitter) archive zip. Restores post dates.')}</p>
+        <p>${tr('まず 20〜30 枚くらい入れて感触を見るのが目安です。', 'Start with about 20–30 photos to get a feel for it.')}</p>
+        <button class="${IS_NATIVE ? 'secondary' : 'primary'} import-trigger" id="emptyAdd">📷 ${IS_NATIVE ? tr('数枚だけ選んで試す', 'Pick a few to try') : tr('画像を取り込む', 'Import photos')}</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">${tr('押すと <b>ファイル / フォルダー</b> を選べます。撮影日時があればそれを、なければ<b>保存日</b>を使って取り込みます。細かい基準は <b>⚙️ 詳細設定</b> から。', 'Tap to pick <b>files / folders</b>. Uses the capture date if present, otherwise the <b>saved date</b>. Fine-tune under <b>⚙️ Settings</b>.')}</p>
+        <button id="emptyIg" style="margin-top:6px;">📦 ${tr('Instagram / X の zip から取り込む', 'Import from Instagram / X zip')}</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">${tr('（上級者向け）Instagram「情報をダウンロード」(JSON形式) / X(Twitter) アーカイブの zip。投稿日時を復元します。', '(Advanced) Instagram “Download your information” (JSON) / X (Twitter) archive zip. Restores post dates.')}</p>
       </div>`;
     if (IS_NATIVE) {
       const en = document.getElementById('emptyNative');
@@ -4465,12 +4465,12 @@ function render() {
     $main.innerHTML = `
       <div class="progress" style="text-align:center;">
         <div class="spinner"></div>
-        <div class="text">📷 ${t('写真を読み込んでいます…', 'Loading photos…')}</div>
-        <div class="text" style="color:#888;font-size:11px;margin-top:6px;">${t('写真が多いと選択後の準備に数十秒かかることがあります', 'With many photos, preparation can take tens of seconds.')}</div>
+        <div class="text">📷 ${tr('写真を読み込んでいます…', 'Loading photos…')}</div>
+        <div class="text" style="color:#888;font-size:11px;margin-top:6px;">${tr('写真が多いと選択後の準備に数十秒かかることがあります', 'With many photos, preparation can take tens of seconds.')}</div>
         <div class="text" id="prep-hint" style="color:#e6a23c;font-size:11px;margin-top:8px;"></div>
-        <div class="privacy-line">🔒 ${t('アップロードではありません。この端末内だけで処理しています', 'Not an upload — processed only on this device.')}</div>
+        <div class="privacy-line">🔒 ${tr('アップロードではありません。この端末内だけで処理しています', 'Not an upload — processed only on this device.')}</div>
       </div>
-      <div class="actions"><button class="secondary" id="cancelPrep">${t('やめる', 'Cancel')}</button></div>`;
+      <div class="actions"><button class="secondary" id="cancelPrep">${tr('やめる', 'Cancel')}</button></div>`;
     document.getElementById('cancelPrep').addEventListener('click', cancelPicker);
     return;
   }
@@ -4478,9 +4478,9 @@ function render() {
   if (state === 'importing') {
     $main.innerHTML = `
       <div class="progress">
-        <div class="text" id="prog-text">${t('読み込み開始…', 'Starting…')}</div>
+        <div class="text" id="prog-text">${tr('読み込み開始…', 'Starting…')}</div>
         <div class="bar"><div id="prog-bar" style="width:0%"></div></div>
-        <div class="privacy-line" style="text-align:center;">🔒 ${t('写真はアップロードされません（端末内で処理）', 'Photos are not uploaded (processed on-device).')}</div>
+        <div class="privacy-line" style="text-align:center;">🔒 ${tr('写真はアップロードされません（端末内で処理）', 'Photos are not uploaded (processed on-device).')}</div>
       </div>`;
     return;
   }
@@ -4513,9 +4513,9 @@ function render() {
     const note = document.createElement('div');
     note.className = 'filter-note';
     if (currentFilterObj?.needsGPS) {
-      note.textContent = `${filtered.length} 枚から (GPS付き ${gpsCount} / ${allPhotos.length} 枚)`;
+      note.textContent = tr(`${filtered.length} 枚から (GPS付き ${gpsCount} / ${allPhotos.length} 枚)`, `from ${filtered.length} photos (with GPS ${gpsCount} / ${allPhotos.length})`);
     } else {
-      note.textContent = `${filtered.length} 枚から`;
+      note.textContent = tr(`${filtered.length} 枚から`, `from ${filtered.length} photos`);
     }
     $main.appendChild(note);
 
@@ -4525,17 +4525,17 @@ function render() {
       const msg = document.createElement('p');
       msg.style.cssText = 'text-align:center;color:#888;margin:40px 0;';
       if (currentFilter === 'all') {
-        msg.textContent = '写真がありません';
+        msg.textContent = tr('写真がありません', 'No photos');
       } else if (currentFilterObj?.needsGPS && gpsCount === 0) {
-        msg.innerHTML = `GPS情報を持つ写真がありません<br><span style="font-size:11px;color:#666;">「${currentFilterObj.label}」は位置情報がある写真から引きます</span>`;
+        msg.innerHTML = tr(`GPS情報を持つ写真がありません<br><span style="font-size:11px;color:#666;">「${currentFilterObj.label}」は位置情報がある写真から引きます</span>`, `No photos with GPS<br><span style="font-size:11px;color:#666;">“${currentFilterObj.label}” draws from photos that have location</span>`);
       } else {
-        msg.textContent = `「${currentFilterObj.label}」に該当する写真がありません`;
+        msg.textContent = tr(`「${currentFilterObj.label}」に該当する写真がありません`, `No photos match “${currentFilterObj.label}”`);
       }
       $main.appendChild(msg);
     } else if (visibleRandom.length === 0) {
       const msg = document.createElement('p');
       msg.style.cssText = 'text-align:center;color:#888;margin:40px 0;';
-      msg.textContent = '全部除外されています。引き直すかフィルタを変えてください。';
+      msg.textContent = tr('全部除外されています。引き直すかフィルタを変えてください。', 'All are excluded. Draw again or change the filter.');
       $main.appendChild(msg);
     } else {
       const deck = document.createElement('div');
@@ -4594,7 +4594,7 @@ function render() {
     const modeBar = document.createElement('div');
     modeBar.className = 'mode-toggle';
     const opener = document.createElement('button');
-    opener.textContent = t('モード', 'Mode') + (modeToggleVisible ? ' ▲' : ' ▼');
+    opener.textContent = tr('モード', 'Mode') + (modeToggleVisible ? ' ▲' : ' ▼');
     opener.style.cssText = 'border-color:#333;color:#888;';
     opener.addEventListener('click', () => {
       modeToggleVisible = !modeToggleVisible;
@@ -4622,10 +4622,10 @@ function render() {
         });
         return b;
       };
-      toggle.appendChild(mkBtn('mix', t('🎲 ミックス', '🎲 Mix')));
-      toggle.appendChild(mkBtn('spacetime', t('⏳ 時空', '⏳ Time & place')));
-      toggle.appendChild(mkBtn('color', t('🎨 カラー', '🎨 Color')));
-      if (aiEmbeddedCount() >= 3) toggle.appendChild(mkBtn('meaning', t('🧠 意味', '🧠 Meaning')));
+      toggle.appendChild(mkBtn('mix', tr('🎲 ミックス', '🎲 Mix')));
+      toggle.appendChild(mkBtn('spacetime', tr('⏳ 時空', '⏳ Time & place')));
+      toggle.appendChild(mkBtn('color', tr('🎨 カラー', '🎨 Color')));
+      if (aiEmbeddedCount() >= 3) toggle.appendChild(mkBtn('meaning', tr('🧠 意味', '🧠 Meaning')));
       $main.appendChild(toggle);
     }
 
@@ -4633,7 +4633,7 @@ function render() {
     if (backfillStatus && backfillStatus.done < backfillStatus.total) {
       const note = document.createElement('div');
       note.className = 'backfill-note';
-      note.textContent = t(`🌀 色情報を準備中… ${backfillStatus.done} / ${backfillStatus.total}`, `🌀 Preparing color data… ${backfillStatus.done} / ${backfillStatus.total}`);
+      note.textContent = tr(`🌀 色情報を準備中… ${backfillStatus.done} / ${backfillStatus.total}`, `🌀 Preparing color data… ${backfillStatus.done} / ${backfillStatus.total}`);
       $main.appendChild(note);
     }
 
@@ -4641,27 +4641,27 @@ function render() {
     if (exploreMode === 'color' && !center.color) {
       const label = document.createElement('div');
       label.className = 'neighbor-label';
-      label.textContent = t('この写真の色情報がまだありません', 'No color data for this photo yet');
+      label.textContent = tr('この写真の色情報がまだありません', 'No color data for this photo yet');
       $main.appendChild(label);
     } else if (exploreMode === 'meaning' && !center.embedding) {
       const label = document.createElement('div');
       label.className = 'neighbor-label';
-      label.textContent = t('この写真はまだ AI 解析されていません (🧠 から追加解析)', 'This photo isn\'t analyzed by AI yet (analyze from 🧠)');
+      label.textContent = tr('この写真はまだ AI 解析されていません (🧠 から追加解析)', 'This photo isn\'t analyzed by AI yet (analyze from 🧠)');
       $main.appendChild(label);
     } else {
       const ns = currentNeighbors.filter(visible).slice(0, 12);   // v116: 1枚大表示＋横スワイプなので多めに (近傍キャッシュ12枚)
       const label = document.createElement('div');
       label.className = 'neighbor-label';
       if (ns.length === 0) {
-        label.textContent = t('近くに写真がありません', 'No nearby photos');
+        label.textContent = tr('近くに写真がありません', 'No nearby photos');
       } else if (exploreMode === 'color') {
-        label.textContent = t(`色の近く ${ns.length} 枚`, `${ns.length} nearby · color`);
+        label.textContent = tr(`色の近く ${ns.length} 枚`, `${ns.length} nearby · color`);
       } else if (exploreMode === 'spacetime') {
-        label.textContent = t(`この時空の近く ${ns.length} 枚`, `${ns.length} nearby · time & place`);
+        label.textContent = tr(`この時空の近く ${ns.length} 枚`, `${ns.length} nearby · time & place`);
       } else if (exploreMode === 'meaning') {
-        label.textContent = t(`意味の近く ${ns.length} 枚`, `${ns.length} nearby · meaning`);
+        label.textContent = tr(`意味の近く ${ns.length} 枚`, `${ns.length} nearby · meaning`);
       } else {
-        label.textContent = t(`この写真のまわり ${ns.length} 枚`, `${ns.length} around this photo`);
+        label.textContent = tr(`この写真のまわり ${ns.length} 枚`, `${ns.length} around this photo`);
       }
       $main.appendChild(label);
 
@@ -4673,7 +4673,7 @@ function render() {
         $main.appendChild(deck);
         const hint = document.createElement('div');
         hint.className = 'swipe-hint';
-        hint.textContent = t('← スワイプで近くの写真へ・タップで歩く →', '← Swipe for nearby photos · tap to wander →');
+        hint.textContent = tr('← スワイプで近くの写真へ・タップで歩く →', '← Swipe for nearby photos · tap to wander →');
         $main.appendChild(hint);
       }
     }
@@ -4687,7 +4687,7 @@ function render() {
       const trailBar = document.createElement('div');
       trailBar.className = 'mode-toggle';   // モード opener と同じ見た目・配置
       const trailOpener = document.createElement('button');
-      trailOpener.textContent = trailVisible ? t('🔖 足跡 ▲', '🔖 Footprints ▲') : t(`🔖 足跡 ${displayTrail.length} ▼`, `🔖 Footprints ${displayTrail.length} ▼`);
+      trailOpener.textContent = trailVisible ? tr('🔖 足跡 ▲', '🔖 Footprints ▲') : tr(`🔖 足跡 ${displayTrail.length} ▼`, `🔖 Footprints ${displayTrail.length} ▼`);
       trailOpener.style.cssText = 'border-color:#333;color:#888;';
       trailOpener.addEventListener('click', () => {
         trailVisible = !trailVisible;
@@ -4726,7 +4726,7 @@ function render() {
 
     const actions = document.createElement('div');
     actions.className = 'actions';
-    actions.innerHTML = `<button class="secondary" id="backRandom">${t('← トップに戻る', '← Back to top')}</button>`;
+    actions.innerHTML = `<button class="secondary" id="backRandom">${tr('← トップに戻る', '← Back to top')}</button>`;
     $main.appendChild(actions);
     document.getElementById('backRandom').addEventListener('click', drawRandom);
     return;
@@ -4892,7 +4892,7 @@ function updateBgStatus() {
     }
   }
   const activeCount = allPhotos.reduce((n, p) => n + (visible(p) ? 1 : 0), 0);
-  $count.textContent = activeCount > 0 ? `${activeCount} ${t('枚', 'photos')}` : t('— 枚', '— photos');
+  $count.textContent = activeCount > 0 ? `${activeCount} ${tr('枚', 'photos')}` : tr('— 枚', '— photos');
 }
 
 // 既存写真で color フィールドが無いものに、保存済み thumb から色彩特徴を計算して付与する。
@@ -5292,7 +5292,7 @@ document.getElementById('btnMap').addEventListener('click', () => openMapView())
 document.getElementById('btnTomorrow').addEventListener('click', () => openMapView(null, { todayOffset: 1 }));   // v124: 過去の明日（明日の月日を数年分）
 document.getElementById('btnTrash').addEventListener('click', openExcludedModal);
 document.getElementById('btnClear').addEventListener('click', async () => {
-  if (!confirm('IndexedDB の全写真を削除します。続行?')) return;
+  if (!confirm(tr('IndexedDB の全写真を削除します。続行?', 'This deletes all photos in IndexedDB. Continue?'))) return;
   await dbClear();
   try { await trackClear(); } catch {}   // 位置ロガーの記録も全削除に含める (v73)
   revokeAllThumbUrls();
