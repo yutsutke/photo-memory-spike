@@ -499,7 +499,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.85 (v132：二次画面の英語化＋i18n関数を t()→tr() に改名（既存の t ローカル変数と衝突＝v130/131 の潜在バグも解消）。記念日(一覧/ログ/基準日/登録/予定/代表写真)・封印・ⓘヘルプ・AIモーダル・削除写真一覧・確認ダイアログ・各トースト・「N枚から」件数を英語化。長文の情報モーダル本文/位置ロガー説明/devは次段。日本語端末は不変・?lang=en で検証) · 2026-07-01';
+const BUILD = 'phase3.86 (v133：英語化の総仕上げ（ユーザー実機で発見の残り＋長文）。写真詳細の🗺ボタン(別2箇所)・スワイプヒント・取り込みドロップダウン(ファイル/フォルダ/詳細設定)・詳細設定モーダル・情報モーダル本文6段落・自動取り込みプロンプト・位置ロガーパネル全体・日時ソースタグ(撮影日/保存日/投稿日)を tr() 化。dev(🧪 #dev)のみ日本語(開発者専用)。日本語端末は不変・?lang=en で検証) · 2026-07-01';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -1312,12 +1312,12 @@ function promptAutoImport(have) {
   modal.id = 'autoImpPrompt';
   modal.innerHTML =
     `<div class="ai-modal-card">` +
-      `<h2>📚 新しい写真を自動で取り込む？</h2>` +
-      `<p>このアプリを開くたびに、<b>新しく撮った写真だけ</b>を自動で取り込めます。取り込みの操作はもう要りません。</p>` +
-      `<p style="font-size:13px;opacity:.7">あとから「取り込む → ⚙️ 詳細設定」でいつでも切り替えられます。</p>` +
+      `<h2>${tr('📚 新しい写真を自動で取り込む？', '📚 Auto-import new photos?')}</h2>` +
+      `<p>${tr('このアプリを開くたびに、<b>新しく撮った写真だけ</b>を自動で取り込めます。取り込みの操作はもう要りません。', 'Each time you open the app, it can auto-import <b>only newly taken photos</b>. No more manual importing.')}</p>` +
+      `<p style="font-size:13px;opacity:.7">${tr('あとから「取り込む → ⚙️ 詳細設定」でいつでも切り替えられます。', 'You can switch this anytime later under “Import → ⚙️ Settings.”')}</p>` +
       `<div class="actions">` +
-        `<button id="autoImpNo">今はしない</button>` +
-        `<button class="primary" id="autoImpYes">はい、自動で</button>` +
+        `<button id="autoImpNo">${tr('今はしない', 'Not now')}</button>` +
+        `<button class="primary" id="autoImpYes">${tr('はい、自動で', 'Yes, automatically')}</button>` +
       `</div>` +
     `</div>`;
   document.body.appendChild(modal);
@@ -1949,10 +1949,10 @@ function fmtPlace(lat, lng) {
 // 日時の出所ラベル (v53)。画像を見た時に「撮影日 / 保存日 / 投稿日」のどれを使ったか分かるように。
 // 旧データ (dateSource 無し) は不明なので空 = 表示しない。manual = 後から手で直した日付 (v60)。
 function dateSourceLabel(photo) {
-  return photo?.dateSource === 'exif' ? '撮影日'
-       : photo?.dateSource === 'mtime' ? '保存日'
-       : photo?.dateSource === 'posted' ? '投稿日'
-       : photo?.dateSource === 'manual' ? '手動' : '';
+  return photo?.dateSource === 'exif' ? tr('撮影日', 'Captured')
+       : photo?.dateSource === 'mtime' ? tr('保存日', 'Saved')
+       : photo?.dateSource === 'posted' ? tr('投稿日', 'Posted')
+       : photo?.dateSource === 'manual' ? tr('手動', 'Manual') : '';
 }
 // datetime-local 入力との相互変換 (ローカル時刻、日付を後から直す用, v60)。
 function toDatetimeLocalVal(d) {
@@ -2276,7 +2276,7 @@ async function loggerRecord(pos, force) {
 }
 
 function loggerOnError(e) {
-  loggerStatus = (e && e.code === 1) ? '位置情報が許可されていません（端末の設定から許可してください）' : '位置を取得できません';
+  loggerStatus = (e && e.code === 1) ? tr('位置情報が許可されていません（端末の設定から許可してください）', 'Location isn’t allowed (allow it in your device settings)') : tr('位置を取得できません', 'Can’t get location');
   loggerRefreshUI();
 }
 
@@ -2308,9 +2308,9 @@ function stopNativeDrainTimer() { if (loggerDrainTimer) { clearInterval(loggerDr
 function loggerSyncStatusFromAuth() {
   if (!BgLoc) return;
   if (loggerNativeAuth === 'denied' || loggerNativeAuth === 'restricted')
-    loggerStatus = '位置情報が許可されていません（設定 →「あの日」→ 位置情報 →「常に許可」）';
+    loggerStatus = tr('位置情報が許可されていません（設定 →「あの日」→ 位置情報 →「常に許可」）', 'Location isn’t allowed (Settings → “A Past Day” → Location → “Always”)');
   else if (loggerNativeAuth === 'whenInUse')
-    loggerStatus = '「常に許可」にすると、アプリを閉じている間も記録できます（設定 → 位置情報）';
+    loggerStatus = tr('「常に許可」にすると、アプリを閉じている間も記録できます（設定 → 位置情報）', 'With “Always,” it can record even while the app is closed (Settings → Location)');
   else loggerStatus = '';
   loggerRefreshUI();
 }
@@ -2325,7 +2325,7 @@ function startLogger() {
   if (BgLoc) {                       // ネイティブ＝アプリを閉じても背景で記録（SLC/背景更新）
     BgLoc.start({ mode: loggerMode })
       .then(r => { if (r && r.status) { loggerNativeAuth = r.status; loggerSyncStatusFromAuth(); } })
-      .catch(() => { loggerStatus = '位置記録を開始できませんでした'; loggerRefreshUI(); });
+      .catch(() => { loggerStatus = tr('位置記録を開始できませんでした', 'Couldn’t start location recording'); loggerRefreshUI(); });
     drainNativeTrack();              // 直前まで背景でたまった点を即合流
     startNativeDrainTimer();
     loggerRefreshUI();
@@ -2333,7 +2333,7 @@ function startLogger() {
   }
   // --- web（前面のみ）既存ロジック ---
   if (loggerWatchId != null) return;
-  if (!navigator.geolocation) { loggerStatus = 'この端末は位置情報に未対応です'; loggerRefreshUI(); return; }
+  if (!navigator.geolocation) { loggerStatus = tr('この端末は位置情報に未対応です', 'This device doesn’t support location'); loggerRefreshUI(); return; }
   if (document.visibilityState === 'hidden') return;   // 前面でしか記録できない
   const opts = loggerMode === 'frequent'
     ? { enableHighAccuracy: true,  maximumAge: 5000,  timeout: 30000 }
@@ -2392,21 +2392,21 @@ function openLoggerPanel() {
   const card = document.createElement('div');
   card.className = 'ai-modal-card logger-card';
   card.innerHTML =
-    `<h2>🛰️ 位置ロガー</h2>` +
+    `<h2>${tr('🛰️ 位置ロガー', '🛰️ Location logger')}</h2>` +
     `<p class="logger-note">` + (BgLoc
-      ? 'オンにすると、<b>アプリを閉じている間も</b> その日の移動の軌跡をそっと記録します（端末内だけ・外部送信なし）。あとで「🗺 地図」を開くと、青緑の線で振り返れます。'
-      : 'アプリを開いている間だけ、いまいる場所を記録します。あとで「🗺 地図」を開くと、その日の軌跡を青緑の線で振り返れます。<br>※ 閉じている間も記録し続ける常時ログは、今後のアプリ版で対応予定です。') + `</p>` +
+      ? tr('オンにすると、<b>アプリを閉じている間も</b> その日の移動の軌跡をそっと記録します（端末内だけ・外部送信なし）。あとで「🗺 地図」を開くと、青緑の線で振り返れます。', 'When on, it quietly records your day’s movement track <b>even while the app is closed</b> (on-device only, nothing sent out). Open “🗺 Map” later to look back on it as a teal line.')
+      : tr('アプリを開いている間だけ、いまいる場所を記録します。あとで「🗺 地図」を開くと、その日の軌跡を青緑の線で振り返れます。<br>※ 閉じている間も記録し続ける常時ログは、今後のアプリ版で対応予定です。', 'Records where you are only while the app is open. Open “🗺 Map” later to look back on that day’s track as a teal line.<br>* Always-on logging that continues while closed is planned for a future app version.')) + `</p>` +
     `<div class="logger-modes">` +
-      `<label class="logger-mode"><input type="radio" name="loggerMode" value="off"><span><b>⏸ オフ</b><small>記録しない（既定）</small></span></label>` +
-      `<label class="logger-mode"><input type="radio" name="loggerMode" value="important"><span><b>🚶 重要な移動のみ</b><small>${BgLoc ? 'アプリを閉じていても記録（約500m単位・電池にやさしい・おすすめ）' : '大きく動いた時だけ点を残す（疎・電池にやさしい）'}</small></span></label>` +
-      `<label class="logger-mode"><input type="radio" name="loggerMode" value="frequent"><span><b>🛰️ こまめに</b><small>${BgLoc ? '細かい軌跡（高精度・電池を使う／背景でも記録）' : '開いている間ずっと細かく記録（密な軌跡）'}</small></span></label>` +
+      `<label class="logger-mode"><input type="radio" name="loggerMode" value="off"><span><b>${tr('⏸ オフ', '⏸ Off')}</b><small>${tr('記録しない（既定）', 'Don’t record (default)')}</small></span></label>` +
+      `<label class="logger-mode"><input type="radio" name="loggerMode" value="important"><span><b>${tr('🚶 重要な移動のみ', '🚶 Major moves only')}</b><small>${BgLoc ? tr('アプリを閉じていても記録（約500m単位・電池にやさしい・おすすめ）', 'Records even when closed (~500m steps, battery-friendly, recommended)') : tr('大きく動いた時だけ点を残す（疎・電池にやさしい）', 'Leaves a point only on big moves (sparse, battery-friendly)')}</small></span></label>` +
+      `<label class="logger-mode"><input type="radio" name="loggerMode" value="frequent"><span><b>${tr('🛰️ こまめに', '🛰️ Frequent')}</b><small>${BgLoc ? tr('細かい軌跡（高精度・電池を使う／背景でも記録）', 'Fine track (high accuracy, uses battery / records in background)') : tr('開いている間ずっと細かく記録（密な軌跡）', 'Records finely the whole time it’s open (dense track)')}</small></span></label>` +
     `</div>` +
     `<div class="logger-status" id="loggerStatusLine"></div>` +
     `<div class="logger-actions">` +
-      `<button class="logger-btn" id="loggerToMap">🗺 地図で軌跡を見る</button>` +
-      `<button class="logger-btn ghost" id="loggerClear">🗑 記録を消す</button>` +
+      `<button class="logger-btn" id="loggerToMap">${tr('🗺 地図で軌跡を見る', '🗺 See the track on the map')}</button>` +
+      `<button class="logger-btn ghost" id="loggerClear">${tr('🗑 記録を消す', '🗑 Clear records')}</button>` +
     `</div>` +
-    `<button class="logger-close" id="loggerCloseBtn">閉じる</button>`;
+    `<button class="logger-close" id="loggerCloseBtn">${tr('閉じる', 'Close')}</button>`;
   modal.appendChild(card);
 
   const radios = card.querySelectorAll('input[name="loggerMode"]');
@@ -2427,14 +2427,14 @@ function openLoggerPanel() {
     const line = card.querySelector('#loggerStatusLine');
     if (!line) return;
     if (loggerStatus) { line.textContent = `⚠ ${loggerStatus}`; return; }
-    if (!loggerOn()) { line.textContent = '記録は停止中です。'; return; }
+    if (!loggerOn()) { line.textContent = tr('記録は停止中です。', 'Recording is stopped.'); return; }
     const now = new Date();
     const s = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     let n = 0; try { n = (await trackGetRange(s, s + 86400000 - 1)).length; } catch {}
     if (!document.getElementById('loggerPanel')) return;   // 集計中に閉じられた
     const last = loggerLast ? new Date(loggerLast.t) : null;
-    line.textContent = `今日 ${n} 点を記録` +
-      (last ? ` ・ 最終 ${String(last.getHours()).padStart(2,'0')}:${String(last.getMinutes()).padStart(2,'0')}` : ' ・ 現在地を取得中…');
+    line.textContent = tr(`今日 ${n} 点を記録`, `${n} points today`) +
+      (last ? tr(` ・ 最終 ${String(last.getHours()).padStart(2,'0')}:${String(last.getMinutes()).padStart(2,'0')}`, ` · last ${String(last.getHours()).padStart(2,'0')}:${String(last.getMinutes()).padStart(2,'0')}`) : tr(' ・ 現在地を取得中…', ' · getting your location…'));
   }
   loggerPanelUpdate = updateLoggerPanel;
   if (BgLoc) refreshNativeAuth();   // 現在の許可状態をステータス行に反映
@@ -4135,7 +4135,7 @@ function makeBigCard(photo, onClick) {
   if (hasGps || photo.datetime) {
     const mapBtn = document.createElement('button');
     mapBtn.className = 'center-map-btn';
-    mapBtn.textContent = hasGps ? '🗺 地図でこの場所を見る' : '🗺 この日の地図へ';
+    mapBtn.textContent = hasGps ? tr('🗺 地図でこの場所を見る', '🗺 See this place on the map') : tr('🗺 この日の地図へ', '🗺 Map for this day');
     const stop = e => e.stopPropagation();
     mapBtn.addEventListener('pointerdown', stop);
     mapBtn.addEventListener('pointerup', stop);
@@ -4219,17 +4219,17 @@ function renderInfoModal() {
     <h2>ℹ️ ${tr('使い方・注意', 'Help & Notes')}</h2>
     <div style="text-align:left;font-size:13px;line-height:1.7;color:#ccc;">
       <p style="margin:.4em 0;color:#9f9;">🔒 ${tr('<b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。AI 解析も端末内で行います。', '<b>Your photos stay on this device.</b> Nothing is uploaded to the cloud or any server. AI analysis runs on-device.')}</p>
-      <p style="margin:.8em 0 .2em;color:#fff;">📥 取り込み</p>
-      <p style="margin:.2em 0;"><b>📷取り込む</b> から <b>ファイル / フォルダー</b> を選びます。撮影日時(EXIF)があればそれを、なければ<b>保存日（最終更新日）</b>を日時にして取り込みます（色・意味の連想に乗ります）。日時の出所は画像を見ると「撮影日 / 保存日 / 投稿日」と表示されます。細かい基準（撮影日のある画像だけ取り込む等）は <b>⚙️ 詳細設定</b> から。同じ画像を選び直しても<b>重複は自動スキップ</b>。たくさん入れる時・古い端末では小分けが安定。</p>
-      <p style="margin:.2em 0;">📦 は <b>Instagram / X(Twitter) のエクスポート(zip)</b> から取り込みます。画像本体から日時が消えていても、同梱データ（Instagram は「情報をダウンロード」の <b>JSON 形式</b>、X は <b>アーカイブ</b>の <code>data/tweets.js</code>）から<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。X は画像投稿のみ対応（動画・テキストは対象外）。容量が大きいと時間がかかるので、期間を絞ると軽いです。</p>
-      <p style="margin:.8em 0 .2em;color:#fff;">🖼 拡大表示 / 📅 日付を直す</p>
-      <p style="margin:.2em 0;">写真を<b>長押し</b>（連想ウォーク中の<b>中央の写真はタップ</b>でも）すると拡大表示できます（端末内のサムネ表示・アプリ内で完結）。<b>日付がおかしい・抜けている写真</b>は、開いた画面の <b>「📅 日付を直す」</b>から本当の日時に直せます（タイムラインや地図の並びもそこへ移ります。直す行為そのものが当時の記憶を思い出すきっかけにも）。</p>
-      <p style="margin:.8em 0 .2em;color:#fff;">🎲 連想の歩き方</p>
-      <p style="margin:.2em 0;">3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（直後のトースト、または右上の <b>♻️</b> からいつでも戻せます）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。</p>
-      <p style="margin:.8em 0 .2em;color:#fff;">🗺 地図 / 🔒 封印</p>
-      <p style="margin:.2em 0;"><b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。<b>複数日にまたがる旅行は1本の線で、日が変わるごとに色が変わります</b>（昔→今が色で読めます。1日以上あくと別の線）。<b>撮ったのに位置が入っていない写真</b>は、タイムライン（または地図のピン）の <b>「📍 位置を設定／位置を直す」</b>から、<b>地図のピンをドラッグ</b>して後から位置を付けられます（近い時間に位置のある写真があれば、その近くから始まります）。地図上部は <b>📅 期間</b> と <b>⋯ 表示</b> の2つ。<b>⋯</b> から <b>🔒 記憶の封印</b>（いま見えている<b>範囲</b>と<b>期間</b>を指定して、よみがえってほしくない場所・時期を3枚引き・連想・地図・タイムラインに出さない。<b>削除ではない</b>ので写真は残り、一覧から<b>いつでも解除</b>。位置情報のない写真は「期間」で封印できます）。タイムラインの各写真とマーカーには <b>🗑 削除</b> もあります（除外＝右上の <b>♻️</b> から戻せます）。</p>
-      <p style="margin:.8em 0 .2em;color:#fff;">🧠 意味（AI）</p>
-      <p style="margin:.2em 0;">🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">${tr('📥 取り込み', '📥 Import')}</p>
+      <p style="margin:.2em 0;">${tr('<b>📷取り込む</b> から <b>ファイル / フォルダー</b> を選びます。撮影日時(EXIF)があればそれを、なければ<b>保存日（最終更新日）</b>を日時にして取り込みます（色・意味の連想に乗ります）。日時の出所は画像を見ると「撮影日 / 保存日 / 投稿日」と表示されます。細かい基準（撮影日のある画像だけ取り込む等）は <b>⚙️ 詳細設定</b> から。同じ画像を選び直しても<b>重複は自動スキップ</b>。たくさん入れる時・古い端末では小分けが安定。', 'Choose <b>files / folders</b> from <b>📷 Import</b>. Uses the capture date (EXIF) if present, otherwise the <b>saved date (last modified)</b> (both feed color/meaning associations). Open a photo to see its date source: “Capture / Saved / Posted.” Fine-tune (e.g. import only images with a capture date) under <b>⚙️ Settings</b>. Re-selecting the same image <b>auto-skips duplicates</b>. For large batches or older devices, importing in smaller chunks is more stable.')}</p>
+      <p style="margin:.2em 0;">${tr('📦 は <b>Instagram / X(Twitter) のエクスポート(zip)</b> から取り込みます。画像本体から日時が消えていても、同梱データ（Instagram は「情報をダウンロード」の <b>JSON 形式</b>、X は <b>アーカイブ</b>の <code>data/tweets.js</code>）から<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。X は画像投稿のみ対応（動画・テキストは対象外）。容量が大きいと時間がかかるので、期間を絞ると軽いです。', '📦 imports from an <b>Instagram / X (Twitter) export (zip)</b>. Even if the image itself lost its date, it <b>restores the post date</b> from the bundled data (Instagram’s <b>JSON format</b> from “Download your information”; X’s <b>archive</b> at <code>data/tweets.js</code>) — unzipped on-device, photos never leave. X supports image posts only (no video or text). Large archives take time, so narrowing the period helps.')}</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">${tr('🖼 拡大表示 / 📅 日付を直す', '🖼 Zoom / 📅 Fix the date')}</p>
+      <p style="margin:.2em 0;">${tr('写真を<b>長押し</b>（連想ウォーク中の<b>中央の写真はタップ</b>でも）すると拡大表示できます（端末内のサムネ表示・アプリ内で完結）。<b>日付がおかしい・抜けている写真</b>は、開いた画面の <b>「📅 日付を直す」</b>から本当の日時に直せます（タイムラインや地図の並びもそこへ移ります。直す行為そのものが当時の記憶を思い出すきっかけにも）。', '<b>Long-press</b> a photo (or <b>tap the center photo</b> while wandering) to zoom in (on-device thumbnail, all in-app). For a photo with a <b>wrong or missing date</b>, use <b>“📅 Fix the date”</b> on the opened screen to set the real date (the timeline and map order move too — the act of fixing can itself spark a memory).')}</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">${tr('🎲 連想の歩き方', '🎲 How to wander')}</p>
+      <p style="margin:.2em 0;">${tr('3枚引く→タップでその近くへ。「モード」で <b>時空 / 色 / 意味</b> のミックスを切り替えられます。✕ で「もう出さない」除外（直後のトースト、または右上の <b>♻️</b> からいつでも戻せます）。歩いた道は <b>🔖 足跡</b> を開くとたどり直せます（タップでその地点へ戻る・最近 30 枚はリロードしても残ります）。', 'Draw 3 → tap to move nearby. In “Mode” you can switch the mix of <b>time &amp; place / color / meaning</b>. ✕ hides a photo (“don’t show again”; restore anytime from the toast or <b>♻️</b> at top-right). Reopen <b>🔖 Footprints</b> to retrace your path (tap to return to that point; the last 30 persist across reloads).')}</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">${tr('🗺 地図 / 🔒 封印', '🗺 Map / 🔒 Seal')}</p>
+      <p style="margin:.2em 0;">${tr('<b>🗺</b> で位置情報のある写真を地図に並べ、撮影順に線でつなぎます。<b>複数日にまたがる旅行は1本の線で、日が変わるごとに色が変わります</b>（昔→今が色で読めます。1日以上あくと別の線）。<b>撮ったのに位置が入っていない写真</b>は、タイムライン（または地図のピン）の <b>「📍 位置を設定／位置を直す」</b>から、<b>地図のピンをドラッグ</b>して後から位置を付けられます（近い時間に位置のある写真があれば、その近くから始まります）。地図上部は <b>📅 期間</b> と <b>⋯ 表示</b> の2つ。<b>⋯</b> から <b>🔒 記憶の封印</b>（いま見えている<b>範囲</b>と<b>期間</b>を指定して、よみがえってほしくない場所・時期を3枚引き・連想・地図・タイムラインに出さない。<b>削除ではない</b>ので写真は残り、一覧から<b>いつでも解除</b>。位置情報のない写真は「期間」で封印できます）。タイムラインの各写真とマーカーには <b>🗑 削除</b> もあります（除外＝右上の <b>♻️</b> から戻せます）。', '<b>🗺</b> places located photos on a map and links them in shooting order. <b>A trip across several days is one line, changing color each day</b> (past→present reads as color; a gap of 1+ day starts a new line). For a <b>photo taken but missing location</b>, use <b>“📍 Set / Fix location”</b> from the timeline (or a map pin) and <b>drag the map pin</b> to place it later (if a nearby-in-time photo has a location, it starts near there). The map’s top bar has two: <b>📅 Range</b> and <b>⋯ View</b>. From <b>⋯</b>, <b>🔒 Seal memories</b> — specify the visible <b>area</b> and <b>range</b> to keep places/times you’d rather not resurface out of the draw, wander, map, and timeline (<b>not deletion</b>, so photos remain and you can <b>unseal anytime</b> from the list; photos without location can be sealed by “range”). Each timeline photo and marker also has <b>🗑 Delete</b> (excluded — restore from <b>♻️</b> at top-right).')}</p>
+      <p style="margin:.8em 0 .2em;color:#fff;">${tr('🧠 意味（AI）', '🧠 Meaning (AI)')}</p>
+      <p style="margin:.2em 0;">${tr('🧠 ボタンから任意で有効化。初回だけモデルを DL、以降は端末内で解析します。', 'Enable optionally from the 🧠 button. The model downloads only the first time; after that, analysis runs on-device.')}</p>
       <p style="margin:1.4em 0 0;color:#555;font-size:11px;">バージョン ${BUILD}</p>
     </div>`;
 
@@ -4545,7 +4545,7 @@ function render() {
       // v112: 「もう一度引く」ボタンは廃止 (スワイプで十分・ユーザー要望)。代わりにスワイプを促すヒント。
       const hint = document.createElement('div');
       hint.className = 'swipe-hint';
-      hint.textContent = '← スワイプして次の思い出へ →';
+      hint.textContent = tr('← スワイプして次の思い出へ →', '← Swipe to the next memory →');
       $main.appendChild(hint);
     }
     return;
@@ -4573,7 +4573,7 @@ function render() {
     if (centerHasGps || center.datetime) {
       const mapBtn = document.createElement('button');
       mapBtn.className = 'center-map-btn';
-      mapBtn.textContent = centerHasGps ? '🗺 地図でこの場所を見る' : '🗺 この日の地図へ';
+      mapBtn.textContent = centerHasGps ? tr('🗺 地図でこの場所を見る', '🗺 See this place on the map') : tr('🗺 この日の地図へ', '🗺 Map for this day');
       const stop = e => e.stopPropagation();   // 長押し(フル画像)/カードのジェスチャと衝突させない
       mapBtn.addEventListener('pointerdown', stop);
       mapBtn.addEventListener('pointerup', stop);
@@ -5193,11 +5193,11 @@ function openImportMenu(anchor) {
   const menu = document.createElement('div');
   menu.id = 'importMenu';
   menu.className = 'import-menu';
-  menu.innerHTML = `<div class="im-title">画像を取り込む</div>`
-    + (IS_NATIVE ? `<button data-mode="native">📚 ライブラリ全体（おすすめ）</button>` : '')
-    + `<button data-mode="file">📄 ファイルを選ぶ</button>`
-    + `<button data-mode="folder">📁 フォルダーを選ぶ</button>`
-    + `<button data-mode="settings" class="im-adv">⚙️ 詳細設定</button>`;
+  menu.innerHTML = `<div class="im-title">${tr('画像を取り込む', 'Import photos')}</div>`
+    + (IS_NATIVE ? `<button data-mode="native">${tr('📚 ライブラリ全体（おすすめ）', '📚 Whole library (recommended)')}</button>` : '')
+    + `<button data-mode="file">${tr('📄 ファイルを選ぶ', '📄 Choose files')}</button>`
+    + `<button data-mode="folder">${tr('📁 フォルダーを選ぶ', '📁 Choose a folder')}</button>`
+    + `<button data-mode="settings" class="im-adv">${tr('⚙️ 詳細設定', '⚙️ Settings')}</button>`;
   document.body.appendChild(menu);
   const r = anchor.getBoundingClientRect();
   const w = menu.offsetWidth || 180;
@@ -5224,18 +5224,18 @@ function openImportSettings() {
   modal.className = 'ai-modal';
   modal.innerHTML =
     `<div class="ai-modal-card">` +
-      `<h2>⚙️ 取り込みの詳細設定</h2>` +
-      `<p>初心者の方は変更不要です。<b>既定</b>は「すべての画像を取り込み、<b>撮影日時(EXIF)</b>があればそれを、なければ<b>保存日(最終更新日)</b>を使う」です。</p>` +
+      `<h2>${tr('⚙️ 取り込みの詳細設定', '⚙️ Import settings')}</h2>` +
+      `<p>${tr('初心者の方は変更不要です。<b>既定</b>は「すべての画像を取り込み、<b>撮影日時(EXIF)</b>があればそれを、なければ<b>保存日(最終更新日)</b>を使う」です。', 'No need to change these. <b>Default</b>: import all images, using the <b>capture date (EXIF)</b> if present, otherwise the <b>saved date (last modified)</b>.')}</p>` +
       `<div class="imp-opts">` +
-        `<label class="imp-opt"><input type="radio" name="impMode" value="all"><span><b>すべての画像を取り込む</b><small>撮影日時があればそれ・なければ保存日（最終更新日）。おすすめ。</small></span></label>` +
-        `<label class="imp-opt"><input type="radio" name="impMode" value="exifOnly"><span><b>撮影日時(EXIF)のある画像だけ</b><small>保存日は使わない。日時が確実な写真だけ入れたい人向け。</small></span></label>` +
+        `<label class="imp-opt"><input type="radio" name="impMode" value="all"><span><b>${tr('すべての画像を取り込む', 'Import all images')}</b><small>${tr('撮影日時があればそれ・なければ保存日（最終更新日）。おすすめ。', 'Capture date if present, otherwise the saved date (last modified). Recommended.')}</small></span></label>` +
+        `<label class="imp-opt"><input type="radio" name="impMode" value="exifOnly"><span><b>${tr('撮影日時(EXIF)のある画像だけ', 'Only images with a capture date (EXIF)')}</b><small>${tr('保存日は使わない。日時が確実な写真だけ入れたい人向け。', 'Don’t use the saved date. For those who want only photos with a reliable date.')}</small></span></label>` +
       `</div>` +
       (IS_NATIVE
         ? `<div class="imp-opts" style="margin-top:12px">` +
-            `<label class="imp-opt"><input type="checkbox" id="autoImpChk"><span><b>起動時に自動で取り込む</b><small>アプリを開くたびに、新しく撮った写真だけを自動で取り込みます。OFF のときはこのメニューから手動で。</small></span></label>` +
+            `<label class="imp-opt"><input type="checkbox" id="autoImpChk"><span><b>${tr('起動時に自動で取り込む', 'Auto-import on launch')}</b><small>${tr('アプリを開くたびに、新しく撮った写真だけを自動で取り込みます。OFF のときはこのメニューから手動で。', 'Each time you open the app, only newly taken photos are imported automatically. When off, import manually from this menu.')}</small></span></label>` +
           `</div>`
         : '') +
-      `<div class="actions"><button class="primary" id="impClose">閉じる</button></div>` +
+      `<div class="actions"><button class="primary" id="impClose">${tr('閉じる', 'Close')}</button></div>` +
     `</div>`;
   document.body.appendChild(modal);
   const cur = modal.querySelector(`input[value="${importMode}"]`);
