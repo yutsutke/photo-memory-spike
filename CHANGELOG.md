@@ -5,6 +5,23 @@
 
 ---
 
+## 🔧 native fix — マーケティングバージョン 1.0 → 1.0.1（公開後に 1.0 の train が閉じたため） (2026-07-02)
+
+**背景 / 症状**
+- デビュー公開（ビルド21・1.0）後、Codemagic のビルド22・23が **Publishing で失敗**。Apple から2エラー：①`90186 Invalid Pre-Release Train. The train version '1.0' is closed for new build submissions` ②`90062 CFBundleShortVersionString [1.0] must contain a higher version than the previously approved version [1.0]`。
+- 原因＝**バージョン 1.0 が承認・公開された瞬間、Apple 側で 1.0 の pre-release train が締め切られる**＝以降 1.0 のままの新ビルドは upload 不可。**公開版21は無事**（このエラーは新ビルド upload の話で公開には無影響）。
+
+**やったこと**
+- [project.pbxproj](ios/App/App.xcodeproj/project.pbxproj) の `MARKETING_VERSION` を **1.0 → 1.0.1**（Debug/Release 両方・L311/L334）。`CFBundleShortVersionString` は Info.plist で `$(MARKETING_VERSION)` 参照なので、これで新ビルドは 1.0.1 train に乗り upload 成功する。
+- ビルド番号（`CFBundleVersion`=`$(CURRENT_PROJECT_VERSION)`）は Codemagic が連番で上書きするので不変。web の BUILD 文字列（phase3.87）も据え置き（web は無変更）。
+
+**次**
+- この push 後の**最初の Codemagic ビルドから 1.0.1 として upload 成功**（TestFlight に 1.0.1 train で出る）。それ以前に走った 1.0 ビルドは全部この理由で失敗＝正常。
+- 次に App Store へ出す時は ASC で 1.0.1 バージョンページを作成（メタデータは 1.0 を流用可）→ v134 の文言など差分を載せて審査へ。大きめ更新（英語/位置/広告）は 1.1 で。
+
+**教訓**
+- App Store は「承認済みと同じ marketing version」の新ビルドを受け付けない。**公開したら次のビルドは必ず marketing version を上げる**（1.0→1.0.1）。CI が push ごとに TestFlight upload する構成だと、公開直後の push は全部 90186/90062 で落ちる＝バージョンを上げれば解消。
+
 ## v134 — 初期画面の主導線ボタンに「（おすすめ）」を付与（用語統一） (2026-07-02)
 
 **背景**
