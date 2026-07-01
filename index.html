@@ -499,7 +499,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.86 (v133：英語化の総仕上げ（ユーザー実機で発見の残り＋長文）。写真詳細の🗺ボタン(別2箇所)・スワイプヒント・取り込みドロップダウン(ファイル/フォルダ/詳細設定)・詳細設定モーダル・情報モーダル本文6段落・自動取り込みプロンプト・位置ロガーパネル全体・日時ソースタグ(撮影日/保存日/投稿日)を tr() 化。dev(🧪 #dev)のみ日本語(開発者専用)。日本語端末は不変・?lang=en で検証) · 2026-07-01';
+const BUILD = 'phase3.87 (v134：初期画面（ネイティブ空状態）の主導線ボタン「写真ライブラリ全体から始める」に（おすすめ）/ EN (recommended) を付与＝取り込みメニュー(L5197)の「ライブラリ全体（おすすめ）」と用語統一。JP/EN 両方。実機フィードバック) · 2026-07-02';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -4436,7 +4436,7 @@ function render() {
     // ネイティブ (Capacitor) のときは「ライブラリ全体から始める」を主役に、web ピッカーは
     // 「数枚で試す」副導線に下げる (核＝偶然/久しぶり/よみがえる の段階導線, v94)。
     const nativeBlock = IS_NATIVE ? `
-        <button class="primary" id="emptyNative">📚 ${tr('写真ライブラリ全体から始める', 'Start from your whole photo library')}</button>
+        <button class="primary" id="emptyNative">📚 ${tr('写真ライブラリ全体から始める（おすすめ）', 'Start from your whole photo library (recommended)')}</button>
         <p style="margin:.4em 0;font-size:12px;opacity:.7;">${tr('この端末の<b>すべての写真</b>から連想を始めます（端末内だけで処理）。<b>まず数枚で試す</b>なら下のボタンへ。', 'Begin from <b>all the photos</b> on this device (processed only on-device). To <b>try with just a few</b>, use the button below.')}</p>` : '';
     $main.innerHTML = `
       <div class="empty">
