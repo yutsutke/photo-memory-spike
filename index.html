@@ -161,11 +161,15 @@
   .anniv-row-thumb.noimg, .anniv-visit-thumb.noimg { display: flex; align-items: center; justify-content: center; background: #333; font-size: 20px; }
   .anniv-row-name { color: #fff; font-size: 15px; font-weight: 600; }
   .anniv-row-sub { color: #9a9a9a; font-size: 12px; margin-top: 2px; }
+  .anniv-row-main { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; cursor: pointer; }
+  .anniv-row-del { flex: 0 0 auto; background: transparent; border: none; color: #999; font-size: 16px; cursor: pointer; padding: 6px 4px; }
   .anniv-detail-sub { color: #aaa; font-size: 13px; line-height: 1.6; }
   .anniv-visit-date { color: #fff; font-size: 14px; font-variant-numeric: tabular-nums; }
   .anniv-visit-memo { color: #bbb; font-size: 12px; margin-top: 2px; }
   .anniv-visit-go { color: #33c1b0; font-size: 12px; margin-top: 3px; }
   .anniv-name-input { width: 100%; box-sizing: border-box; background: #111; color: #fff; border: 1px solid #555; border-radius: 8px; padding: 10px 12px; font-size: 16px; margin-top: 6px; }
+  /* v122: 動線を1本フォーカス中、タイムラインでその日以外を淡色化 (地図の dim と揃える) */
+  .tl-day.tl-dim, .tl-item.tl-dim { opacity: 0.3; transition: opacity 0.15s; }
   /* v24: フル表示の下部キャプション。日時 (純正写真アプリで辿る鍵) + 写真アプリ動線 */
   .full-cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2001; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.72)); display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .full-cap .dt { color: #fff; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
@@ -439,7 +443,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.74 (v121：記念日（過去半分）。比較ビューの「📍記念日に登録」で囲んだ円を名前付きで保存＝この場所に訪問が積もる器。⚙️→📍記念日 で一覧→各記念日の訪問(昔→今)→タップでその日の地図へ戻る目次。IndexedDB v3 に anniversaries ストア追加(写真本体は持たず参照のみ)。未来=カレンダー書き出しは native フェーズで別途) · 2026-07-01';
+const BUILD = 'phase3.75 (v122：記念日の詳細を作り替え。記念日タップ→写真1枚大表示＋スワイプ(deck)→cap から「⇆左右で比べる」(v120比較)／「🗺足跡の地図」(全訪問日を動線表示・1本タップでその日だけ明るく＋タイムライン連動)。一覧の各行に🗑削除。showFullImage を annivCtx/onClose で拡張・openMapView に pickDays・focusedDay をタイムラインにも反映) · 2026-07-01';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1940,7 +1944,8 @@ function showFullImage(photo, opts = {}) {
   cap.addEventListener('click', e => e.stopPropagation());  // キャプション操作で overlay を閉じない
   overlay.appendChild(cap);
 
-  fullImageState = { el: overlay, deck, cap, list, index: startIndex, onWalk, hasList };
+  const annivCtx = opts.annivCtx || null;   // v122: 記念日の deck からは「左右で比べる/足跡の地図」ボタンを出す
+  fullImageState = { el: overlay, deck, cap, list, index: startIndex, onWalk, hasList, annivCtx, onClose: opts.onClose || null };
 
   // cap（日付・ボタン）を index の写真で塗る。slide(画像)は固定、cap だけ更新＝軽い。
   function paintCap(i) {
@@ -1955,20 +1960,30 @@ function showFullImage(photo, opts = {}) {
       (hasList ? `<div class="full-count">${i + 1} / ${list.length}</div>` : '') +
       `<div class="dt">📅 ${dtStr}${srcTagHtml(p)}</div>` +
       `<div class="full-actions">` +
-        (onWalk ? `<button class="to-walk">🚶 ここから歩く</button>` : '') +
-        (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '') +
+        (annivCtx
+          ? (annivCtx.list.length >= 2 ? `<button class="to-compare">⇆ 左右で比べる</button>` : '') +
+            `<button class="to-annivmap">🗺 足跡の地図</button>`
+          : (onWalk ? `<button class="to-walk">🚶 ここから歩く</button>` : '') +
+            (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '')) +
         `<button class="fix-date">📅 日付を直す</button>` +
       `</div>` +
       // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
-      ((showMapBtn && !hasGps) ? `<div class="de-hint map-hint">位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。</div>` : '') +
+      ((!annivCtx && showMapBtn && !hasGps) ? `<div class="de-hint map-hint">位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。</div>` : '') +
       `<div class="date-editor" hidden>` +
         `<input type="datetime-local" class="de-input">` +
         `<div class="de-actions"><button class="de-cancel">キャンセル</button><button class="de-save">保存</button></div>` +
         `<div class="de-hint">本当に撮った日時に直すと、タイムライン・地図の並びもそこへ移ります。</div>` +
       `</div>`;
-    // v117: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)。
-    if (onWalk) cap.querySelector('.to-walk').addEventListener('click', () => { closeFullImage(); showExplore(p); });
-    if (showMapBtn) cap.querySelector('.to-map').addEventListener('click', () => { closeFullImage(); openMapView(p); });
+    // v122: 記念日 deck の遷移ボタン（onClose を消してから閉じる＝一覧へ戻さず遷移先へ）。
+    if (annivCtx) {
+      const cb = cap.querySelector('.to-compare');
+      if (cb) cb.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openCompareView(annivCtx.list, annivCtx.circleInfo); });
+      cap.querySelector('.to-annivmap').addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openAnnivMap(annivCtx.dayKeys); });
+    } else {
+      // v117: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)。
+      if (onWalk) cap.querySelector('.to-walk').addEventListener('click', () => { closeFullImage(); showExplore(p); });
+      if (showMapBtn) cap.querySelector('.to-map').addEventListener('click', () => { closeFullImage(); openMapView(p); });
+    }
     // 📅 日付を直す (v60): 直す行為自体が想起の入口。
     const editor = cap.querySelector('.date-editor');
     cap.querySelector('.fix-date').addEventListener('click', () => {
@@ -2020,9 +2035,11 @@ function showFullImage(photo, opts = {}) {
 }
 function closeFullImage() {
   if (!fullImageState) return;
+  const onClose = fullImageState.onClose;   // v122: 記念日 deck を閉じたら一覧へ戻す等（遷移ボタンは事前に null 化）
   fullImageState.el.remove();
   fullImageState = null;
   // v118: thumbUrl はキャッシュ共有 URL なので個別 revoke しない（revokeAllThumbUrls が全削除時に担う）。
+  if (onClose) onClose();
 }
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && fullImageState) closeFullImage();
@@ -2411,7 +2428,7 @@ async function confirmEstimatedPos(photo, est) {
 
 let mapState = null;
 // focusPhoto を渡すと、その写真のピンに寄せて popup を開く (連想ウォークの中心写真 → 地図ピン)。
-async function openMapView(focusPhoto) {
+async function openMapView(focusPhoto, opts) {
   if (mapState) return;
   try { await loadLeaflet(); }
   catch { logErr('地図ライブラリの読み込みに失敗しました（オフラインの可能性）'); return; }
@@ -2561,6 +2578,7 @@ async function openMapView(focusPhoto) {
           L.DomEvent.stop(e);
           mapState.focusedDay = (mapState.focusedDay === dk ? null : dk);
           drawTrips();
+          if (mapState.updateTimelineUI) mapState.updateTimelineUI();   // v122: タイムラインも同じ日だけ明るく
         });
         mapState.tripLayers.push(pl);
         if (L.polylineDecorator && L.Symbol) {
@@ -3163,7 +3181,7 @@ async function openMapView(focusPhoto) {
   });
   map.on('click', () => {   // 背景タップ: パネルを閉じ、軌跡のハイライト(他を暗く)も解除
     closePops();
-    if (mapState.focusedDay) { mapState.focusedDay = null; drawTrips(); }
+    if (mapState.focusedDay) { mapState.focusedDay = null; drawTrips(); if (mapState.updateTimelineUI) mapState.updateTimelineUI(); }   // v122: 背景タップで解除→タイムラインも戻す
   });
 
   // タイムライン (フィルタ操作の主役) を先に組み、updateTimelineUI フックを mapState に立ててから適用。
@@ -3180,7 +3198,9 @@ async function openMapView(focusPhoto) {
   // 入り口で「表示する日」を変える: 写真から来たら その写真の日 (= フィルタ=その日)、
   // ヘッダ(写真なし)は GPS のある日からランダムに3日 = 偶然の3本の軌跡。
   const explicit = !!(focusPhoto && focusPhoto.id);
-  if (explicit) setPick([dayKeyOf(focusPhoto)], 'day');
+  if (opts && Array.isArray(opts.pickDays) && opts.pickDays.length) {
+    setPick(opts.pickDays, 'days');   // v122: 記念日の全訪問日を動線表示 (1本タップでその日だけ明るく＝既存の focusedDay)
+  } else if (explicit) setPick([dayKeyOf(focusPhoto)], 'day');
   else {   // ヘッダ 🗺 = 毎日の入口「今日 (数年分の同じ月日)」(v83)。今日の写真が無ければ偶然の3日 → それも無ければ従来ブラウズ。
     const t = pickToday();
     if (t.length) setPick(t, 'today');
@@ -3356,6 +3376,10 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
       // 選ばれた日だけ表示 + 日見出しタップで折りたたみ (applyFold が ▾/▸、畳んだ日は写真も地図の線/ピンも消える)。
       for (const { el, dayStart } of dayHeaders) { el.classList.remove('tl-day-on'); el.classList.toggle('tl-out', !pickStarts.has(dayStart)); }
       for (const { el, dayStart } of itemEls) el.classList.toggle('tl-out', !pickStarts.has(dayStart));
+      // v122: 動線を1本フォーカス中は、その日以外の表示中の日を淡色化＝地図の dim と揃える。
+      const fdStart = mapState.focusedDay ? (() => { const [y, m, d] = mapState.focusedDay.split('-').map(Number); return new Date(y, m, d).getTime(); })() : null;
+      for (const { el, dayStart } of dayHeaders) el.classList.toggle('tl-dim', fdStart != null && pickStarts.has(dayStart) && dayStart !== fdStart);
+      for (const { el, dayStart } of itemEls) el.classList.toggle('tl-dim', fdStart != null && pickStarts.has(dayStart) && dayStart !== fdStart);
       applyFold();
       emptyNote.classList.add('tl-out');
       return;
@@ -3636,10 +3660,13 @@ async function openAnnivList() {
     body = `<div class="anniv-list">` + all.map(a => {
       const t = annivThumb((a.visits[a.visits.length - 1] || {}).photoIds && a.visits[a.visits.length - 1].photoIds[0]);
       const span = annivYearSpan(a);
-      return `<button class="anniv-row" data-id="${a.id}">` +
-        (t ? `<img class="anniv-row-thumb" src="${t}">` : `<div class="anniv-row-thumb noimg">📍</div>`) +
-        `<div class="anniv-row-info"><div class="anniv-row-name">${annivEsc(a.name)}</div>` +
-        `<div class="anniv-row-sub">訪問 ${a.visits.length}回${span ? ` · ${span}` : ''}</div></div></button>`;
+      return `<div class="anniv-row" data-id="${a.id}">` +
+        `<div class="anniv-row-main">` +
+          (t ? `<img class="anniv-row-thumb" src="${t}">` : `<div class="anniv-row-thumb noimg">📍</div>`) +
+          `<div class="anniv-row-info"><div class="anniv-row-name">${annivEsc(a.name)}</div>` +
+          `<div class="anniv-row-sub">訪問 ${a.visits.length}回${span ? ` · ${span}` : ''}</div></div>` +
+        `</div>` +
+        `<button class="anniv-row-del" data-id="${a.id}" title="削除">🗑</button></div>`;
     }).join('') + `</div>`;
   }
   modal.innerHTML = `<div class="ai-modal-card"><h2>📍 記念日</h2>${body}<div class="actions"><button class="primary" id="annivClose">閉じる</button></div></div>`;
@@ -3647,46 +3674,45 @@ async function openAnnivList() {
   annivModals.push(modal);
   modal.querySelector('#annivClose').addEventListener('click', closeAnnivModals);
   modal.addEventListener('click', e => { if (e.target === modal) closeAnnivModals(); });
-  modal.querySelectorAll('.anniv-row').forEach(btn => btn.addEventListener('click', () => {
-    const a = all.find(x => x.id === btn.dataset.id); if (a) openAnnivDetail(a);
+  modal.querySelectorAll('.anniv-row-main').forEach(main => main.addEventListener('click', () => {
+    const a = all.find(x => x.id === main.parentElement.dataset.id); if (a) openAnnivDetail(a);
+  }));
+  modal.querySelectorAll('.anniv-row-del').forEach(del => del.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const a = all.find(x => x.id === del.dataset.id); if (!a) return;
+    if (!confirm(`記念日「${a.name}」を削除しますか？（写真は消えません）`)) return;
+    try { await annivDelete(a.id); } catch (err) { logErr(`削除失敗: ${err?.message || err}`); }
+    closeAnnivModals(); openAnnivList();
   }));
 }
-function openAnnivDetail(a) {
-  const modal = document.createElement('div');
-  modal.className = 'ai-modal anniv-z';
-  const rows = a.visits.map((v, i) => {
-    const t = annivThumb(v.photoIds && v.photoIds[0]);
-    return `<button class="anniv-visit" data-i="${i}">` +
-      (t ? `<img class="anniv-visit-thumb" src="${t}">` : `<div class="anniv-visit-thumb noimg">📅</div>`) +
-      `<div class="anniv-visit-info"><div class="anniv-visit-date">${v.date}</div>` +
-      (v.memo ? `<div class="anniv-visit-memo">${annivEsc(v.memo)}</div>` : '') +
-      `<div class="anniv-visit-go">🗺 この日の地図へ</div></div></button>`;
-  }).join('');
-  const span = annivYearSpan(a);
-  modal.innerHTML =
-    `<div class="ai-modal-card">` +
-      `<h2>📍 ${annivEsc(a.name)}</h2>` +
-      `<p class="anniv-detail-sub">訪問 ${a.visits.length}回${span ? ` · ${span}` : ''}<br><small>${fmtPlace(a.center.lat, a.center.lng)} · 半径 ${Math.round(a.radius)}m</small></p>` +
-      `<div class="anniv-visits">${rows}</div>` +
-      `<div class="actions"><button id="annivDel">🗑 削除</button><button id="annivBack">← 一覧へ</button></div>` +
-    `</div>`;
-  document.body.appendChild(modal);
-  annivModals.push(modal);
-  modal.querySelector('#annivBack').addEventListener('click', () => { modal.remove(); annivModals = annivModals.filter(m => m !== modal); openAnnivList(); });
-  modal.querySelector('#annivDel').addEventListener('click', async () => {
-    if (!confirm(`記念日「${a.name}」を削除しますか？（写真は消えません）`)) return;
-    try { await annivDelete(a.id); } catch (e) { logErr(`削除失敗: ${e?.message || e}`); }
-    closeAnnivModals(); openAnnivList();
-  });
-  modal.addEventListener('click', e => { if (e.target === modal) closeAnnivModals(); });
-  modal.querySelectorAll('.anniv-visit').forEach(btn => btn.addEventListener('click', async () => {
-    const v = a.visits[+btn.dataset.i]; if (!v) return;
-    let p = (v.photoIds && v.photoIds[0]) ? photoById(v.photoIds[0]) : null;
-    if (!p && v.photoIds && v.photoIds[0]) { try { p = await dbGet(v.photoIds[0]); } catch {} }
-    if (!p) p = allPhotos.find(x => dayKeyOf(x) === v.dayKey) || null;
-    closeAnnivModals();
-    if (p) openMapView(p); else logErr('その日の写真が見つかりませんでした（取り込み前かもしれません）');
-  }));
+// 記念日タップ → その記念日の写真を1枚大きく表示＋スワイプ (showFullImage の deck を再利用, v122)。
+// deck の cap から「⇆ 左右で比べる」(v120比較) 「🗺 足跡の地図」(全訪問日の動線) へ遷移。閉じると一覧へ戻る。
+async function openAnnivDetail(a) {
+  const list = await annivPhotoList(a);
+  if (!list.length) { logErr('この記念日の写真が見つかりませんでした（取り込み前かもしれません）'); return; }
+  closeAnnivModals();   // 一覧を閉じてから deck を前面に (deck は z2000)
+  const circleInfo = { lat: a.center.lat, lng: a.center.lng, radius: a.radius };
+  const dayKeys = [...new Set(a.visits.map(v => v.dayKey))];
+  showFullImage(list[0], { list, index: 0, annivCtx: { list, circleInfo, dayKeys }, onClose: openAnnivList });
+}
+
+// 記念日の写真リスト: 保存した円で再計算 (新しく撮った写真も拾う=live)。取れなければ保存済み photoId で解決。
+async function annivPhotoList(a) {
+  let list = photosInCircle(a.center.lat, a.center.lng, a.radius);
+  if (!list.length) {
+    const ids = [...new Set(a.visits.flatMap(v => v.photoIds || []))];
+    const ps = [];
+    for (const id of ids) { let p = photoById(id); if (!p) { try { p = await dbGet(id); } catch {} } if (p) ps.push(p); }
+    ps.sort((x, y) => x.datetime - y.datetime);
+    list = ps;
+  }
+  return list;
+}
+
+// 記念日の全訪問日を「動線」として地図に (1本タップでその日だけ明るく＋タイムライン連動, v122)。
+function openAnnivMap(dayKeys) {
+  if (!dayKeys || !dayKeys.length) { openMapView(); return; }
+  openMapView(null, { pickDays: dayKeys });
 }
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && annivModals.length) closeAnnivModals(); });
 

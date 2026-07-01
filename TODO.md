@@ -13,11 +13,11 @@
 
 ---
 
-## 現在地 — BUILD: phase3.74（v121：**記念日（過去半分）**を実装＝比較ビューの「📍記念日に登録」で囲んだ円を名前付き保存＝「この場所に訪問が積もる」器。⚙️→📍記念日 で一覧→訪問(昔→今)→タップでその日の地図へ戻る目次。IndexedDB v3 に anniversaries 追加(写真本体は持たず参照のみ・非破壊アップグレード)。⚠️spike の curation 境界を自覚的にまたぐ判断。**未来=カレンダー書き出しは native フェーズで別途**。preview green(DB v3・登録/近接マージ/一覧/詳細/その日の地図へ)・GitHub Pages で実機確認可。｜v120：地図「囲んで比べる」(実機「いいかんじ」YES)。｜v119：起動時の自動差分取り込み(native)。｜v118：拡大表示 scroll-snap 化。v111-118 UI改善✅。｜v110：✅再提出済み＝「審査待ち（2回目）」→**審査結果待ち**→承認後 ASC で手動公開。英語名 A Past Day・v1.1。**v111-121 は審査中の1.0(16)とは別トラック＝承認後の次版に乗せる**。）
+## 現在地 — BUILD: phase3.75（v122：**記念日の詳細を作り替え**＝記念日タップ→写真1枚大表示＋スワイプ(showFullImage deck 再利用)→cap から「⇆左右で比べる」(v120比較)／「🗺足跡の地図」(全訪問日を動線表示・**1本タップ→その日だけ明るく＋タイムラインも連動**)。一覧の各行に🗑削除。showFullImage を annivCtx/onClose 拡張・openMapView に pickDays・focusedDay をタイムラインにも反映。preview green(deck/比較/足跡の地図/動線→dim を end-to-end 確認)。｜v121：記念日(過去半分)＝円を名前付き保存し訪問が積もる器・IndexedDB v3。｜v120：地図「囲んで比べる」(実機「いいかんじ」YES)。｜v119：起動時の自動差分取り込み(native)。v111-118 UI改善✅。｜v110：✅再提出済み＝「審査待ち（2回目）」→**審査結果待ち**→承認後 ASC で手動公開。英語名 A Past Day・v1.1。**v111-122 は審査中の1.0(16)とは別トラック＝承認後の次版に乗せる**。未来=カレンダー書き出し(EventKit)は native フェーズで別途。）
 
 > ### 📍 次セッションの再開ポイント（2026-06-30〜07-01 セッション9 更新・まずここを読む）
 >
-> **この回でやったこと（v119 自動差分取り込み + v120 囲んで比べる + v121 記念日(過去半分)）**:
+> **この回でやったこと（v119 自動差分取り込み + v120 囲んで比べる + v121 記念日(過去半分) + v122 記念日詳細の作り替え）**:
 > - セッション開始の挨拶 → DOCMAP/TODO + Gmail 確認。**審査結果の新着メールはまだ無し**（再提出後は TestFlight 通知のみ＝1.0(16)→(17)→(18)。(16)=再提出ビルド／(17)(18)=UI改修 push の Codemagic 自動ビルド）。**審査結果待ち（2回目）継続**。✅ **ASC の審査トラックは 16 のまま**（ユーザーが ASC スクショで確認＝17/18 に差し替わっていない＝審査リセットなし）。
 > - **v119 実装＝起動時の自動差分取り込み（native）**。ユーザー仕様＝①ライブラリ取り込み済みの人に起動時プロンプト「自動で取り込む？」②はい→以後開くたび差分③いいえでも設定で ON 可④後から OFF 可。
 >   - 設計: **静かな背景取り込み**（`runAutoImport()`＝enumerate→差分→`processNativeRest` 再利用・フル画面にしない・新規ゼロなら無音）／**対象判定**＝`collectImportedAssetIds().size>0`（ライブラリ取り込み済みのみ・新規ユーザーは煩わせない）／**初回プロンプトは次の起動で**（boot `maybeAutoImportOnLaunch`・`pms-autoImportAsked` で1回だけ）／**設定トグル**＝取り込み→⚙️詳細設定に native のみチェックボックス（`pms-autoImport`）／**前面復帰でも差分**＝`visibilitychange` に `maybeAutoImportOnResume`（ON時のみ・60秒throttle・iOS は cold launch 稀なので）。全経路 `IS_NATIVE && PhotoLib` ガード＝web 完全無改修。
@@ -31,12 +31,16 @@
 >   - 設計: **円プリミティブ(v120)を保存して使い回す器**＝「この場所に訪問が積もる」。⚠️**curation 境界(⭐お気に入り作らない)を自覚的にまたぐ**(Notion WHY に決定記録)。過去/未来を割る＝過去だけ あの日 に住む・未来は持たず後で iOS カレンダーへ一方向書き出し(native)。データ＝`{id,name,center,radius,created,visits:[{dayKey,date,memo,photoIds}]}`(写真本体は持たず参照のみ・memo は将来UI/器は今)。**IndexedDB v2→v3** に `anniversaries` を `!contains()` ガードで追加(track と同パターン・非破壊)。登録=比較ビューの「📍記念日に登録」(中心が既存円内ならマージ=積もる/無ければ命名し新規)。ページ=⚙️→📍記念日 一覧→詳細(訪問 昔→今)→タップで `openMapView(その日の写真)`=目次。
 >   - 関数（[index.html](index.html)）: DB=`annivPut/annivGetAll/annivDelete`＋`ANNIV_STORE`＋onupgradeneeded／`visitsFromPhotos`/`registerAnniversary`/`promptAnnivName`/`openAnnivList`/`openAnnivDetail`/`closeAnnivModals`／比較ビューに `circleInfo` を受け渡し＋登録ボタン／⚙️に `btnAnniv`。CSS=`.anniv-*`/`.ai-modal.anniv-z{z5000}`/`.cmp-anniv`。詳細 CHANGELOG v121。
 >   - 検証＝**web で完全動作**（native 限定でない）preview green: 構文0・boot 0・**DB v3 アップグレード(stores=anniversaries/photos/track＝追加のみ)**・visitsFromPhotos(同日2枚→1訪問・昔→今)・登録の新規＋**近接マージ**(総数1のまま訪問追加)・永続化・一覧/詳細UI・**訪問タップ→その日の地図へ**(目次)・登録ボタン表示。途中で z-index 詳細度バグ(`.anniv-z`が`.ai-modal`に負ける)を発見→`.ai-modal.anniv-z`で修正。
+> - **v122 実装＝記念日の詳細を作り替え**（ユーザー修正指示）。記念日タップの詳細を「訪問リスト」→**①写真1枚大表示＋スワイプ→②左右で比べる→③足跡の地図**の入れ子に。
+>   - 設計（既存部品の組合せ）: ①=**showFullImage(deck) 再利用**（写真リストは `photosInCircle` で再計算=live／無ければ photoId 解決）。**showFullImage を `annivCtx`/`onClose` で拡張**（既存呼び出しは無改修＝全部 annivCtx ガード）＝cap を「⇆左右で比べる」「🗺足跡の地図」に差し替え（汎用🗺/🚶隠す・📅日付は残す）・遷移時は onClose 無効化・閉じたら一覧へ。②=`openCompareView(list, circleInfo)`。③=**`openMapView(null,{pickDays})` 新設**＝全訪問日を days モードで動線表示。**focusedDay をタイムラインにも反映**（`updateTimelineUI` に `.tl-dim`・動線クリック/背景タップで呼ぶ）＝「動線1本→その日だけ明るく＋タイムラインも」。削除は一覧の各行に🗑移設（行を button→div 化）。
+>   - 関数（[index.html](index.html)）: `showFullImage`(annivCtx/onClose)・`openMapView`(opts.pickDays)・`openAnnivDetail`(deck化)・`annivPhotoList`・`openAnnivMap`・`updateTimelineUI`(tl-dim)・`openAnnivList`(行に🗑)。CSS=`.tl-dim`/`.anniv-row-main`/`.anniv-row-del`。詳細 CHANGELOG v122。
+>   - 検証＝preview green(end-to-end): 一覧行(main＋🗑)→deck(3スライド・⇆/🗺/📅・汎用🗺抑制)→⇆で比較2リール(一覧再オープンなし)→🗺で地図days「📅2日を重ねて」→**動線パスクリックで focused 日は明るいまま・他 picked 日 `tl-dim`・非picked日 tl-out**。⚠️テスト不備メモ: `window.mapState` は let スコープで常に falsy→検証は `window.closeMapView()` を無条件で（[[preview-raf-not-firing]] 系）。
 > - **▶ 次セッションはここから**:
 >   1. **審査結果待ち（2回目）**＝**セッション開始時に Gmail で結果確認**（[[session-start-gmail-check]]）。①承認→ASC バージョンページで「公開」②再リジェクト→理由を読んで対応。
->   2. **v119-v121 を実機確認**（v120/v121 は **GitHub Pages で今すぐ web 実機可**・v119 は native）: v120=円ドラッグ感・年マタギ打率（✅ユーザー「いいかんじ」）／v121=「ここ来たのいつぶり/前回どう歩いた」が記念日から辿れるか／v119=起動プロンプト・差分・電池。
+>   2. **v119-v122 を実機確認**（v120/v121/v122 は **GitHub Pages で今すぐ web 実機可**・v119 は native）: v120=円ドラッグ感・年マタギ打率（✅ユーザー「いいかんじ」）／v121-122=記念日→deck→比較/足跡の地図の手触り・「ここ来たのいつぶり/前回どう歩いた」が辿れるか／v119=起動プロンプト・差分・電池。
 >   3. **記念日が刺さったら → native フェーズで 未来半分＝iOS カレンダー書き出し**（EventKit 橋・`createEvent` 自作薄プラグイン or community・**write-only 権限** `NSCalendarsWriteOnlyAccessUsageDescription`・fire-and-forget・イベント中身に歴代の足跡＝「過去が未来の燃料」・iOS 先行/Google は将来）。
->   4. **承認後 v1.1**: 英語名 A Past Day／iPad／位置ロガー復活／広告（[[monetization-v1-adfree]]）。v111-121 も承認後の次版に。
->   - **状態**: web=GitHub Pages `phase3.74`（v119-v121 反映）／native=ビルド16 が審査中（✅16 のまま）・17/18 は TestFlight 済（差し替えない）。**Gmail 監視継続**。受信確認リマインド＝anohiapp@gmail.com。**📝 Notion: WHY に curation 境界の決定／HOW にカレンダー書き出し方針を残す（今回 MCP で実施）**。
+>   4. **承認後 v1.1**: 英語名 A Past Day／iPad／位置ロガー復活／広告（[[monetization-v1-adfree]]）。v111-122 も承認後の次版に。
+>   - **状態**: web=GitHub Pages `phase3.75`（v119-v122 反映）／native=ビルド16 が審査中（✅16 のまま）・17/18 は TestFlight 済（差し替えない）。**Gmail 監視継続**。受信確認リマインド＝anohiapp@gmail.com。**📝 Notion: WHY に curation 境界の決定／HOW にカレンダー書き出し方針を記載済(v121 で MCP 実施)**。
 >
 > ### 📍 次セッションの再開ポイント（2026-06-30 セッション8 更新・まずここを読む）
 >

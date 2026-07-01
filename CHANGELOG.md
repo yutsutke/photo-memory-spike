@@ -5,6 +5,34 @@
 
 ---
 
+## v122 — 記念日の詳細を「写真deck→左右で比べる／足跡の地図」に作り替え (2026-07-01)
+
+**背景**
+- v121 で記念日（過去半分）を立てた直後のユーザー修正指示。記念日タップの詳細を「訪問リスト」から、より体験的な入れ子に：**①記念日の写真が1枚大きく表示されスワイプで送れる → ②左右に並べて比べる（v120比較）へ遷移 → ③記念日すべての日別の動線を表示した地図へ遷移（動線1本を選ぶとその日だけ明るく・タイムラインも同様に）**。「記念日＝没入地図への目次」を、写真・比較・足跡の3方向に開く形に具体化。
+
+**設計判断（既存部品の組合せ・新規発明を最小に）**
+- **①写真 deck = `showFullImage` を再利用**（v118 の scroll-snap 横スワイプ deck＝実機で「サクサク」実証済[[ui-swipe-scroll-snap-works]]）。記念日の写真リストは **保存した円で再計算**（`photosInCircle(center,radius)`＝新しく撮った写真も拾う live）／取れなければ保存済み `photoId` を `photoById`→`dbGet` で解決（フォールバック）。
+- **showFullImage を `opts.annivCtx`／`opts.onClose` で拡張**（既存呼び出し=足跡/タイムライン/トップ は無改修＝追加は全部 annivCtx ガード）。annivCtx 時のみ cap のボタンを **「⇆ 左右で比べる」「🗺 足跡の地図」** に差し替え（汎用の「🗺 この日の地図」「🚶 ここから歩く」は隠す）＋`📅 日付を直す`は残す。遷移ボタンは `onClose` を null 化してから閉じる＝一覧へ戻さず遷移先へ。deck を閉じる（タップ/Esc）と `onClose=openAnnivList` で一覧へ戻る。
+- **②比較へ** = `openCompareView(annivCtx.list, circleInfo)`（記念日は円=center+radius を保存済みなので circleInfo をそのまま渡せる）。
+- **③足跡の地図へ** = `openMapView(null, {pickDays})` を新設（`openMapView` に第2引数 opts.pickDays を追加）。記念日の全訪問日を **既存の days モード**（📅 N日を重ねて）で動線表示。**1本タップ→その日だけ明るく＝既存 `focusedDay`** がそのまま効く。
+- **focusedDay をタイムラインにも反映（新規の小改良）**: これまで動線タップは地図だけ dim していた。ユーザー要望「タイムラインも同様に」に応え、`updateTimelineUI`(pickDays 分岐)で focusedDay 以外の表示中の日に `.tl-dim`(opacity 0.3) を付与。動線クリック/背景タップの両方で `updateTimelineUI` を呼ぶ。地図体験全般（今日/偶然3日/記念日）で効く汎用改善。
+- **削除の置き場**: 詳細が deck 化＝削除ボタンの場所が無くなったので **一覧の各行に 🗑** を移設。行は `<button>`→`<div class="anniv-row">`（main タップ領域＋🗑 の入れ子ボタン回避）に再構成。
+
+**ハマったところ**
+- 実機テストの不備（本コードの不具合ではない）: 検証 eval で `if (window.mapState) closeMapView()` と書いたが **`mapState` は classic script の let スコープで window に載らない**→常に falsy→旧地図が閉じず、新 `openMapView` が先頭の `if (mapState) return` で早期 return（timelineItems=3 の旧地図が残る・trip パス0）。→ `window.closeMapView()` を無条件で呼ぶ（内部で `if(!mapState)return`）に直して解消。教訓は memory へ（[[preview-raf-not-firing]] と同じ「preview から内部 let は触れない」系）。
+
+**結果 / 観察**
+- web preview 検証 green（この機能は web で完全動作）: 構文0・boot 0・一覧行（main＋🗑）・行タップ→deck（3スライド・「1/3」・⇆左右で比べる/🗺足跡の地図/📅日付を直す・汎用🗺は抑制）・⇆→比較2リール（deck 閉・一覧は再オープンされない＝onClose 抑制）・🗺→地図 days モード「📅2日を重ねて」全日表示・**動線パスクリック→focused 日は明るいまま/他の picked 日が `tl-dim`＋非picked日は tl-out**（実機相当で end-to-end 確認）。
+- **前提**: v120「囲んで比べる」はユーザー実機（GitHub Pages）で「いいかんじ」YES。v121/v122 も GitHub Pages で web 実機確認可。
+
+**教訓**
+- `showFullImage`（deck）は「写真を大きく見てスワイプ」の汎用装置＝記念日詳細に無改修に近い形で載った。scroll-snap deck を早くから共通化しておいた配当（横スワイプは最初から scroll-snap で作る、の効果）。
+- 「動線を選ぶ→地図もタイムラインも連動」は `pickDays`+`focusedDay` という**既にあった二層**に、タイムライン側の dim を一筆足すだけで成立。地図体験の骨格が効いている。
+
+**残課題 / 次の方向**
+- web 実機で記念日→deck→比較/足跡の地図の一連の手触り。刺さったら native フェーズで **未来半分＝iOS カレンダー書き出し**（EventKit・write-only・fire-and-forget、v121 残課題のまま）。
+- 将来: 記念日の rename／visit メモ UI／deck から直接その1枚の「この日の地図」（今は足跡の地図＝全日）。
+
 ## v121 — 記念日（過去半分）＝囲んだ円を名前付きで保存し、訪問が積もる器 (2026-07-01)
 
 **背景**
