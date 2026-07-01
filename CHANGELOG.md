@@ -5,6 +5,37 @@
 
 ---
 
+## v130 — 英語 i18n の下ごしらえ＋世界地図（端末言語で日英出し分け） (2026-07-01)
+
+**背景**
+- App Store デビュー（ビルド1.0(21)）は審査待ち。その間に**公開後ロードマップ①（世界版＝英語・EU除く）の下ごしらえ**に着手（[[post-launch-roadmap]]）。v1 は日本のみ配信・日本語UIだが、次段の英語版に向けて **web 側に i18n の基盤と世界地図の仕組みを先に仕込む**。ユーザー選択＝「基盤＋主要導線」「世界地図は CARTO 3枚に対応」。
+- 鉄則: **審査中の native 1.0(21) には一切触れない／日本語端末（navigator.language=ja）の見た目は1ピクセルも変えない**。変わるのは英語ブラウザで開いた時だけ。
+
+**① i18n 基盤（t 関数・言語自動判定）**
+- `LANG` = `navigator.language` が `ja` 始まりなら 'ja'、それ以外 'en'。`?lang=ja` / `?lang=en` で明示上書き（検証・QA 用。本番は navigator.language）。
+- `t(ja, en)` = **LANG==='ja' なら第1引数（日本語）をそのまま返す**＝日本語は完全に不変。非日本語は第2引数（英語）、未指定なら日本語にフォールバック（英語未整備でも壊れない＝段階移行）。**辞書キー方式でなくインライン方式**を採用＝既存コードの日本語文字列をその場で `t('…','…')` に置換でき、ja の不変性がコード上自明（レビューが楽）。将来一元管理したくなったら辞書へ寄せられる。
+- `document.documentElement.lang` を LANG に設定。
+
+**② 主要導線を英語化（最初に目に入る所）**
+- 静的ヘッダ（HTML 直書き）は `applyStaticI18n()`＝**en のときだけ** textContent/title を差し替え（ja は早期 return＝無改修）。h1「あの日」→「A Past Day」・タグ→「Photos & Footprints」・🗺過去の今日→On This Day・過去の明日→On Tomorrow・⚙メニュー各項目・`document.title`→英語名。
+- 動的テンプレート（JS 生成）は `t('日本語','English')` に置換＝空状態（起動画面）・取り込み進捗（preparing/importing）・情報モーダルの見出し/プライバシー訴求/閉じる・ヘッダ枚数「N 枚」。
+- **今回訳さない**＝情報モーダルの長い説明本文（en 未指定→ja フォールバック）。枠組みは入ったので次段は辞書に足すだけ。
+
+**③ 世界地図＝地理院を非日本語で CARTO に差し替え**
+- 地理院タイルは日本国外だと真っ白になる。`BASE_LAYERS` を `LANG==='ja'` で出し分け＝**ja は現状のまま（ダーク/地理院標準/地理院淡色）**、非日本語は「Dark / Standard(CARTO Voyager) / Light(CARTO Positron)」の世界対応3枚。**key（dark/gsiStd/gsiPale）は日英共通**にして localStorage 互換を保ち、layer と表示名だけロケールで替える＝描画/クリック/保存ロジックは無改修。
+
+**設計判断 / 教訓**
+- 「下ごしらえ」の線引き＝**基盤（t/LANG/世界タイル機構）＋主要導線**まで。全文字列の英語化（数百箇所）は審査待ち中にやる工事ではない。t() の枠に乗せておけば、以降は英語を足すだけで範囲が広がる。
+- ja 不変を「第1引数そのまま返す」で担保＝web を GitHub Pages に push しても日本語ユーザーは無変化（Codemagic の自動ビルドは審査中の 21 と別トラック）。
+
+**結果 / 観察**
+- preview green（console エラー0）: `?lang=en`＝ヘッダ「A Past Day / Photos & Footprints / 🗺 On This Day / On Tomorrow」・空状態「Start by importing your photos …」全面英語・タブ名も英語。`?lang=ja`＝title/ヘッダ/空状態すべて現状の日本語と完全一致＝**回帰なし**。両モードとも console エラーなし。
+- 地図の CARTO タイル実描画は URL が公式標準パターン（rastertiles/voyager・light_all）＝実機（英語ブラウザ/?lang=en で地図を開く）で最終確認。
+
+**残課題 / 次の方向**
+- 次段（英語版を実際に出す時）: 情報モーダル本文・二次画面（封印/囲んで比べる/記念日/タイムライン各所）の文字列を t() 化。ASC 英語ローカライズ名（A Past Day — Photos and Footprints）・`InfoPlist.strings` en。EU27 は配信除外（DSA 業者住所公開回避・[[post-launch-roadmap]]）。
+- native はこの web を Capacitor で包むので、公開後の次版で自動的に i18n が乗る（英語端末で英語表示）。
+
 ## v129 — 記念日の表現＋基準日（「あの日の続き」・N日前/N日後） (2026-07-01)
 
 **背景**

@@ -499,7 +499,47 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.82 (v129：記念日の表現＋基準日。①「＋未来の予定」→「＋あの日の続き」（作業感を外し記憶の続きへ・バッジ 予定→これから）②記念日に任意の基準日を設定でき、ログの各日の横に「N日前／N日後／基準日」を表示＝あの日からの隔たりを日数で感じる) · 2026-07-01';
+const BUILD = 'phase3.83 (v130：英語 i18n 下ごしらえ＋世界地図。端末言語(navigator.language)で日本語/英語を出し分け＝t()関数・言語自動判定・主要導線(ヘッダ/空状態/取り込み進捗/モーダル見出し)を英語化。地図は非日本語ロケールで地理院→CARTO Voyager/Positron に差し替え。日本語端末は完全に不変。?lang=en で検証可) · 2026-07-01';
+
+// ============================================================
+// i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
+//  - LANG==='ja' のとき t() は第1引数(日本語)をそのまま返す＝日本語端末は完全に不変。
+//  - 非日本語は第2引数(英語)、未指定なら日本語にフォールバック（未整備でも壊れない＝段階移行）。
+//  - ?lang=ja / ?lang=en で明示上書き（検証・QA 用。本番は navigator.language）。
+//  英語名 = A Past Day — Photos and Footprints。
+// ============================================================
+const LANG = (function () {
+  try { const q = new URLSearchParams(location.search).get('lang'); if (q === 'ja' || q === 'en') return q; } catch {}
+  return String(navigator.language || 'ja').toLowerCase().startsWith('ja') ? 'ja' : 'en';
+})();
+function t(ja, en) { return LANG === 'ja' ? ja : (en != null ? en : ja); }
+try { document.documentElement.lang = LANG; } catch {}
+
+// 静的ヘッダ(HTML 直書き)の英語化。ja では何もしない＝完全に不変。en のとき textContent/title を差し替え。
+function applyStaticI18n() {
+  if (LANG === 'ja') return;
+  const set = (sel, txt) => { const el = document.querySelector(sel); if (el) el.textContent = txt; };
+  const setTitle = (sel, txt) => { const el = document.querySelector(sel); if (el) el.title = txt; };
+  const h1 = document.querySelector('header h1');
+  if (h1 && h1.firstChild && h1.firstChild.nodeType === 3) h1.firstChild.textContent = 'A Past Day ';
+  set('header h1 .tag', 'Photos & Footprints');
+  set('#count', '— photos');
+  set('#btnMap', '🗺 On This Day');
+  set('#btnTomorrow', '🗺 On Tomorrow');
+  set('#btnAdd', '📷 Import');
+  set('#btnAnniv', '📍 Anniversaries');
+  set('#btnIg', '📦 Import from SNS zip');
+  set('#btnAI', '🧠 AI: nearby by meaning (beta)');
+  set('#btnLogger', '🛰️ Location logger');
+  set('#btnTrash', '♻️ Restore deleted');
+  set('#btnClear', '🗑 Delete all');
+  set('#btnInfo', 'ℹ️ Help & Info');
+  setTitle('#btnMap', "See this day's date across past years on the map");
+  setTitle('#btnTomorrow', "See tomorrow's date across past years on the map");
+  setTitle('#btnMenu', 'Menu (import, AI, and more)');
+  document.title = 'A Past Day — Photos and Footprints';
+}
+try { applyStaticI18n(); } catch (e) { console.warn('applyStaticI18n', e); }
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -2518,17 +2558,26 @@ async function openMapView(focusPhoto, opts) {
     `</div>`;
   document.body.appendChild(overlay);
 
-  // ベースタイル: CARTO ダーク (既定) + 地理院 (標準/淡色)。参照アプリ owntracks と同じ無料タイル。
+  // ベースタイル: CARTO ダーク (既定・世界対応) + 地理院 (標準/淡色・日本専用)。参照アプリ owntracks と同じ無料タイル。
+  const CARTO_ATTR = "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> &copy; <a href='https://carto.com/attributions'>CARTO</a>";
   const GSI_ATTR = "地理院タイル（<a href='https://www.gsi.go.jp/'>国土地理院</a>）";
-  const dark = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", {
-    maxZoom: 19, attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> &copy; <a href='https://carto.com/attributions'>CARTO</a>" });
+  const dark = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", { maxZoom: 19, attribution: CARTO_ATTR });
   const gsiStd = L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", { maxZoom: 18, attribution: GSI_ATTR });
   const gsiPale = L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", { maxZoom: 18, attribution: GSI_ATTR });
+  // v130: 世界版の下ごしらえ。地理院タイルは日本国外だと真っ白になるので、非日本語ロケールでは
+  //   CARTO Voyager(標準)/Positron(淡色) に差し替える（世界対応の無料タイル）。日本語(ja)は現状の地理院のまま＝不変。
+  const cartoVoyager = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png", { maxZoom: 20, attribution: CARTO_ATTR });
+  const cartoPositron = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", { maxZoom: 19, attribution: CARTO_ATTR });
   // ベースタイルの選択を記憶 (v86): 前回選んだ地図 (例: 地理院 淡色) で開く。未選択は既定=ダーク。
-  const BASE_LAYERS = [
+  //   key は日英で共通(dark/gsiStd/gsiPale)＝localStorage 互換を保ち、layer と表示名だけロケールで替える。
+  const BASE_LAYERS = (LANG === 'ja') ? [
     { key: 'dark',    name: 'ダーク',       layer: dark },
     { key: 'gsiStd',  name: '地理院(標準)', layer: gsiStd },
     { key: 'gsiPale', name: '地理院(淡色)', layer: gsiPale },
+  ] : [
+    { key: 'dark',    name: 'Dark',     layer: dark },
+    { key: 'gsiStd',  name: 'Standard', layer: cartoVoyager },
+    { key: 'gsiPale', name: 'Light',    layer: cartoPositron },
   ];
   let savedLayerKey = null; try { savedLayerKey = localStorage.getItem('pms-mapLayer'); } catch {}
   const initialBase = BASE_LAYERS.find(b => b.key === savedLayerKey) || BASE_LAYERS[0];
@@ -4150,9 +4199,9 @@ function renderInfoModal() {
   const card = document.createElement('div');
   card.className = 'ai-modal-card';
   card.innerHTML = `
-    <h2>ℹ️ 使い方・注意</h2>
+    <h2>ℹ️ ${t('使い方・注意', 'Help & Notes')}</h2>
     <div style="text-align:left;font-size:13px;line-height:1.7;color:#ccc;">
-      <p style="margin:.4em 0;color:#9f9;">🔒 <b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。AI 解析も端末内で行います。</p>
+      <p style="margin:.4em 0;color:#9f9;">🔒 ${t('<b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。AI 解析も端末内で行います。', '<b>Your photos stay on this device.</b> Nothing is uploaded to the cloud or any server. AI analysis runs on-device.')}</p>
       <p style="margin:.8em 0 .2em;color:#fff;">📥 取り込み</p>
       <p style="margin:.2em 0;"><b>📷取り込む</b> から <b>ファイル / フォルダー</b> を選びます。撮影日時(EXIF)があればそれを、なければ<b>保存日（最終更新日）</b>を日時にして取り込みます（色・意味の連想に乗ります）。日時の出所は画像を見ると「撮影日 / 保存日 / 投稿日」と表示されます。細かい基準（撮影日のある画像だけ取り込む等）は <b>⚙️ 詳細設定</b> から。同じ画像を選び直しても<b>重複は自動スキップ</b>。たくさん入れる時・古い端末では小分けが安定。</p>
       <p style="margin:.2em 0;">📦 は <b>Instagram / X(Twitter) のエクスポート(zip)</b> から取り込みます。画像本体から日時が消えていても、同梱データ（Instagram は「情報をダウンロード」の <b>JSON 形式</b>、X は <b>アーカイブ</b>の <code>data/tweets.js</code>）から<b>投稿日時を復元</b>して取り込みます（端末内で解凍・写真は外に出ません）。X は画像投稿のみ対応（動画・テキストは対象外）。容量が大きいと時間がかかるので、期間を絞ると軽いです。</p>
@@ -4170,7 +4219,7 @@ function renderInfoModal() {
   const actions = document.createElement('div');
   actions.className = 'actions';
   const closeBtn = document.createElement('button');
-  closeBtn.textContent = '閉じる';
+  closeBtn.textContent = t('閉じる', 'Close');
   closeBtn.addEventListener('click', closeInfoModal);
   actions.appendChild(closeBtn);
   card.appendChild(actions);
@@ -4355,7 +4404,7 @@ function updateTrashBtn() {
 function render() {
   $main.innerHTML = '';
   const activeCount = allPhotos.reduce((n, p) => n + (visible(p) ? 1 : 0), 0);
-  $count.textContent = activeCount > 0 ? `${activeCount} 枚` : '— 枚';
+  $count.textContent = activeCount > 0 ? `${activeCount} ${t('枚', 'photos')}` : t('— 枚', '— photos');
   renderAIModal();    // モーダルは独立 (state に依存しない overlay)
   renderInfoModal();  // 使い方・注意モーダル (v38)
   renderExcludedModal();  // 削除（除外）一覧モーダル (v48)
@@ -4370,18 +4419,18 @@ function render() {
     // ネイティブ (Capacitor) のときは「ライブラリ全体から始める」を主役に、web ピッカーは
     // 「数枚で試す」副導線に下げる (核＝偶然/久しぶり/よみがえる の段階導線, v94)。
     const nativeBlock = IS_NATIVE ? `
-        <button class="primary" id="emptyNative">📚 写真ライブラリ全体から始める</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">この端末の<b>すべての写真</b>から連想を始めます（端末内だけで処理）。<b>まず数枚で試す</b>なら下のボタンへ。</p>` : '';
+        <button class="primary" id="emptyNative">📚 ${t('写真ライブラリ全体から始める', 'Start from your whole photo library')}</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">${t('この端末の<b>すべての写真</b>から連想を始めます（端末内だけで処理）。<b>まず数枚で試す</b>なら下のボタンへ。', 'Begin from <b>all the photos</b> on this device (processed only on-device). To <b>try with just a few</b>, use the button below.')}</p>` : '';
     $main.innerHTML = `
       <div class="empty">
-        <h2>写真を取り込んで始める</h2>
-        <div class="privacy">🔒 <b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。すべて端末内 (IndexedDB) に保存され、AI 解析も端末内で行います。</div>
+        <h2>${t('写真を取り込んで始める', 'Start by importing your photos')}</h2>
+        <div class="privacy">🔒 ${t('<b>写真はこの端末の中だけ。</b>クラウドや外部サーバーにアップロードされません。すべて端末内 (IndexedDB) に保存され、AI 解析も端末内で行います。', '<b>Your photos stay on this device.</b> Nothing is uploaded to the cloud or any server. Everything is stored locally (IndexedDB), and AI analysis runs on-device.')}</div>
         ${nativeBlock}
-        <p>まず 20〜30 枚くらい入れて感触を見るのが目安です。</p>
-        <button class="${IS_NATIVE ? 'secondary' : 'primary'} import-trigger" id="emptyAdd">📷 ${IS_NATIVE ? '数枚だけ選んで試す' : '画像を取り込む'}</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">押すと <b>ファイル / フォルダー</b> を選べます。撮影日時があればそれを、なければ<b>保存日</b>を使って取り込みます。細かい基準は <b>⚙️ 詳細設定</b> から。</p>
-        <button id="emptyIg" style="margin-top:6px;">📦 Instagram / X の zip から取り込む</button>
-        <p style="margin:.4em 0;font-size:12px;opacity:.7;">（上級者向け）Instagram「情報をダウンロード」(JSON形式) / X(Twitter) アーカイブの zip。投稿日時を復元します。</p>
+        <p>${t('まず 20〜30 枚くらい入れて感触を見るのが目安です。', 'Start with about 20–30 photos to get a feel for it.')}</p>
+        <button class="${IS_NATIVE ? 'secondary' : 'primary'} import-trigger" id="emptyAdd">📷 ${IS_NATIVE ? t('数枚だけ選んで試す', 'Pick a few to try') : t('画像を取り込む', 'Import photos')}</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">${t('押すと <b>ファイル / フォルダー</b> を選べます。撮影日時があればそれを、なければ<b>保存日</b>を使って取り込みます。細かい基準は <b>⚙️ 詳細設定</b> から。', 'Tap to pick <b>files / folders</b>. Uses the capture date if present, otherwise the <b>saved date</b>. Fine-tune under <b>⚙️ Settings</b>.')}</p>
+        <button id="emptyIg" style="margin-top:6px;">📦 ${t('Instagram / X の zip から取り込む', 'Import from Instagram / X zip')}</button>
+        <p style="margin:.4em 0;font-size:12px;opacity:.7;">${t('（上級者向け）Instagram「情報をダウンロード」(JSON形式) / X(Twitter) アーカイブの zip。投稿日時を復元します。', '(Advanced) Instagram “Download your information” (JSON) / X (Twitter) archive zip. Restores post dates.')}</p>
       </div>`;
     if (IS_NATIVE) {
       const en = document.getElementById('emptyNative');
@@ -4399,12 +4448,12 @@ function render() {
     $main.innerHTML = `
       <div class="progress" style="text-align:center;">
         <div class="spinner"></div>
-        <div class="text">📷 写真を読み込んでいます…</div>
-        <div class="text" style="color:#888;font-size:11px;margin-top:6px;">写真が多いと選択後の準備に数十秒かかることがあります</div>
+        <div class="text">📷 ${t('写真を読み込んでいます…', 'Loading photos…')}</div>
+        <div class="text" style="color:#888;font-size:11px;margin-top:6px;">${t('写真が多いと選択後の準備に数十秒かかることがあります', 'With many photos, preparation can take tens of seconds.')}</div>
         <div class="text" id="prep-hint" style="color:#e6a23c;font-size:11px;margin-top:8px;"></div>
-        <div class="privacy-line">🔒 アップロードではありません。この端末内だけで処理しています</div>
+        <div class="privacy-line">🔒 ${t('アップロードではありません。この端末内だけで処理しています', 'Not an upload — processed only on this device.')}</div>
       </div>
-      <div class="actions"><button class="secondary" id="cancelPrep">やめる</button></div>`;
+      <div class="actions"><button class="secondary" id="cancelPrep">${t('やめる', 'Cancel')}</button></div>`;
     document.getElementById('cancelPrep').addEventListener('click', cancelPicker);
     return;
   }
@@ -4412,9 +4461,9 @@ function render() {
   if (state === 'importing') {
     $main.innerHTML = `
       <div class="progress">
-        <div class="text" id="prog-text">読み込み開始…</div>
+        <div class="text" id="prog-text">${t('読み込み開始…', 'Starting…')}</div>
         <div class="bar"><div id="prog-bar" style="width:0%"></div></div>
-        <div class="privacy-line" style="text-align:center;">🔒 写真はアップロードされません（端末内で処理）</div>
+        <div class="privacy-line" style="text-align:center;">🔒 ${t('写真はアップロードされません（端末内で処理）', 'Photos are not uploaded (processed on-device).')}</div>
       </div>`;
     return;
   }
@@ -4826,7 +4875,7 @@ function updateBgStatus() {
     }
   }
   const activeCount = allPhotos.reduce((n, p) => n + (visible(p) ? 1 : 0), 0);
-  $count.textContent = activeCount > 0 ? `${activeCount} 枚` : '— 枚';
+  $count.textContent = activeCount > 0 ? `${activeCount} ${t('枚', 'photos')}` : t('— 枚', '— photos');
 }
 
 // 既存写真で color フィールドが無いものに、保存済み thumb から色彩特徴を計算して付与する。
