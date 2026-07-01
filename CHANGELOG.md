@@ -5,6 +5,29 @@
 
 ---
 
+## v123 — 動線タップの実機「無反応」を修正（細い線に指が当たらない）＝透明な太い当たり判定線 (2026-07-01)
+
+**背景**
+- v122 の「足跡の地図」で、ユーザー実機報告「**動線を1本タップ→その日だけ明るく／タイムライン連動 が無反応**」。preview では合成 MouseEvent を線の座標ピッタリに撃っていたので効いていた＝実機の指との差で見落としていた。
+
+**原因**
+- クリック判定が **見た目の細い線（weight 4px）** に付いていた。SVG stroke のヒット領域＝描画幅そのもの＝実機の指（〜40px）で 4px の線の中心 ±2px に当てるのはほぼ不可能→タップがほぼ全部外れて「無反応」に感じる。Leaflet の典型的な「モバイルで細い polyline が押せない」問題。
+
+**設計判断**
+- **透明で太い「当たり判定」線を最前面に重ねる**（`weight:24, opacity:0, interactive:true, bubblingMouseEvents:false`）。クリックハンドラを見た目線からこの hit 線へ移動。opacity:0 でも SVG は `visiblePainted`（stroke≠none なら透明でもヒット）＝押せる。24px ＝指で余裕を持って当たる。
+- **見た目線（casing＋colored, pushCased）は `interactive:false`**＝タップを一切拾わない（pickDays は hit 線が拾う／browse は素通しで地図クリックへ）。これで「見た目線に当たったが無反応」も「見た目線が map クリックへ bubble して focus 解除」も両方消える。
+- `bubblingMouseEvents:false` ＋ `L.DomEvent.stop(e)` の二重で、地図背景クリック（focusedDay 解除）へ伝播させない（タップで set→即 clear の自滅を防止）。
+- 対象は pickDays モードの複数日トリップ（今日/偶然3日/記念日の足跡の地図すべて）＝地図体験全般でトリップが押せるようになる汎用修正。単一日の空色線（drawSkyLine）は focus 対象外なので据え置き。
+
+**結果 / 観察**
+- preview 検証 green: hit 線が2本（width24/opacity0/interactive）生成・見た目線は非 interactive 化・**透明 hit 線タップで timeline dim が `2→0→2→0` と正しくトグル**（focus ON=他日2件淡色 / OFF=全部明るく）・地図背景クリックによる誤解除なし・console 0。実機の指での当たりやすさは GitHub Pages で最終確認。
+
+**教訓**
+- **preview の「合成クリックが座標ピッタリ」は実機のタップ命中率を保証しない**。線・小さいヒット領域の "タップできるか" は preview で緑でも実機で無反応になりうる＝ヒット領域は実機基準（指サイズ）で設計する。Leaflet の細線は透明太線を重ねるのが定石。[[preview-raf-not-firing]] と同系統の preview 限界。
+
+**残課題 / 次の方向**
+- 実機で動線タップの当たりやすさを確認（24px で十分か・重なった日の選び分け）。以降は v122 の残（native カレンダー書き出し等）へ。
+
 ## v122 — 記念日の詳細を「写真deck→左右で比べる／足跡の地図」に作り替え (2026-07-01)
 
 **背景**

@@ -443,7 +443,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.75 (v122：記念日の詳細を作り替え。記念日タップ→写真1枚大表示＋スワイプ(deck)→cap から「⇆左右で比べる」(v120比較)／「🗺足跡の地図」(全訪問日を動線表示・1本タップでその日だけ明るく＋タイムライン連動)。一覧の各行に🗑削除。showFullImage を annivCtx/onClose で拡張・openMapView に pickDays・focusedDay をタイムラインにも反映) · 2026-07-01';
+const BUILD = 'phase3.76 (v123：動線タップの実機無反応を修正＝細い線(4px)は指で当たらないので、透明で太い当たり判定線(weight24/opacity0/bubblingMouseEvents:false)を最前面に重ねてタップをそこで拾う。見た目線は interactive:false 化。→ 動線1本タップで その日だけ明るく＋タイムライン連動 が実機で効く) · 2026-07-01';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -2537,8 +2537,9 @@ async function openMapView(focusPhoto, opts) {
 
     // v114: 線を見やすく — 暗い縁取り(casing)を下地に敷き、本線を太めに。地図タイルの上でくっきり浮く。
     const pushCased = (latlngs, color, weight, opacity) => {
-      mapState.tripLayers.push(L.polyline(latlngs, { color: '#0a0a0a', weight: weight + 4, opacity: Math.min(1, opacity * 0.6), lineCap: 'round', lineJoin: 'round' }).addTo(map));
-      const pl = L.polyline(latlngs, { color, weight, opacity, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+      // v123: 見た目の線は非インタラクティブに（タップは pickDays の透明な太い hit 線で拾う／browse は素通しで地図へ）。
+      mapState.tripLayers.push(L.polyline(latlngs, { color: '#0a0a0a', weight: weight + 4, opacity: Math.min(1, opacity * 0.6), lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(map));
+      const pl = L.polyline(latlngs, { color, weight, opacity, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(map);
       mapState.tripLayers.push(pl);
       return pl;
     };
@@ -2573,19 +2574,24 @@ async function openMapView(focusPhoto, opts) {
         const color = TRIP_COLORS[idx % TRIP_COLORS.length];
         const op = dim ? 0.15 : 0.85;
         const latlngs = pts.map(p => [p.lat, p.lng]);
-        const pl = pushCased(latlngs, color, 4, op);   // v114: 縁取り付きで見やすく
-        pl.on('click', (e) => {   // 1本タップ → その日だけ残して他を暗く (もう一度タップで解除)
-          L.DomEvent.stop(e);
-          mapState.focusedDay = (mapState.focusedDay === dk ? null : dk);
-          drawTrips();
-          if (mapState.updateTimelineUI) mapState.updateTimelineUI();   // v122: タイムラインも同じ日だけ明るく
-        });
+        const pl = pushCased(latlngs, color, 4, op);   // v114: 縁取り付きで見やすく (見た目だけ)
         mapState.tripLayers.push(pl);
         if (L.polylineDecorator && L.Symbol) {
           mapState.tripLayers.push(L.polylineDecorator(latlngs, {
             patterns: [{ offset: 24, repeat: 90, symbol: L.Symbol.arrowHead({ pixelSize: 9, polygon: false, pathOptions: { color, weight: 2, opacity: op } }) }]
           }).addTo(map));
         }
+        // v123: 実機の指では 4px の線にまず当たらない（preview の座標ピッタリなクリックと違い「無反応」に）。
+        //   透明で太い「当たり判定」線を最前面に重ね、タップをそこで拾う。bubblingMouseEvents:false で
+        //   地図の背景クリック（focusedDay 解除）へ伝播させない（＋二重で L.DomEvent.stop）。
+        const hit = L.polyline(latlngs, { color, weight: 24, opacity: 0, interactive: true, bubblingMouseEvents: false, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+        hit.on('click', (e) => {   // 1本タップ → その日だけ残して他を暗く（もう一度タップで解除）＋タイムライン連動
+          L.DomEvent.stop(e);
+          mapState.focusedDay = (mapState.focusedDay === dk ? null : dk);
+          drawTrips();
+          if (mapState.updateTimelineUI) mapState.updateTimelineUI();   // v122: タイムラインも同じ日だけ明るく
+        });
+        mapState.tripLayers.push(hit);
       });
       return;
     }

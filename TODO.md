@@ -13,11 +13,11 @@
 
 ---
 
-## 現在地 — BUILD: phase3.75（v122：**記念日の詳細を作り替え**＝記念日タップ→写真1枚大表示＋スワイプ(showFullImage deck 再利用)→cap から「⇆左右で比べる」(v120比較)／「🗺足跡の地図」(全訪問日を動線表示・**1本タップ→その日だけ明るく＋タイムラインも連動**)。一覧の各行に🗑削除。showFullImage を annivCtx/onClose 拡張・openMapView に pickDays・focusedDay をタイムラインにも反映。preview green(deck/比較/足跡の地図/動線→dim を end-to-end 確認)。｜v121：記念日(過去半分)＝円を名前付き保存し訪問が積もる器・IndexedDB v3。｜v120：地図「囲んで比べる」(実機「いいかんじ」YES)。｜v119：起動時の自動差分取り込み(native)。v111-118 UI改善✅。｜v110：✅再提出済み＝「審査待ち（2回目）」→**審査結果待ち**→承認後 ASC で手動公開。英語名 A Past Day・v1.1。**v111-122 は審査中の1.0(16)とは別トラック＝承認後の次版に乗せる**。未来=カレンダー書き出し(EventKit)は native フェーズで別途。）
+## 現在地 — BUILD: phase3.76（v123：**動線タップの実機「無反応」を修正**＝細い線(4px)は指で当たらないので、透明で太い当たり判定線(weight24/opacity0/bubblingMouseEvents:false)を最前面に重ねタップをそこで拾う・見た目線は interactive:false 化。→ 動線1本タップで その日だけ明るく＋タイムライン連動 が実機で効く。preview で dim トグル 2→0→2→0 確認。教訓＝preview の合成クリック(座標ピッタリ)は実機のタップ命中率を保証しない＝ヒット領域は指基準で。｜v122：**記念日の詳細を作り替え**＝記念日タップ→写真1枚大表示＋スワイプ(showFullImage deck)→「⇆左右で比べる」／「🗺足跡の地図」(全訪問日を動線表示・1本タップでその日だけ明るく＋タイムライン連動)。一覧に🗑。｜v121：記念日(過去半分)＝円を名前付き保存し訪問が積もる器・IndexedDB v3。｜v120：地図「囲んで比べる」(実機「いいかんじ」YES)。｜v119：起動時の自動差分取り込み(native)。v111-118 UI改善✅。｜v110：✅再提出済み＝「審査待ち（2回目）」→**審査結果待ち**→承認後 ASC で手動公開。英語名 A Past Day・v1.1。**v111-122 は審査中の1.0(16)とは別トラック＝承認後の次版に乗せる**。未来=カレンダー書き出し(EventKit)は native フェーズで別途。）
 
 > ### 📍 次セッションの再開ポイント（2026-06-30〜07-01 セッション9 更新・まずここを読む）
 >
-> **この回でやったこと（v119 自動差分取り込み + v120 囲んで比べる + v121 記念日(過去半分) + v122 記念日詳細の作り替え）**:
+> **この回でやったこと（v119 自動差分取り込み + v120 囲んで比べる + v121 記念日(過去半分) + v122 記念日詳細の作り替え + v123 動線タップ実機修正）**:
 > - セッション開始の挨拶 → DOCMAP/TODO + Gmail 確認。**審査結果の新着メールはまだ無し**（再提出後は TestFlight 通知のみ＝1.0(16)→(17)→(18)。(16)=再提出ビルド／(17)(18)=UI改修 push の Codemagic 自動ビルド）。**審査結果待ち（2回目）継続**。✅ **ASC の審査トラックは 16 のまま**（ユーザーが ASC スクショで確認＝17/18 に差し替わっていない＝審査リセットなし）。
 > - **v119 実装＝起動時の自動差分取り込み（native）**。ユーザー仕様＝①ライブラリ取り込み済みの人に起動時プロンプト「自動で取り込む？」②はい→以後開くたび差分③いいえでも設定で ON 可④後から OFF 可。
 >   - 設計: **静かな背景取り込み**（`runAutoImport()`＝enumerate→差分→`processNativeRest` 再利用・フル画面にしない・新規ゼロなら無音）／**対象判定**＝`collectImportedAssetIds().size>0`（ライブラリ取り込み済みのみ・新規ユーザーは煩わせない）／**初回プロンプトは次の起動で**（boot `maybeAutoImportOnLaunch`・`pms-autoImportAsked` で1回だけ）／**設定トグル**＝取り込み→⚙️詳細設定に native のみチェックボックス（`pms-autoImport`）／**前面復帰でも差分**＝`visibilitychange` に `maybeAutoImportOnResume`（ON時のみ・60秒throttle・iOS は cold launch 稀なので）。全経路 `IS_NATIVE && PhotoLib` ガード＝web 完全無改修。
@@ -35,12 +35,13 @@
 >   - 設計（既存部品の組合せ）: ①=**showFullImage(deck) 再利用**（写真リストは `photosInCircle` で再計算=live／無ければ photoId 解決）。**showFullImage を `annivCtx`/`onClose` で拡張**（既存呼び出しは無改修＝全部 annivCtx ガード）＝cap を「⇆左右で比べる」「🗺足跡の地図」に差し替え（汎用🗺/🚶隠す・📅日付は残す）・遷移時は onClose 無効化・閉じたら一覧へ。②=`openCompareView(list, circleInfo)`。③=**`openMapView(null,{pickDays})` 新設**＝全訪問日を days モードで動線表示。**focusedDay をタイムラインにも反映**（`updateTimelineUI` に `.tl-dim`・動線クリック/背景タップで呼ぶ）＝「動線1本→その日だけ明るく＋タイムラインも」。削除は一覧の各行に🗑移設（行を button→div 化）。
 >   - 関数（[index.html](index.html)）: `showFullImage`(annivCtx/onClose)・`openMapView`(opts.pickDays)・`openAnnivDetail`(deck化)・`annivPhotoList`・`openAnnivMap`・`updateTimelineUI`(tl-dim)・`openAnnivList`(行に🗑)。CSS=`.tl-dim`/`.anniv-row-main`/`.anniv-row-del`。詳細 CHANGELOG v122。
 >   - 検証＝preview green(end-to-end): 一覧行(main＋🗑)→deck(3スライド・⇆/🗺/📅・汎用🗺抑制)→⇆で比較2リール(一覧再オープンなし)→🗺で地図days「📅2日を重ねて」→**動線パスクリックで focused 日は明るいまま・他 picked 日 `tl-dim`・非picked日 tl-out**。⚠️テスト不備メモ: `window.mapState` は let スコープで常に falsy→検証は `window.closeMapView()` を無条件で（[[preview-raf-not-firing]] 系）。
+> - **v123 修正＝動線タップの実機「無反応」**（ユーザー報告）。原因＝クリック判定が見た目の細い線(4px)に付いており実機の指では当たらない（preview は座標ピッタリの合成クリックで効いていた＝見落とし）。→ **透明で太い当たり判定線(weight24/opacity0/`bubblingMouseEvents:false`)を最前面に重ねハンドラをそこへ移動**・見た目線(pushCased)は `interactive:false` 化。pickDays の複数日トリップ全般（今日/偶然3日/記念日の足跡の地図）で効く。検証＝hit 線2本(width24/opacity0/interactive)生成・見た目線 非interactive・透明線タップで dim トグル `2→0→2→0`・誤解除なし。詳細 CHANGELOG v123。教訓＝**preview の合成クリック命中は実機タップを保証しない＝ヒット領域は指基準で**（[[preview-raf-not-firing]] 同系）。
 > - **▶ 次セッションはここから**:
 >   1. **審査結果待ち（2回目）**＝**セッション開始時に Gmail で結果確認**（[[session-start-gmail-check]]）。①承認→ASC バージョンページで「公開」②再リジェクト→理由を読んで対応。
->   2. **v119-v122 を実機確認**（v120/v121/v122 は **GitHub Pages で今すぐ web 実機可**・v119 は native）: v120=円ドラッグ感・年マタギ打率（✅ユーザー「いいかんじ」）／v121-122=記念日→deck→比較/足跡の地図の手触り・「ここ来たのいつぶり/前回どう歩いた」が辿れるか／v119=起動プロンプト・差分・電池。
+>   2. **v119-v123 を実機確認**（v120-v123 は **GitHub Pages で今すぐ web 実機可**・v119 は native）: v120=円ドラッグ感・年マタギ打率（✅ユーザー「いいかんじ」）／v121-122=記念日→deck→比較/足跡の地図の手触り／**v123=足跡の地図で動線タップ→その日だけ明るく＋タイムライン連動が効くか（実機の当たりやすさ）**／v119=起動プロンプト・差分・電池。
 >   3. **記念日が刺さったら → native フェーズで 未来半分＝iOS カレンダー書き出し**（EventKit 橋・`createEvent` 自作薄プラグイン or community・**write-only 権限** `NSCalendarsWriteOnlyAccessUsageDescription`・fire-and-forget・イベント中身に歴代の足跡＝「過去が未来の燃料」・iOS 先行/Google は将来）。
 >   4. **承認後 v1.1**: 英語名 A Past Day／iPad／位置ロガー復活／広告（[[monetization-v1-adfree]]）。v111-122 も承認後の次版に。
->   - **状態**: web=GitHub Pages `phase3.75`（v119-v122 反映）／native=ビルド16 が審査中（✅16 のまま）・17/18 は TestFlight 済（差し替えない）。**Gmail 監視継続**。受信確認リマインド＝anohiapp@gmail.com。**📝 Notion: WHY に curation 境界の決定／HOW にカレンダー書き出し方針を記載済(v121 で MCP 実施)**。
+>   - **状態**: web=GitHub Pages `phase3.76`（v119-v123 反映）／native=ビルド16 が審査中（✅16 のまま）・17/18 は TestFlight 済（差し替えない）。**Gmail 監視継続**。受信確認リマインド＝anohiapp@gmail.com。**📝 Notion: WHY に curation 境界の決定／HOW にカレンダー書き出し方針を記載済(v121 で MCP 実施)**。
 >
 > ### 📍 次セッションの再開ポイント（2026-06-30 セッション8 更新・まずここを読む）
 >
