@@ -155,13 +155,14 @@
   /* 記念日 (v121): 比較ビュー(z4000)の上に出すため z-index を上書き (.ai-modal より後でも勝つよう詳細度を上げる) */
   .ai-modal.anniv-z { z-index: 5000; }
   .anniv-empty { color: #bbb; line-height: 1.7; text-align: center; padding: 16px 4px; }
-  .anniv-list, .anniv-visits { display: flex; flex-direction: column; gap: 8px; }
+  .anniv-list, .anniv-visits { display: flex; flex-direction: column; gap: 10px; }
   .anniv-visits { max-height: 52vh; overflow-y: auto; margin: 8px 0 4px; }
-  .anniv-row, .anniv-visit { display: flex; align-items: center; gap: 12px; background: #232323; border: none; border-radius: 10px; padding: 8px 10px; cursor: pointer; text-align: left; width: 100%; }
-  .anniv-row-thumb, .anniv-visit-thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; flex: 0 0 auto; }
-  .anniv-row-thumb.noimg, .anniv-visit-thumb.noimg { display: flex; align-items: center; justify-content: center; background: #333; font-size: 20px; }
-  .anniv-row-name { color: #fff; font-size: 15px; font-weight: 600; }
-  .anniv-row-sub { color: #9a9a9a; font-size: 12px; margin-top: 2px; }
+  /* v126: 記念日一覧をおしゃれに（カード＝微グラデ＋枠＋影・大きめカバー・訪問回数を teal で） */
+  .anniv-row, .anniv-visit { display: flex; align-items: center; gap: 13px; background: linear-gradient(180deg,#282828,#1f1f1f); border: 1px solid #333; border-radius: 14px; padding: 10px; cursor: pointer; text-align: left; width: 100%; box-shadow: 0 1px 6px rgba(0,0,0,0.25); }
+  .anniv-row-thumb, .anniv-visit-thumb { width: 62px; height: 62px; border-radius: 11px; object-fit: cover; flex: 0 0 auto; }
+  .anniv-row-thumb.noimg, .anniv-visit-thumb.noimg { display: flex; align-items: center; justify-content: center; background: #333; font-size: 24px; }
+  .anniv-row-name { color: #fff; font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .anniv-row-sub { color: #33c1b0; font-size: 12px; margin-top: 4px; font-weight: 600; }
   .anniv-row-main { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; cursor: pointer; }
   .anniv-row-del { flex: 0 0 auto; background: transparent; border: none; color: #999; font-size: 16px; cursor: pointer; padding: 6px 4px; }
   .anniv-detail-sub { color: #aaa; font-size: 13px; line-height: 1.6; }
@@ -173,6 +174,34 @@
   .tl-day.tl-dim, .tl-item.tl-dim { opacity: 0.3; transition: opacity 0.15s; }
   /* v125: 位置情報なし写真はタイムラインに出る、の注記 */
   .tl-gpshint { color: #9a9a9a; font-size: 11.5px; line-height: 1.5; padding: 6px 12px 2px; }
+
+  /* 記念日のログ / タイムライン (v126) */
+  .atl-overlay { position: fixed; inset: 0; z-index: 5000; background: #111; display: flex; flex-direction: column; }
+  .atl-header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; color: #fff; border-bottom: 1px solid #222; }
+  .atl-title { font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .atl-close { flex: 0 0 auto; background: rgba(255,255,255,0.12); color: #fff; border: none; border-radius: 999px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; }
+  .atl-body { flex: 1 1 auto; overflow-y: auto; padding: 14px 18px calc(28px + env(safe-area-inset-bottom)); }
+  .atl-empty { color: #999; text-align: center; padding: 20px; }
+  .atl-entry { position: relative; padding: 0 0 20px 20px; border-left: 2px solid #333; margin-left: 6px; }
+  .atl-entry:last-of-type { border-left-color: transparent; }
+  .atl-entry::before { content: ''; position: absolute; left: -8px; top: 3px; width: 13px; height: 13px; border-radius: 50%; background: #33c1b0; border: 3px solid #111; box-sizing: border-box; }
+  .atl-entry.planned { border-left-style: dashed; }
+  .atl-entry.planned::before { background: #111; border-color: #33c1b0; }
+  .atl-date { color: #fff; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .atl-badge { font-size: 11px; color: #03201d; background: #33c1b0; border-radius: 999px; padding: 1px 9px; margin-left: 8px; font-weight: 700; vertical-align: middle; }
+  .atl-photos { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 6px; }
+  .atl-photos img { width: 66px; height: 66px; object-fit: cover; border-radius: 8px; }
+  .atl-editphotos { display: block; background: none; border: none; color: #33c1b0; font-size: 12px; cursor: pointer; padding: 2px 0 6px; }
+  .atl-comment { width: 100%; box-sizing: border-box; background: #1c1c1c; color: #eee; border: 1px solid #333; border-radius: 10px; padding: 10px 12px; font-size: 14px; line-height: 1.5; resize: vertical; min-height: 46px; font-family: inherit; }
+  .atl-comment::placeholder { color: #666; }
+  .atl-delplan { display: block; background: none; border: none; color: #b66; font-size: 12px; cursor: pointer; padding: 6px 0 0; }
+  .atl-add { margin: 6px 0 0; background: #1e6b5e; color: #fff; border: none; border-radius: 10px; padding: 13px; width: 100%; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .atl-date-input { width: 100%; box-sizing: border-box; background: #111; color: #fff; border: 1px solid #555; border-radius: 8px; padding: 10px 12px; font-size: 16px; margin-top: 6px; }
+  .atl-picker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 56vh; overflow-y: auto; margin: 10px 0; }
+  .atl-picker-grid .pk { position: relative; aspect-ratio: 1; cursor: pointer; }
+  .atl-picker-grid .pk img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; }
+  .atl-picker-grid .pk.sel img { outline: 3px solid #33c1b0; outline-offset: -3px; }
+  .atl-picker-grid .pk.sel::after { content: '✓'; position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; background: #33c1b0; color: #03201d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
   /* v24: フル表示の下部キャプション。日時 (純正写真アプリで辿る鍵) + 写真アプリ動線 */
   .full-cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2001; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.72)); display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .full-cap .dt { color: #fff; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
@@ -320,10 +349,14 @@
   .leaflet-popup-content-wrapper { background: #1a1a1a; color: #eee; border-radius: 10px; }
   .leaflet-popup-content { margin: 12px; }
   .leaflet-popup-tip { background: #1a1a1a; }
+  /* v126: Leaflet popup を暗く（既定は白背景＝#eee のテキストが白地で読めず「撮影日時が見えにくい」原因）。暗くして日時をくっきり。 */
+  .leaflet-popup-content-wrapper { background: #1c1c1c; color: #eee; border-radius: 12px; box-shadow: 0 3px 18px rgba(0,0,0,0.55); }
+  .leaflet-popup-tip { background: #1c1c1c; }
+  .leaflet-popup-close-button { color: #bbb !important; }
   .marker-popup { width: 170px; text-align: center; }
   .marker-popup .mp-thumb { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; display: block; cursor: pointer; background: #000; }
-  .marker-popup .mp-date { font-size: 12px; font-weight: 600; margin-top: 6px; color: #eee; }
-  .marker-popup .mp-place { font-size: 11px; color: #8bf; margin-top: 2px; }
+  .marker-popup .mp-date { font-size: 13px; font-weight: 700; margin-top: 8px; color: #fff; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+  .marker-popup .mp-place { font-size: 11px; color: #9cf; margin-top: 3px; }
   .marker-popup .mp-walk { margin-top: 8px; width: 100%; padding: 8px; border: 0; border-radius: 8px; background: #2a6; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
 
   /* タイムライン シート (モバイル=下部から引き出す / PC=右サイドバー) */
@@ -447,7 +480,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.78 (v125：微調整6点。①足跡の地図の⋯表示に「この辺りを記念日に登録」②🎲を3日→1日③足跡の拡大「ここから歩く」→「連想ウォーク」に統一④位置なし写真はタイムラインのみ表示の説明(ⓘ＋タイムライン注記)⑤位置ある写真の拡大をタイムライン順スワイプに(マーカーpopupサムネ)⑥過去の今日は写真ゼロでもサイコロに逃がさず「今日(0年分)」を表示) · 2026-07-01';
+const BUILD = 'phase3.79 (v126：①地図マーカーpopupを暗くして撮影日時を見やすく（白地に薄字→暗背景＋白字）②記念日一覧をおしゃれに（カード＋大カバー＋teal訪問数）③記念日の deck に「📖ログ」＝日別タイムライン：各訪問の 日付＋代表写真(自動＋手動選択)＋コメント、さらに「未来の予定」を日付選択＋コメントで追加できる) · 2026-07-01';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1967,6 +2000,7 @@ function showFullImage(photo, opts = {}) {
         (annivCtx
           ? (annivCtx.list.length >= 2 ? `<button class="to-compare">⇆ 左右で比べる</button>` : '') +
             `<button class="to-annivmap">🗺 足跡の地図</button>` +
+            (annivCtx.anniv ? `<button class="to-annivlog">📖 ログ</button>` : '') +   // v126: 記念日の日別ログ(写真+コメント+未来の予定)
             (annivCtx.canRegister ? `<button class="to-register">📍 記念日に登録</button>` : '')   // v124: 囲む後もこの deck 動線＝違いは登録ボタンだけ
           : (onWalk ? `<button class="to-walk">🔮 連想ウォーク</button>` : '') +   // v125: 名前統一（旧「ここから歩く」）
             (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '')) +
@@ -1984,6 +2018,8 @@ function showFullImage(photo, opts = {}) {
       const cb = cap.querySelector('.to-compare');
       if (cb) cb.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openCompareView(annivCtx.list, annivCtx.circleInfo, annivCtx.canRegister); });
       cap.querySelector('.to-annivmap').addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); showTripsMap(annivCtx.dayKeys); });
+      const lb = cap.querySelector('.to-annivlog');
+      if (lb) lb.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openAnnivTimeline(annivCtx.anniv); });
       const rb = cap.querySelector('.to-register');
       if (rb) rb.addEventListener('click', () => registerAnniversary(annivCtx.circleInfo, annivCtx.list, () => { annivCtx.canRegister = false; rb.textContent = '✓ 記念日に登録'; rb.disabled = true; }));
     } else {
@@ -3732,15 +3768,15 @@ async function openAnnivDetail(a) {
   if (!list.length) { logErr('この記念日の写真が見つかりませんでした（取り込み前かもしれません）'); return; }
   closeAnnivModals();   // 一覧を閉じてから deck を前面に (deck は z2000)
   const circleInfo = { lat: a.center.lat, lng: a.center.lng, radius: a.radius };
-  openAnnivDeck(list, circleInfo, false, openAnnivList);   // 登録済み＝登録ボタンなし・閉じたら一覧へ
+  openAnnivDeck(list, circleInfo, false, openAnnivList, a);   // 登録済み＝登録ボタンなし・📖ログ あり・閉じたら一覧へ
 }
 
-// 円/記念日の写真を deck (showFullImage) で開く共通入口。cap から 比較/足跡の地図/(canRegister なら)記念日登録 へ。
-// 囲む(v120)後も 記念日タップ(v122)と同じ動線にする＝違いは canRegister の「📍記念日に登録」ボタンだけ (v124)。
-function openAnnivDeck(list, circleInfo, canRegister, onClose) {
+// 円/記念日の写真を deck (showFullImage) で開く共通入口。cap から 比較/足跡の地図/(記念日なら)ログ/(canRegister なら)登録 へ。
+// 囲む(v120)後も 記念日タップ(v122)と同じ動線にする＝違いは canRegister の「📍記念日に登録」ボタンだけ (v124)。anniv 付きなら📖ログ (v126)。
+function openAnnivDeck(list, circleInfo, canRegister, onClose, anniv) {
   if (!list || !list.length) return;
   const dayKeys = [...new Set(list.map(dayKeyOf))];
-  showFullImage(list[0], { list, index: 0, annivCtx: { list, circleInfo, dayKeys, canRegister: !!canRegister }, onClose: onClose || null });
+  showFullImage(list[0], { list, index: 0, annivCtx: { list, circleInfo, dayKeys, canRegister: !!canRegister, anniv: anniv || null }, onClose: onClose || null });
 }
 
 // 記念日の写真リスト: 保存した円で再計算 (新しく撮った写真も拾う=live)。取れなければ保存済み photoId で解決。
@@ -3764,6 +3800,124 @@ function showTripsMap(dayKeys) {
   else openMapView(null, { pickDays: dayKeys });
 }
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && annivModals.length) closeAnnivModals(); });
+
+// ============================================================
+// 記念日のログ / タイムライン (v126) — 記念日の deck の「📖 ログ」から開く。
+//   各訪問（日）を縦タイムラインで: 日付 + 代表写真数枚(自動＋手動変更可) + コメント。
+//   さらに「＋ 未来の予定」で未来の日付を選びコメントを書ける（＝この場所へ行く動機を残す）。
+//   コメント/写真/予定はすべて anniv.visits に保存（未来半分のカレンダー書き出しは native フェーズで別途）。
+// ============================================================
+function todayDateStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+async function saveAnniv(a) { try { await annivPut(a); } catch (e) { logErr(`記念日の保存: ${e?.message || e}`); } }
+
+let annivTLState = null;
+function closeAnnivTimeline() { if (annivTLState) { annivTLState.overlay.remove(); annivTLState = null; } }
+function openAnnivTimeline(a) {
+  if (!a) return;
+  closeAnnivTimeline();
+  const overlay = document.createElement('div');
+  overlay.className = 'atl-overlay';
+  overlay.innerHTML =
+    `<div class="atl-header"><div class="atl-title">📖 ${annivEsc(a.name)}</div><button class="atl-close" type="button">✕</button></div>` +
+    `<div class="atl-body"></div>`;
+  document.body.appendChild(overlay);
+  annivTLState = { overlay, a };
+  overlay.querySelector('.atl-close').addEventListener('click', closeAnnivTimeline);
+  renderAnnivTimeline();
+}
+function renderAnnivTimeline() {
+  if (!annivTLState) return;
+  const { overlay, a } = annivTLState;
+  const body = overlay.querySelector('.atl-body');
+  const today = todayDateStr();
+  const visits = (a.visits || []).slice().sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);   // 昔→今→未来
+  body.innerHTML = '';
+  if (!visits.length) body.innerHTML = `<div class="atl-empty">まだ記録がありません。</div>`;
+  visits.forEach(v => {
+    const isFuture = !!v.planned || v.date > today;
+    const entry = document.createElement('div');
+    entry.className = 'atl-entry' + (isFuture ? ' planned' : '');
+    const thumbs = (v.photoIds || []).map(id => annivThumb(id)).filter(Boolean);
+    entry.innerHTML =
+      `<div class="atl-date">${v.date}${isFuture ? '<span class="atl-badge">予定</span>' : ''}</div>` +
+      (thumbs.length ? `<div class="atl-photos">${thumbs.map(t => `<img src="${t}">`).join('')}</div>` : '') +
+      (!isFuture ? `<button class="atl-editphotos" type="button">🖼 代表写真を選ぶ</button>` : '') +
+      `<textarea class="atl-comment" rows="2" placeholder="${isFuture ? 'この日にしたいこと・行く理由…' : 'この日のこと・思い出したこと…'}"></textarea>`;
+    body.appendChild(entry);
+    const ta = entry.querySelector('.atl-comment');
+    ta.value = v.memo || '';                                   // value 経由で入れる（HTML エスケープ不要・安全）
+    ta.addEventListener('change', () => { v.memo = ta.value; saveAnniv(a); });
+    const ep = entry.querySelector('.atl-editphotos');
+    if (ep) ep.addEventListener('click', () => openVisitPhotoPicker(a, v));
+    if (isFuture) {                                            // 予定は削除できる（過去の訪問は写真由来なので消さない）
+      const del = document.createElement('button');
+      del.className = 'atl-delplan'; del.type = 'button'; del.textContent = 'この予定を削除';
+      del.addEventListener('click', async () => {
+        a.visits = a.visits.filter(x => x !== v);
+        await saveAnniv(a); renderAnnivTimeline();
+      });
+      entry.appendChild(del);
+    }
+  });
+  const add = document.createElement('button');
+  add.className = 'atl-add'; add.type = 'button';
+  add.textContent = '＋ 未来の予定を追加';
+  add.addEventListener('click', () => addPlannedEntry(a));
+  body.appendChild(add);
+}
+// 未来の日付を選んで予定エントリを足す（コメントは追加後にその場で書ける）。
+function addPlannedEntry(a) {
+  const modal = document.createElement('div'); modal.className = 'ai-modal anniv-z';
+  modal.innerHTML =
+    `<div class="ai-modal-card"><h2>🗓 未来の予定</h2><p>いつ行きますか？（この場所へ行く動機を書き残せます）</p>` +
+    `<input type="date" class="atl-date-input"><div class="actions"><button id="atlDpCancel">キャンセル</button><button class="primary" id="atlDpOk">追加</button></div></div>`;
+  document.body.appendChild(modal);
+  const input = modal.querySelector('.atl-date-input');
+  const t = new Date(); t.setDate(t.getDate() + 1);
+  input.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  const close = () => modal.remove();
+  modal.querySelector('#atlDpCancel').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  modal.querySelector('#atlDpOk').addEventListener('click', async () => {
+    const val = input.value; if (!val) { close(); return; }
+    const [y, m, d] = val.split('-').map(Number);
+    const dayKey = `${y}-${m - 1}-${d}`;                       // dayKeyOf 形式（月0始まり・パディングなし）
+    if (!a.visits.some(v => v.dayKey === dayKey)) {
+      a.visits.push({ dayKey, date: val, memo: '', photoIds: [], planned: true });
+      await saveAnniv(a);
+    }
+    close(); renderAnnivTimeline();
+  });
+}
+// 代表写真を選ぶ（その日の円内写真から・最大6枚・時刻順）。自動選択(登録時 photoIds)を手動で変更可能。
+function openVisitPhotoPicker(a, visit) {
+  const cands = photosInCircle(a.center.lat, a.center.lng, a.radius).filter(p => dayKeyOf(p) === visit.dayKey);
+  if (!cands.length) { logInfo('この日の写真が見つかりませんでした'); return; }
+  const sel = new Set(visit.photoIds || []);
+  const modal = document.createElement('div'); modal.className = 'ai-modal anniv-z';
+  modal.innerHTML =
+    `<div class="ai-modal-card"><h2>🖼 代表写真を選ぶ</h2><p>${visit.date}（最大6枚）</p>` +
+    `<div class="atl-picker-grid"></div><div class="actions"><button id="pkCancel">キャンセル</button><button class="primary" id="pkSave">保存</button></div></div>`;
+  document.body.appendChild(modal);
+  const grid = modal.querySelector('.atl-picker-grid');
+  cands.forEach(p => {
+    const cell = document.createElement('div'); cell.className = 'pk' + (sel.has(p.id) ? ' sel' : '');
+    cell.innerHTML = `<img src="${thumbUrl(p)}">`;
+    cell.addEventListener('click', () => {
+      if (sel.has(p.id)) { sel.delete(p.id); cell.classList.remove('sel'); }
+      else { if (sel.size >= 6) { logInfo('代表写真は6枚までです'); return; } sel.add(p.id); cell.classList.add('sel'); }
+    });
+    grid.appendChild(cell);
+  });
+  const close = () => modal.remove();
+  modal.querySelector('#pkCancel').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  modal.querySelector('#pkSave').addEventListener('click', async () => {
+    visit.photoIds = cands.filter(p => sel.has(p.id)).map(p => p.id);   // 時刻順に揃える
+    await saveAnniv(a); close(); renderAnnivTimeline();
+  });
+}
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && annivTLState) closeAnnivTimeline(); });
 
 // ワンタップ除外ボタン (✕)。親カードの tap/長押しと衝突しないよう pointer 系を止める。
 function makeExcludeBtn(photo) {
