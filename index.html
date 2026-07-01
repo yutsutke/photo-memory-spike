@@ -202,6 +202,17 @@
   .atl-comment::placeholder { color: #666; }
   .atl-delplan { display: block; background: none; border: none; color: #b66; font-size: 12px; cursor: pointer; padding: 6px 0 0; }
   .atl-add { margin: 6px 0 0; background: #1e6b5e; color: #fff; border: none; border-radius: 10px; padding: 13px; width: 100%; font-size: 14px; font-weight: 700; cursor: pointer; }
+  /* v129: 基準日バー + 各日の「N日前/N日後」 */
+  .atl-basebar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; padding: 9px 12px; background: #171717; border: 1px solid #2a2a2a; border-radius: 10px; }
+  .atl-base-txt { color: #ccc; font-size: 13px; }
+  .atl-base-txt b { color: #7fe3d6; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .atl-base-set { background: none; border: 1px dashed #3a6f66; color: #7fe3d6; border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+  .atl-base-hint { color: #666; font-size: 11px; }
+  .atl-base-edit, .atl-base-clear { background: none; border: none; font-size: 12px; cursor: pointer; padding: 2px 4px; margin-left: auto; }
+  .atl-base-edit { color: #7fe3d6; }
+  .atl-base-clear { color: #999; margin-left: 0; }
+  .atl-offset { font-size: 12px; font-weight: 600; color: #7fe3d6; margin-left: 10px; font-variant-numeric: tabular-nums; vertical-align: middle; }
+  .atl-offset.base { color: #03201d; background: #33c1b0; border-radius: 999px; padding: 1px 9px; }
   .atl-date-input { width: 100%; box-sizing: border-box; background: #111; color: #fff; border: 1px solid #555; border-radius: 8px; padding: 10px 12px; font-size: 16px; margin-top: 6px; }
   .atl-picker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 56vh; overflow-y: auto; margin: 10px 0; }
   .atl-picker-grid .pk { position: relative; aspect-ratio: 1; cursor: pointer; }
@@ -488,7 +499,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.81 (v128：UI微調整3点。①地図の「📖記念日のログ」を常時表示化＝記念日由来の地図→そのログ／通常の地図→記念日一覧へ（無反応を解消）②地図の種類チップ ダーク/地理院標準/地理院淡色 を1行に③ヘッダの写真枚数をタイトル行へ移動して2段に圧縮＝⚙が2段目に収まる) · 2026-07-01';
+const BUILD = 'phase3.82 (v129：記念日の表現＋基準日。①「＋未来の予定」→「＋あの日の続き」（作業感を外し記憶の続きへ・バッジ 予定→これから）②記念日に任意の基準日を設定でき、ログの各日の横に「N日前／N日後／基準日」を表示＝あの日からの隔たりを日数で感じる) · 2026-07-01';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -3858,15 +3869,31 @@ function renderAnnivTimeline() {
   const dateMs = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
   const visits = (a.visits || []).slice().sort((x, y) => x.date > y.date ? -1 : x.date < y.date ? 1 : 0);   // v127: 新しい→古い（現在から過去へ遡る）
   body.innerHTML = '';
-  if (!visits.length) body.innerHTML = `<div class="atl-empty">まだ記録がありません。</div>`;
+  // v129: 基準日バー（任意）。設定すると各日に「N日前／N日後」を表示＝あの日からの隔たりを日数で感じる。
+  const baseBar = document.createElement('div');
+  baseBar.className = 'atl-basebar';
+  baseBar.innerHTML = a.baseDate
+    ? `<span class="atl-base-txt">🎯 基準日 <b>${a.baseDate}</b></span><button class="atl-base-edit" type="button">変更</button><button class="atl-base-clear" type="button">解除</button>`
+    : `<button class="atl-base-set" type="button">🎯 基準日を設定</button><span class="atl-base-hint">各日に「何日前／何日後」を出す</span>`;
+  body.appendChild(baseBar);
+  const bSet = baseBar.querySelector('.atl-base-set'); if (bSet) bSet.addEventListener('click', () => setAnnivBaseDate(a));
+  const bEdit = baseBar.querySelector('.atl-base-edit'); if (bEdit) bEdit.addEventListener('click', () => setAnnivBaseDate(a));
+  const bClear = baseBar.querySelector('.atl-base-clear'); if (bClear) bClear.addEventListener('click', async () => { delete a.baseDate; await saveAnniv(a); renderAnnivTimeline(); });
+  if (!visits.length) { const em = document.createElement('div'); em.className = 'atl-empty'; em.textContent = 'まだ記録がありません。'; body.appendChild(em); }
   visits.forEach((v, idx) => {
     const isFuture = !!v.planned || v.date > today;
     const entry = document.createElement('div');
     entry.className = 'atl-entry' + (isFuture ? ' planned' : '');
     const ids = (v.photoIds || []).filter(id => annivThumb(id));   // サムネが引ける id だけ
     const photosHtml = ids.length ? `<div class="atl-photos">${ids.map(id => `<img src="${annivThumb(id)}" data-id="${id}">`).join('')}</div>` : '';
+    // v129: 基準日からの隔たり（何日前／何日後）。基準日そのものは「基準日」。
+    let offsetHtml = '';
+    if (a.baseDate) {
+      const off = Math.round((dateMs(v.date) - dateMs(a.baseDate)) / 86400000);
+      offsetHtml = off === 0 ? `<span class="atl-offset base">基準日</span>` : `<span class="atl-offset">${Math.abs(off).toLocaleString()}日${off > 0 ? '後' : '前'}</span>`;
+    }
     entry.innerHTML =
-      `<div class="atl-date">${v.date}${isFuture ? '<span class="atl-badge">予定</span>' : ''}</div>` +
+      `<div class="atl-date">${v.date}${offsetHtml}${isFuture ? '<span class="atl-badge">これから</span>' : ''}</div>` +
       photosHtml +
       (!isFuture ? `<button class="atl-editphotos" type="button">🖼 代表写真を選ぶ</button>` : '') +
       `<textarea class="atl-comment" rows="2" placeholder="${isFuture ? 'この日にしたいこと・行く理由…' : 'この日のこと・思い出したこと…'}"></textarea>`;
@@ -3901,7 +3928,7 @@ function renderAnnivTimeline() {
   });
   const add = document.createElement('button');
   add.className = 'atl-add'; add.type = 'button';
-  add.textContent = '＋ 未来の予定を追加';
+  add.textContent = '＋ あの日の続き';
   add.addEventListener('click', () => addPlannedEntry(a));
   body.appendChild(add);
 }
@@ -3926,7 +3953,7 @@ function openAnnivPhotoZoom(a, photoId) {
 function addPlannedEntry(a) {
   const modal = document.createElement('div'); modal.className = 'ai-modal anniv-z';
   modal.innerHTML =
-    `<div class="ai-modal-card"><h2>🗓 未来の予定</h2><p>いつ行きますか？（この場所へ行く動機を書き残せます）</p>` +
+    `<div class="ai-modal-card"><h2>🗓 あの日の続き</h2><p>また訪れる日を選べます。その日にしたいこと・行く理由を書き残せます。</p>` +
     `<input type="date" class="atl-date-input"><div class="actions"><button id="atlDpCancel">キャンセル</button><button class="primary" id="atlDpOk">追加</button></div></div>`;
   document.body.appendChild(modal);
   const input = modal.querySelector('.atl-date-input');
@@ -3944,6 +3971,29 @@ function addPlannedEntry(a) {
       await saveAnniv(a);
     }
     close(); renderAnnivTimeline();
+  });
+}
+// v129: 基準日を設定/変更/解除。設定するとログの各日に「N日前／N日後」が出る（基準日＝あの日を任意に置く）。
+function setAnnivBaseDate(a) {
+  const modal = document.createElement('div'); modal.className = 'ai-modal anniv-z';
+  const past = (a.visits || []).filter(v => !v.planned).map(v => v.date).sort();   // 最古の訪問日＝あの日 を既定候補に
+  const def = a.baseDate || past[0] || todayDateStr();
+  modal.innerHTML =
+    `<div class="ai-modal-card"><h2>🎯 基準日</h2><p>この日を基準に、各日の「何日前／何日後」を表示します。（例：初めて訪れた日、大切な記念の日）</p>` +
+    `<input type="date" class="atl-date-input" value="${def}"><div class="actions">` +
+    (a.baseDate ? `<button id="baseClear">解除</button>` : '') +
+    `<button id="baseCancel">キャンセル</button><button class="primary" id="baseOk">設定</button></div></div>`;
+  document.body.appendChild(modal);
+  const input = modal.querySelector('.atl-date-input');
+  if (!input.value) input.value = def;
+  const close = () => modal.remove();
+  modal.querySelector('#baseCancel').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  const clr = modal.querySelector('#baseClear');
+  if (clr) clr.addEventListener('click', async () => { delete a.baseDate; await saveAnniv(a); close(); renderAnnivTimeline(); });
+  modal.querySelector('#baseOk').addEventListener('click', async () => {
+    const val = input.value; if (!val) { close(); return; }
+    a.baseDate = val; await saveAnniv(a); close(); renderAnnivTimeline();
   });
 }
 // 代表写真を選ぶ（その日の円内写真から・最大6枚・時刻順）。自動選択(登録時 photoIds)を手動で変更可能。
