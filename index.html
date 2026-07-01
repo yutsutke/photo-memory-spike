@@ -182,6 +182,12 @@
   .atl-close { flex: 0 0 auto; background: rgba(255,255,255,0.12); color: #fff; border: none; border-radius: 999px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; }
   .atl-body { flex: 1 1 auto; overflow-y: auto; padding: 14px 18px calc(28px + env(safe-area-inset-bottom)); }
   .atl-empty { color: #999; text-align: center; padding: 20px; }
+  .atl-actions { flex: 0 0 auto; display: flex; gap: 8px; padding: 8px 16px 10px; overflow-x: auto; border-bottom: 1px solid #222; scrollbar-width: none; }
+  .atl-actions::-webkit-scrollbar { display: none; }
+  .atl-act { flex: 0 0 auto; background: #262626; color: #eee; border: 1px solid #3a3a3a; border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .atl-gap { border-left: 2px dashed #2e2e2e; margin-left: 6px; padding-left: 20px; display: flex; align-items: center; }
+  .atl-gap-label { color: #6f6f6f; font-size: 11px; }
+  .atl-photos img { cursor: pointer; }
   .atl-entry { position: relative; padding: 0 0 20px 20px; border-left: 2px solid #333; margin-left: 6px; }
   .atl-entry:last-of-type { border-left-color: transparent; }
   .atl-entry::before { content: ''; position: absolute; left: -8px; top: 3px; width: 13px; height: 13px; border-radius: 50%; background: #33c1b0; border: 3px solid #111; box-sizing: border-box; }
@@ -480,7 +486,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.79 (v126：①地図マーカーpopupを暗くして撮影日時を見やすく（白地に薄字→暗背景＋白字）②記念日一覧をおしゃれに（カード＋大カバー＋teal訪問数）③記念日の deck に「📖ログ」＝日別タイムライン：各訪問の 日付＋代表写真(自動＋手動選択)＋コメント、さらに「未来の予定」を日付選択＋コメントで追加できる) · 2026-07-01';
+const BUILD = 'phase3.80 (v127：記念日ログの作り込み。①時系列を逆に（現在→過去へ遡る）②訪問の間隔が空くほどログ上の間を広げて時間の長さを感じる（◦N年のあいだ）③一覧タップ→ログへ直行④ログの代表写真タップ→拡大＋記念日内を日にち横断スワイプ⑤相互動線＝ログ↔一覧/左右で比べる/足跡の地図、比較と地図からもログへ) · 2026-07-01';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -2016,8 +2022,8 @@ function showFullImage(photo, opts = {}) {
     // v122: 記念日 deck の遷移ボタン（onClose を消してから閉じる＝一覧へ戻さず遷移先へ）。
     if (annivCtx) {
       const cb = cap.querySelector('.to-compare');
-      if (cb) cb.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openCompareView(annivCtx.list, annivCtx.circleInfo, annivCtx.canRegister); });
-      cap.querySelector('.to-annivmap').addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); showTripsMap(annivCtx.dayKeys); });
+      if (cb) cb.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openCompareView(annivCtx.list, annivCtx.circleInfo, annivCtx.canRegister, annivCtx.anniv); });
+      cap.querySelector('.to-annivmap').addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); showTripsMap(annivCtx.dayKeys, annivCtx.anniv); });
       const lb = cap.querySelector('.to-annivlog');
       if (lb) lb.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openAnnivTimeline(annivCtx.anniv); });
       const rb = cap.querySelector('.to-register');
@@ -2523,6 +2529,7 @@ async function openMapView(focusPhoto, opts) {
                pickDays: null, pickMode: null, focusedDay: null,
                trackLayers: [], showTrack: true,        // 🛰️ 位置ロガーの軌跡 (v73)
                estLayers: [], showEstimated: true,      // 📍 GPSなし写真を軌跡の時刻位置に配置 (v74)
+               anniv: (opts && opts.anniv) || null,     // v127: この地図が記念日由来なら記念日オブジェクト（⋯表示に「📖ログ」を出す）
                immersive: false };                       // ⛶ 没入フルスクリーン (v98)
 
   // GPS 写真を撮影順に。除外・封印は出さない (初期表示の判定用。再描画は applyFilter が allPhotos から都度算出)。
@@ -3000,6 +3007,7 @@ async function openMapView(focusPhoto, opts) {
   // 今は「記憶の封印」のみ (ユーザー要望: 封印が表示の中にある UI は継続)。期間(📅)だけは常時トップに残す。
   popMore.innerHTML =
     `<div class="mc-pop-title">表示の設定</div>` +
+    `<button class="mc-menu-item" id="mmAnnivLog" hidden>📖 記念日のログ</button>` +   // v127: 記念日由来の地図のときだけ表示（ログへ戻る動線）
     `<button class="mc-menu-item" id="mmCompare">🫧 囲んで比べる</button>` +   // v120: 円で囲む→左右2リールで「あの頃と今」
     `<button class="mc-menu-item" id="mmRegister">📍 この辺りを記念日に登録</button>` +   // v125: いま見ている地図の範囲を記念日に
     // 位置オフ build (iOS v1) では軌跡まわりのトグルを出さない (v104)。記録が無いので元々空動作。
@@ -3021,6 +3029,8 @@ async function openMapView(focusPhoto, opts) {
     mmEst.checked = mapState.showEstimated;
     mmEst.addEventListener('change', () => { mapState.showEstimated = mmEst.checked; refreshTrack(); });
   }
+  const mmAnnivLog = popMore.querySelector('#mmAnnivLog');   // v127: 記念日由来の地図 → ログへ戻る
+  if (mmAnnivLog) mmAnnivLog.addEventListener('click', () => { closePops(); if (mapState && mapState.anniv) openAnnivTimeline(mapState.anniv); });
   const mmCompare = popMore.querySelector('#mmCompare');   // v120: 囲んで比べる = 円ジェスチャを開始
   mmCompare.addEventListener('click', () => { closePops(); startEncircleMode(); });
   const mmRegister = popMore.querySelector('#mmRegister');   // v125: いま見ている地図の範囲を記念日に登録
@@ -3059,6 +3069,7 @@ async function openMapView(focusPhoto, opts) {
     e.stopPropagation();
     const willOpen = popMore.hidden;
     closePops();
+    if (mmAnnivLog) mmAnnivLog.hidden = !(mapState && mapState.anniv);   // v127: 記念日由来のときだけ「📖ログ」を出す
     if (willOpen) { popMore.hidden = false; elMoreBtn.classList.add('open'); }
   });
 
@@ -3594,7 +3605,7 @@ function endEncircleMode() {
 // 左右2リール (縦 scroll-snap) の比較ビュー。同じ円内写真を左右独立にスクラブ＝片方を止めて見比べる。
 // 初期は 左=いちばん古い / 右=いちばん新しい ＝「あの頃」と「今」を最初から対面させる。
 let compareState = null;
-function openCompareView(list, circleInfo, canRegister) {
+function openCompareView(list, circleInfo, canRegister, anniv) {
   if (!list || list.length < 2) return;
   if (compareState) closeCompareView();
   const a = list[0].datetime, b = list[list.length - 1].datetime;
@@ -3607,6 +3618,7 @@ function openCompareView(list, circleInfo, canRegister) {
       `<div class="cmp-title">この場所の、あの頃と今<span class="cmp-sub"> · ${list.length}枚 · ${span}</span></div>` +
       `<div class="cmp-head-btns">` +
         `<button class="cmp-tripmap" type="button">🗺 足跡の地図</button>` +   // v124: 比較からも足跡の地図へ
+        (anniv ? `<button class="cmp-log" type="button">📖 ログ</button>` : '') +   // v127: 記念日由来なら ログへ
         ((circleInfo && canRegister) ? `<button class="cmp-anniv" type="button">📍 記念日に登録</button>` : '') +   // v121: 円を名前付き保存 (未登録の時だけ)
         `<button class="cmp-close" type="button">✕</button>` +
       `</div>` +
@@ -3627,10 +3639,12 @@ function openCompareView(list, circleInfo, canRegister) {
   // 右リールを末尾(最新)へ。左は先頭(最古)のまま＝開いた瞬間に時間の幅が見える。
   // clientHeight×(n-1) で最後のスライド位置へ (scrollHeight 未確定タイミングに左右されない)。
   requestAnimationFrame(() => { const reels = overlay.querySelectorAll('.cmp-reel'); if (reels[1]) reels[1].scrollTop = reels[1].clientHeight * (list.length - 1); });
-  compareState = { overlay, circleInfo };
+  compareState = { overlay, circleInfo, anniv: anniv || null };
   overlay.querySelector('.cmp-close').addEventListener('click', closeCompareView);
   const tripDayKeys = [...new Set(list.map(dayKeyOf))];   // v124: この一帯の全訪問日
-  overlay.querySelector('.cmp-tripmap').addEventListener('click', () => { closeCompareView(); showTripsMap(tripDayKeys); });
+  overlay.querySelector('.cmp-tripmap').addEventListener('click', () => { closeCompareView(); showTripsMap(tripDayKeys, anniv || null); });
+  const logBtn = overlay.querySelector('.cmp-log');   // v127: 比較 → 記念日ログ
+  if (logBtn) logBtn.addEventListener('click', () => { closeCompareView(); openAnnivTimeline(anniv); });
   const annivBtn = overlay.querySelector('.cmp-anniv');
   if (annivBtn) annivBtn.addEventListener('click', () => {
     registerAnniversary(circleInfo, list, () => { annivBtn.textContent = '✓ 記念日に登録'; annivBtn.disabled = true; });
@@ -3751,7 +3765,7 @@ async function openAnnivList() {
   modal.querySelector('#annivClose').addEventListener('click', closeAnnivModals);
   modal.addEventListener('click', e => { if (e.target === modal) closeAnnivModals(); });
   modal.querySelectorAll('.anniv-row-main').forEach(main => main.addEventListener('click', () => {
-    const a = all.find(x => x.id === main.parentElement.dataset.id); if (a) openAnnivDetail(a);
+    const a = all.find(x => x.id === main.parentElement.dataset.id); if (a) { closeAnnivModals(); openAnnivTimeline(a); }   // v127: 一覧→ログ(タイムライン)へ
   }));
   modal.querySelectorAll('.anniv-row-del').forEach(del => del.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -3760,15 +3774,6 @@ async function openAnnivList() {
     try { await annivDelete(a.id); } catch (err) { logErr(`削除失敗: ${err?.message || err}`); }
     closeAnnivModals(); openAnnivList();
   }));
-}
-// 記念日タップ → その記念日の写真を1枚大きく表示＋スワイプ (showFullImage の deck を再利用, v122)。
-// deck の cap から「⇆ 左右で比べる」(v120比較) 「🗺 足跡の地図」(全訪問日の動線) へ遷移。閉じると一覧へ戻る。
-async function openAnnivDetail(a) {
-  const list = await annivPhotoList(a);
-  if (!list.length) { logErr('この記念日の写真が見つかりませんでした（取り込み前かもしれません）'); return; }
-  closeAnnivModals();   // 一覧を閉じてから deck を前面に (deck は z2000)
-  const circleInfo = { lat: a.center.lat, lng: a.center.lng, radius: a.radius };
-  openAnnivDeck(list, circleInfo, false, openAnnivList, a);   // 登録済み＝登録ボタンなし・📖ログ あり・閉じたら一覧へ
 }
 
 // 円/記念日の写真を deck (showFullImage) で開く共通入口。cap から 比較/足跡の地図/(記念日なら)ログ/(canRegister なら)登録 へ。
@@ -3794,10 +3799,10 @@ async function annivPhotoList(a) {
 
 // 訪問日(複数)を「動線」として地図に (1本タップでその日だけ明るく＋タイムライン連動, v122)。
 // 地図が既に開いていれば pickDays を差し替える（囲む→deck の裏で map が開いている場合, v124）／無ければ新規に開く。
-function showTripsMap(dayKeys) {
+function showTripsMap(dayKeys, anniv) {
   if (!dayKeys || !dayKeys.length) { if (!mapState) openMapView(); return; }
-  if (mapState && mapState.setPick) { mapState.setPick(dayKeys, 'days'); if (mapState.closePops) mapState.closePops(); }
-  else openMapView(null, { pickDays: dayKeys });
+  if (mapState && mapState.setPick) { mapState.anniv = anniv || null; mapState.setPick(dayKeys, 'days'); if (mapState.closePops) mapState.closePops(); }   // v127: 地図に記念日ログへの動線を持たせる
+  else openMapView(null, { pickDays: dayKeys, anniv: anniv || null });
 }
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && annivModals.length) closeAnnivModals(); });
 
@@ -3819,10 +3824,29 @@ function openAnnivTimeline(a) {
   overlay.className = 'atl-overlay';
   overlay.innerHTML =
     `<div class="atl-header"><div class="atl-title">📖 ${annivEsc(a.name)}</div><button class="atl-close" type="button">✕</button></div>` +
+    `<div class="atl-actions">` +
+      `<button class="atl-act" data-act="list">← 一覧</button>` +
+      `<button class="atl-act" data-act="compare">⇆ 比べる</button>` +
+      `<button class="atl-act" data-act="map">🗺 足跡の地図</button>` +
+    `</div>` +
     `<div class="atl-body"></div>`;
   document.body.appendChild(overlay);
-  annivTLState = { overlay, a };
+  const photos = photosInCircle(a.center.lat, a.center.lng, a.radius);   // この記念日の全写真(時刻昇順)＝代表写真拡大/左右比較で使う
+  annivTLState = { overlay, a, photos };
   overlay.querySelector('.atl-close').addEventListener('click', closeAnnivTimeline);
+  // v127: ログから 記念日一覧 / 左右で比べる / 足跡の地図 へ相互遷移。
+  overlay.querySelector('[data-act="list"]').addEventListener('click', () => { closeAnnivTimeline(); openAnnivList(); });
+  overlay.querySelector('[data-act="compare"]').addEventListener('click', async () => {
+    const list = photos.length ? photos : await annivPhotoList(a);
+    if (list.length < 2) { logInfo('比べるには写真が2枚以上必要です'); return; }
+    closeAnnivTimeline();
+    openCompareView(list, { lat: a.center.lat, lng: a.center.lng, radius: a.radius }, false, a);
+  });
+  overlay.querySelector('[data-act="map"]').addEventListener('click', () => {
+    const dayKeys = [...new Set((a.visits || []).filter(v => !v.planned).map(v => v.dayKey))];
+    closeAnnivTimeline();
+    showTripsMap(dayKeys, a);
+  });
   renderAnnivTimeline();
 }
 function renderAnnivTimeline() {
@@ -3830,17 +3854,19 @@ function renderAnnivTimeline() {
   const { overlay, a } = annivTLState;
   const body = overlay.querySelector('.atl-body');
   const today = todayDateStr();
-  const visits = (a.visits || []).slice().sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);   // 昔→今→未来
+  const dateMs = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
+  const visits = (a.visits || []).slice().sort((x, y) => x.date > y.date ? -1 : x.date < y.date ? 1 : 0);   // v127: 新しい→古い（現在から過去へ遡る）
   body.innerHTML = '';
   if (!visits.length) body.innerHTML = `<div class="atl-empty">まだ記録がありません。</div>`;
-  visits.forEach(v => {
+  visits.forEach((v, idx) => {
     const isFuture = !!v.planned || v.date > today;
     const entry = document.createElement('div');
     entry.className = 'atl-entry' + (isFuture ? ' planned' : '');
-    const thumbs = (v.photoIds || []).map(id => annivThumb(id)).filter(Boolean);
+    const ids = (v.photoIds || []).filter(id => annivThumb(id));   // サムネが引ける id だけ
+    const photosHtml = ids.length ? `<div class="atl-photos">${ids.map(id => `<img src="${annivThumb(id)}" data-id="${id}">`).join('')}</div>` : '';
     entry.innerHTML =
       `<div class="atl-date">${v.date}${isFuture ? '<span class="atl-badge">予定</span>' : ''}</div>` +
-      (thumbs.length ? `<div class="atl-photos">${thumbs.map(t => `<img src="${t}">`).join('')}</div>` : '') +
+      photosHtml +
       (!isFuture ? `<button class="atl-editphotos" type="button">🖼 代表写真を選ぶ</button>` : '') +
       `<textarea class="atl-comment" rows="2" placeholder="${isFuture ? 'この日にしたいこと・行く理由…' : 'この日のこと・思い出したこと…'}"></textarea>`;
     body.appendChild(entry);
@@ -3849,6 +3875,7 @@ function renderAnnivTimeline() {
     ta.addEventListener('change', () => { v.memo = ta.value; saveAnniv(a); });
     const ep = entry.querySelector('.atl-editphotos');
     if (ep) ep.addEventListener('click', () => openVisitPhotoPicker(a, v));
+    entry.querySelectorAll('.atl-photos img[data-id]').forEach(im => im.addEventListener('click', () => openAnnivPhotoZoom(a, im.dataset.id)));   // v127: 代表写真タップ→拡大(日にち横断スワイプ)
     if (isFuture) {                                            // 予定は削除できる（過去の訪問は写真由来なので消さない）
       const del = document.createElement('button');
       del.className = 'atl-delplan'; del.type = 'button'; del.textContent = 'この予定を削除';
@@ -3858,12 +3885,41 @@ function renderAnnivTimeline() {
       });
       entry.appendChild(del);
     }
+    // v127: 次(より過去)の訪問との「空き」を高さで可視化＝時間の長さを感じる。長く空いた時ほど間が広がる。
+    const nxt = visits[idx + 1];
+    if (nxt) {
+      const gapMs = dateMs(v.date) - dateMs(nxt.date);
+      const days = Math.max(0, Math.round(gapMs / 86400000));
+      const h = Math.min(160, Math.max(6, Math.round(18 * Math.log2(1 + days / 20))));
+      const gap = document.createElement('div');
+      gap.className = 'atl-gap';
+      gap.style.minHeight = h + 'px';
+      if (days >= 45) gap.innerHTML = `<span class="atl-gap-label">${annivEsc(intervalLabel(gapMs))}のあいだ</span>`;
+      body.appendChild(gap);
+    }
   });
   const add = document.createElement('button');
   add.className = 'atl-add'; add.type = 'button';
   add.textContent = '＋ 未来の予定を追加';
   add.addEventListener('click', () => addPlannedEntry(a));
   body.appendChild(add);
+}
+// 間隔の日本語ラベル（久しぶり感を出す）。
+function intervalLabel(ms) {
+  const days = Math.round(ms / 86400000);
+  if (days < 45) return `${days}日`;
+  const months = Math.round(days / 30.4);
+  if (months < 18) return `${months}ヶ月`;
+  const years = days / 365.25;
+  return `${years.toFixed(years < 10 ? 1 : 0)}年`;
+}
+// ログの代表写真タップ → 記念日内の写真を日にち横断で左右スワイプできる拡大表示。閉じるとログへ戻る。
+function openAnnivPhotoZoom(a, photoId) {
+  const full = (annivTLState && annivTLState.photos && annivTLState.photos.length) ? annivTLState.photos : photosInCircle(a.center.lat, a.center.lng, a.radius);
+  const idx = full.findIndex(p => p.id === photoId);
+  closeAnnivTimeline();   // deck(z2000) はログ(z5000)より下＝先にログを閉じる
+  if (idx >= 0) showFullImage(full[idx], { list: full, index: idx, onClose: () => openAnnivTimeline(a) });
+  else { const p = photoById(photoId); if (p) showFullImage(p, { onClose: () => openAnnivTimeline(a) }); else openAnnivTimeline(a); }
 }
 // 未来の日付を選んで予定エントリを足す（コメントは追加後にその場で書ける）。
 function addPlannedEntry(a) {
