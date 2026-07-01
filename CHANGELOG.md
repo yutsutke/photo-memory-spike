@@ -5,6 +5,37 @@
 
 ---
 
+## v124 — 微調整4点（比較スワイプ即応／比較→足跡の地図／過去の明日／囲む後も deck 動線に統一） (2026-07-01)
+
+**背景**
+- ユーザー実機フィードバック「いい感じになりました」＋微調整4点。
+
+**① 比較ビューの「いきなりスワイプで動かない・1秒置くと動く」を修正**
+- 原因＝リールの `<img>` が iOS のタッチを掴む（long-press callout / 画像ドラッグの判定待ち ≈1秒）→ その間スクロールが始まらない。
+- 対処＝`.cmp-slide img { pointer-events:none; -webkit-user-drag:none; -webkit-touch-callout:none; user-select:none }`（タッチを素通しさせリールが即スクロール）＋`.cmp-reel { touch-action:pan-y; overscroll-behavior:contain }`。比較画像はタップ操作が無いので pointer-events:none で副作用なし。preview で computed 確認（pointer-events=none / touch-action=pan-y / overscroll=contain）。
+
+**② 「左右で並べて」から足跡の地図へ遷移**
+- 比較ビュー header に `🗺 足跡の地図` を追加＝この一帯の全訪問日（`list` の distinct dayKey）を動線表示。`closeCompareView()→showTripsMap(dayKeys)`。
+
+**③ ヘッダに「🗺 過去の明日」を追加（別思想）**
+- 「過去の今日」（偶然・習慣）と別に「明日を計画する前に、過去の明日を知る」需要。`openMapView(null,{todayOffset:1})` を新設＝`pickToday(1)`＝明日の月日を数年分。timeline ラベルは既存 relDayLabel で「📆 明日 M/D（N年分）」。◀▶ はそこから相対（◀＝今日 / ▶＝明後日）。preview で「📆 明日 7/2（1年分）」確認。
+
+**④ 「囲む」後も「記念日を選択」と同じ deck 動線に統一（違いは登録ボタンだけ）**
+- これまで 囲む→即 左右比較 だったのを、囲む→**deck（写真1枚大表示＋スワイプ）** に変更＝記念日タップ(v122)と同一動線。差分は **`canRegister` の「📍 記念日に登録」ボタンの有無だけ**（囲む=未登録→あり／記念日タップ=登録済→なし）。
+- 実装＝共通入口 `openAnnivDeck(list, circleInfo, canRegister, onClose)`。encircle onUp は `openCompareView`→`openAnnivDeck(list, ci, true)` に。`showFullImage` の annivCtx に `canRegister` を足し、真なら deck cap に登録ボタン（押下→`registerAnniversary`→以後非表示）。`openCompareView(list, circleInfo, canRegister)` にも第3引数を足し、登録ボタンは `canRegister` の時だけ（＝記念日由来では出さない）。
+- **`openAnnivMap`→`showTripsMap` に改称＋map-open 対応**: 囲む→deck の裏では地図が開いたままなので、`mapState` があれば `setPick(dayKeys,'days')` で差し替え、無ければ新規に開く（deck/compare どちらの「🗺足跡の地図」も、遷移元 overlay を閉じてから呼ぶ）。
+
+**結果 / 観察**
+- preview 検証 green（構文0・boot 0・warn/error 0）: 過去の明日=「📆 明日 7/2（1年分）」／囲む相当 `openAnnivDeck(...,true)`→deck に ⇆比較・🗺足跡の地図・📍登録・📅日付／deck→比較に 🗺足跡の地図＋📍登録／比較→🗺で days モード「📅N日を重ねて」／比較画像 pointer-events=none・touch-action=pan-y・overscroll=contain／記念日由来(canRegister=false)は 📍登録 非表示。
+- 実機の手触り（比較スワイプ即応・過去の明日の使い所）は GitHub Pages で確認。
+
+**教訓**
+- 「囲む」「記念日」で別々だった導線を **1つの deck 動線＋フラグ差分**に畳むと、UI もコードも軽くなり体験の一貫性が出る（記念日＝円を保存して使い回す、という v121 の思想が動線にも効いた）。
+- iOS の `<img>` はスクロール内でタッチを掴む＝`pointer-events:none` が定石（[[preview-raf-not-firing]] の「実機タップ」系に追記済）。
+
+**残課題 / 次の方向**
+- 実機で①②③④の手触り。以降は native フェーズ（未来半分＝カレンダー書き出し）。
+
 ## v123 — 動線タップの実機「無反応」を修正（細い線に指が当たらない）＝透明な太い当たり判定線 (2026-07-01)
 
 **背景**

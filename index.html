@@ -142,10 +142,11 @@
   .cmp-close { background: rgba(255,255,255,0.12); color: #fff; border: none; border-radius: 999px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; flex: 0 0 auto; }
   .cmp-hint { flex: 0 0 auto; color: #fff; opacity: 0.6; font-size: 12px; padding: 0 14px 8px; line-height: 1.4; }
   .cmp-reels { flex: 1 1 auto; display: flex; min-height: 0; gap: 2px; }
-  .cmp-reel { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; overflow-y: auto; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; background: #0a0a0a; }
+  .cmp-reel { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; overflow-y: auto; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; background: #0a0a0a; touch-action: pan-y; overscroll-behavior: contain; }
   .cmp-reel::-webkit-scrollbar { display: none; }
   .cmp-slide { flex: 0 0 100%; width: 100%; scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 6px; box-sizing: border-box; }
-  .cmp-slide img { max-width: 100%; max-height: calc(100% - 30px); object-fit: contain; border-radius: 6px; }
+  /* v124: 画像がタッチを掴む(iOS の long-press callout/画像ドラッグ)と「いきなりスワイプで動かない・1秒置くと動く」→ タッチを素通しさせスクロール即応 */
+  .cmp-slide img { max-width: 100%; max-height: calc(100% - 30px); object-fit: contain; border-radius: 6px; pointer-events: none; -webkit-user-drag: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .cmp-slide .cmp-dt { color: #fff; opacity: 0.8; font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
   .cmp-head-btns { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
   .cmp-anniv { background: rgba(51,193,176,0.92); color: #03201d; border: none; border-radius: 999px; padding: 7px 13px; font-size: 13px; font-weight: 700; cursor: pointer; }
@@ -407,6 +408,7 @@
   <span class="count hidden" id="bgStatus"></span>
   <!-- v113: ヘッダ整理。よく使う「🗺 過去の今日」を主役に、残りは ⚙️ メニューへ ([[ui-minimalism-works]]) -->
   <button id="btnMap" class="hdr-primary" title="今日の日付の軌跡を数年分まとめて地図で見る（毎日の入口）">🗺 過去の今日</button>
+  <button id="btnTomorrow" class="hdr-primary" title="明日の日付の軌跡を数年分＝明日を計画する前に「過去の明日」を知る">🗺 過去の明日</button>
   <button id="btnMenu" title="メニュー（取り込み・AI・その他）">⚙️</button>
   <div id="menuDropdown" class="menu-dropdown hidden">
     <button id="btnAdd" class="import-trigger" title="画像を取り込む（ファイル / フォルダ）">📷 取り込む</button>
@@ -443,7 +445,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.76 (v123：動線タップの実機無反応を修正＝細い線(4px)は指で当たらないので、透明で太い当たり判定線(weight24/opacity0/bubblingMouseEvents:false)を最前面に重ねてタップをそこで拾う。見た目線は interactive:false 化。→ 動線1本タップで その日だけ明るく＋タイムライン連動 が実機で効く) · 2026-07-01';
+const BUILD = 'phase3.77 (v124：微調整4点。①比較の画像 pointer-events:none で「いきなりスワイプ」即応（画像がタッチを掴む問題）②比較ビューに🗺足跡の地図ボタン③ヘッダに「🗺過去の明日」（明日の月日を数年分＝計画の前に過去の明日を知る）④囲む後も記念日タップと同じ deck 動線に統一＝違いは📍記念日に登録ボタンだけ) · 2026-07-01';
 
 // ============================================================
 // IndexedDB ラッパー (素の API、薄く)
@@ -1962,7 +1964,8 @@ function showFullImage(photo, opts = {}) {
       `<div class="full-actions">` +
         (annivCtx
           ? (annivCtx.list.length >= 2 ? `<button class="to-compare">⇆ 左右で比べる</button>` : '') +
-            `<button class="to-annivmap">🗺 足跡の地図</button>`
+            `<button class="to-annivmap">🗺 足跡の地図</button>` +
+            (annivCtx.canRegister ? `<button class="to-register">📍 記念日に登録</button>` : '')   // v124: 囲む後もこの deck 動線＝違いは登録ボタンだけ
           : (onWalk ? `<button class="to-walk">🚶 ここから歩く</button>` : '') +
             (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '')) +
         `<button class="fix-date">📅 日付を直す</button>` +
@@ -1977,8 +1980,10 @@ function showFullImage(photo, opts = {}) {
     // v122: 記念日 deck の遷移ボタン（onClose を消してから閉じる＝一覧へ戻さず遷移先へ）。
     if (annivCtx) {
       const cb = cap.querySelector('.to-compare');
-      if (cb) cb.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openCompareView(annivCtx.list, annivCtx.circleInfo); });
-      cap.querySelector('.to-annivmap').addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openAnnivMap(annivCtx.dayKeys); });
+      if (cb) cb.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openCompareView(annivCtx.list, annivCtx.circleInfo, annivCtx.canRegister); });
+      cap.querySelector('.to-annivmap').addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); showTripsMap(annivCtx.dayKeys); });
+      const rb = cap.querySelector('.to-register');
+      if (rb) rb.addEventListener('click', () => registerAnniversary(annivCtx.circleInfo, annivCtx.list, () => { annivCtx.canRegister = false; rb.textContent = '✓ 記念日に登録'; rb.disabled = true; }));
     } else {
       // v117: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)。
       if (onWalk) cap.querySelector('.to-walk').addEventListener('click', () => { closeFullImage(); showExplore(p); });
@@ -3206,6 +3211,11 @@ async function openMapView(focusPhoto, opts) {
   const explicit = !!(focusPhoto && focusPhoto.id);
   if (opts && Array.isArray(opts.pickDays) && opts.pickDays.length) {
     setPick(opts.pickDays, 'days');   // v122: 記念日の全訪問日を動線表示 (1本タップでその日だけ明るく＝既存の focusedDay)
+  } else if (opts && typeof opts.todayOffset === 'number') {
+    // v124: ヘッダ「過去の明日」= 明日の月日を数年分。offset を起点にして ◀▶ もそこから動く。写真ゼロでも 0年分を正直に出す。
+    mapState.todayOffset = opts.todayOffset;
+    const t = pickToday(opts.todayOffset);
+    setPick(t, 'today');
   } else if (explicit) setPick([dayKeyOf(focusPhoto)], 'day');
   else {   // ヘッダ 🗺 = 毎日の入口「今日 (数年分の同じ月日)」(v83)。今日の写真が無ければ偶然の3日 → それも無ければ従来ブラウズ。
     const t = pickToday();
@@ -3495,7 +3505,7 @@ function startEncircleMode() {
     if (list.length >= 2) {
       const ci = { lat: centerLL.lat, lng: centerLL.lng, radius: r };   // v121: 記念日登録用に円を渡す
       endEncircleMode();
-      openCompareView(list, ci);
+      openAnnivDeck(list, ci, true);   // v124: 囲む後も記念日タップと同じ deck 動線（違いは canRegister の登録ボタンだけ）
       return;
     }
     // 足りない → 円を消してやり直し (モードは継続)。
@@ -3527,7 +3537,7 @@ function endEncircleMode() {
 // 左右2リール (縦 scroll-snap) の比較ビュー。同じ円内写真を左右独立にスクラブ＝片方を止めて見比べる。
 // 初期は 左=いちばん古い / 右=いちばん新しい ＝「あの頃」と「今」を最初から対面させる。
 let compareState = null;
-function openCompareView(list, circleInfo) {
+function openCompareView(list, circleInfo, canRegister) {
   if (!list || list.length < 2) return;
   if (compareState) closeCompareView();
   const a = list[0].datetime, b = list[list.length - 1].datetime;
@@ -3539,7 +3549,8 @@ function openCompareView(list, circleInfo) {
     `<div class="cmp-header">` +
       `<div class="cmp-title">この場所の、あの頃と今<span class="cmp-sub"> · ${list.length}枚 · ${span}</span></div>` +
       `<div class="cmp-head-btns">` +
-        (circleInfo ? `<button class="cmp-anniv" type="button">📍 記念日に登録</button>` : '') +   // v121: この円を名前付きで保存
+        `<button class="cmp-tripmap" type="button">🗺 足跡の地図</button>` +   // v124: 比較からも足跡の地図へ
+        ((circleInfo && canRegister) ? `<button class="cmp-anniv" type="button">📍 記念日に登録</button>` : '') +   // v121: 円を名前付き保存 (未登録の時だけ)
         `<button class="cmp-close" type="button">✕</button>` +
       `</div>` +
     `</div>` +
@@ -3561,6 +3572,8 @@ function openCompareView(list, circleInfo) {
   requestAnimationFrame(() => { const reels = overlay.querySelectorAll('.cmp-reel'); if (reels[1]) reels[1].scrollTop = reels[1].clientHeight * (list.length - 1); });
   compareState = { overlay, circleInfo };
   overlay.querySelector('.cmp-close').addEventListener('click', closeCompareView);
+  const tripDayKeys = [...new Set(list.map(dayKeyOf))];   // v124: この一帯の全訪問日
+  overlay.querySelector('.cmp-tripmap').addEventListener('click', () => { closeCompareView(); showTripsMap(tripDayKeys); });
   const annivBtn = overlay.querySelector('.cmp-anniv');
   if (annivBtn) annivBtn.addEventListener('click', () => {
     registerAnniversary(circleInfo, list, () => { annivBtn.textContent = '✓ 記念日に登録'; annivBtn.disabled = true; });
@@ -3698,8 +3711,15 @@ async function openAnnivDetail(a) {
   if (!list.length) { logErr('この記念日の写真が見つかりませんでした（取り込み前かもしれません）'); return; }
   closeAnnivModals();   // 一覧を閉じてから deck を前面に (deck は z2000)
   const circleInfo = { lat: a.center.lat, lng: a.center.lng, radius: a.radius };
-  const dayKeys = [...new Set(a.visits.map(v => v.dayKey))];
-  showFullImage(list[0], { list, index: 0, annivCtx: { list, circleInfo, dayKeys }, onClose: openAnnivList });
+  openAnnivDeck(list, circleInfo, false, openAnnivList);   // 登録済み＝登録ボタンなし・閉じたら一覧へ
+}
+
+// 円/記念日の写真を deck (showFullImage) で開く共通入口。cap から 比較/足跡の地図/(canRegister なら)記念日登録 へ。
+// 囲む(v120)後も 記念日タップ(v122)と同じ動線にする＝違いは canRegister の「📍記念日に登録」ボタンだけ (v124)。
+function openAnnivDeck(list, circleInfo, canRegister, onClose) {
+  if (!list || !list.length) return;
+  const dayKeys = [...new Set(list.map(dayKeyOf))];
+  showFullImage(list[0], { list, index: 0, annivCtx: { list, circleInfo, dayKeys, canRegister: !!canRegister }, onClose: onClose || null });
 }
 
 // 記念日の写真リスト: 保存した円で再計算 (新しく撮った写真も拾う=live)。取れなければ保存済み photoId で解決。
@@ -3715,10 +3735,12 @@ async function annivPhotoList(a) {
   return list;
 }
 
-// 記念日の全訪問日を「動線」として地図に (1本タップでその日だけ明るく＋タイムライン連動, v122)。
-function openAnnivMap(dayKeys) {
-  if (!dayKeys || !dayKeys.length) { openMapView(); return; }
-  openMapView(null, { pickDays: dayKeys });
+// 訪問日(複数)を「動線」として地図に (1本タップでその日だけ明るく＋タイムライン連動, v122)。
+// 地図が既に開いていれば pickDays を差し替える（囲む→deck の裏で map が開いている場合, v124）／無ければ新規に開く。
+function showTripsMap(dayKeys) {
+  if (!dayKeys || !dayKeys.length) { if (!mapState) openMapView(); return; }
+  if (mapState && mapState.setPick) { mapState.setPick(dayKeys, 'days'); if (mapState.closePops) mapState.closePops(); }
+  else openMapView(null, { pickDays: dayKeys });
 }
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && annivModals.length) closeAnnivModals(); });
 
@@ -4919,6 +4941,7 @@ if (LOCATION_AVAILABLE) document.getElementById('btnLogger').addEventListener('c
 else document.getElementById('btnLogger').classList.add('hidden');
 document.getElementById('btnIg').addEventListener('click', () => $igzip.click());
 document.getElementById('btnMap').addEventListener('click', () => openMapView());
+document.getElementById('btnTomorrow').addEventListener('click', () => openMapView(null, { todayOffset: 1 }));   // v124: 過去の明日（明日の月日を数年分）
 document.getElementById('btnTrash').addEventListener('click', openExcludedModal);
 document.getElementById('btnClear').addEventListener('click', async () => {
   if (!confirm('IndexedDB の全写真を削除します。続行?')) return;
