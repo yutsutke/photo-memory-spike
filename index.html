@@ -499,7 +499,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.90 (v137：トップの並び替え＝写真をヘッダ直下に・フィルタチップと枚数は最下部へ) · 2026-07-02';
+const BUILD = 'phase3.91 (v138：位置ロガーを native で復活＝NATIVE_LOCATION=true・background-location プラグイン再結線・Info.plist 位置宣言復活(ja/en 文言)・native 1.2。web は無影響) · 2026-07-02';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -1009,17 +1009,14 @@ async function importOne(file, override) {
 const _cap = window.Capacitor || null;
 const IS_NATIVE = !!(_cap && typeof _cap.isNativePlatform === 'function' && _cap.isNativePlatform());
 
-// 位置機能スイッチ (v104→v106): iOS の初回 App Store 審査は「位置情報を完全オフ」で提出する
-// (案B＝写真コアを先に通す)。NATIVE_LOCATION=false の間は JS で位置経路を一切通さない。
-// ★ v106 の教訓: JS で呼ばないだけでは不十分だった — background-location プラグインの
-//   CLLocationManager がバイナリに残ると Apple が purpose string を要求する (ITMS-90683)。
-//   そこで package.json から background-location を外し、ビルドからプラグインごと除外した
-//   (ソースは local-plugins/background-location に残置＝復活用)。
-// 承認後に位置を復活する手順 = ① ここを true ② package.json に
-//   "background-location": "file:./local-plugins/background-location" を戻して npm install
-//   ③ ios/App/App/Info.plist の NSLocation* / UIBackgroundModes=location を戻す。
-// web (審査対象外＝GitHub Pages) は IS_NATIVE=false なので常に従来どおり前面ロガーが使える。
-const NATIVE_LOCATION = false;
+// 位置機能スイッチ (v104→v106→1.2): iOS の初回 App Store 審査は「位置情報を完全オフ」で提出した
+// (案B＝写真コアを先に通す)。1.0 公開・1.1(英語版) 提出後の 1.2 で復活＝true（ロードマップ②前半）。
+// セット＝① ここ true ② package.json に "background-location": "file:./local-plugins/background-location"
+//   ③ Info.plist の NSLocation* / UIBackgroundModes=location（文言は InfoPlist.strings ja/en が上書き）。
+// ★ v106 の教訓 (逆向きに戻す時用): JS で呼ばないだけでは不十分 — プラグインの CLLocationManager が
+//   バイナリに残ると Apple が purpose string を要求する (ITMS-90683)＝外す時は package.json から。
+// web (GitHub Pages) は IS_NATIVE=false なので常に従来どおり前面ロガー＝この値の影響なし。
+const NATIVE_LOCATION = true;
 // スクショ用モード (v108): web を URL の ?shot で「native v1 見え」にする＝位置 UI(🛰️/地図トグル)
 // を隠し、App Store スクショを提出物(位置オフ)と一致させる。例: …/index.html?shot
 const SHOT_MODE = /(^|[?&#])shot\b/i.test(location.search + location.hash);

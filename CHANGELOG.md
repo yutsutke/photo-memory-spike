@@ -5,6 +5,25 @@
 
 ---
 
+## v138 — 位置ロガーを native で復活（NATIVE_LOCATION=true・native 1.2） (2026-07-02)
+
+**背景**
+- ユーザー「位置情報のスマホへの実装をしましょう。審査のためにオフにしていたのをオンに変えて審査に挑みたい」＝[[post-launch-roadmap]] ②前半（位置ロガー復活）。v104-106 で初回審査用に外した3点セットを戻す。**1.1(26・英語版) は審査待ちのまま非接触**＝位置オンは 1.2 として別 train で準備（1.1 審査を触ると列の最後尾に戻るため）。
+
+**やったこと（v104/v106 の逆操作＋英語対応）**
+- [index.html](index.html): `NATIVE_LOCATION = true`（コメントも「戻す時」向けに書き換え）。web は `IS_NATIVE=false` で無影響。
+- [package.json](package.json): `"background-location": "file:./local-plugins/background-location"` を復活→ `npm install`（lock 再生成・CI の `cap sync ios` が Package.swift に注入）。
+- [Info.plist](ios/App/App/Info.plist): `NSLocationWhenInUseUsageDescription` / `NSLocationAlwaysAndWhenInUseUsageDescription` / `UIBackgroundModes=location` を v96 当時の文言で復活。
+- **用途文言をロケール別に**＝`InfoPlist.strings` の en に位置2キー＋**写真2キーも英訳追加**（1.1 では写真の許可ダイアログが英語端末でも日本語だった＝穴を塞ぐ）。ja にも同文を明示。
+- `MARKETING_VERSION` 1.1→**1.2**（審査中の 1.1 と train 分離・upload 衝突なし）。
+
+**ハマったところ**
+- PowerShell 5.1 の `Set-Content -Encoding utf8` は **BOM 付き**＝pbxproj に BOM が入った→バイト検査で検出し除去（pbxproj は Python か .NET WriteAllBytes が安全）。
+
+**検証 / 次**
+- vm.Script 0エラー・pbxproj diff は version 2行のみ・web preview 回帰なし（LOCATION_AVAILABLE=true/BgLoc=null/console 0）。
+- **push で Codemagic が 1.2 ビルドを自動生成**→ TestFlight で実機確認（①初回起動で位置ダイアログが出ない＝ロガーONにした時だけ ②🛰️パネル3モード ③背景記録=閉じても翌日軌跡 ④英語端末で許可文言が英語）。プライバシー＝端末内のみ＝ASC ラベル「収集なし」のまま（Apple の「収集」定義=端末外送信）。**1.2 の審査提出は 1.1 公開後**（審査メモに Always の用途を明記）。
+
 ## v137 — トップの並び替え＝写真をヘッダ直下に・フィルタチップは最下部へ (2026-07-02)
 
 **背景**
