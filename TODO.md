@@ -18,6 +18,7 @@
 > ### 📍 次セッションの再開ポイント（2026-07-02 セッション14 更新・まずここを読む）
 >
 > ## 🌍 英語圏デビュー準備（進行中）＝ロードマップ① 世界版。1.1 として ex-EU に出す
+> - **▶ 次セッションの最初の一手**: ①（習慣）Gmail 確認（[[session-start-gmail-check]]・公開済なので要対応は少ないが Apple/App Store 系を一応）②**新 1.1 ビルド（v135 込み）が TestFlight/ASC に「1.1・終了」で出ているか確認**（ビルドは**ユーザーが手動トリガー**・前ビルドで pbxproj 成功実証済＝コンパイルは通るはず）。**出ていれば → 下の残タスク 3〜6**（ASC 英語ローカライズ入力→1.1 版作成＋ビルド紐付け→配信 ex-EU→審査提出）。**まだなら** ユーザーに Codemagic でビルドを回してもらう。※英語コピー全文はこの下＆CHANGELOG/会話にドラフト済。
 > - **決定**: 英語 i18n（v130-133）＋世界地図が入ったので英語圏へ拡大。**ユーザー選択＝「きちんと英語で出す」**（英語店頭情報＋英語スクショ＋端末名も英語）。バージョンは国際化アップデートとして **1.0.1→1.1**。**英語アプリ名＝A Past Day**（ストア名30字制限でフル "A Past Day — Photos and Footprints" は入らず→名前=A Past Day／サブタイトルで Photos and footprints を表現）。
 > - **⚠️ 最重要の段取り**: 公開中の **build21 は英語化前＝日本語のみ**（英語i18nはv130以降）。だから**配信地域を今 ex-EU に広げると英語圏に日本語onlyのbuild21が出てしまう**→NG。正しくは **英語の1.1を審査通過→公開する瞬間に配信地域を ex-EU へ**。
 > - **✅ この回でやったこと（native・コミット済）**: 端末表示名をロケール別に＝`ios/App/App/{en,ja}.lproj/InfoPlist.strings`（en=A Past Day / ja=あの日 — 写真と足跡）を新設し `project.pbxproj` に variant group 登録（BuildFile/FileRef×2/Appグループ/Resources/VariantGroup/knownRegions に ja／PrivacyInfo と同流儀・Python でアンカー置換）。`MARKETING_VERSION` 1.0.1→**1.1**（Debug/Release）。Info.plist の stale コメント（en=Madeleine）を修正。→ **push で Codemagic が 1.1 ビルド生成中**（英語端末名入り）。**要・ビルド成功確認**（Mac無し手編集のため）。
@@ -29,6 +30,36 @@
 >   4. **1.1 バージョンページ作成＋ビルド紐付け**。
 >   5. **配信地域を ex-EU に**（除外手順は前回検証済み＝「特定」で全チェック→EU27外す・[[post-launch-roadmap]]）。
 >   6. **審査へ提出**（最終ボタンはユーザー確認）→承認→公開＋地域拡大。
+> - **📝 英語ストアコピー（ドラフト・ASC 英語(US)ローカライズにそのまま入力可・ユーザー "A Past Day" 承認済）**:
+>   - **Name (≤30)**: `A Past Day`
+>   - **Subtitle (≤30)**: `Photos and footprints, revived`
+>   - **Promotional text**: `Rediscover a day you'd forgotten. From your own photos, A Past Day brings a long-lost memory back — by chance, on this day, along the footprints you left. All on-device.`
+>   - **Keywords (≤100)**: `memories,nostalgia,reminiscence,on this day,throwback,footprints,album,diary,map,remember,forgotten`
+>   - **Description**:
+>     ```
+>     A Past Day quietly brings back memories you'd long forgotten.
+>
+>     Not the photos you look at all the time — the ones you'd forgotten you had. A Past Day draws from your own photo library and, by chance, surfaces a single picture from a day you haven't thought about in years. One tap follows the thread — to nearby places, the same season in other years, a color, a feeling — and a memory you didn't know you still had comes quietly back.
+>
+>     • By chance — you don't search; a forgotten day finds you.
+>     • Long ago — not yesterday's photos, but the ones from years back.
+>     • Revived — one picture pulls a whole day back into focus.
+>
+>     On This Day
+>     See this date across every year you have photos for. Feel how much time has passed — and imagine where the same stretch of time ahead might take you.
+>
+>     Footprints on the map
+>     Photos with a location connect into the path you walked that day. Retrace where you went — and remember things the photos alone don't show.
+>
+>     Wander
+>     From any photo, take an associative walk through your library — by place, time, or color. Each step is a small, involuntary discovery.
+>
+>     Everything stays on your device
+>     Your photos are never uploaded to the cloud or any server. Storage and on-device AI analysis all happen locally on your iPhone. Nothing leaves your device.
+>
+>     Start with about 20–30 photos, or bring in your whole library.
+>     ```
+>   - スクショ＝ヒーロー(A Past Day/滝)と On This Day は英語OK・**地図とタイムラインは v135 込みビルドで撮り直し**。
 >
 > ### 📍 次セッションの再開ポイント（2026-07-01 セッション13 更新・まずここを読む）
 >
