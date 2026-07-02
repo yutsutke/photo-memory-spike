@@ -21,8 +21,9 @@
 > - **決定**: 英語 i18n（v130-133）＋世界地図が入ったので英語圏へ拡大。**ユーザー選択＝「きちんと英語で出す」**（英語店頭情報＋英語スクショ＋端末名も英語）。バージョンは国際化アップデートとして **1.0.1→1.1**。**英語アプリ名＝A Past Day**（ストア名30字制限でフル "A Past Day — Photos and Footprints" は入らず→名前=A Past Day／サブタイトルで Photos and footprints を表現）。
 > - **⚠️ 最重要の段取り**: 公開中の **build21 は英語化前＝日本語のみ**（英語i18nはv130以降）。だから**配信地域を今 ex-EU に広げると英語圏に日本語onlyのbuild21が出てしまう**→NG。正しくは **英語の1.1を審査通過→公開する瞬間に配信地域を ex-EU へ**。
 > - **✅ この回でやったこと（native・コミット済）**: 端末表示名をロケール別に＝`ios/App/App/{en,ja}.lproj/InfoPlist.strings`（en=A Past Day / ja=あの日 — 写真と足跡）を新設し `project.pbxproj` に variant group 登録（BuildFile/FileRef×2/Appグループ/Resources/VariantGroup/knownRegions に ja／PrivacyInfo と同流儀・Python でアンカー置換）。`MARKETING_VERSION` 1.0.1→**1.1**（Debug/Release）。Info.plist の stale コメント（en=Madeleine）を修正。→ **push で Codemagic が 1.1 ビルド生成中**（英語端末名入り）。**要・ビルド成功確認**（Mac無し手編集のため）。
+> - **✅ 追記（この会話の続き）**: ① Codemagic 1.1 ビルド＝Publishing 通過→「App Store distribution」後処理まで到達＝**IPA のビルド/アップロード成功＝手編集 pbxproj は無事**（"Did not find build... waiting" は Apple 処理待ちで正常）。②ユーザーが**英語スクショ撮影**→ トップ/On This Day は英語OK・**地図とタイムラインに未訳が残存**（全期間/日付をタップで絞り込み/✕解除）。③**v135 で未訳を一括 tr() 化**（地図バー・封印パネル・取り込み進捗/エラー・記念日確認・ヒント等／CHANGELOG v135・preview green ?lang=en）。→ **この web 修正を載せた新ビルド1本が必要**（native 1.1・build 番号は上がる）。**ビルドは手動トリガー**（ユーザー実施）。
 > - **▶ 残タスク（次の一手）**:
->   1. **Codemagic 1.1 ビルドの成功を確認**（Publishing 通過・TestFlight/ASC に 1.1 が「終了」で出るか）。失敗したら pbxproj/lproj を点検。
+>   1. **v135 込みの新 1.1 ビルドをユーザーがトリガー → TestFlight/ASC に「1.1・終了」で出るか確認**（前ビルドで pbxproj は成功実証済なのでコンパイルは通るはず）。
 >   2. **英語スクリーンショット**（ユーザーが TestFlight を端末=英語で開いて撮影→私が規定サイズ調整）。
 >   3. **ASC 英語ローカライズ入力**（英語コピーはこの会話でドラフト済＝名前 A Past Day／サブタイトル Photos and footprints, revived／説明／キーワード）。
 >   4. **1.1 バージョンページ作成＋ビルド紐付け**。

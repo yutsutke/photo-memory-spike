@@ -499,7 +499,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.87 (v134：初期画面（ネイティブ空状態）の主導線ボタン「写真ライブラリ全体から始める」に（おすすめ）/ EN (recommended) を付与＝取り込みメニュー(L5197)の「ライブラリ全体（おすすめ）」と用語統一。JP/EN 両方。実機フィードバック) · 2026-07-02';
+const BUILD = 'phase3.88 (v135：英語スクショで発見した未訳を一括 tr() 化＝地図フィルタバー(全期間/日付をタップで絞り込み)・タイムライン ✕解除・封印パネル項目・取り込み進捗(読み込み中/解析中/日時復元)・取り込みエラー alert(SNS含む)・記念日登録確認・削除写真一覧・各ヒント。dev(#dev)は日本語のまま。native は 1.1) · 2026-07-02';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -1223,7 +1223,7 @@ async function importNativeLibrary() {
         console.warn(`[native-import] ${fresh[i].id}: ${e?.message || e}`);
       }
       importStatus = { done: i + 1, total: fresh.length };
-      if ($text) $text.textContent = `読み込み中… ${i + 1} / ${fresh.length}`;
+      if ($text) $text.textContent = `${tr('読み込み中…', 'Loading…')} ${i + 1} / ${fresh.length}`;
       if ($bar)  $bar.style.width = `${((i + 1) / fresh.length * 100).toFixed(0)}%`;
     }
     addPhotos(fastAdded);
@@ -1692,14 +1692,14 @@ async function igStreamZip(file, want, onEntry) {
 async function importArchiveZip(file) {
   if (typeof fflate === 'undefined') {
     logErr('解凍ライブラリ (fflate) の読み込みに失敗 (CDN 到達不可)');
-    alert('解凍ライブラリの読み込みに失敗しました。通信状態を確認して開き直してください。');
+    alert(tr('解凍ライブラリの読み込みに失敗しました。通信状態を確認して開き直してください。', 'Failed to load the unzip library. Check your connection and reopen.'));
     return;
   }
   importStats = { added: 0, dup: 0, skipped: 0, failed: 0, heic: 0 };
   state = 'importing'; render(); await nextPaint();
   const $text = document.getElementById('prog-text');
   const $bar  = document.getElementById('prog-bar');
-  if ($text) $text.textContent = 'エクスポートを解析中…';
+  if ($text) $text.textContent = tr('エクスポートを解析中…', 'Parsing export…');
 
   // --- パス1: メタデータ (Instagram=JSON / X=tweets.js) から「画像ファイル名 → 日時」マップ ---
   const byPath = new Map(), byBase = new Map();
@@ -1723,17 +1723,17 @@ async function importArchiveZip(file) {
     importStats = null; state = allPhotos.length ? 'random' : 'empty'; render();
     if (stats.files === 0) {
       logErr('取り込める写真が見つかりません。Instagram は「JSON 形式」+メディア込み、X は data/tweets.js を含む zip ですか?');
-      alert('取り込める写真が見つかりませんでした。\n\n・Instagram:「情報をダウンロード」を【JSON 形式】+【メディアを含める】で出力\n・X(Twitter): アーカイブ (data/tweets.js と tweets_media を含む zip)\n\n(HTML だけ・メディア未同梱だと取り込めません)');
+      alert(tr('取り込める写真が見つかりませんでした。\n\n・Instagram:「情報をダウンロード」を【JSON 形式】+【メディアを含める】で出力\n・X(Twitter): アーカイブ (data/tweets.js と tweets_media を含む zip)\n\n(HTML だけ・メディア未同梱だと取り込めません)', 'No importable photos were found.\n\n• Instagram: export “Download your information” as [JSON] + [include media]\n• X (Twitter): the archive zip (must contain data/tweets.js and tweets_media)\n\n(HTML-only exports without media cannot be imported)'));
     } else {
       logErr('日時は読めましたが、取り込める画像投稿がありませんでした (テキスト/動画のみ、またはメディア未同梱)。');
-      alert('画像投稿が見つかりませんでした。\nテキストのみ / 動画のみ、またはエクスポートにメディアが含まれていない可能性があります。');
+      alert(tr('画像投稿が見つかりませんでした。\nテキストのみ / 動画のみ、またはエクスポートにメディアが含まれていない可能性があります。', 'No image posts were found.\nThey may be text-only / video-only, or the export may not include media.'));
     }
     return;
   }
 
   // --- パス2: 画像を 1 枚ずつ取り込み ---
   const total = stats.images;
-  if ($text) $text.textContent = `日時 ${total} 件を復元 — 画像を取り込み中…`;
+  if ($text) $text.textContent = tr(`日時 ${total} 件を復元 — 画像を取り込み中…`, `Restored ${total} dates — importing photos…`);
   let seen = 0;
   let batch = [];
   try {
@@ -1754,7 +1754,7 @@ async function importArchiveZip(file) {
         }
         if (batch.length >= 50) { addPhotos(batch); batch = []; }
         seen++;
-        if ($text) $text.textContent = `読み込み中… ${seen} / ${total}`;
+        if ($text) $text.textContent = `${tr('読み込み中…', 'Loading…')} ${seen} / ${total}`;
         if ($bar)  $bar.style.width = `${Math.min(100, seen / Math.max(1, total) * 100).toFixed(0)}%`;
         if (seen % 8 === 0) await new Promise(r => setTimeout(r, 0));   // 進捗を描かせ、メインを詰まらせない
       }
@@ -2074,7 +2074,7 @@ function showFullImage(photo, opts = {}) {
         `<button class="fix-date">${tr('📅 日付を直す', '📅 Fix the date')}</button>` +
       `</div>` +
       // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
-      ((!annivCtx && showMapBtn && !hasGps) ? `<div class="de-hint map-hint">${tr('位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。', 'Even on days with no located photos, that day\'s photo list (timeline) still opens. Browsing the order, or picking a photo to fix its place, can spark a memory too.')}</div>` : '') +
+      ((!annivCtx && showMapBtn && !hasGps) ? `<div class="de-hint map-hint">${tr(tr('位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。', 'Even on days with no located photos, the timeline for that day still opens. Browsing the order — or picking a photo to fix its location — can spark a memory.'), 'Even on days with no located photos, that day\'s photo list (timeline) still opens. Browsing the order, or picking a photo to fix its place, can spark a memory too.')}</div>` : '') +
       `<div class="date-editor" hidden>` +
         `<input type="datetime-local" class="de-input">` +
         `<div class="de-actions"><button class="de-cancel">${tr('キャンセル', 'Cancel')}</button><button class="de-save">${tr('保存', 'Save')}</button></div>` +
@@ -2088,7 +2088,7 @@ function showFullImage(photo, opts = {}) {
       const lb = cap.querySelector('.to-annivlog');
       if (lb) lb.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openAnnivTimeline(annivCtx.anniv); });
       const rb = cap.querySelector('.to-register');
-      if (rb) rb.addEventListener('click', () => registerAnniversary(annivCtx.circleInfo, annivCtx.list, () => { annivCtx.canRegister = false; rb.textContent = tr('✓ 記念日に登録', '✓ Saved as anniversary'); rb.disabled = true; }));
+      if (rb) rb.addEventListener('click', () => registerAnniversary(annivCtx.circleInfo, annivCtx.list, () => { annivCtx.canRegister = false; rb.textContent = tr(tr('✓ 記念日に登録', '✓ Registered'), '✓ Saved as anniversary'); rb.disabled = true; }));
     } else {
       // v117: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)。
       if (onWalk) cap.querySelector('.to-walk').addEventListener('click', () => { closeFullImage(); showExplore(p); });
@@ -3225,19 +3225,19 @@ async function openMapView(focusPhoto, opts) {
   }
   function updateSealList() {
     sealListEl.innerHTML = '';
-    if (!seals.length) { sealListEl.innerHTML = '<div class="seal-empty">まだありません</div>'; return; }
+    if (!seals.length) { sealListEl.innerHTML = `<div class="seal-empty">${tr('まだありません', 'None yet')}</div>`; return; }
     seals.forEach(s => {
       const row = document.createElement('div');
       row.className = 'seal-item';
       const info = document.createElement('div');
       info.className = 'seal-item-info';
-      const lab = document.createElement('div'); lab.className = 'seal-item-label'; lab.textContent = s.label || '(無名)';
+      const lab = document.createElement('div'); lab.className = 'seal-item-label'; lab.textContent = s.label || tr('(無名)', '(Unnamed)');
       const sub = document.createElement('div'); sub.className = 'seal-item-sub';
-      sub.textContent = `${countSealed(s)} 枚` + (s.bounds ? ' · 📍範囲' : '');
+      sub.textContent = `${countSealed(s)} ${tr('枚', 'photos')}` + (s.bounds ? tr(' · 📍範囲', ' · 📍Range') : '');
       info.appendChild(lab); info.appendChild(sub);
       const del = document.createElement('button');
       del.className = 'seal-del';
-      del.textContent = '解除';
+      del.textContent = tr('解除', 'Unseal');
       del.addEventListener('click', () => { removeSeal(s.id); updateSealList(); updateSealPreview(); });
       row.appendChild(info); row.appendChild(del);
       sealListEl.appendChild(row);
@@ -3549,7 +3549,7 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
     bar.innerHTML = '';
     if (r.start == null) {
       bar.classList.remove('active');
-      bar.innerHTML = `<span class="fb-text">全期間</span><span class="fb-hint">日付をタップで絞り込み</span>`;
+      bar.innerHTML = `<span class="fb-text">${tr('全期間', 'All time')}</span><span class="fb-hint">${tr('日付をタップで絞り込み', 'Tap a date to filter')}</span>`;
     } else {
       bar.classList.add('active');
       const single = r.end === dayEndOf(r.start);
@@ -3558,7 +3558,7 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
         : `<span class="fb-text">📅 ${fmtDay(r.start)} 〜 ${fmtDay(r.end)}</span>`;
       const clr = document.createElement('button');
       clr.className = 'fb-clear';
-      clr.textContent = '✕ 解除';
+      clr.textContent = tr('✕ 解除', '✕ Clear');
       clr.addEventListener('click', () => { mapState.range = { start: null, end: null }; applyFilter(); });
       bar.appendChild(clr);
     }
@@ -3725,7 +3725,7 @@ function openCompareView(list, circleInfo, canRegister, anniv) {
   if (logBtn) logBtn.addEventListener('click', () => { closeCompareView(); openAnnivTimeline(anniv); });
   const annivBtn = overlay.querySelector('.cmp-anniv');
   if (annivBtn) annivBtn.addEventListener('click', () => {
-    registerAnniversary(circleInfo, list, () => { annivBtn.textContent = '✓ 記念日に登録'; annivBtn.disabled = true; });
+    registerAnniversary(circleInfo, list, () => { annivBtn.textContent = tr('✓ 記念日に登録', '✓ Registered'); annivBtn.disabled = true; });
   });
 }
 function closeCompareView() {
@@ -4282,7 +4282,7 @@ function renderExcludedModal() {
   if (excluded.length === 0) {
     const e0 = document.createElement('p');
     e0.style.color = '#888';
-    e0.textContent = '削除した写真はありません。';
+    e0.textContent = tr('削除した写真はありません。', 'No deleted photos.');
     card.appendChild(e0);
   } else {
     const grid = document.createElement('div');
@@ -4294,7 +4294,7 @@ function renderExcludedModal() {
       img.src = thumbUrl(photo);   // URL は握らず都度取得 (iOS の revoke 後も render で回復)
       img.loading = 'lazy';
       const btn = document.createElement('button');
-      btn.textContent = '戻す';
+      btn.textContent = tr('戻す', 'Restore');
       btn.addEventListener('click', () => undoExclude(photo));  // render() で一覧から消える
       cell.appendChild(img);
       cell.appendChild(btn);
@@ -4428,7 +4428,7 @@ function render() {
   updateTrashBtn();       // ヘッダの ♻️N (除外数) を更新
 
   if (state === 'loading') {
-    $main.innerHTML = `<p style="text-align:center;color:#888;margin-top:40px;">読み込み中…</p>`;
+    $main.innerHTML = `<p style="text-align:center;color:#888;margin-top:40px;">${tr('読み込み中…', 'Loading…')}</p>`;
     return;
   }
 
@@ -4584,7 +4584,7 @@ function render() {
       if (!centerHasGps) {
         const hint = document.createElement('div');
         hint.className = 'center-map-hint';
-        hint.textContent = '位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。';
+        hint.textContent = tr('位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。', 'Even on days with no located photos, the timeline for that day still opens. Browsing the order — or picking a photo to fix its location — can spark a memory.');
         centerEl.querySelector('.meta').appendChild(hint);
       }
     }
@@ -4807,7 +4807,7 @@ async function importFiles(files, opts = {}) {
       const stackTop = (e.stack || '').split('\n').find(l => l.trim()) || '';
       logErr(`取込失敗: ${fast[i].name}: ${e.message}  @ ${stackTop.slice(0, 80)}`);
     }
-    if ($text) $text.textContent = `読み込み中… ${i+1} / ${fast.length}`;
+    if ($text) $text.textContent = `${tr('読み込み中…', 'Loading…')} ${i+1} / ${fast.length}`;
     if ($bar)  $bar.style.width = `${((i+1)/fast.length*100).toFixed(0)}%`;
   }
 
@@ -5174,7 +5174,7 @@ function openPicker() {
   prepareHintTimer = setTimeout(() => {
     const el = document.getElementById('prep-hint');
     if (state === 'preparing' && el) {
-      el.textContent = '準備が長いときは選んだ枚数が多すぎるかも。一度「やめる」で閉じ、10〜20枚ずつに分けると安定します（古い端末で起きやすい）';
+      el.textContent = tr('準備が長いときは選んだ枚数が多すぎるかも。一度「やめる」で閉じ、10〜20枚ずつに分けると安定します（古い端末で起きやすい）', 'If preparation is taking long, you may have selected too many photos. Close with “Cancel” and import in batches of 10–20 for stability (more common on older devices).');
     }
   }, 25000);
 }
@@ -5335,7 +5335,7 @@ $igzip.addEventListener('change', async (e) => {
     await importArchiveZip(file);
   } catch (err) {
     logErr(`Instagram取り込み失敗: ${err?.message || err}`);
-    alert(`取り込み失敗: ${err?.message || err}`);
+    alert(`${tr('取り込み失敗', 'Import failed')}: ${err?.message || err}`);
   } finally {
     importingNow = false;
     importBusy = false;
@@ -5349,14 +5349,14 @@ $folder.addEventListener('change', async (e) => {
   e.target.value = '';
   const imgs = all.filter(f => (f.type.startsWith('image/') && f.type !== 'image/tiff')
     || /\.(jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(f.name));
-  if (!imgs.length) { alert('画像ファイルが見つかりませんでした。'); return; }
+  if (!imgs.length) { alert(tr('画像ファイルが見つかりませんでした。', 'No image files were found.')); return; }
   if (importingNow) return;
   importingNow = true;
   try {
     await importFiles(imgs, { fallbackMtime: importFallback });
   } catch (err) {
     logErr(`フォルダ取り込み失敗: ${err?.message || err}`);
-    alert(`取り込み失敗: ${err?.message || err}`);
+    alert(`${tr('取り込み失敗', 'Import failed')}: ${err?.message || err}`);
   } finally {
     importingNow = false;
     importBusy = false;
