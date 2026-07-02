@@ -281,6 +281,21 @@
   .logger-btn { padding: 8px 14px; border: 1px solid #444; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 13px; cursor: pointer; }
   .logger-btn.ghost { background: transparent; color: #c66; border-color: #633; }
   .logger-close { margin-top: 14px; width: 100%; padding: 9px; border: 0; border-radius: 8px; background: #333; color: #ccc; font-size: 13px; cursor: pointer; }
+  /* 足跡から自動補完トグル (v140) */
+  .logger-auto { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; margin: 12px 0; border: 1px solid #444; border-radius: 8px; background: #222; cursor: pointer; }
+  .logger-auto input { margin-top: 3px; }
+  .logger-auto span { display: flex; flex-direction: column; gap: 2px; }
+  .logger-auto b { font-size: 13px; color: #eee; font-weight: 600; }
+  .logger-auto small { font-size: 11px; color: #999; }
+  .logger-auto:has(input:checked) { border-color: #2ee6c0; background: #16302b; }
+  /* 日ごとの削除リスト (v140) */
+  .logger-days { margin-top: 10px; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  .logger-days[hidden] { display: none; }
+  .logger-day { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid #383838; border-radius: 8px; background: #202020; }
+  .logger-day .ld-date { flex: 1; font-size: 12px; color: #ddd; }
+  .logger-day .ld-count { font-size: 11px; color: #6ee0a3; font-variant-numeric: tabular-nums; }
+  .logger-day .ld-del { border: 0; background: transparent; color: #c66; font-size: 15px; cursor: pointer; padding: 2px 4px; }
+  .logger-day-empty { font-size: 12px; color: #888; padding: 8px 2px; }
   /* 削除（除外）一覧のサムネグリッド */
   .trash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; margin: 10px 0 4px; }
   .trash-cell { display: flex; flex-direction: column; gap: 4px; }
@@ -299,6 +314,11 @@
   .imp-opt small { font-size: 11px; color: #999; line-height: 1.5; }
   /* 日時の出所タグ (撮影日 / 保存日 / 投稿日) — 日時表示に小さく添える */
   .src-tag { display: inline-block; font-size: 10px; font-weight: 600; color: #9bd; background: rgba(120,160,210,0.16); border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; letter-spacing: 0.02em; }
+  /* 位置の由来バッジ (v140): 足跡から確定 / 位置を修正 / 手動 */
+  .loc-tag { display: inline-block; font-size: 10px; font-weight: 600; border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; letter-spacing: 0.02em; }
+  .loc-tag.loc-track  { color: #2ee6c0; background: rgba(46,230,192,0.16); }
+  .loc-tag.loc-edited { color: #ffca6b; background: rgba(255,202,107,0.16); }
+  .loc-tag.loc-manual { color: #9bd;    background: rgba(120,160,210,0.16); }
   .full-cap .dt .src-tag { color: #cfe2ff; background: rgba(140,180,230,0.22); }
 
   /* ============================================================
@@ -364,6 +384,11 @@
   /* 写真サムネのマーカー (L.divIcon の中身) */
   .photo-marker { width: 44px; height: 44px; border-radius: 8px; border: 2px solid #fff; background-size: cover; background-position: center; box-shadow: 0 1px 4px rgba(0,0,0,0.6); }
   .photo-marker-est { width: 40px; height: 40px; border: 2px dashed #2ee6c0; opacity: 0.92; }   /* 軌跡から推定 (v74) */
+  /* 位置の由来をマーカー隅の小ドットで示す (v140): 足跡から=teal / 修正=amber */
+  .photo-marker.loc-track, .photo-marker.loc-edited { position: relative; }
+  .photo-marker.loc-track::after, .photo-marker.loc-edited::after { content: ''; position: absolute; right: -3px; top: -3px; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #1a1a1a; box-shadow: 0 0 2px rgba(0,0,0,0.6); }
+  .photo-marker.loc-track::after  { background: #2ee6c0; }
+  .photo-marker.loc-edited::after { background: #ffca6b; }
   .mp-est { color: #2ee6c0; font-style: italic; }
   /* Leaflet popup をダークに */
   .leaflet-popup-content-wrapper { background: #1a1a1a; color: #eee; border-radius: 10px; }
@@ -499,7 +524,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.92 (v139：地図の線を「写真＋ロガーを時刻順に1本」へ＝ロガー点を本線に合流(飛び飛びの区間を軌跡が埋める)・青緑の点線は廃止(ドットは残す)・軌跡トグルOFF=写真のみ) · 2026-07-02';
+const BUILD = 'phase3.93 (v140：GPSなし写真を足跡から自動確定(既定ON・🛰️パネルで切替)＋位置の由来バッジ(足跡/修正/手動)＝EXIF位置を直すと「修正」表示・位置ロガーの全削除(確認)/日別削除) · 2026-07-03';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -760,6 +785,17 @@ async function trackClear() {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(TRACK_STORE, 'readwrite');
     tx.objectStore(TRACK_STORE).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+// 特定の時間帯だけ削除 (v140: 位置ロガーの日別削除)。t インデックスをカーソルで range 削除。
+async function trackClearRange(startMs, endMs) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(TRACK_STORE, 'readwrite');
+    const req = tx.objectStore(TRACK_STORE).index('t').openCursor(IDBKeyRange.bound(startMs, endMs));
+    req.onsuccess = () => { const c = req.result; if (c) { c.delete(); c.continue(); } };
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -1968,6 +2004,37 @@ function srcTagHtml(photo) {
   return l ? ` <span class="src-tag">${l}</span>` : '';
 }
 
+// 位置の由来 (v140)。写真の GPS 由来を区別する:
+//  'none'   = 位置なし
+//  'exif'   = 写真自身の GPS (既定・バッジなし)
+//  'track'  = 足跡(ロガー)から確定 (geoFromTrack。自動=geoAuto も含む)
+//  'edited' = 元々 EXIF GPS があった写真の位置を後から動かした
+//  'manual' = 位置の無かった写真に手で位置を付けた
+function locSource(photo) {
+  if (!photo || photo.lat == null || photo.lng == null) return 'none';
+  if (photo.geoEdited)    return 'edited';
+  if (photo.geoFromTrack) return 'track';
+  if (photo.geoManual)    return 'manual';
+  return 'exif';
+}
+// 位置由来の小バッジ (HTML)。既定の exif / none は clutter を避け空文字。
+function locBadgeHtml(photo) {
+  const s = locSource(photo);
+  if (s === 'track')  return ` <span class="loc-tag loc-track">${tr('足跡から', 'from footprints')}</span>`;
+  if (s === 'edited') return ` <span class="loc-tag loc-edited">${tr('位置を修正', 'location edited')}</span>`;
+  if (s === 'manual') return ` <span class="loc-tag loc-manual">${tr('手動で設定', 'set manually')}</span>`;
+  return '';
+}
+// マーカーの class 修飾 (隅ドット用)。
+function locMarkerClass(photo) {
+  const s = locSource(photo);
+  return s === 'track' ? ' loc-track' : s === 'edited' ? ' loc-edited' : '';
+}
+
+// 足跡から写真の位置を自動で補う設定 (v140・既定 ON)。localStorage 永続。
+function autoConfirmTrackEnabled() { try { return localStorage.getItem('pms-autoConfirmTrack') !== '0'; } catch { return true; } }
+function setAutoConfirmTrack(on)   { try { localStorage.setItem('pms-autoConfirmTrack', on ? '1' : '0'); } catch {} }
+
 // ============================================================
 // 長押し → フル画像表示 (タップで閉じる、ESC でも閉じる)
 // pointerdown で 500ms タイマー、threshold 超の move でキャンセル。
@@ -2059,7 +2126,7 @@ function showFullImage(photo, opts = {}) {
     const mapBtnLabel = hasGps ? tr('🗺 地図でこの場所を見る', '🗺 See this place on the map') : tr('🗺 この日の地図へ', '🗺 Map for this day');
     cap.innerHTML =
       (hasList ? `<div class="full-count">${i + 1} / ${list.length}</div>` : '') +
-      `<div class="dt">📅 ${dtStr}${srcTagHtml(p)}</div>` +
+      `<div class="dt">📅 ${dtStr}${srcTagHtml(p)}${locBadgeHtml(p)}</div>` +
       `<div class="full-actions">` +
         (annivCtx
           ? (annivCtx.list.length >= 2 ? `<button class="to-compare">${tr('⇆ 左右で比べる', '⇆ Compare')}</button>` : '') +
@@ -2344,6 +2411,7 @@ async function loggerRecord(pos, force) {
   loggerLast = { t, lat, lng };
   loggerStatus = '';
   try { await trackPut({ id: crypto.randomUUID(), t, lat, lng, acc: Math.round(c.accuracy || 0), mode: loggerMode }); } catch {}
+  for (const p of allPhotos) delete p._autoTrackTried;   // v140: 新しい軌跡が来た → 自動確定を再試行できるようにする
   loggerRefreshUI();
   if (mapState && mapState.refreshTrack) mapState.refreshTrack();   // 地図が開いていれば軌跡を更新
 }
@@ -2369,6 +2437,7 @@ async function drainNativeTrack() {
     if (!loggerLast || t >= loggerLast.t) loggerLast = { t, lat: p.lat, lng: p.lng };
   }
   if (added) {
+    for (const p of allPhotos) delete p._autoTrackTried;   // v140: 新しい軌跡が来た → 自動確定を再試行できるようにする
     loggerRefreshUI();
     if (mapState && mapState.refreshTrack) mapState.refreshTrack();   // 地図が開いていれば軌跡を更新
   }
@@ -2474,11 +2543,15 @@ function openLoggerPanel() {
       `<label class="logger-mode"><input type="radio" name="loggerMode" value="important"><span><b>${tr('🚶 重要な移動のみ', '🚶 Major moves only')}</b><small>${BgLoc ? tr('アプリを閉じていても記録（約500m単位・電池にやさしい・おすすめ）', 'Records even when closed (~500m steps, battery-friendly, recommended)') : tr('大きく動いた時だけ点を残す（疎・電池にやさしい）', 'Leaves a point only on big moves (sparse, battery-friendly)')}</small></span></label>` +
       `<label class="logger-mode"><input type="radio" name="loggerMode" value="frequent"><span><b>${tr('🛰️ こまめに', '🛰️ Frequent')}</b><small>${BgLoc ? tr('細かい軌跡（高精度・電池を使う／背景でも記録）', 'Fine track (high accuracy, uses battery / records in background)') : tr('開いている間ずっと細かく記録（密な軌跡）', 'Records finely the whole time it’s open (dense track)')}</small></span></label>` +
     `</div>` +
+    // v140: 足跡から写真の位置を自動で補う (既定 ON)
+    `<label class="logger-auto"><input type="checkbox" id="loggerAutoChk"><span><b>${tr('🚶 足跡から写真の位置を自動で補う', '🚶 Auto-fill photo locations from footprints')}</b><small>${tr('GPSの無い写真を、その時刻の足跡から地図に置きます（地図では「足跡から」と表示・あとで「📍位置を直す」で直せます）。', 'Places GPS-less photos on the map using your footprint at that time (shown as “from footprints”; adjustable later with “Fix location”).')}</small></span></label>` +
     `<div class="logger-status" id="loggerStatusLine"></div>` +
     `<div class="logger-actions">` +
       `<button class="logger-btn" id="loggerToMap">${tr('🗺 地図で軌跡を見る', '🗺 See the track on the map')}</button>` +
-      `<button class="logger-btn ghost" id="loggerClear">${tr('🗑 記録を消す', '🗑 Clear records')}</button>` +
+      `<button class="logger-btn" id="loggerByDay">${tr('📅 日ごとに消す', '📅 Delete by day')}</button>` +
+      `<button class="logger-btn ghost" id="loggerClear">${tr('🗑 すべての記録を消す', '🗑 Delete all records')}</button>` +
     `</div>` +
+    `<div class="logger-days" id="loggerDays" hidden></div>` +
     `<button class="logger-close" id="loggerCloseBtn">${tr('閉じる', 'Close')}</button>`;
   modal.appendChild(card);
 
@@ -2486,13 +2559,71 @@ function openLoggerPanel() {
   radios.forEach(r => r.addEventListener('change', () => { if (r.checked) setLoggerMode(r.value); }));
   card.querySelector('#loggerCloseBtn').addEventListener('click', closeLoggerPanel);
   card.querySelector('#loggerToMap').addEventListener('click', () => { closeLoggerPanel(); openMapView(); });
+
+  // 足跡から自動補完の ON/OFF (v140)
+  const autoChk = card.querySelector('#loggerAutoChk');
+  autoChk.checked = autoConfirmTrackEnabled();
+  autoChk.addEventListener('change', () => {
+    setAutoConfirmTrack(autoChk.checked);
+    if (autoChk.checked) {                                  // ON にした瞬間、地図が開いていれば適用
+      for (const p of allPhotos) delete p._autoTrackTried;
+      if (mapState && mapState.refreshTrack) mapState.refreshTrack();
+    }
+  });
+
+  // 日ごとに消す (v140): リストを開閉し、日別に削除
+  const daysBox = card.querySelector('#loggerDays');
+  card.querySelector('#loggerByDay').addEventListener('click', () => {
+    if (daysBox.hidden) { daysBox.hidden = false; renderTrackDays(); }
+    else { daysBox.hidden = true; }
+  });
+
+  // すべての記録を消す (v140: 確認あり)
   card.querySelector('#loggerClear').addEventListener('click', async () => {
-    if (!confirm(tr('記録した位置の軌跡をすべて消します。よろしいですか？（写真は消えません）', 'This deletes all recorded location tracks. Are you sure? (Photos are not deleted.)'))) return;
+    if (!confirm(tr('記録した位置の軌跡を「すべて」消します。よろしいですか？（写真は消えません）', 'This deletes ALL recorded location tracks. Are you sure? (Photos are not deleted.)'))) return;
     try { await trackClear(); } catch {}
     loggerLast = null;
     if (mapState && mapState.refreshTrack) mapState.refreshTrack();
+    if (!daysBox.hidden) renderTrackDays();
     if (loggerPanelUpdate) loggerPanelUpdate();
   });
+
+  // 記録を日ごとに集計して一覧表示。各行の 🗑 でその日だけ削除 (確認あり)。
+  async function renderTrackDays() {
+    if (!daysBox) return;
+    daysBox.innerHTML = `<div class="logger-day-empty">${tr('読み込み中…', 'Loading…')}</div>`;
+    let pts = [];
+    try { pts = await trackGetRange(0, Date.now()); } catch {}
+    if (!document.getElementById('loggerPanel')) return;   // 集計中に閉じられた
+    if (!pts.length) { daysBox.innerHTML = `<div class="logger-day-empty">${tr('記録がありません。', 'No records yet.')}</div>`; return; }
+    const byDay = new Map();
+    for (const p of pts) {
+      const d = new Date(p.t);
+      const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (!byDay.has(k)) byDay.set(k, { count: 0, start: new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() });
+      byDay.get(k).count++;
+    }
+    const days = [...byDay.values()].sort((a, b) => b.start - a.start);
+    const todayStart = (() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime(); })();
+    const dayFmt = { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' };
+    daysBox.innerHTML = '';
+    for (const info of days) {
+      const row = document.createElement('div');
+      row.className = 'logger-day';
+      const label = new Date(info.start).toLocaleDateString(LANG === 'ja' ? 'ja-JP' : 'en-US', dayFmt);
+      row.innerHTML = `<span class="ld-date">${label}</span><span class="ld-count">${tr(`${info.count}点`, `${info.count} pts`)}</span>` +
+        `<button class="ld-del" type="button" title="${tr('この日を消す', 'Delete this day')}">🗑</button>`;
+      row.querySelector('.ld-del').addEventListener('click', async () => {
+        if (!confirm(tr(`${label} の記録（${info.count}点）を消します。よろしいですか？`, `Delete records for ${label} (${info.count} pts)? Are you sure?`))) return;
+        try { await trackClearRange(info.start, info.start + 86400000 - 1); } catch {}
+        if (info.start === todayStart) loggerLast = null;
+        if (mapState && mapState.refreshTrack) mapState.refreshTrack();
+        renderTrackDays();
+        if (loggerPanelUpdate) loggerPanelUpdate();
+      });
+      daysBox.appendChild(row);
+    }
+  }
 
   // パネル内容を現在状態で更新 (モード選択・今日の記録数・ステータス)。
   async function updateLoggerPanel() {
@@ -2543,7 +2674,7 @@ function buildMarkerPopup(p) {
   el.innerHTML =
     `<img class="mp-thumb" src="${thumbUrl(p)}">` +
     `<div class="mp-date">${fmtDate(p.datetime)}${srcTagHtml(p)}</div>` +
-    (place ? `<div class="mp-place">${place}</div>` : '') +
+    (place ? `<div class="mp-place">${place}${locBadgeHtml(p)}</div>` : '') +
     `<button class="mp-walk">${tr('🔮 連想ウォーク', '🔮 Wander')}</button>` +
     `<button class="mp-edit" type="button">${tr('📍 位置を直す', '📍 Fix location')}</button>` +
     `<button class="mp-del" type="button">${tr('🗑 画像を削除', '🗑 Delete photo')}</button>`;
@@ -2610,6 +2741,33 @@ async function confirmEstimatedPos(photo, est) {
   try { await dbPut(photo); } catch (e) { logErr(tr(`位置の確定に失敗: ${e?.message || e}`, `Failed to confirm location: ${e?.message || e}`)); return; }
   if (mapState && mapState.refreshData) mapState.refreshData();   // GPS扱いになり通常マーカー/動線へ
   render();
+}
+
+// v140: 足跡から写真の位置を自動確定するパス。窓ごとに track を読み、位置なし写真の推定が取れたら永続化。
+// 各写真は _autoTrackTried で1回だけ試す（毎描画の再計算/DB書き込みを避ける）。由来は geoFromTrack+geoAuto で残す
+// = 地図にバッジ(足跡から)が付き、いつでも「📍位置を直す」で修正できる（[[editing-triggers-reminiscence]] の余地を保つ）。
+async function autoConfirmTrackPass(windows) {
+  const changed = [];
+  for (const [s, e] of windows) {
+    const ghosts = allPhotos.filter(p => visible(p) && p.lat == null && p.lng == null
+      && !p._autoTrackTried && p.datetime.getTime() >= s && p.datetime.getTime() <= e);
+    if (!ghosts.length) continue;
+    let pts = [];
+    try { pts = await trackGetRange(s, e); } catch {}
+    for (const ph of ghosts) {
+      ph._autoTrackTried = true;                       // 成否によらず1回だけ (再描画で重複計算しない)
+      if (!pts.length) continue;
+      const est = estimateFromTrack(ph.datetime.getTime(), pts);
+      if (!est) continue;
+      ph.lat = +est.lat.toFixed(6);
+      ph.lng = +est.lng.toFixed(6);
+      ph.geoFromTrack = true; ph.geoAuto = true;
+      if (seals.length) ph._sealed = seals.some(sl => sealMatches(sl, ph));
+      changed.push(ph);
+    }
+  }
+  for (const ph of changed) { try { await dbPut(ph); } catch {} }
+  return changed.length;
 }
 
 let mapState = null;
@@ -2722,7 +2880,7 @@ async function openMapView(focusPhoto, opts) {
   function makePhotoMarker(p) {
     const icon = L.divIcon({
       className: 'photo-marker-wrap',
-      html: `<div class="photo-marker" style="background-image:url(${thumbUrl(p)})"></div>`,
+      html: `<div class="photo-marker${locMarkerClass(p)}" style="background-image:url(${thumbUrl(p)})"></div>`,   // v140: 由来を隅ドットで
       iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -22],
     });
     const mk = L.marker([p.lat, p.lng], { icon });
@@ -2865,7 +3023,6 @@ async function openMapView(focusPhoto, opts) {
     for (const l of mapState.estLayers) map.removeLayer(l);
     mapState.trackLayers = []; mapState.estLayers = [];
     mapState.trackMerge = null;   // v139: 窓が変わった/OFF の古い合流キャッシュを捨てる
-    if (!mapState.showTrack && !mapState.showEstimated) { drawTrips(); return; }   // OFF=写真のみの線へ戻す
     const windows = [];                              // 表示中の時間窓を集める
     if (mapState.pickDays) {
       const folded = mapState.foldedDays;
@@ -2881,6 +3038,13 @@ async function openMapView(focusPhoto, opts) {
       windows.push([0, Date.now()]);                  // 全期間ブラウズ (foreground 記録なので疎)
     }
     const myMap = map;
+    // v140: 足跡から写真の位置を自動確定 (既定ON・🛰️パネルで切替)。位置が付いたら real マーカーとして引き直す。
+    if (autoConfirmTrackEnabled()) {
+      const n = await autoConfirmTrackPass(windows);
+      if (!mapState || mapState.map !== myMap) return;         // 閉じられた/再オープン
+      if (n > 0) { if (mapState.refreshData) mapState.refreshData(); return; }
+    }
+    if (!mapState.showTrack && !mapState.showEstimated) { drawTrips(); return; }   // OFF=写真のみの線へ戻す
     const fitPts = [];
     for (const [s, e] of windows) {
       let pts = [];
@@ -3362,9 +3526,14 @@ async function openMapView(focusPhoto, opts) {
     if (!mapState || !mapState.locEdit) return;
     const { photo, pin } = mapState.locEdit;
     const ll = pin.getLatLng();
+    // v140: 由来を判定してから上書き。元々「写真自身の GPS(exif)」or 既に「修正済(edited)」を動かした → 'edited'(位置を修正)。
+    // それ以外(位置なし / 足跡確定 / 手動)を動かした → 'manual'(手で設定)。
+    const wasEdited = locSource(photo) === 'exif' || locSource(photo) === 'edited';
     photo.lat = +ll.lat.toFixed(6);
     photo.lng = +ll.lng.toFixed(6);
-    photo.geoManual = true;                                              // 手動で付けた位置 (将来の区別用)
+    delete photo.geoFromTrack; delete photo.geoAuto;                    // 手で動かしたので足跡由来ではなくなる
+    if (wasEdited) { photo.geoEdited = true; delete photo.geoManual; }
+    else           { photo.geoManual = true; delete photo.geoEdited; }
     if (seals.length) photo._sealed = seals.some(s => sealMatches(s, photo));   // 場所封印に該当しうる
     try { await dbPut(photo); } catch (e) { logErr(`位置の保存に失敗: ${e?.message || e}`); }
     cancelLocationEdit();
@@ -4202,7 +4371,7 @@ function makeCard(photo, onClick) {
   card.innerHTML = `<img src="${thumbUrl(photo)}" loading="lazy">
     <div class="meta">
       <div class="date">${fmtDate(photo.datetime)}${srcTagHtml(photo)}</div>
-      ${fmtPlace(photo.lat, photo.lng) ? `<div class="place">${fmtPlace(photo.lat, photo.lng)}</div>` : ''}
+      ${fmtPlace(photo.lat, photo.lng) ? `<div class="place">${fmtPlace(photo.lat, photo.lng)}${locBadgeHtml(photo)}</div>` : ''}
     </div>`;
   attachPhotoGestures(card, photo, onClick);
   card.appendChild(makeExcludeBtn(photo));
