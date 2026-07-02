@@ -499,7 +499,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.91 (v138：位置ロガーを native で復活＝NATIVE_LOCATION=true・background-location プラグイン再結線・Info.plist 位置宣言復活(ja/en 文言)・native 1.2。web は無影響) · 2026-07-02';
+const BUILD = 'phase3.92 (v139：地図の線を「写真＋ロガーを時刻順に1本」へ＝ロガー点を本線に合流(飛び飛びの区間を軌跡が埋める)・青緑の点線は廃止(ドットは残す)・軌跡トグルOFF=写真のみ) · 2026-07-02';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -736,7 +736,7 @@ async function annivDelete(id) {
 }
 
 // ── 位置ロガーの記録ストア (track, v73) ──────────────────────
-// 1点 = {id, tr(epoch ms), lat, lng, acc, mode}。t インデックスで日/期間を範囲取得 (昇順)。
+// 1点 = {id, t(epoch ms), lat, lng, acc, mode}。t インデックスで日/期間を範囲取得 (昇順)。
 async function trackPut(point) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -2678,6 +2678,7 @@ async function openMapView(focusPhoto, opts) {
   mapState = { overlay, map, range: { start: null, end: null }, tripLayers: [], filteredGps: [], lineGps: [],
                pickDays: null, pickMode: null, focusedDay: null,
                trackLayers: [], showTrack: true,        // 🛰️ 位置ロガーの軌跡 (v73)
+               trackMerge: null,                        // v139: 表示中の窓のロガー点 (日別)。drawTrips が写真と時刻順に合流
                estLayers: [], showEstimated: true,      // 📍 GPSなし写真を軌跡の時刻位置に配置 (v74)
                anniv: (opts && opts.anniv) || null,     // v127: この地図が記念日由来なら記念日オブジェクト（⋯表示に「📖ログ」を出す）
                immersive: false };                       // ⛶ 没入フルスクリーン (v98)
@@ -2735,7 +2736,19 @@ async function openMapView(focusPhoto, opts) {
   function drawTrips() {
     for (const l of mapState.tripLayers) map.removeLayer(l);
     mapState.tripLayers = [];
-    const line = mapState.lineGps;
+    // v139: 写真の点＋位置ロガーの点を「時刻順に1本」へ。写真だけだと飛び飛びの区間を
+    //   ロガーの軌跡が埋め、途切れない足取りになる（ユーザー要望）。trackMerge は refreshTrack が
+    //   表示中の日/期間ぶんだけ日別に積むキャッシュ。軌跡トグル OFF なら従来どおり写真のみ。
+    //   ロガー点は {lat,lng,datetime} の擬似点に変換＝以降の全ロジック（空色グラデ・日別色・
+    //   segmentByGap・dayKeyOf）が写真と同じに扱える。
+    const line = (() => {
+      const tm = mapState.showTrack ? mapState.trackMerge : null;
+      if (!tm || !tm.size) return mapState.lineGps;
+      const merged = mapState.lineGps.slice();
+      for (const arr of tm.values()) for (const q of arr) merged.push({ lat: q.lat, lng: q.lng, datetime: new Date(q.t), _track: true });
+      merged.sort((a, b) => a.datetime - b.datetime);
+      return merged;
+    })();
     if (!line.length) return;
 
     // v114: 線を見やすく — 暗い縁取り(casing)を下地に敷き、本線を太めに。地図タイルの上でくっきり浮く。
@@ -2842,14 +2855,17 @@ async function openMapView(focusPhoto, opts) {
   }
 
   // 🛰️ 位置ロガーの軌跡 (自分の足取り) と、📍 GPSなし写真の推定位置を、いま地図に出ている日/期間ぶんだけ描く。
-  // ・軌跡 = 青緑の点線 + 点 (写真の動線とは別レイヤ・別の見た目)。showTrack で ON/OFF (v73)。
+  // ・軌跡 (v139): 旧「青緑の点線」は廃止＝ロガー点は trackMerge に日別で積み、drawTrips が写真の点と
+  //   時刻順に混ぜて本線1本を引く。ここでは記録点の小さなドットだけ描く（記録の実感＋写真由来との区別）。
+  //   showTrack で ON/OFF（OFF=写真のみの線に戻る）。
   // ・推定 = GPSなし写真を「その写真の時刻に軌跡上のどこにいたか」で配置。showEstimated で ON/OFF (v74)。
   // どちらも座標+時刻のみ由来。畳んだ日は写真と同じく出さない。canFit=GPS写真ゼロの窓でも収まるよう寄せる。
   async function refreshTrack(canFit) {
     for (const l of mapState.trackLayers) map.removeLayer(l);
     for (const l of mapState.estLayers) map.removeLayer(l);
     mapState.trackLayers = []; mapState.estLayers = [];
-    if (!mapState.showTrack && !mapState.showEstimated) return;
+    mapState.trackMerge = null;   // v139: 窓が変わった/OFF の古い合流キャッシュを捨てる
+    if (!mapState.showTrack && !mapState.showEstimated) { drawTrips(); return; }   // OFF=写真のみの線へ戻す
     const windows = [];                              // 表示中の時間窓を集める
     if (mapState.pickDays) {
       const folded = mapState.foldedDays;
@@ -2872,13 +2888,12 @@ async function openMapView(focusPhoto, opts) {
       if (!mapState || mapState.map !== myMap) return;   // 閉じられた/再オープン → 破棄
       if (!pts.length) continue;
       if (mapState.showTrack) {
-        const byDay = new Map();                          // 日ごとに分割 (日をまたぐ移動で線が飛ばないように)
+        const byDay = new Map();                          // 日ごとに分割 (dayKeyOf と同形式のキー)
         for (const p of pts) { const d = new Date(p.t); const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(p); }
-        for (const arr of byDay.values()) {
-          if (arr.length >= 2) {
-            mapState.trackLayers.push(L.polyline(arr.map(p => [p.lat, p.lng]),
-              { color: '#2ee6c0', weight: 3, opacity: 0.9, dashArray: '1 7', lineCap: 'round' }).addTo(myMap));
-          }
+        for (const [k, arr] of byDay) {
+          // v139: 線はここで引かず drawTrips へ渡す（写真の点と時刻順に混ざって本線1本になる）。
+          if (!mapState.trackMerge) mapState.trackMerge = new Map();
+          mapState.trackMerge.set(k, (mapState.trackMerge.get(k) || []).concat(arr));
           for (const p of arr) {
             mapState.trackLayers.push(L.circleMarker([p.lat, p.lng],
               { radius: 3, color: '#2ee6c0', weight: 1, opacity: 0.9, fillColor: '#2ee6c0', fillOpacity: 0.9 }).addTo(myMap));
@@ -2898,6 +2913,7 @@ async function openMapView(focusPhoto, opts) {
         }
       }
     }
+    drawTrips();   // v139: ロガー点が積めたので本線を「写真＋軌跡の1本」に引き直す（無ければ写真のみで再描画）
     // GPS写真が無く軌跡/推定しか無い窓でも画面に収まるように (applyFilter の fitBounds は fg ベースで空振りする)。
     if (canFit && mapState.filteredGps.length === 0 && fitPts.length) {
       try { map.fitBounds(fitPts, { padding: [40, 40], maxZoom: 14, animate: false }); } catch {}
@@ -2918,6 +2934,7 @@ async function openMapView(focusPhoto, opts) {
       : fgAll;
     mapState.filteredGps = fg;     // マーカー (畳んだ日を除く)
     mapState.lineGps = fgAll;      // 線の色 index 用 (全日。畳んだ日の線は drawTrips でスキップ)
+    mapState.trackMerge = null;    // v139: 窓が変わる＝前の窓のロガー点は混ぜない (refreshTrack が積み直す)
     cluster.clearLayers();
     markerById.clear();
     fg.forEach(p => {
