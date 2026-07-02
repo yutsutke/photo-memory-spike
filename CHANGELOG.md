@@ -5,6 +5,20 @@
 
 ---
 
+## v137 — トップの並び替え＝写真をヘッダ直下に・フィルタチップは最下部へ (2026-07-02)
+
+**背景**
+- ユーザー実機フィードバック「過去の今日/過去の明日の下に写真が来て、全期間とかのタグは一番下のほうがいい」。開いた瞬間に写真＝[[ui-minimalism-works]]（思い出しの意識を写真から逸らさない）にも沿う。
+
+**設計判断**
+- `render()` の `state==='random'` で append 順を変えるだけ（チップ/枚数の**組み立て位置は従来のまま・append を deck の後へ移動**）＝ロジック無改修。順序＝deck→スワイプヒント→filter-chips→filter-note。
+- 写真ゼロ/全除外のメッセージ時も**チップは最下部に残す**（フィルタを戻す導線を失わない）。
+- `.filter-chips` の margin-top を 0→14px（写真の下に来たので間を取る）。
+
+**結果 / 観察**
+- preview green（devGenerate(12)→リロード＝random 状態で DOM 順 [deck, swipe-hint, filter-chips, filter-note]・mobile 375×812 の実座標でも header(〜76)→deck(90〜726)→hint→chips(770〜)→note・console 0・検証後 dbDeleteDummies で掃除）。スクショツールは既知のタイムアウト→ geometry eval で代替（前例踏襲）。
+- **実機（GitHub Pages phase3.90）で確認待ち**。
+
 ## v136 — 拡大表示にピンチズーム（2本指で拡大・縮小＋1本指パン） (2026-07-02)
 
 **背景**

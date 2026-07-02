@@ -112,7 +112,7 @@
   .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 22px auto; max-width: 600px; }
 
   /* フィルタチップ (ランダム3枚画面の上に並ぶ) */
-  .filter-chips { display: flex; gap: 6px; overflow-x: auto; padding: 0 0 6px; max-width: 600px; margin: 0 auto 4px; -webkit-overflow-scrolling: touch; }
+  .filter-chips { display: flex; gap: 6px; overflow-x: auto; padding: 0 0 6px; max-width: 600px; margin: 14px auto 4px; -webkit-overflow-scrolling: touch; }   /* v137: 写真の下に来たので上に間を取る */
   .filter-chips::-webkit-scrollbar { display: none; }
   .chip { flex: 0 0 auto; padding: 6px 12px; border: 1px solid #444; border-radius: 999px; background: transparent; color: #aaa; font-size: 12px; white-space: nowrap; cursor: pointer; }
   .chip:active { opacity: 0.7; }
@@ -499,7 +499,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.89 (v136：拡大表示にピンチズーム＝2本指で拡大縮小(1〜5倍・つまんだ点を保持)・拡大中は1本指パン＋横スワイプ停止・タップは等倍復帰→もう一度で閉じる) · 2026-07-02';
+const BUILD = 'phase3.90 (v137：トップの並び替え＝写真をヘッダ直下に・フィルタチップと枚数は最下部へ) · 2026-07-02';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -4565,6 +4565,8 @@ function render() {
     // v38: 常時表示していた取り込み注意書きは ℹ️「使い方・注意」へ集約。reminiscence 画面は写真に集中。
 
     // フィルタチップ (デフォルト 'all' で従来通り完全ランダム)
+    // v137: チップと枚数は写真の下（最下部）へ＝ヘッダ直下に写真が来て、まず写真に意識が向く（ユーザー要望）。
+    //   ここでは組み立てだけして、deck を append した後に $main へ足す。
     const chips = document.createElement('div');
     chips.className = 'filter-chips';
     for (const f of FILTERS) {
@@ -4578,7 +4580,6 @@ function render() {
       });
       chips.appendChild(btn);
     }
-    $main.appendChild(chips);
 
     // 母数の脚注 (どのフィルタでも何枚から引いているかを見える化)
     // 副次的に「近場/遠出 は GPS つき写真のみ対象」が自然に伝わる
@@ -4593,7 +4594,6 @@ function render() {
     } else {
       note.textContent = tr(`${filtered.length} 枚から`, `from ${filtered.length} photos`);
     }
-    $main.appendChild(note);
 
     // 表示は除外を除いた先頭3枚。除外で次が繰り上がり、取り消しで元に戻る (他の2枚は不動)
     const visibleRandom = currentRandom.filter(visible).slice(0, 40);   // v111: 横スワイプで 40 枚までめくれる (端で🎲で次のランダムへ)
@@ -4624,6 +4624,9 @@ function render() {
       hint.textContent = tr('← スワイプして次の思い出へ →', '← Swipe to the next memory →');
       $main.appendChild(hint);
     }
+    // v137: フィルタと枚数は最下部（写真の後）。空メッセージの時もチップは残す＝フィルタを戻せる。
+    $main.appendChild(chips);
+    $main.appendChild(note);
     return;
   }
 
