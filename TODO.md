@@ -17,6 +17,16 @@
 
 > ### 📍 次セッションの再開ポイント（2026-07-03 セッション16 更新・まずここを読む）
 >
+> ## 📤 1.2（位置ロガー版）を審査提出する — 貼り付け材料（2026-07-03 準備済み）
+> - **状況**: Codemagic で 1.2 ビルド中（version=1.2 は v138 で設定済・build番号は `$BUILD_NUMBER` 自動採番＝26 の次）。中身＝v138 位置ロガー復活＋v139 マージ線＋v140 自動位置確定/由来バッジ/日別・全削除。**位置のみ（広告なし）**。
+> - **✅ 既に審査対応済み（触らない）**: 権限文言(Info.plist＋InfoPlist.strings ja/en＝端末内のみ・外部送信なし・ロガーONの時だけ)／`UIBackgroundModes=location`／**PrivacyInfo.xcprivacy＝収集なし(Data Not Collected)＋UserDefaults CA92.1**。
+> - **⚠️ ASC で変えない**: App プライバシー＝**Data Not Collected のまま**（位置は端末内のみ＝Apple 定義で「収集」に非該当）／スクショ＝1.1 流用可（位置の画追加は任意）／輸出＝`ITSAppUsesNonExemptEncryption=false` で自動スキップ。
+> - **▶ 手順**: 1.1 公開反映を確認 → ASC で **「1.2」バージョンページ新規作成** → ビルド(1.2)紐付け → 下の What's New(日英) を貼る → **App Review 情報の Notes に下の審査メモ(英)を貼る**（背景位置×Data Not Collected の説明が肝）→ 審査へ提出（最終ボタンはユーザー）。
+> - **What's New 🇯🇵**: `位置ロガーが復活しました。オンにすると、その日の移動の足あとをそっと記録し、地図で「1本の線」として振り返れます（写真の位置と足あとが時刻順につながります）。／GPSのない写真も、足あとからその時刻の場所を自動で地図に置けます（あとで「位置を直す」で調整可）。／地図で位置の出どころがひと目でわかるように（足あとから／位置を修正／手動）。／位置ロガーの記録は日ごと・まとめて削除できます。 位置情報はすべて端末の中だけに保存され、外部に送信されることはありません。位置ロガーは初期状態ではオフです。`
+> - **What's New 🇬🇧**: `The location logger is back. Turn it on and it quietly records the day's footpath, so you can look back on it as a single line on the map — your photos and footpath connect in time order. / Photos without GPS can now be placed on the map automatically, using your footpath at that moment (adjust later with "Fix location"). / See at a glance where each location came from: from footprints / location edited / set manually. / Delete logged tracks by day, or all at once. All location data stays on your device and is never sent anywhere. The location logger is off by default.`
+> - **審査メモ（App Review Notes・英）**: OPTIONAL on-device Location Logger を追加。①全位置データは端末内(IndexedDB)のみ・外部送信一切なし(バックエンド無し)＝Data Not Collected 継続・Privacy Manifest で no tracking/no collected types・唯一の required-reason API は UserDefaults(CA92.1・自前背景バッファ)。②ロガーは既定オフ(default mode = Off)、ユーザーが "Location logger" パネルで明示的に有効化した時だけ位置取得。用途＝自分の足あとを記録し地図に線で描く(あとで振り返る)・GPS無し写真をその線上に自動配置。③`UIBackgroundModes=location` は「閉じている間も1日の線を途切れさせない」ためだけ・ロガーON時のみ・iOS 標準の位置インジケータ表示・いつでも停止＆日別/全削除可。テスト手順＝Location logger→Major moves only/Frequent 選択→許可→Map で確認(既定オフなので位置未使用でも全機能動作)。No third-party ads or tracking. iPhone only.
+> - **注**: 上の全文は index.html には入れない申請メタ。CHANGELOG v140 と合わせて次セッションが復元できるよう記載。
+>
 > ## 🎉🎉🌍 世界版デビュー！ 1.1(26)＝英語版を承認→リリース＋配信 ex-EU 拡大（2026-07-03）
 > - **完了（この回・ユーザー明示「リリース→直後に ex-EU 拡大をセットで」）**: ①1.1(26)（英語(US)ローカライズ入り・v135込み）が**審査通過**（メール確認）→②ASC「このバージョンをリリース」→「配信準備完了」（日本・最大24hで反映）→③**配信地域を ex-EU に拡大**＝「価格および配信状況」→「配信状況を管理」→「すべて」(175)→**EU27 のチェックを外す**（アイルランド/イタリア/エストニア/オーストリア/オランダ/キプロス/ギリシャ/クロアチア/スウェーデン/スペイン/スロバキア/スロベニア/チェコ/デンマーク/ドイツ/ハンガリー/フィンランド/フランス/ブルガリア/ベルギー/ポーランド/ポルトガル/マルタ/ラトビア/リトアニア/ルクセンブルク/ルーマニア）→**148地域**で保存（175−27・ヨーロッパ枠は残す非EU 15＝アイスランド/イギリス/ノルウェー/スイス/セルビア/トルコ/ウクライナ/ベラルーシ/ボスニア/モルドバ/モンテネグロ/アルバニア/コソボ/北マケドニア/ロシア＝総数148で検算一致）。**チェック外しはユーザー手動・Claude は27か国リスト提示＋照合**。
 > - **段取りが正しかった点**: 配信拡大は「英語1.1が公開される瞬間」に（公開中 build21 は日本語のみ＝先に広げると英語圏に日本語onlyが出るのを回避）。EU除外＝DSA業者住所公開＋広告GDPR同意(CMP)を回避（[[post-launch-roadmap]]）。言語出し分け＝端末言語（navigator.language: ja→日本語/他→英語）＝1アプリ両言語・地域とは別軸。
