@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 写真読み取り権限はプラグイン側に置く＝このプラグインを含む build にだけマージされる
+     (アプリ本体の AndroidManifest はクリーンのまま。位置権限はここに無い = ACCESS_MEDIA_LOCATION は
+      「写真ファイル内の EXIF 位置を読む」権限であり端末の現在地 (FINE/COARSE) ではない)。 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Android 12 以下の従来ストレージ読み取り -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!-- Android 13+ の写真読み取り -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Android 14+ の部分許可 (選択した写真のみ = limited) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <!-- 写真の EXIF 位置 (足跡地図のコア)。API 29+ で必要 -->
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
+</manifest>

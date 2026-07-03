@@ -1,12 +1,14 @@
 {
   "name": "photo-library",
-  "version": "0.0.1",
-  "description": "Local Capacitor plugin: full photo-library enumeration (instant count + cheap metadata) and on-demand thumbnails via the iOS Photos framework. Approach B for 'photo-memory-spike'.",
+  "version": "0.0.2",
+  "description": "Local Capacitor plugin: full photo-library enumeration (instant count + cheap metadata) and on-demand thumbnails. iOS = Photos framework, Android = MediaStore (Kotlin). Approach B for 'photo-memory-spike'.",
   "main": "index.js",
   "files": [
     "index.js",
     "ios/Sources",
-    "Package.swift"
+    "Package.swift",
+    "android/src",
+    "android/build.gradle"
   ],
   "keywords": [
     "capacitor",
@@ -17,6 +19,9 @@
   "capacitor": {
     "ios": {
       "src": "ios"
+    },
+    "android": {
+      "src": "android"
     }
   },
   "peerDependencies": {

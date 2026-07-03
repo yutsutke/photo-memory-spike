@@ -5,6 +5,39 @@
 
 ---
 
+## v142 — 本丸＝写真全件アクセスの Android 実装（photo-library に MediaStore/Kotlin プラグイン）・エミュレータ E2E YES (2026-07-03)
+
+**背景**
+- Android クリーン起動が通った同セッションの続き。iOS の自前 Swift `photo-library`（全件即時列挙＋オンデマンドサムネ＝Approach B）は移植不可なので、**同じ契約で Android を Kotlin/MediaStore で新規実装**＝ボトルネック①「久しぶり＝全ライブラリ」の Android 版を de-risk。
+
+**設計判断**
+- **契約を iOS と1文字も変えない**: `requestAccess()→{status}` / `enumerate({limit})→{count,returned,ms,items:[{id,w,h,date?,dateSource?,lat?,lng?}]}` / `thumbnail({id,size})→{dataUrl,lat?,lng?,exifDate?}`。web 層（importOneNative/importNativeAsset/importNativeLibrary）は **GPS/日時のマージ3行と権限文言の分岐以外は無改修**で乗った。
+- **プラグインはプラットフォーム宣言だけで配線**: `package.json` に `capacitor.android` を足す→`cap sync android` が `capacitor.settings.gradle` に `:photo-library` を include・`capacitor.plugins.json` に classpath を載せる→自動登録（MainActivity 手動 registerPlugin 不要）。**権限はプラグイン側の AndroidManifest に置く**＝プラグインを含む build にだけ READ_MEDIA_IMAGES/VISUAL_USER_SELECTED/ACCESS_MEDIA_LOCATION/(旧)READ_EXTERNAL_STORAGE(maxSdk32) がマージ＝**app 本体はクリーンのまま**（クリーン版とフル版を1コードで両立）。
+- **iOS と本質が違う2点を Kotlin/web の分担で吸収**:
+  - **日時**: MediaStore の `DATE_TAKEN`（EXIF由来）が無い写真は `DATE_ADDED`（保存日）にフォールバックし `dateSource='saved'` を返す→`thumbnail` が EXIF `DateTimeOriginal` を `exifDate` で同乗→web が「保存日→撮影日」に格上げ（`dateSource='exif'`）＝**日時純度 EXIF>保存日 の流儀**を Android でも維持。
+  - **GPS**: API29+ の MediaStore は EXIF 位置を隠す（列は常に null）。全件で 2000 ファイルを開くと即時列挙が死ぬので、`enumerate` は GPS を返さず、`thumbnail`（どうせファイルを開く）のついでに `ACCESS_MEDIA_LOCATION`＋`setRequireOriginal` で EXIF から読み `{lat,lng}` を同乗→web がマージ。
+- **権限の再プロンプト抑制**: 既に authorized/limited なら `requestAccess` は再リクエストしない（Android 14 の部分許可は再リクエストのたびに選択ダイアログ＝起動時 auto-import が毎回ダイアログを出す事故を防ぐ。iOS の「一度決まったら再プロンプトしない」と同じ）。
+- **サムネ**: API29+ は `contentResolver.loadThumbnail`（向き補正済み・アスペクト維持）、<=28 は `Thumbnails.getThumbnail`＋ORIENTATION 手動回転。JPEG base64 data URL で返す（web と同形）。
+
+**ハマったところ**
+- 初回コンパイルで `Unresolved reference 'core' / ContextCompat`（androidx.core を依存に足していなかった）→ minSdk24≥API23 なので `context.checkSelfPermission` を直接呼び ContextCompat 依存を削除。
+- **エミュレータの MediaStore が `DATE_TAKEN` を NULL にする**（スキャナが EXIF 日時を datetaken 列に載せない・`scan_volume`/`content update` でも復活せず）→ だが**これは想定内の穴を突く格好**になり、保存日フォールバック→EXIF 格上げ経路が実機同然に検証できた（結果 OK）。
+- **GPS が emulator で redact される**: 取り込んだ実ファイルには GPS が残る（PIL/piexif で確認）のに `readExif` は `gps=false`。`requireOriginal=1` 付与・`ACCESS_MEDIA_LOCATION` 許可済み・同じ EXIF から日時は読める＝**コードは正しく、emulator が requireOriginal でも位置を復元しない既知の制約**。→ GPS は実機で要確認（[[post-launch-roadmap]] の中古端末が効く）。
+
+**結果 / 観察（エミュレータ E2E・adb で自動化）**
+- テスト JPEG 7枚（7/3 を各年・EXIF 日時/GPS 付き）を push→権限ダイアログ（Android 14 の「すべて許可/選択した写真/許可しない」実物）→「📚 ライブラリ全体」→ **7枚取り込み成功・止まらない**。`enumerate` は count=7 を ~40-100ms で即時。
+- **🎉 カードに「2023/07/03 18:45 Captured」= 保存日→EXIF 撮影日への格上げが実動**（大阪の緑カード）。UI（deck/スワイプ/Map for this day/On This Day）も全て機能。CDN/vendor OK。
+- **開発ループ確立**: Android Studio 同梱 JBR21 で `gradlew -p android assembleDebug` がローカルで通る（`JAVA_HOME`＋`local.properties` の sdk.dir）＝Codemagic 待ちゼロで iterate。
+
+**教訓**
+- Capacitor の「プラグイン＝プラットフォーム宣言だけで配線＋権限もプラグイン側 Manifest」が効き、**app 本体クリーン維持とフル機能プラグインを1コードで両立**できた（クリーン版/位置版の分岐を web の NATIVE_LOCATION と同じ発想で native 側にも敷けた）。
+- **エミュレータは MediaStore の DATE_TAKEN と EXIF 位置が弱い**＝日時フォールバックの検証には好都合だが、GPS/位置系は実機必須。テスト画像を adb で流し込む E2E は UI 手動より速く再現性が高い。
+
+**残課題 / 次の方向**
+- **GPS/足跡地図を実機で確認**（emulator では redact）。中古 Android 入手後の最初の確認項目。
+- 大量ライブラリ（数千枚）の実機スループット・体感（サムネ 512px の速度）。iOS の自前 Swift 比。
+- Google Play 登録・署名（Play App Signing）・AAB。背景位置は Android v2。
+
 ## v141 — Android 着手＝クリーン版(位置なし/広告なし)を scaffold・NATIVE_LOCATION をプラットフォーム別に・Codemagic に android-debug workflow (2026-07-03)
 
 **背景**

@@ -27,3 +27,5 @@ android/local.properties
 android/app/src/main/assets/public/
 # cap sync が再生成する Cordova ブリッジ
 android/capacitor-cordova-android-plugins/
+# local plugin の Android ビルド生成物 (included project の build 出力は plugin 配下に出る)
+local-plugins/*/android/build/
