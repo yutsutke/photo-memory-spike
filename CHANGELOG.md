@@ -5,6 +5,34 @@
 
 ---
 
+## v141 — Android 着手＝クリーン版(位置なし/広告なし)を scaffold・NATIVE_LOCATION をプラットフォーム別に・Codemagic に android-debug workflow (2026-07-03)
+
+**背景**
+- 1.2(29) 審査提出の次セッション。決定どおり Apple 審査を待たず Android に着手。まず「web ラッパーが Android で起動するか」を de-risk する最小スパイク（iOS の初 TestFlight 起動を de-risk したのと同じ発想）。
+
+**設計判断**
+- **クリーン版（位置なし・広告なし）で切り離す**: iOS 1.2 は位置あり、web は前面ロガー。共有 index.html なので `NATIVE_LOCATION = true` の固定値を **`getPlatform()==='ios'`** に変更＝iOS のみ true（1.2 の位置は不変）、Android/web は false。web は IS_NATIVE=false で `LOCATION_AVAILABLE` に無影響＝日本語含め挙動不変。審査中の 1.2(29) バイナリは凍結済み＝web 編集は次ビルド以降にしか乗らない＝在審査に無影響。
+- **native プロジェクトはコミット（iOS 同流儀）**: ignore は生成物のみ（`.gradle`/`build`/`local.properties`/`assets/public`/`capacitor-cordova-android-plugins`）。Capacitor 生成の `android/.gitignore` がほぼ網羅、root にも要点を明示（ios ブロックと揃える）。dry-run で危険パターン0・54ファイルが native 本体のみと確認。
+- **applicationId は iOS と同じ** `io.github.yutsutke.madeleine`（Capacitor 既定＝1 appId で両プラットフォーム）。minSdk 24 / compile・target 36。app 名は en 既定 "A Past Day"＋`values-ja` で「あの日 — 写真と足跡」（iOS lproj と同構造）。
+- **プラグインは触らず放置でクリーン**: background-location / photo-library は `capacitor.ios` のみ宣言＝Android では登録されず Gradle も権限も汚さない。結果 AndroidManifest の権限は **INTERNET のみ**＝位置・カメラ・広告SDK なしの完全クリーンが scaffold 直後に成立。
+- **ビルド経路＝Codemagic に android-debug workflow 追加**（linux_x2・java17・sync:web→cap sync android→gradlew assembleDebug→APK artifact）。デバッグ APK は自動 debug keystore＝署名設定不要＝端末にサイドロードして起動確認。Play 向け署名(Play App Signing)と AAB は Android v2。
+
+**ハマったところ（予防）**
+- 実ビルドは Windows では回せない（Android SDK/JDK なし）＝Codemagic 頼み＝iterate が遅い。だから commit 前に静的に潰した: ①`gradle-wrapper.jar`/`gradlew`/`settings.gradle` が commit 対象に入っているか dry-run で確認（無いと CI の `./gradlew` が起動しない）②生成物が add されないか危険パターン検索でゼロ確認③codemagic.yaml を parser で検証（workflows=ios-testflight/android-debug）。
+
+**結果 / 観察**
+- `npx cap add android` 成功（135ms）。scaffold 直後に権限 INTERNET のみ＝クリーン版が構造的に成立（プラグイン非移植のご利益）。
+- 実機起動は未確認（Codemagic ビルド→サイドロード待ち）。CDN 依存（Leaflet/transformers.js）が Android WebView で解決するか、`http://localhost` 由来で https CDN を読めるか＝初回ビルド後に要観察。
+
+**教訓**
+- Capacitor の「プラグインはプラットフォーム宣言があるものだけ登録」仕様が、クリーン版を**タダで**作ってくれた＝iOS 専用プラグインを消さなくても Android には位置権限が一切入らない。「消すべきものを消す」より「そもそも入らない」方が安全。
+- クリーン版の肝＝1個のフラグ（NATIVE_LOCATION）をプラットフォーム別にするだけ。共有 web の分岐点を1箇所に集約してあったのが効いた。
+
+**残課題 / 次の方向**
+- ユーザーが Codemagic で android-debug をトリガー→APK を Android 端末にサイドロード→**クリーン起動を確認**（本スパイクのゴール）。
+- 本丸＝写真全件アクセスの Android 実装＝**MediaStore を Kotlin で書き直し**（iOS の自前 Swift photo-library は移植不可・[[native-photo-access-works]] の Android 版）。
+- Google Play 登録（$25・公開時）・署名（Play App Signing）・AAB・app名/アイコン/ストア掲載。背景位置は Android v2（Apple 1.2 の結果を学びに）。
+
 ## 📤 1.2(29) を審査提出＋Android 着手を決定（コード変更なし・ASC 操作/方針） (2026-07-03)
 
 **背景**

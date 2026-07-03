@@ -524,7 +524,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.93 (v140：GPSなし写真を足跡から自動確定(既定ON・🛰️パネルで切替)＋位置の由来バッジ(足跡/修正/手動)＝EXIF位置を直すと「修正」表示・位置ロガーの全削除(確認)/日別削除) · 2026-07-03';
+const BUILD = 'phase3.94 (v141：Android 着手＝npx cap add android でクリーン版(位置なし/広告なし)を scaffold・NATIVE_LOCATION をプラットフォーム別に(iOSのみtrue/Android=false)・Codemagic に android-debug(デバッグAPK) workflow 追加。写真の Android 実装=MediaStore(Kotlin) は本丸として次) · 2026-07-03';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -1045,14 +1045,18 @@ async function importOne(file, override) {
 const _cap = window.Capacitor || null;
 const IS_NATIVE = !!(_cap && typeof _cap.isNativePlatform === 'function' && _cap.isNativePlatform());
 
-// 位置機能スイッチ (v104→v106→1.2): iOS の初回 App Store 審査は「位置情報を完全オフ」で提出した
-// (案B＝写真コアを先に通す)。1.0 公開・1.1(英語版) 提出後の 1.2 で復活＝true（ロードマップ②前半）。
-// セット＝① ここ true ② package.json に "background-location": "file:./local-plugins/background-location"
+// 位置機能スイッチ (v104→v106→iOS1.2→Android): iOS の初回 App Store 審査は「位置情報を完全オフ」で
+// 提出 (案B＝写真コアを先に通す)。1.0 公開・1.1(英語版) 提出後の iOS 1.2 で復活＝iOS は true（ロードマップ②前半）。
+// ★ Android v1 はクリーン版（位置なし・広告なし）＝ iOS のクリーン起動成功パターンを踏襲＝ここを false に。
+//   背景位置は Google の審査が厳しいので、リスク共有面 (背景位置) を Android v1 に入れない → 背景位置は Android v2。
+//   → プラットフォーム別に: iOS のみ true。Android/web は false。
+// セット (iOS の位置あり)＝① getPlatform()==='ios' ② package.json に "background-location": "file:./local-plugins/background-location"
 //   ③ Info.plist の NSLocation* / UIBackgroundModes=location（文言は InfoPlist.strings ja/en が上書き）。
 // ★ v106 の教訓 (逆向きに戻す時用): JS で呼ばないだけでは不十分 — プラグインの CLLocationManager が
 //   バイナリに残ると Apple が purpose string を要求する (ITMS-90683)＝外す時は package.json から。
-// web (GitHub Pages) は IS_NATIVE=false なので常に従来どおり前面ロガー＝この値の影響なし。
-const NATIVE_LOCATION = true;
+// web (GitHub Pages) は IS_NATIVE=false なので LOCATION_AVAILABLE は常に true＝この値の影響なし（従来どおり前面ロガー）。
+const NATIVE_PLATFORM = (_cap && typeof _cap.getPlatform === 'function') ? _cap.getPlatform() : 'web';
+const NATIVE_LOCATION = (NATIVE_PLATFORM === 'ios');
 // スクショ用モード (v108): web を URL の ?shot で「native v1 見え」にする＝位置 UI(🛰️/地図トグル)
 // を隠し、App Store スクショを提出物(位置オフ)と一致させる。例: …/index.html?shot
 const SHOT_MODE = /(^|[?&#])shot\b/i.test(location.search + location.hash);

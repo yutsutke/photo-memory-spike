@@ -79,3 +79,49 @@ workflows:
         auth: integration
         # 最初のビルドは TestFlight まで（審査提出はしない）
         submit_to_testflight: true
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Android — クリーン版（位置なし・広告なし）のデバッグAPK を生成する de-risk 用。
+  #
+  # 狙い: iOS のクリーン起動成功パターンを Android で踏襲。まず「web ラッパーが
+  #       Android で起動するか」だけを確かめる。署名は debug keystore（自動生成）で
+  #       Play 向けの署名(Play App Signing)は Android v2。位置/広告は入れない。
+  #
+  # 使い方: Codemagic の Web UI でこの android-debug workflow を選び「Start new build」。
+  #        完了後 artifacts の *.apk をダウンロードし、Android 端末で
+  #        「提供元不明のアプリ」を許可してサイドロード → 起動を確認する。
+  #
+  # 技術メモ:
+  #   - Linux instance は Android SDK / JDK を同梱。web 本体はリポのルート（GitHub Pages
+  #     配信元）＝CI で sync:web → www/ → `cap sync android` で
+  #     android/app/src/main/assets/public/ にバンドル。
+  #   - background-location / photo-library の2プラグインは iOS のみ宣言＝Android では
+  #     登録されず Gradle を壊さない（クリーン版に好都合。写真の Android 実装＝
+  #     MediaStore(Kotlin) は本丸として別途）。
+  #   - ★ 初回ビルドは Codemagic イメージの SDK/JDK/build-tools 版と compileSdk 36 の
+  #     整合でコケることがある＝ログを確認し、必要なら java/instance/SDK を調整。
+  # ────────────────────────────────────────────────────────────────────────────
+  android-debug:
+    name: あの日 Android → デバッグAPK（クリーン版）
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      node: 22
+      java: 17
+    scripts:
+      - name: npm 依存をインストール
+        script: npm install
+
+      - name: web を www/ へ同期し Capacitor Android を sync
+        script: |
+          npm run sync:web
+          npx cap sync android
+
+      - name: デバッグ APK をビルド
+        script: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --stacktrace
+
+    artifacts:
+      - android/app/build/outputs/**/*.apk

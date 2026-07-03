@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <!-- 日本語ロケールのアプリ表示名（iOS ja.lproj/InfoPlist.strings と揃える）。
+         既定 (values/strings.xml) は英語 "A Past Day"。日本語端末のみこちらで上書き。 -->
+    <string name="app_name">あの日 — 写真と足跡</string>
+    <string name="title_activity_main">あの日 — 写真と足跡</string>
+</resources>

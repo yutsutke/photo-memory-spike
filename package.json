@@ -9,6 +9,7 @@
     "cap:sync": "npm run sync:web && cap sync"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.0",
     "@capacitor/core": "^8.4.0",
     "@capacitor/ios": "^8.4.0",
     "background-location": "file:./local-plugins/background-location",

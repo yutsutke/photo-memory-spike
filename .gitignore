@@ -15,3 +15,15 @@ ios/App/App/public/
 ios/App/App/Pods/
 DerivedData/
 *.xcuserstate
+
+# Capacitor / native Android (v141〜)
+# android/ の native プロジェクト本体はコミット（ios と同流儀）。生成物のみ ignore。
+# 大半は Capacitor 生成の android/.gitignore が担うが、root にも要点を明示（ios ブロックと揃える）。
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+# cap copy が同期する web（生成物）
+android/app/src/main/assets/public/
+# cap sync が再生成する Cordova ブリッジ
+android/capacitor-cordova-android-plugins/
