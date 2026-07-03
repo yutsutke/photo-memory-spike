@@ -24,7 +24,9 @@
 
 **結果 / 観察**
 - `npx cap add android` 成功（135ms）。scaffold 直後に権限 INTERNET のみ＝クリーン版が構造的に成立（プラグイン非移植のご利益）。
-- 実機起動は未確認（Codemagic ビルド→サイドロード待ち）。CDN 依存（Leaflet/transformers.js）が Android WebView で解決するか、`http://localhost` 由来で https CDN を読めるか＝初回ビルド後に要観察。
+- **🎉🎉 Codemagic build #3 green（app-debug.apk 4.58MB）→ Android Studio エミュレータ（Pixel 7 / API 36.1 "Baklava" / x86_64）で起動 YES＝本スパイク達成**。**空状態UIが完全描画・クラッシュなし**。**🛰️位置ボタン無し＝クリーン版（位置なし）を実動で確認**。emulator ロケール=英語で **UI が英語表示＝世界版 i18n が Android にもそのまま乗る**（ヘッダ/プライバシー文/ボタン）。**CDN/vendor 資産も読めてレイアウト崩れなし**＝Android WebView で web 資産が動く。写真アクセス（📚ライブラリ）は Android 未実装＝次の本丸。
+- **ビルドで潰した壁（Codemagic 3ビルド）**：①`instance_type: linux_x2` が課金プラン外→`mac_mini_m2`（iOS と同じ）②SDK Platform 36 / Build-Tools 35 は Mac イメージが自動DL＝compileSdk 36 は問題なし③`java: 17`→`21`（capacitor-android は Java 21 ソースレベル＝"invalid source release: 21"）。
+- **開発ループが確立**：Windows に Android Studio＋SDK＋エミュレータ（Pixel7/API36.1・Google Play x86_64）を導入＝以降は**手元でビルド→エミュ起動**が可能（Codemagic 待ちを卒業）。実機（背景位置/写真全件/体感速度）は中古 Android を別途検討中。
 
 **教訓**
 - Capacitor の「プラグインはプラットフォーム宣言があるものだけ登録」仕様が、クリーン版を**タダで**作ってくれた＝iOS 専用プラグインを消さなくても Android には位置権限が一切入らない。「消すべきものを消す」より「そもそも入らない」方が安全。
