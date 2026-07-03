@@ -109,7 +109,9 @@ workflows:
     max_build_duration: 60
     environment:
       node: 22
-      java: 17
+      # ★ Capacitor 8.4 の capacitor-android は Java 21 ソースレベル＝JDK 21 必須。
+      #   17 だと compileDebugJavaWithJavac が "invalid source release: 21" で落ちる。
+      java: 21
     scripts:
       - name: npm 依存をインストール
         script: npm install

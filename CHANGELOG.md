@@ -20,6 +20,7 @@
 **ハマったところ（予防／実地）**
 - 実ビルドは Windows では回せない（Android SDK/JDK なし）＝Codemagic 頼み＝iterate が遅い。だから commit 前に静的に潰した: ①`gradle-wrapper.jar`/`gradlew`/`settings.gradle` が commit 対象に入っているか dry-run で確認（無いと CI の `./gradlew` が起動しない）②生成物が add されないか危険パターン検索でゼロ確認③codemagic.yaml を parser で検証（workflows=ios-testflight/android-debug）。
 - **初回トリガーで即失敗＝`instance_type: linux_x2` が課金プラン外**（"The selected instance type is not available with the current billing plan"）。この Codemagic アカウント（無料/個人プラン）は **macOS M2 のみ**利用可＝iOS と同じ `mac_mini_m2` に変更（mac も Android SDK/JDK 同梱でビルド可・ただし Mac の無料分数を iOS と共有）。**教訓＝新ワークフローの instance は「既存の動いている workflow と同じもの」から始める**（iOS が mac_mini_m2 で動いていたのだから最初からそれにすべきだった）。
+- **2回目＝`compileDebugJavaWithJavac` が `error: invalid source release: 21` で失敗**。**Capacitor 8.4 の `capacitor-android` は Java 21 ソースレベル**なのに workflow の `java: 17` が古すぎた（JDK 17 は Java 21 ソースをコンパイル不可）→ **`java: 21` に変更**で解消見込み。SDK Platform 36 / Build-Tools 35 は Codemagic Mac イメージが**自動DL**（ログで確認）＝compileSdk 36 は問題なし。**教訓＝Capacitor 8.x の CI ビルドは JDK を Capacitor のソースレベルに合わせる（8.4 は 21）**。
 
 **結果 / 観察**
 - `npx cap add android` 成功（135ms）。scaffold 直後に権限 INTERNET のみ＝クリーン版が構造的に成立（プラグイン非移植のご利益）。
