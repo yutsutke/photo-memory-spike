@@ -92,9 +92,11 @@ workflows:
   #        「提供元不明のアプリ」を許可してサイドロード → 起動を確認する。
   #
   # 技術メモ:
-  #   - Linux instance は Android SDK / JDK を同梱。web 本体はリポのルート（GitHub Pages
-  #     配信元）＝CI で sync:web → www/ → `cap sync android` で
-  #     android/app/src/main/assets/public/ にバンドル。
+  #   - instance は iOS と同じ mac_mini_m2（無料/個人プランは macOS M2 のみ利用可＝
+  #     linux_x2 は "instance type not available with the current billing plan" で即失敗。
+  #     mac も Android SDK / JDK を同梱するので Android ビルド可＝ただし Mac の分数を共有）。
+  #     web 本体はリポのルート（GitHub Pages 配信元）＝CI で sync:web → www/ →
+  #     `cap sync android` で android/app/src/main/assets/public/ にバンドル。
   #   - background-location / photo-library の2プラグインは iOS のみ宣言＝Android では
   #     登録されず Gradle を壊さない（クリーン版に好都合。写真の Android 実装＝
   #     MediaStore(Kotlin) は本丸として別途）。
@@ -103,7 +105,7 @@ workflows:
   # ────────────────────────────────────────────────────────────────────────────
   android-debug:
     name: あの日 Android → デバッグAPK（クリーン版）
-    instance_type: linux_x2
+    instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
       node: 22

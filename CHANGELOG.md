@@ -17,8 +17,9 @@
 - **プラグインは触らず放置でクリーン**: background-location / photo-library は `capacitor.ios` のみ宣言＝Android では登録されず Gradle も権限も汚さない。結果 AndroidManifest の権限は **INTERNET のみ**＝位置・カメラ・広告SDK なしの完全クリーンが scaffold 直後に成立。
 - **ビルド経路＝Codemagic に android-debug workflow 追加**（linux_x2・java17・sync:web→cap sync android→gradlew assembleDebug→APK artifact）。デバッグ APK は自動 debug keystore＝署名設定不要＝端末にサイドロードして起動確認。Play 向け署名(Play App Signing)と AAB は Android v2。
 
-**ハマったところ（予防）**
+**ハマったところ（予防／実地）**
 - 実ビルドは Windows では回せない（Android SDK/JDK なし）＝Codemagic 頼み＝iterate が遅い。だから commit 前に静的に潰した: ①`gradle-wrapper.jar`/`gradlew`/`settings.gradle` が commit 対象に入っているか dry-run で確認（無いと CI の `./gradlew` が起動しない）②生成物が add されないか危険パターン検索でゼロ確認③codemagic.yaml を parser で検証（workflows=ios-testflight/android-debug）。
+- **初回トリガーで即失敗＝`instance_type: linux_x2` が課金プラン外**（"The selected instance type is not available with the current billing plan"）。この Codemagic アカウント（無料/個人プラン）は **macOS M2 のみ**利用可＝iOS と同じ `mac_mini_m2` に変更（mac も Android SDK/JDK 同梱でビルド可・ただし Mac の無料分数を iOS と共有）。**教訓＝新ワークフローの instance は「既存の動いている workflow と同じもの」から始める**（iOS が mac_mini_m2 で動いていたのだから最初からそれにすべきだった）。
 
 **結果 / 観察**
 - `npx cap add android` 成功（135ms）。scaffold 直後に権限 INTERNET のみ＝クリーン版が構造的に成立（プラグイン非移植のご利益）。
