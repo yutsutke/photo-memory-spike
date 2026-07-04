@@ -536,7 +536,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.98 (v145：機能名を「記念日」→「思い出の場所」に改名。UI 文言を日英とも全置換(英語=Memory place)。DB ストア名 anniversaries・コード識別子(registerAnniversary 等)は不変＝既存データ互換。｜ v144：思い出の場所マルチ地点の同日バグ修正 ｜ v143：思い出の場所をマルチ地点対応) · 2026-07-04';
+const BUILD = 'phase3.99 (v146：地図⋯の「囲んで比べる」→「囲んで思い出を見る」に表現変更(英語 Encircle to see memories)。｜ v145：機能名を「記念日」→「思い出の場所」に改名(英語 Memory place・DBストア名/識別子は不変) ｜ v144：マルチ地点の同日バグ修正 ｜ v143：思い出の場所をマルチ地点対応) · 2026-07-04';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -3373,7 +3373,7 @@ async function openMapView(focusPhoto, opts) {
   popMore.innerHTML =
     `<div class="mc-pop-title">${tr('表示の設定', 'Display settings')}</div>` +
     `<button class="mc-menu-item" id="mmAnnivLog">${tr('📖 思い出の場所のログ', '📖 Memory place log')}</button>` +   // v128: 常時表示。思い出の場所由来の地図→そのログへ／通常地図→思い出の場所一覧へ
-    `<button class="mc-menu-item" id="mmCompare">${tr('🫧 囲んで比べる', '🫧 Encircle & compare')}</button>` +   // v120: 円で囲む→左右2リールで「あの頃と今」
+    `<button class="mc-menu-item" id="mmCompare">${tr('🫧 囲んで思い出を見る', '🫧 Encircle to see memories')}</button>` +   // v120: 円で囲む→左右2リールで「あの頃と今」（v146: 表現を「比べる」→「思い出を見る」に）
     `<button class="mc-menu-item" id="mmRegister">${tr('📍 この辺りを思い出の場所に登録', '📍 Save this area as a memory place')}</button>` +   // v125: いま見ている地図の範囲を思い出の場所に
     // 位置オフ build (iOS v1) では軌跡まわりのトグルを出さない (v104)。記録が無いので元々空動作。
     (LOCATION_AVAILABLE
