@@ -170,6 +170,18 @@
   .anniv-visit-memo { color: #bbb; font-size: 12px; margin-top: 2px; }
   .anniv-visit-go { color: #33c1b0; font-size: 12px; margin-top: 3px; }
   .anniv-name-input { width: 100%; box-sizing: border-box; background: #111; color: #fff; border: 1px solid #555; border-radius: 8px; padding: 10px 12px; font-size: 16px; margin-top: 6px; }
+  /* v143: 登録モーダル（重なり選択／新規／移転で既存に足す）＋場所数 */
+  .anniv-choice-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
+  .anniv-choice { width: 100%; text-align: left; background: #1e6b5e; color: #fff; border: none; border-radius: 10px; padding: 12px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .anniv-or { text-align: center; color: #888; font-size: 12px; margin: 12px 0 4px; }
+  .anniv-new-label { display: block; color: #ccc; font-size: 13px; margin-top: 6px; }
+  .anniv-new-btn { width: 100%; margin-top: 8px; }
+  .anniv-reloc { margin-top: 16px; padding-top: 14px; border-top: 1px solid #333; }
+  .anniv-reloc-t { color: #aaa; font-size: 12.5px; margin-bottom: 7px; }
+  .anniv-reloc-sel { width: 100%; box-sizing: border-box; background: #111; color: #fff; border: 1px solid #555; border-radius: 8px; padding: 9px 10px; font-size: 14px; }
+  .anniv-reloc-btn { width: 100%; margin-top: 8px; background: #2a2a2a; color: #eee; border: 1px solid #4a4a4a; border-radius: 8px; padding: 10px; font-size: 13px; cursor: pointer; }
+  .anniv-cancel { width: 100%; margin-top: 14px; background: #333; color: #ccc; border: none; border-radius: 8px; padding: 9px; font-size: 13px; cursor: pointer; }
+  .anniv-places { color: #7fe3d6; font-size: 12.5px; margin: 2px 0 12px; padding: 8px 12px; background: #12211e; border: 1px solid #1f5c50; border-radius: 8px; }
   /* v122: 動線を1本フォーカス中、タイムラインでその日以外を淡色化 (地図の dim と揃える) */
   .tl-day.tl-dim, .tl-item.tl-dim { opacity: 0.3; transition: opacity 0.15s; }
   /* v125: 位置情報なし写真はタイムラインに出る、の注記 */
@@ -524,7 +536,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.95 (v142：本丸＝写真全件アクセスの Android 実装。photo-library プラグインに MediaStore(Kotlin) 実装＝requestAccess(13+/14部分許可=limited)・enumerate(全件即時列挙・DATE_TAKEN→保存日フォールバック=dateSource)・thumbnail(loadThumbnail+EXIF の GPS/撮影日時を同乗=保存日を撮影日に格上げ)。web glue=thumbnail の lat/lng/exifDate マージ+dateSource+権限文言の Android 分岐) · 2026-07-03';
+const BUILD = 'phase3.96 (v143：記念日「この場所の記憶」をマルチ地点対応。①登録時に既存円と重なったら自動吸収せず選ばせる(◯◯に足す/新規/移転で既存に足す)②記念日=複数円の器(circles[])＝移転しても場所の同一性が1つの記念日で続く・写真は全円の和集合③詳細に「📍別の場所」+場所数表示。旧単一円は circlesOf で後方互換) · 2026-07-04';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -3931,8 +3943,10 @@ function startEncircleMode() {
     const list = (centerLL && r > 0) ? photosInCircle(centerLL.lat, centerLL.lng, r) : [];
     if (list.length >= 2) {
       const ci = { lat: centerLL.lat, lng: centerLL.lng, radius: r };   // v121: 記念日登録用に円を渡す
+      const target = attachTargetAnniv; attachTargetAnniv = null;   // v143: 詳細の「別の場所」経由なら直接 attach
       endEncircleMode();
-      openAnnivDeck(list, ci, true);   // v124: 囲む後も記念日タップと同じ deck 動線（違いは canRegister の登録ボタンだけ）
+      if (target) attachLocationDirect(target, ci, list);
+      else openAnnivDeck(list, ci, true);   // v124: 囲む後も記念日タップと同じ deck 動線（違いは canRegister の登録ボタンだけ）
       return;
     }
     // 足りない → 円を消してやり直し (モードは継続)。
@@ -3952,6 +3966,7 @@ function startEncircleMode() {
 }
 
 function endEncircleMode() {
+  attachTargetAnniv = null;   // v143: モード終了で attach ターゲットもクリア（やり直し/キャンセル対策）
   if (!mapState || !mapState.encircle) return;
   const { map } = mapState;
   const enc = mapState.encircle;
@@ -4045,28 +4060,140 @@ function visitsFromPhotos(list) {
   return visits;
 }
 
-// 比較ビューの「📍 記念日に登録」から呼ぶ。中心が既存記念日の半径内なら そこに訪問を足す / 無ければ新規。
+// ============================================================
+// 記念日は「複数の場所（円）を積める器」(v143)。移転など座標が変わっても、場所の同一性は
+// 1つの記念日として続く。旧レコード(center/radius 単一)は circlesOf で1円に正規化して読む。
+// center/radius は circles[0] の別名として残す（後方互換・地図センタリング等の保険）。
+// ============================================================
+function circlesOf(a) {
+  if (a && a.circles && a.circles.length) return a.circles;
+  if (a && a.center) return [{ center: a.center, radius: a.radius }];
+  return [];
+}
+// 点がこの記念日のどれかの円に入るか。
+function annivContains(a, lat, lng) {
+  return circlesOf(a).some(c => c.center && haversine(lat, lng, c.center.lat, c.center.lng) <= c.radius);
+}
+// この記念日の全写真 = 全円の和集合（id 重複除去・時刻昇順）。live（新しく撮った写真も拾う）。
+function photosInAnniv(a) {
+  const seen = new Set(); const out = [];
+  for (const c of circlesOf(a)) {
+    if (!c.center) continue;
+    for (const p of photosInCircle(c.center.lat, c.center.lng, c.radius)) {
+      if (!seen.has(p.id)) { seen.add(p.id); out.push(p); }
+    }
+  }
+  out.sort((x, y) => x.datetime - y.datetime);
+  return out;
+}
+// 円を1つ足す（移転など）。circles に集約し、center/radius は primary(=先頭)のまま維持。
+function annivAddCircle(a, ci) {
+  a.circles = circlesOf(a).slice();
+  a.circles.push({ center: { lat: ci.lat, lng: ci.lng }, radius: ci.radius });
+}
+// fresh 訪問を dayKey 重複を避けてマージ（昔→今）。
+function mergeVisits(a, fresh) {
+  const have = new Set((a.visits || []).map(v => v.dayKey));
+  a.visits = [...(a.visits || []), ...fresh.filter(v => !have.has(v.dayKey))]
+    .sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
+}
+
+// 比較ビュー/囲む から「📍 記念日に登録」。v143: 自動吸収をやめ、重なり時は必ず選ばせる
+// （◯◯に足す / 新規）＋「移転など：既存の場所に足す」も同じモーダルで選べる。
 async function registerAnniversary(circleInfo, list, onDone) {
   if (!circleInfo || !list || !list.length) return;
   let all = [];
   try { all = await annivGetAll(); } catch {}
-  const near = all.find(a => a.center && haversine(circleInfo.lat, circleInfo.lng, a.center.lat, a.center.lng) <= a.radius);
   const fresh = visitsFromPhotos(list);
-  if (near) {                              // 同じ場所＝訪問を積む (毎年通うほど濃くなる)
-    const have = new Set(near.visits.map(v => v.dayKey));
-    const add = fresh.filter(v => !have.has(v.dayKey));
-    near.visits = [...near.visits, ...add].sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
-    try { await annivPut(near); } catch (e) { logErr(tr(`記念日の保存: ${e?.message || e}`, `Failed to save anniversary: ${e?.message || e}`)); return; }
-    logInfo(tr(`📍「${near.name}」に ${add.length}日を追加（訪問 ${near.visits.length}回）`, `📍 Added ${add.length} day(s) to “${near.name}” (${near.visits.length} visits)`));
-    if (onDone) onDone(near);
-  } else {                                 // 新しい場所＝名前をつけて登録
-    const name = await promptAnnivName();
-    if (name === null) return;             // キャンセル
-    const rec = { id: crypto.randomUUID(), name: name || tr('この場所', 'This place'), center: { lat: circleInfo.lat, lng: circleInfo.lng }, radius: circleInfo.radius, created: Date.now(), visits: fresh };
-    try { await annivPut(rec); } catch (e) { logErr(tr(`記念日の保存: ${e?.message || e}`, `Failed to save anniversary: ${e?.message || e}`)); return; }
+  const overlaps = all.filter(a => annivContains(a, circleInfo.lat, circleInfo.lng));
+  const choice = await promptAnnivRegister(circleInfo, all, overlaps);
+  if (!choice) return;   // キャンセル
+  const save = async (a) => { try { await annivPut(a); return true; } catch (e) { logErr(tr(`記念日の保存: ${e?.message || e}`, `Failed to save anniversary: ${e?.message || e}`)); return false; } };
+  if (choice.kind === 'add') {              // 重なった既存に訪問を積む（点は既にその円内）
+    const a = choice.anniv; mergeVisits(a, fresh);
+    if (!await save(a)) return;
+    logInfo(tr(`📍「${a.name}」に追加（訪問 ${a.visits.length}回）`, `📍 Added to “${a.name}” (${a.visits.length} visits)`));
+    if (onDone) onDone(a);
+  } else if (choice.kind === 'attach') {    // 移転など：離れた場所を既存の記念日にもう1つの円として足す
+    const a = choice.anniv; annivAddCircle(a, circleInfo); mergeVisits(a, fresh);
+    if (!await save(a)) return;
+    logInfo(tr(`📍「${a.name}」に別の場所を追加（場所 ${circlesOf(a).length}／訪問 ${a.visits.length}回）`, `📍 Added a place to “${a.name}” (${circlesOf(a).length} places / ${a.visits.length} visits)`));
+    if (onDone) onDone(a);
+  } else {                                  // 新しい場所＝名前をつけて登録
+    const name = choice.name;
+    const c = { center: { lat: circleInfo.lat, lng: circleInfo.lng }, radius: circleInfo.radius };
+    const rec = { id: crypto.randomUUID(), name: name || tr('この場所', 'This place'), center: c.center, radius: c.radius, circles: [c], created: Date.now(), visits: fresh };
+    if (!await save(rec)) return;
     logInfo(tr(`📍 記念日「${rec.name}」を登録（訪問 ${rec.visits.length}回）`, `📍 Saved anniversary “${rec.name}” (${rec.visits.length} visits)`));
     if (onDone) onDone(rec);
   }
+}
+
+// v143: 登録の選択モーダル。重なり(overlaps)があれば「◯◯に足す」を並べ、常に「新規(名前)」、
+// 他に記念日があれば「移転など：既存に足す(select)」も出す。returns {kind,anniv?,name?}|null。
+function promptAnnivRegister(ci, all, overlaps) {
+  return new Promise(resolve => {
+    const others = all.filter(a => !overlaps.includes(a));
+    const modal = document.createElement('div');
+    modal.className = 'ai-modal anniv-z';
+    let h = `<div class="ai-modal-card"><h2>${tr('📍 この場所を記念日に', '📍 Save this place')}</h2>`;
+    if (overlaps.length) {
+      h += `<p>${tr('この場所は既存の記念日と重なっています。積み重ねる？ それとも別の場所として登録する？', 'This place overlaps an existing anniversary. Add to it, or save as a separate place?')}</p>`;
+      h += `<div class="anniv-choice-list">` + overlaps.map((a, i) =>
+        `<button class="anniv-choice" data-add="${i}">${tr(`「${annivEsc(a.name)}」に足す`, `Add to “${annivEsc(a.name)}”`)}</button>`).join('') + `</div>`;
+      h += `<div class="anniv-or">${tr('または', 'or')}</div>`;
+    }
+    h += `<label class="anniv-new-label">${tr('新しい記念日にする', 'Save as a new anniversary')}</label>`;
+    h += `<input type="text" class="anniv-name-input" maxlength="40" placeholder="${tr('場所の名前（例: ◯◯のカフェ）', 'Place name (e.g. the café at ◯◯)')}">`;
+    h += `<button class="primary anniv-new-btn" type="button">${tr('新規で登録', 'Save as new')}</button>`;
+    if (others.length) {
+      h += `<div class="anniv-reloc"><div class="anniv-reloc-t">${tr('移転など：既存の場所に足す', 'Moved? Add to an existing place')}</div>`;
+      h += `<select class="anniv-reloc-sel"><option value="">${tr('記念日を選ぶ…', 'Choose an anniversary…')}</option>` +
+        others.map(a => `<option value="${annivEsc(a.id)}">${annivEsc(a.name)}</option>`).join('') + `</select>`;
+      h += `<button class="anniv-reloc-btn" type="button">${tr('この場所を足す', 'Add this place')}</button></div>`;
+    }
+    h += `<button class="anniv-cancel" type="button">${tr('キャンセル', 'Cancel')}</button></div>`;
+    modal.innerHTML = h;
+    document.body.appendChild(modal);
+    const done = (v) => { modal.remove(); resolve(v); };
+    modal.querySelectorAll('.anniv-choice').forEach(b => b.addEventListener('click', () => done({ kind: 'add', anniv: overlaps[+b.dataset.add] })));
+    modal.querySelector('.anniv-new-btn').addEventListener('click', () => done({ kind: 'new', name: modal.querySelector('.anniv-name-input').value.trim() }));
+    modal.querySelector('.anniv-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') done({ kind: 'new', name: e.target.value.trim() }); });
+    const rb = modal.querySelector('.anniv-reloc-btn');
+    if (rb) rb.addEventListener('click', () => {
+      const id = modal.querySelector('.anniv-reloc-sel').value;
+      const a = others.find(x => x.id === id);
+      if (!a) { logInfo(tr('足したい記念日を選んでください', 'Please choose an anniversary to add to')); return; }
+      done({ kind: 'attach', anniv: a });
+    });
+    modal.querySelector('.anniv-cancel').addEventListener('click', () => done(null));
+    modal.addEventListener('click', e => { if (e.target === modal) done(null); });
+  });
+}
+
+// 記念日詳細の「📍 別の場所を追加（移転など）」→ 地図のエンサークルで attach する。
+let attachTargetAnniv = null;
+function addLocationToAnniv(a) {
+  closeAnnivTimeline();
+  const start = () => {
+    if (!mapState) return;
+    attachTargetAnniv = a;   // startEncircleMode の直前でセット（openMapView 後でも消えない）
+    startEncircleMode();
+    try {
+      const span = mapState.encircle && mapState.encircle.banner.querySelector('span');
+      if (span) span.textContent = tr(`「${a.name}」に足す場所を囲む`, `Encircle a place to add to “${a.name}”`);
+    } catch {}
+  };
+  if (mapState) start();
+  else { openMapView(); setTimeout(start, 350); }   // 地図を開いてから（Leaflet の初期化待ち）
+}
+// エンサークルからの直接 attach（詳細の「別の場所」経由）。最新レコードを取り直して足す。
+async function attachLocationDirect(target, ci, list) {
+  let cur = target;
+  try { const all = await annivGetAll(); cur = all.find(x => x.id === target.id) || target; } catch {}
+  annivAddCircle(cur, ci); mergeVisits(cur, visitsFromPhotos(list));
+  try { await annivPut(cur); } catch (e) { logErr(tr(`記念日の保存: ${e?.message || e}`, `Failed to save anniversary: ${e?.message || e}`)); return; }
+  logInfo(tr(`📍「${cur.name}」に別の場所を追加（場所 ${circlesOf(cur).length}／訪問 ${cur.visits.length}回）`, `📍 Added a place to “${cur.name}” (${circlesOf(cur).length} places / ${cur.visits.length} visits)`));
 }
 
 // 名前入力モーダル (比較ビュー z4000 の上に出すため anniv-z)。Promise<string|null> (null=キャンセル)。
@@ -4145,7 +4272,7 @@ function openAnnivDeck(list, circleInfo, canRegister, onClose, anniv) {
 
 // 記念日の写真リスト: 保存した円で再計算 (新しく撮った写真も拾う=live)。取れなければ保存済み photoId で解決。
 async function annivPhotoList(a) {
-  let list = photosInCircle(a.center.lat, a.center.lng, a.radius);
+  let list = photosInAnniv(a);
   if (!list.length) {
     const ids = [...new Set(a.visits.flatMap(v => v.photoIds || []))];
     const ps = [];
@@ -4187,10 +4314,11 @@ function openAnnivTimeline(a) {
       `<button class="atl-act" data-act="list">${tr('← 一覧', '← List')}</button>` +
       `<button class="atl-act" data-act="compare">${tr('⇆ 比べる', '⇆ Compare')}</button>` +
       `<button class="atl-act" data-act="map">${tr('🗺 足跡の地図', '🗺 Footprint map')}</button>` +
+      `<button class="atl-act" data-act="addloc">${tr('📍 別の場所', '📍 Add place')}</button>` +
     `</div>` +
     `<div class="atl-body"></div>`;
   document.body.appendChild(overlay);
-  const photos = photosInCircle(a.center.lat, a.center.lng, a.radius);   // この記念日の全写真(時刻昇順)＝代表写真拡大/左右比較で使う
+  const photos = photosInAnniv(a);   // この記念日の全写真(時刻昇順・全円の和集合)＝代表写真拡大/左右比較で使う
   annivTLState = { overlay, a, photos };
   overlay.querySelector('.atl-close').addEventListener('click', closeAnnivTimeline);
   // v127: ログから 記念日一覧 / 左右で比べる / 足跡の地図 へ相互遷移。
@@ -4199,13 +4327,15 @@ function openAnnivTimeline(a) {
     const list = photos.length ? photos : await annivPhotoList(a);
     if (list.length < 2) { logInfo(tr('比べるには写真が2枚以上必要です', 'Need at least 2 photos to compare')); return; }
     closeAnnivTimeline();
-    openCompareView(list, { lat: a.center.lat, lng: a.center.lng, radius: a.radius }, false, a);
+    const c0 = circlesOf(a)[0];
+    openCompareView(list, c0 ? { lat: c0.center.lat, lng: c0.center.lng, radius: c0.radius } : null, false, a);
   });
   overlay.querySelector('[data-act="map"]').addEventListener('click', () => {
     const dayKeys = [...new Set((a.visits || []).filter(v => !v.planned).map(v => v.dayKey))];
     closeAnnivTimeline();
     showTripsMap(dayKeys, a);
   });
+  overlay.querySelector('[data-act="addloc"]').addEventListener('click', () => addLocationToAnniv(a));   // v143: 移転などで別の場所を同じ記念日に
   renderAnnivTimeline();
 }
 function renderAnnivTimeline() {
@@ -4226,6 +4356,11 @@ function renderAnnivTimeline() {
   const bSet = baseBar.querySelector('.atl-base-set'); if (bSet) bSet.addEventListener('click', () => setAnnivBaseDate(a));
   const bEdit = baseBar.querySelector('.atl-base-edit'); if (bEdit) bEdit.addEventListener('click', () => setAnnivBaseDate(a));
   const bClear = baseBar.querySelector('.atl-base-clear'); if (bClear) bClear.addEventListener('click', async () => { delete a.baseDate; await saveAnniv(a); renderAnnivTimeline(); });
+  if (circlesOf(a).length > 1) {   // v143: 移転などで場所が複数積み重なっている印
+    const pl = document.createElement('div'); pl.className = 'anniv-places';
+    pl.textContent = tr(`📍 ${circlesOf(a).length} か所（移転などで場所が積み重なっています）`, `📍 ${circlesOf(a).length} places (moved / accumulated over locations)`);
+    body.appendChild(pl);
+  }
   if (!visits.length) { const em = document.createElement('div'); em.className = 'atl-empty'; em.textContent = tr('まだ記録がありません。', 'No records yet.'); body.appendChild(em); }
   visits.forEach((v, idx) => {
     const isFuture = !!v.planned || v.date > today;
@@ -4290,7 +4425,7 @@ function intervalLabel(ms) {
 }
 // ログの代表写真タップ → 記念日内の写真を日にち横断で左右スワイプできる拡大表示。閉じるとログへ戻る。
 function openAnnivPhotoZoom(a, photoId) {
-  const full = (annivTLState && annivTLState.photos && annivTLState.photos.length) ? annivTLState.photos : photosInCircle(a.center.lat, a.center.lng, a.radius);
+  const full = (annivTLState && annivTLState.photos && annivTLState.photos.length) ? annivTLState.photos : photosInAnniv(a);
   const idx = full.findIndex(p => p.id === photoId);
   closeAnnivTimeline();   // deck(z2000) はログ(z5000)より下＝先にログを閉じる
   if (idx >= 0) showFullImage(full[idx], { list: full, index: idx, onClose: () => openAnnivTimeline(a) });
@@ -4345,7 +4480,7 @@ function setAnnivBaseDate(a) {
 }
 // 代表写真を選ぶ（その日の円内写真から・最大6枚・時刻順）。自動選択(登録時 photoIds)を手動で変更可能。
 function openVisitPhotoPicker(a, visit) {
-  const cands = photosInCircle(a.center.lat, a.center.lng, a.radius).filter(p => dayKeyOf(p) === visit.dayKey);
+  const cands = photosInAnniv(a).filter(p => dayKeyOf(p) === visit.dayKey);
   if (!cands.length) { logInfo(tr('この日の写真が見つかりませんでした', 'No photos found for this day')); return; }
   const sel = new Set(visit.photoIds || []);
   const modal = document.createElement('div'); modal.className = 'ai-modal anniv-z';
