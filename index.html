@@ -209,6 +209,16 @@
   .atl-badge { font-size: 11px; color: #03201d; background: #33c1b0; border-radius: 999px; padding: 1px 9px; margin-left: 8px; font-weight: 700; vertical-align: middle; }
   .atl-photos { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 6px; }
   .atl-photos img { width: 66px; height: 66px; object-fit: cover; border-radius: 8px; }
+  /* v147: 思い出ログの ログ/写真 モード切替＋全写真グリッド */
+  .atl-modebar { display: flex; gap: 8px; margin: 0 0 14px; }
+  .atl-mode { flex: 1; background: #1c1c1c; color: #aaa; border: 1px solid #333; border-radius: 999px; padding: 9px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .atl-mode.on { background: #1e6b5e; color: #fff; border-color: #1e6b5e; }
+  .atl-photobar { display: flex; align-items: center; justify-content: space-between; color: #aaa; font-size: 12.5px; margin: 0 0 10px; }
+  .atl-size { background: #262626; color: #ddd; border: 1px solid #3a3a3a; border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
+  .atl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .atl-grid.big { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .atl-grid-head { grid-column: 1 / -1; color: #7fe3d6; font-size: 12.5px; font-weight: 700; margin: 12px 0 2px; }
+  .atl-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; cursor: pointer; display: block; background: #000; }
   .atl-editphotos { display: block; background: none; border: none; color: #33c1b0; font-size: 12px; cursor: pointer; padding: 2px 0 6px; }
   .atl-comment { width: 100%; box-sizing: border-box; background: #1c1c1c; color: #eee; border: 1px solid #333; border-radius: 10px; padding: 10px 12px; font-size: 14px; line-height: 1.5; resize: vertical; min-height: 46px; font-family: inherit; }
   .atl-comment::placeholder { color: #666; }
@@ -536,7 +546,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.99 (v146：地図⋯の「囲んで比べる」→「囲んで思い出を見る」に表現変更(英語 Encircle to see memories)。｜ v145：機能名を「記念日」→「思い出の場所」に改名(英語 Memory place・DBストア名/識別子は不変) ｜ v144：マルチ地点の同日バグ修正 ｜ v143：思い出の場所をマルチ地点対応) · 2026-07-04';
+const BUILD = 'phase3.100 (v147：思い出ログに表示モード切替「📖ログ / 🖼写真」＝写真モードは全写真を新しい→古いの時系列グリッドでいっぱい表示(月見出し・小/大トグル・タップで全画面スワイプ・全画面から戻ってもモード維持)。ログモード(日ごと+メモ)は据え置き。｜ v146：地図「囲んで思い出を見る」｜ v145：記念日→思い出の場所 改名) · 2026-07-04';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -4325,7 +4335,7 @@ function openAnnivTimeline(a) {
     `<div class="atl-body"></div>`;
   document.body.appendChild(overlay);
   const photos = photosInAnniv(a);   // この思い出の場所の全写真(時刻昇順・全円の和集合)＝代表写真拡大/左右比較で使う
-  annivTLState = { overlay, a, photos };
+  annivTLState = { overlay, a, photos, mode: 'log', gridBig: false };   // v147: 表示モード(log/photos)
   overlay.querySelector('.atl-close').addEventListener('click', closeAnnivTimeline);
   // v127: ログから 思い出の場所一覧 / 左右で比べる / 足跡の地図 へ相互遷移。
   overlay.querySelector('[data-act="list"]').addEventListener('click', () => { closeAnnivTimeline(); openAnnivList(); });
@@ -4352,6 +4362,16 @@ function renderAnnivTimeline() {
   const dateMs = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
   const visits = (a.visits || []).slice().sort((x, y) => x.date > y.date ? -1 : x.date < y.date ? 1 : 0);   // v127: 新しい→古い（現在から過去へ遡る）
   body.innerHTML = '';
+  // v147: 表示モード切替（📖ログ=日ごと・メモ / 🖼写真=全写真を時系列でいっぱい）
+  const mode = annivTLState.mode || 'log';
+  const modeBar = document.createElement('div');
+  modeBar.className = 'atl-modebar';
+  modeBar.innerHTML =
+    `<button data-m="log" class="atl-mode${mode === 'log' ? ' on' : ''}" type="button">📖 ${tr('ログ', 'Log')}</button>` +
+    `<button data-m="photos" class="atl-mode${mode === 'photos' ? ' on' : ''}" type="button">🖼 ${tr('写真', 'Photos')}</button>`;
+  body.appendChild(modeBar);
+  modeBar.querySelectorAll('.atl-mode').forEach(b => b.addEventListener('click', () => { annivTLState.mode = b.dataset.m; renderAnnivTimeline(); }));
+  if (mode === 'photos') { renderAnnivPhotos(); return; }
   // v129: 基準日バー（任意）。設定すると各日に「N日前／N日後」を表示＝あの日からの隔たりを日数で感じる。
   const baseBar = document.createElement('div');
   baseBar.className = 'atl-basebar';
@@ -4420,6 +4440,41 @@ function renderAnnivTimeline() {
   add.addEventListener('click', () => addPlannedEntry(a));
   body.appendChild(add);
 }
+// v147: 写真モード — この思い出の場所の全写真を「新しい→古い」の時系列グリッドでいっぱい表示。
+// 月見出しで時の流れを可視化・小/大トグル・タップで全画面スワイプ(既存 openAnnivPhotoZoom)。
+const _annivMonJa = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const _annivMonEn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function renderAnnivPhotos() {
+  if (!annivTLState) return;
+  const { overlay, a } = annivTLState;
+  const body = overlay.querySelector('.atl-body');
+  const src = (annivTLState.photos && annivTLState.photos.length) ? annivTLState.photos : photosInAnniv(a);
+  const photos = src.slice().reverse();   // 新しい→古い（ログと同じ向き）
+  const big = !!annivTLState.gridBig;
+  const bar = document.createElement('div'); bar.className = 'atl-photobar';
+  bar.innerHTML = `<span>${tr(`${photos.length}枚`, `${photos.length} photos`)}</span>` +
+    `<button class="atl-size" type="button">${big ? tr('⊞ 小さく', '⊞ Smaller') : tr('⊡ 大きく', '⊡ Bigger')}</button>`;
+  body.appendChild(bar);
+  bar.querySelector('.atl-size').addEventListener('click', () => { annivTLState.gridBig = !big; renderAnnivTimeline(); });
+  if (!photos.length) { const em = document.createElement('div'); em.className = 'atl-empty'; em.textContent = tr('写真がありません。', 'No photos.'); body.appendChild(em); return; }
+  const grid = document.createElement('div'); grid.className = 'atl-grid' + (big ? ' big' : '');
+  let curKey = '';
+  photos.forEach(p => {
+    const d = p.datetime;
+    const key = d.getFullYear() + '-' + d.getMonth();
+    if (key !== curKey) {   // 月が変わったら見出し（時系列を読めるように）
+      curKey = key;
+      const h = document.createElement('div'); h.className = 'atl-grid-head';
+      h.textContent = tr(`${d.getFullYear()}年${_annivMonJa[d.getMonth()]}`, `${_annivMonEn[d.getMonth()]} ${d.getFullYear()}`);
+      grid.appendChild(h);
+    }
+    const im = document.createElement('img');
+    im.src = thumbUrl(p); im.loading = 'lazy'; im.dataset.id = p.id;
+    im.addEventListener('click', () => openAnnivPhotoZoom(a, p.id));
+    grid.appendChild(im);
+  });
+  body.appendChild(grid);
+}
 // 間隔の日本語ラベル（久しぶり感を出す）。
 function intervalLabel(ms) {
   const days = Math.round(ms / 86400000);
@@ -4432,10 +4487,12 @@ function intervalLabel(ms) {
 // ログの代表写真タップ → 思い出の場所内の写真を日にち横断で左右スワイプできる拡大表示。閉じるとログへ戻る。
 function openAnnivPhotoZoom(a, photoId) {
   const full = (annivTLState && annivTLState.photos && annivTLState.photos.length) ? annivTLState.photos : photosInAnniv(a);
+  const savedMode = (annivTLState && annivTLState.mode) || 'log';   // v147: 全画面から戻ったら同じモードへ
   const idx = full.findIndex(p => p.id === photoId);
   closeAnnivTimeline();   // deck(z2000) はログ(z5000)より下＝先にログを閉じる
-  if (idx >= 0) showFullImage(full[idx], { list: full, index: idx, onClose: () => openAnnivTimeline(a) });
-  else { const p = photoById(photoId); if (p) showFullImage(p, { onClose: () => openAnnivTimeline(a) }); else openAnnivTimeline(a); }
+  const reopen = () => { openAnnivTimeline(a); if (annivTLState && savedMode !== 'log') { annivTLState.mode = savedMode; renderAnnivTimeline(); } };
+  if (idx >= 0) showFullImage(full[idx], { list: full, index: idx, onClose: reopen });
+  else { const p = photoById(photoId); if (p) showFullImage(p, { onClose: reopen }); else reopen(); }
 }
 // 未来の日付を選んで予定エントリを足す（コメントは追加後にその場で書ける）。
 function addPlannedEntry(a) {
