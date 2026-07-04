@@ -214,7 +214,8 @@
   .atl-mode { flex: 1; background: #1c1c1c; color: #aaa; border: 1px solid #333; border-radius: 999px; padding: 9px; font-size: 13px; font-weight: 700; cursor: pointer; }
   .atl-mode.on { background: #1e6b5e; color: #fff; border-color: #1e6b5e; }
   .atl-photobar { display: flex; align-items: center; justify-content: space-between; color: #aaa; font-size: 12.5px; margin: 0 0 10px; }
-  .atl-size { background: #262626; color: #ddd; border: 1px solid #3a3a3a; border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
+  .atl-photobar-btns { display: flex; gap: 8px; }
+  .atl-size, .atl-cmp { background: #262626; color: #ddd; border: 1px solid #3a3a3a; border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
   .atl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
   .atl-grid.big { grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .atl-grid-head { grid-column: 1 / -1; color: #7fe3d6; font-size: 12.5px; font-weight: 700; margin: 12px 0 2px; }
@@ -430,6 +431,13 @@
   /* 折りたたみ時はハンドルだけ覗かせる。iOS の下端帯(ホームインジケータ)に隠れて掴めないのを防ぐため safe-area 分持ち上げる (v88) */
   .timeline-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; background: #161616; border-top: 1px solid #333; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; max-height: 78vh; transform: translateY(calc(100% - 54px - env(safe-area-inset-bottom))); transition: transform 0.25s ease; }
   .timeline-sheet.open { transform: translateY(0); }
+  /* v148: タイムラインの 一覧/写真 切替＋比べる */
+  .tl-modebar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #262626; position: sticky; top: 0; background: #161616; z-index: 2; }
+  .tl-tabs { display: flex; gap: 6px; }
+  .tl-tab { background: #1c1c1c; color: #aaa; border: 1px solid #333; border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+  .tl-tab.on { background: #1e6b5e; color: #fff; border-color: #1e6b5e; }
+  .tl-cmp { background: #262626; color: #ddd; border: 1px solid #3a3a3a; border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
+  .atl-grid.tl-photos { padding: 10px 12px 16px; }
   .sheet-handle { flex: 0 0 auto; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; cursor: pointer; user-select: none; background: #1c1c1c; border-radius: 14px 14px 0 0; }
   .sheet-grip { width: 44px; height: 5px; border-radius: 3px; background: #888; }
   .sheet-title { font-size: 12px; color: #cfcfcf; font-weight: 600; }
@@ -546,7 +554,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.100 (v147：思い出ログに表示モード切替「📖ログ / 🖼写真」＝写真モードは全写真を新しい→古いの時系列グリッドでいっぱい表示(月見出し・小/大トグル・タップで全画面スワイプ・全画面から戻ってもモード維持)。ログモード(日ごと+メモ)は据え置き。｜ v146：地図「囲んで思い出を見る」｜ v145：記念日→思い出の場所 改名) · 2026-07-04';
+const BUILD = 'phase3.101 (v148：タイムラインの見せ方 統一。①思い出ログ＝⇆比べるを写真タブのバー(大きく/小さくの隣)へ移動。②地図タイムライン＝📋一覧/🖼写真 の切替＋⇆比べる を追加(位置を直す/🗑 の従来一覧は据え置き・写真は全可視写真の時系列グリッド)。｜ v147：思い出ログに📖ログ/🖼写真 切替 ｜ v145：記念日→思い出の場所) · 2026-07-04';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -3694,6 +3702,26 @@ async function openMapView(focusPhoto, opts) {
 // タイムライン: 全写真 (GPS 有無問わず) を日付降順 (新しい旅が上) に。
 // 日付見出しタップで地図を「その日 / 期間」に絞り込む (別の日をタップで期間レンジ、✕ で解除)。
 // 写真タップ: いま地図に出ている GPS 写真ならフォーカス、それ以外 (フィルタ圏外/GPS無し) はフル画像。
+// v148: 地図タイムラインの写真モード＝全可視写真を時系列グリッド(月見出し・タップで全画面スワイプ)。
+// 思い出ログの写真グリッドと同じ見た目(.atl-grid)。all は新しい→古い順。
+function buildTimelinePhotos(container, all) {
+  const grid = document.createElement('div'); grid.className = 'atl-grid tl-photos';
+  let cur = '';
+  all.forEach(p => {
+    const d = p.datetime;
+    const key = d.getFullYear() + '-' + d.getMonth();
+    if (key !== cur) {
+      cur = key;
+      const h = document.createElement('div'); h.className = 'atl-grid-head';
+      h.textContent = tr(`${d.getFullYear()}年${_annivMonJa[d.getMonth()]}`, `${_annivMonEn[d.getMonth()]} ${d.getFullYear()}`);
+      grid.appendChild(h);
+    }
+    const im = document.createElement('img'); im.src = thumbUrl(p); im.loading = 'lazy';
+    im.addEventListener('click', () => showFullImage(p, { list: all, index: all.indexOf(p) }));
+    grid.appendChild(im);
+  });
+  container.appendChild(grid);
+}
 function buildTimeline(container, map, cluster, markerById, applyFilter) {
   container.innerHTML = '';
   const all = allPhotos.filter(visible).slice().sort((a, b) => b.datetime - a.datetime);
@@ -3703,6 +3731,30 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
   const dayEndOf = ms => ms + 86400000 - 1;
   const fmtDay = ms => { const d = new Date(ms); return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`; };
   mapState.foldedDays = new Set();   // 入口モードで畳んでいる日 (dayStart ms)。タイムライン再構築ごとにリセット。
+
+  // v148: 表示切替（📋一覧=従来の日リスト＋位置直す/🗑 は据え置き / 🖼写真=時系列グリッド）＋⇆比べる。
+  // 現状の仕組みは残し「付け足す」。写真モードは updateTimelineUI を no-op にして一覧フィルタと干渉させない。
+  const tlMode = mapState.tlMode || 'list';
+  const modebar = document.createElement('div');
+  modebar.className = 'tl-modebar';
+  modebar.innerHTML =
+    `<span class="tl-tabs">` +
+      `<button data-tm="list" class="tl-tab${tlMode === 'list' ? ' on' : ''}" type="button">📋 ${tr('一覧', 'List')}</button>` +
+      `<button data-tm="photos" class="tl-tab${tlMode === 'photos' ? ' on' : ''}" type="button">🖼 ${tr('写真', 'Photos')}</button>` +
+    `</span>` +
+    `<button class="tl-cmp" type="button">${tr('⇆ 比べる', '⇆ Compare')}</button>`;
+  container.appendChild(modebar);
+  modebar.querySelectorAll('.tl-tab').forEach(b => b.addEventListener('click', () => { mapState.tlMode = b.dataset.tm; if (mapState.rebuildTimeline) mapState.rebuildTimeline(); }));
+  modebar.querySelector('.tl-cmp').addEventListener('click', () => {
+    const cmp = all.slice().reverse();   // 昔→今（比較ビューは左=古い/右=新しい）
+    if (cmp.length < 2) { logInfo(tr('比べるには写真が2枚以上必要です', 'Need at least 2 photos to compare')); return; }
+    openCompareView(cmp, null, false, null);
+  });
+  if (tlMode === 'photos') {
+    mapState.updateTimelineUI = () => {};   // 一覧の更新フックは写真モードでは無効（applyFilter が呼んでも安全）
+    buildTimelinePhotos(container, all);
+    return;
+  }
 
   // フィルタバー (絞り込み状態 + 解除)。リスト先頭に固定。
   const bar = document.createElement('div');
@@ -4328,7 +4380,6 @@ function openAnnivTimeline(a) {
     `<div class="atl-header"><div class="atl-title">📖 ${annivEsc(a.name)}</div><button class="atl-close" type="button">✕</button></div>` +
     `<div class="atl-actions">` +
       `<button class="atl-act" data-act="list">${tr('← 一覧', '← List')}</button>` +
-      `<button class="atl-act" data-act="compare">${tr('⇆ 比べる', '⇆ Compare')}</button>` +
       `<button class="atl-act" data-act="map">${tr('🗺 足跡の地図', '🗺 Footprint map')}</button>` +
       `<button class="atl-act" data-act="addloc">${tr('📍 別の場所', '📍 Add place')}</button>` +
     `</div>` +
@@ -4339,13 +4390,6 @@ function openAnnivTimeline(a) {
   overlay.querySelector('.atl-close').addEventListener('click', closeAnnivTimeline);
   // v127: ログから 思い出の場所一覧 / 左右で比べる / 足跡の地図 へ相互遷移。
   overlay.querySelector('[data-act="list"]').addEventListener('click', () => { closeAnnivTimeline(); openAnnivList(); });
-  overlay.querySelector('[data-act="compare"]').addEventListener('click', async () => {
-    const list = photos.length ? photos : await annivPhotoList(a);
-    if (list.length < 2) { logInfo(tr('比べるには写真が2枚以上必要です', 'Need at least 2 photos to compare')); return; }
-    closeAnnivTimeline();
-    const c0 = circlesOf(a)[0];
-    openCompareView(list, c0 ? { lat: c0.center.lat, lng: c0.center.lng, radius: c0.radius } : null, false, a);
-  });
   overlay.querySelector('[data-act="map"]').addEventListener('click', () => {
     const dayKeys = [...new Set((a.visits || []).filter(v => !v.planned).map(v => v.dayKey))];
     closeAnnivTimeline();
@@ -4440,6 +4484,14 @@ function renderAnnivTimeline() {
   add.addEventListener('click', () => addPlannedEntry(a));
   body.appendChild(add);
 }
+// v147/v148: 「⇆ 比べる」共通（写真タブのバー内から呼ぶ＝写真を見る操作として自然な位置に）。
+async function openAnnivCompare(a) {
+  const list = (annivTLState && annivTLState.photos && annivTLState.photos.length) ? annivTLState.photos : await annivPhotoList(a);
+  if (list.length < 2) { logInfo(tr('比べるには写真が2枚以上必要です', 'Need at least 2 photos to compare')); return; }
+  closeAnnivTimeline();
+  const c0 = circlesOf(a)[0];
+  openCompareView(list, c0 ? { lat: c0.center.lat, lng: c0.center.lng, radius: c0.radius } : null, false, a);
+}
 // v147: 写真モード — この思い出の場所の全写真を「新しい→古い」の時系列グリッドでいっぱい表示。
 // 月見出しで時の流れを可視化・小/大トグル・タップで全画面スワイプ(既存 openAnnivPhotoZoom)。
 const _annivMonJa = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
@@ -4453,8 +4505,12 @@ function renderAnnivPhotos() {
   const big = !!annivTLState.gridBig;
   const bar = document.createElement('div'); bar.className = 'atl-photobar';
   bar.innerHTML = `<span>${tr(`${photos.length}枚`, `${photos.length} photos`)}</span>` +
-    `<button class="atl-size" type="button">${big ? tr('⊞ 小さく', '⊞ Smaller') : tr('⊡ 大きく', '⊡ Bigger')}</button>`;
+    `<span class="atl-photobar-btns">` +
+      `<button class="atl-cmp" type="button">${tr('⇆ 比べる', '⇆ Compare')}</button>` +
+      `<button class="atl-size" type="button">${big ? tr('⊞ 小さく', '⊞ Smaller') : tr('⊡ 大きく', '⊡ Bigger')}</button>` +
+    `</span>`;
   body.appendChild(bar);
+  bar.querySelector('.atl-cmp').addEventListener('click', () => openAnnivCompare(a));
   bar.querySelector('.atl-size').addEventListener('click', () => { annivTLState.gridBig = !big; renderAnnivTimeline(); });
   if (!photos.length) { const em = document.createElement('div'); em.className = 'atl-empty'; em.textContent = tr('写真がありません。', 'No photos.'); body.appendChild(em); return; }
   const grid = document.createElement('div'); grid.className = 'atl-grid' + (big ? ' big' : '');
