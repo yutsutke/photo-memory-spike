@@ -5,6 +5,32 @@
 
 ---
 
+## v149 — 🐛 地図タイムラインの絞り込みバグ修正（🖼写真・⇆比べる を 📋一覧と同じ範囲に揃える） (2026-07-04)
+
+**背景**
+- v148 の残課題（ユーザー実機・TestFlight 1.3 で発見）。地図の下タイムラインで日/期間を**絞り込んでいても**、「🖼写真」タブと「⇆比べる」が**全期間**の写真を出していた（絞り込んだ範囲だけを期待）。
+
+**原因**
+- `buildTimeline` の `all = allPhotos.filter(visible)`（全可視写真）を、📋一覧モードは `updateTimelineUI` が `mapState.pickDays`/`mapState.range` を見て dim/hide で反映していたが、v148 で足した `buildTimelinePhotos(container, all)`（写真グリッド）と `.tl-cmp`（比べる）の `all.slice().reverse()` は `all` をそのまま使い、絞り込みを未適用だった。
+
+**やったこと**
+- `buildTimeline` 内（`dayStartOf` が使える位置）に小関数 **`timelineFilteredPhotos(list)`** を追加＝いまの絞り込みに一致する写真だけを返す。判定は `updateTimelineUI` と**同一ロジック**（pickDays→`pickStarts` 集合／range→`start<=ds<=end`／どちらも無ければ全件）。
+- 写真グリッド（`buildTimelinePhotos(container, timelineFilteredPhotos(all))`）と比べる（`timelineFilteredPhotos(all).slice().reverse()`）に適用。**📋一覧の `updateTimelineUI` は無変更**＝動作している一覧機構に触れない外科的修正。比べるは一覧モードでも絞り込みを尊重するようになった（一貫性の向上）。
+
+**設計判断**
+- `updateTimelineUI` は要素ごとに class を toggle する構造（リスト全体を毎回 filter しない＝pickStarts を1回計算して再利用）なので、そこを共通述語に置換すると回帰リスク＋非効率。→ **写真/比べる用に list-filter 版を別に持ち**、両者の判定が一致することをコメントで担保（どちらかを変えたら両方揃える）。2行の述語重複は許容。
+
+**検証（preview page context）**
+- 修正した述語と同一ロジックを合成データ（3日にまたがる4枚）で5ケース検証＝**全 pass**: pick1日→その日だけ／pick2日→2日分／range単日→1枚／range期間→範囲内／絞り込みなし→全件。特に **pickDays の 0-based 月**（`toggleDayFilter` の `${y}-${month0}-${d}` 形式）と `dayStartOf` の整合を確認。
+- クリーンロード・inline script 0エラー・BUILD=`phase3.102`。
+
+**教訓**
+- 「現状を壊さず付け足す」（v148）で新モードを足すとき、**既存モードが暗黙に適用していた状態（絞り込み）を新モードが引き継がない**のは典型的な取りこぼし。共有すべきは「見た目の反映」ではなく「絞り込みの述語」。
+
+**残課題 / 次の方向**
+- 実機（TestFlight 次ビルド）で、地図タイムラインを絞り込んだ状態→🖼写真/⇆比べる がその範囲だけになるか手触り確認。
+- iOS は 1.2 公開済み。この web 修正を載せた次ビルドは 1.3（MARKETING_VERSION 上げ済み）で審査提出候補。
+
 ## native fix — iOS MARKETING_VERSION 1.2→1.3（1.2 train が審査提出/承認で締切・新ビルド upload 不可） (2026-07-04)
 
 **症状**

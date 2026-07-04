@@ -554,7 +554,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.101 (v148：タイムラインの見せ方 統一。①思い出ログ＝⇆比べるを写真タブのバー(大きく/小さくの隣)へ移動。②地図タイムライン＝📋一覧/🖼写真 の切替＋⇆比べる を追加(位置を直す/🗑 の従来一覧は据え置き・写真は全可視写真の時系列グリッド)。｜ v147：思い出ログに📖ログ/🖼写真 切替 ｜ v145：記念日→思い出の場所) · 2026-07-04';
+const BUILD = 'phase3.102 (v149：🐛地図タイムラインの絞り込みバグ修正。🖼写真グリッド・⇆比べる が絞り込み中(pickDays/range)でも全期間を出していた→timelineFilteredPhotos で 📋一覧と同じ範囲に揃える。｜ v148：タイムラインの見せ方 統一(地図に📋一覧/🖼写真＋⇆比べる) ｜ v147：思い出ログに📖ログ/🖼写真 切替 ｜ v145：記念日→思い出の場所) · 2026-07-04';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -3730,6 +3730,18 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
   const dayStartOf = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const dayEndOf = ms => ms + 86400000 - 1;
   const fmtDay = ms => { const d = new Date(ms); return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`; };
+  // v149: いまの絞り込み (pickDays / range) に一致する写真だけを返す。🖼写真グリッド・⇆比べる を 📋一覧と揃える
+  //  (v148 は写真/比べるが all をそのまま使い、絞り込み中でも全期間を出すバグ)。判定は下の updateTimelineUI の
+  //  pickStarts / inR と同一ロジック (どちらかを変えたら両方揃える)。
+  const timelineFilteredPhotos = list => {
+    if (mapState.pickDays) {
+      const pickStarts = new Set(mapState.pickDays.map(dk => { const [y, m, d] = dk.split('-').map(Number); return new Date(y, m, d).getTime(); }));
+      return list.filter(p => pickStarts.has(dayStartOf(p.datetime)));
+    }
+    const r = mapState.range;
+    if (r && r.start != null) return list.filter(p => { const ds = dayStartOf(p.datetime); return ds >= r.start && ds <= r.end; });
+    return list;
+  };
   mapState.foldedDays = new Set();   // 入口モードで畳んでいる日 (dayStart ms)。タイムライン再構築ごとにリセット。
 
   // v148: 表示切替（📋一覧=従来の日リスト＋位置直す/🗑 は据え置き / 🖼写真=時系列グリッド）＋⇆比べる。
@@ -3746,13 +3758,13 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
   container.appendChild(modebar);
   modebar.querySelectorAll('.tl-tab').forEach(b => b.addEventListener('click', () => { mapState.tlMode = b.dataset.tm; if (mapState.rebuildTimeline) mapState.rebuildTimeline(); }));
   modebar.querySelector('.tl-cmp').addEventListener('click', () => {
-    const cmp = all.slice().reverse();   // 昔→今（比較ビューは左=古い/右=新しい）
+    const cmp = timelineFilteredPhotos(all).slice().reverse();   // 昔→今（比較ビューは左=古い/右=新しい）。絞り込み中はその範囲だけ
     if (cmp.length < 2) { logInfo(tr('比べるには写真が2枚以上必要です', 'Need at least 2 photos to compare')); return; }
     openCompareView(cmp, null, false, null);
   });
   if (tlMode === 'photos') {
     mapState.updateTimelineUI = () => {};   // 一覧の更新フックは写真モードでは無効（applyFilter が呼んでも安全）
-    buildTimelinePhotos(container, all);
+    buildTimelinePhotos(container, timelineFilteredPhotos(all));   // 絞り込み中はその範囲の写真だけをグリッドに
     return;
   }
 
