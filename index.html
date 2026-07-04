@@ -536,7 +536,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.96 (v143：記念日「この場所の記憶」をマルチ地点対応。①登録時に既存円と重なったら自動吸収せず選ばせる(◯◯に足す/新規/移転で既存に足す)②記念日=複数円の器(circles[])＝移転しても場所の同一性が1つの記念日で続く・写真は全円の和集合③詳細に「📍別の場所」+場所数表示。旧単一円は circlesOf で後方互換) · 2026-07-04';
+const BUILD = 'phase3.97 (v144：記念日マルチ地点の同日バグ修正＝別の場所を足した写真が「同じ日」だとタイムラインに載らなかった(mergeVisits が既存 dayKey を丸ごとスキップ)→同日は既存訪問に写真を統合(重複除去・上限8)。比べる[全円ライブ]とタイムライン[visits スナップ]の差を解消 ｜ v143：記念日をマルチ地点対応(重なりは選ばせる/移転で circles[] に積む/詳細に📍別の場所)) · 2026-07-04';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -4091,11 +4091,17 @@ function annivAddCircle(a, ci) {
   a.circles = circlesOf(a).slice();
   a.circles.push({ center: { lat: ci.lat, lng: ci.lng }, radius: ci.radius });
 }
-// fresh 訪問を dayKey 重複を避けてマージ（昔→今）。
+// fresh 訪問をマージ（昔→今）。同じ日(dayKey)が既にあれば、その訪問に新しい場所の代表写真を
+// 統合する（v143fix: 移転などで同じ日に別の場所を足しても、タイムラインにその写真が載るように。
+// 以前は同日を丸ごとスキップ＝比べる[全円ライブ]には出るのにタイムライン[visits スナップ]に出ない差が出ていた）。
 function mergeVisits(a, fresh) {
-  const have = new Set((a.visits || []).map(v => v.dayKey));
-  a.visits = [...(a.visits || []), ...fresh.filter(v => !have.has(v.dayKey))]
-    .sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
+  const byDay = new Map((a.visits || []).map(v => [v.dayKey, v]));
+  for (const nv of fresh) {
+    const ex = byDay.get(nv.dayKey);
+    if (ex) ex.photoIds = [...new Set([...(ex.photoIds || []), ...(nv.photoIds || [])])].slice(0, 8);   // 同じ日＝写真を統合(重複除去・上限8)
+    else byDay.set(nv.dayKey, nv);                                                                       // 新しい日＝訪問を追加
+  }
+  a.visits = [...byDay.values()].sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
 }
 
 // 比較ビュー/囲む から「📍 記念日に登録」。v143: 自動吸収をやめ、重なり時は必ず選ばせる
