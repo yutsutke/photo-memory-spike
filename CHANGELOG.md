@@ -5,6 +5,20 @@
 
 ---
 
+## native fix — iOS MARKETING_VERSION 1.2→1.3（1.2 train が審査提出/承認で締切・新ビルド upload 不可） (2026-07-04)
+
+**症状**
+- Codemagic の iOS ビルド(build 31・commit bd160dc)が **Publishing で失敗**。IPA ビルド自体は成功、App Store Connect への upload だけ失敗＝`90186 Invalid Pre-Release Train. The train version '1.2' is closed` ＋ `90062 CFBundleShortVersionString [1.2] must contain a higher version than the previously approved version [1.2]`。
+
+**原因**
+- 1.2(29) を審査提出/承認済み＝**1.2 という train は締切**。web 改善（思い出の場所への改名・マルチ地点・タイムラインの写真/比べる）を載せた新 iOS ビルドを 1.2 のままアップロードできない。web コードは無関係（IPA は正常）。
+
+**対処**
+- `ios/App/App.xcodeproj/project.pbxproj` の `MARKETING_VERSION` を **1.2→1.3**（Debug/Release 両方）。以降の Codemagic ビルドは 1.3 で upload 成功見込み。**web app は不変**（web BUILD 据え置き）。version >1.2 なら何でも可（1.2.1 でも）だが機能追加に見合う minor bump として 1.3。
+
+**教訓**
+- **審査提出/公開したバージョンの train は閉じる**＝新ビルドは必ず版番号を上げる（[[madeleine-product-repo]] の 1.0→1.0.1 と同型の再発）。TestFlight に web 改善を載せる目的の再ビルドでも同じ。
+
 ## v148 — タイムラインの見せ方 統一：比べるを写真タブへ／地図タイムラインにも 写真タブ＋比べる (2026-07-04)
 
 **背景**
