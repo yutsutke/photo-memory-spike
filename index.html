@@ -197,6 +197,8 @@
   .atl-actions { flex: 0 0 auto; display: flex; gap: 8px; padding: 8px 16px 10px; overflow-x: auto; border-bottom: 1px solid #222; scrollbar-width: none; }
   .atl-actions::-webkit-scrollbar { display: none; }
   .atl-act { flex: 0 0 auto; background: #262626; color: #eee; border: 1px solid #3a3a3a; border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .atl-act-go { background: #1e6b5e; border-color: #1e6b5e; color: #fff; font-weight: 700; }   /* v151: 囲んだ結果ログの「思い出の場所に登録」を目立たせる */
+  .atl-thint { color: #7a7a7a; font-size: 11.5px; line-height: 1.55; margin: 0 0 14px; }   /* v151: 囲んだ結果ログ(未登録)の一言説明 */
   .atl-gap { border-left: 2px dashed #2e2e2e; margin-left: 6px; padding-left: 20px; display: flex; align-items: center; }
   .atl-gap-label { color: #6f6f6f; font-size: 11px; }
   .atl-photos img { cursor: pointer; }
@@ -407,6 +409,11 @@
   /* 写真サムネのマーカー (L.divIcon の中身) */
   .photo-marker { width: 44px; height: 44px; border-radius: 8px; border: 2px solid #fff; background-size: cover; background-position: center; box-shadow: 0 1px 4px rgba(0,0,0,0.6); }
   .photo-marker-est { width: 40px; height: 40px; border: 2px dashed #2ee6c0; opacity: 0.92; }   /* 軌跡から推定 (v74) */
+  /* v151: 「📍現在地」で置く自分の現在地マーカー（青ドット＋淡いパルス）。写真マーカー(白枠)/軌跡(teal)と色で区別。 */
+  .here-marker { position: relative; width: 16px; height: 16px; border-radius: 50%; background: #2a83ff; border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(42,131,255,0.5), 0 0 14px rgba(42,131,255,0.85); }
+  .here-marker::after { content: ''; position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; border-radius: 50%; background: rgba(42,131,255,0.4); transform: translate(-50%,-50%); animation: herePulse 1.8s ease-out infinite; }
+  @keyframes herePulse { 0% { transform: translate(-50%,-50%) scale(1); opacity: 0.55; } 100% { transform: translate(-50%,-50%) scale(3.4); opacity: 0; } }
+  .mc-btn.locating { opacity: 0.5; }
   /* 位置の由来をマーカー隅の小ドットで示す (v140): 足跡から=teal / 修正=amber */
   .photo-marker.loc-track, .photo-marker.loc-edited { position: relative; }
   .photo-marker.loc-track::after, .photo-marker.loc-edited::after { content: ''; position: absolute; right: -3px; top: -3px; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #1a1a1a; box-shadow: 0 0 2px rgba(0,0,0,0.6); }
@@ -554,7 +561,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.103 (v150：🛰️Android にも位置ロガー＝background-location に Android(Kotlin) 実装を追加（通知つき前面サービス＝閉じても記録・ACCESS_BACKGROUND_LOCATION なし）＋NATIVE_LOCATION を ios||android に。iOS/web は不変。｜ v149：🐛地図タイムラインの絞り込みバグ修正 ｜ v148：タイムラインの見せ方 統一 ｜ v147：思い出ログに📖ログ/🖼写真 切替) · 2026-07-05';
+const BUILD = 'phase3.104 (v151：🗺地図に「📍現在地」ボタン（前面 geolocation で現在地へ寄せる・位置ありビルドのみ）＋🫧囲んで思い出を見る→deck ではなくログ(タイムライン)で開く（未登録＝一時表示・「📍登録」で残す）。web のみ＝native 契約不変。｜ v150：🛰️Android にも位置ロガー ｜ v149：🐛地図タイムラインの絞り込みバグ修正 ｜ v148：タイムラインの見せ方 統一) · 2026-07-05';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -2841,7 +2848,10 @@ async function openMapView(focusPhoto, opts) {
     `<div id="mapEl"></div>` +
     `<div class="map-ctrlbar">` +
       `<div class="mc-row"><button class="mc-btn mc-icon" id="mcPrev" title="${tr('前の日（過去の昨日…）', 'Previous day (yesterday in past years…)')}">◀</button><button class="mc-btn mc-icon" id="mcToday" title="${tr('今日（数年分の同じ月日）', 'Today (this date across years)')}">📆</button><button class="mc-btn mc-icon" id="mcNext" title="${tr('次の日（過去の明日…）', 'Next day (tomorrow in past years…)')}">▶</button></div>` +
-      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcRoll" title="${tr('偶然の1日', 'A random day')}">🎲</button><button class="mc-btn" id="mcFilter">${tr('📅 全期間', '📅 All time')}</button><button class="mc-btn" id="mcMore">${tr('⋯ 表示', '⋯ View')}</button></div>` +
+      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcRoll" title="${tr('偶然の1日', 'A random day')}">🎲</button>` +
+      // v151: 現在地へ移動。位置オフ/スクショ用 build(LOCATION_AVAILABLE=false)では出さない＝位置許可を求めない。
+      (LOCATION_AVAILABLE ? `<button class="mc-btn" id="mcLocate" title="${tr('現在地へ移動', 'Go to my current location')}">${tr('📍 現在地', '📍 Locate')}</button>` : '') +
+      `<button class="mc-btn" id="mcFilter">${tr('📅 全期間', '📅 All time')}</button><button class="mc-btn" id="mcMore">${tr('⋯ 表示', '⋯ View')}</button></div>` +
     `</div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopMore" hidden></div>` +
@@ -3287,6 +3297,8 @@ async function openMapView(focusPhoto, opts) {
   mcToday.addEventListener('click', () => { gotoTodayOffset(0); });                                            // 今日 (数年分) に戻る = offset 0 (v83/v87)
   mcPrev.addEventListener('click', () => { gotoTodayOffset((mapState.todayOffset || 0) - 1); });               // 前の日へ (過去の昨日…) v87
   mcNext.addEventListener('click', () => { gotoTodayOffset((mapState.todayOffset || 0) + 1); });               // 次の日へ (過去の明日…) v87
+  const mcLocate = overlay.querySelector('#mcLocate');   // v151: 📍 現在地へ移動（位置ありビルドのみ存在）
+  if (mcLocate) mcLocate.addEventListener('click', () => flyToCurrentLocation(mcLocate));
   // ───────────────────────────────────────────────────────────────────
 
   function closePops() {
@@ -3305,6 +3317,28 @@ async function openMapView(focusPhoto, opts) {
   }
   mapState.setImmersive = setImmersive;
   overlay.querySelector('.map-fs-toggle').addEventListener('click', () => setImmersive(!mapState.immersive));   // 右上 ⛶ = 全画面トグル (v99)
+
+  // v151: 現在地へ移動。前面の navigator.geolocation（位置ロガーと同じ API）で1点だけ取り、地図をその場所へ
+  //   寄せて青ドットの現在地マーカーを置く。背景記録とは無関係＝許可も「使用中のみ」で足りる。
+  //   位置オフ/スクショ用 build では mcLocate 自体を出していないので、ここには来ない（許可も求めない）。
+  function flyToCurrentLocation(btn) {
+    if (!navigator.geolocation) { logInfo(tr('この端末は位置情報に未対応です', 'This device doesn’t support location')); return; }
+    if (btn) btn.classList.add('locating');
+    navigator.geolocation.getCurrentPosition(pos => {
+      if (btn) btn.classList.remove('locating');
+      if (!mapState) return;
+      const { latitude, longitude } = pos.coords;
+      map.setView([latitude, longitude], Math.max(map.getZoom() || 0, 15), { animate: true });
+      if (mapState.hereMarker) { try { map.removeLayer(mapState.hereMarker); } catch {} }
+      const icon = L.divIcon({ className: 'here-marker-wrap', html: '<div class="here-marker"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
+      mapState.hereMarker = L.marker([latitude, longitude], { icon, interactive: false, zIndexOffset: 1000 }).addTo(map);
+    }, err => {
+      if (btn) btn.classList.remove('locating');
+      logInfo((err && err.code === 1)
+        ? tr('位置情報が許可されていません（設定で許可すると現在地に飛べます）', 'Location permission is off (allow it in Settings to jump to your location)')
+        : tr('現在地を取得できませんでした', 'Couldn’t get your current location'));
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+  }
 
   // 日付/期間フィルタパネル (date 入力 2つ + 適用 / 全期間)
   popFilter.innerHTML =
@@ -4026,7 +4060,7 @@ function startEncircleMode() {
       const target = attachTargetAnniv; attachTargetAnniv = null;   // v143: 詳細の「別の場所」経由なら直接 attach
       endEncircleMode();
       if (target) attachLocationDirect(target, ci, list);
-      else openAnnivDeck(list, ci, true);   // v124: 囲む後も思い出の場所タップと同じ deck 動線（違いは canRegister の登録ボタンだけ）
+      else openEncircleTimeline(list, ci);   // v151: 囲む後は deck(1枚) ではなく ログ(タイムライン) で見る（未登録＝「📍登録」で残す）
       return;
     }
     // 足りない → 円を消してやり直し (モードは継続)。
@@ -4356,6 +4390,17 @@ function openAnnivDeck(list, circleInfo, canRegister, onClose, anniv) {
   showFullImage(list[0], { list, index: 0, annivCtx: { list, circleInfo, dayKeys, canRegister: !!canRegister, anniv: anniv || null }, onClose: onClose || null });
 }
 
+// v151: 囲んだ結果を「未登録のまま」ログ(タイムライン)で見る。円+写真から一時的な思い出の場所を作り、
+//   既存の openAnnivTimeline を再利用（_transient で編集系＝メモ/基準日/代表写真/続き を隠し、代わりに
+//   「📍思い出の場所に登録」を出す）。登録すると本物のログ（編集可）で開き直す。
+function openEncircleTimeline(list, ci) {
+  if (!list || list.length < 2 || !ci) return;
+  const c = { center: { lat: ci.lat, lng: ci.lng }, radius: ci.radius };
+  const transient = { id: null, name: tr('囲んだ場所', 'Encircled area'), center: c.center, radius: c.radius,
+                      circles: [c], visits: visitsFromPhotos(list), _transient: true, _ci: ci, _list: list };
+  openAnnivTimeline(transient);
+}
+
 // 思い出の場所の写真リスト: 保存した円で再計算 (新しく撮った写真も拾う=live)。取れなければ保存済み photoId で解決。
 async function annivPhotoList(a) {
   let list = photosInAnniv(a);
@@ -4392,28 +4437,41 @@ function closeAnnivTimeline() { if (annivTLState) { annivTLState.overlay.remove(
 function openAnnivTimeline(a) {
   if (!a) return;
   closeAnnivTimeline();
+  const transient = !!a._transient;   // v151: 囲んだ結果を「未登録のまま」ログで見る（編集系は隠し、代わりに登録ボタン）
+  const photos = photosInAnniv(a);   // この思い出の場所の全写真(時刻昇順・全円の和集合)＝代表写真拡大/左右比較で使う
   const overlay = document.createElement('div');
   overlay.className = 'atl-overlay';
-  overlay.innerHTML =
-    `<div class="atl-header"><div class="atl-title">📖 ${annivEsc(a.name)}</div><button class="atl-close" type="button">✕</button></div>` +
-    `<div class="atl-actions">` +
-      `<button class="atl-act" data-act="list">${tr('← 一覧', '← List')}</button>` +
+  const title = transient
+    ? `🫧 ${tr(`囲んだ場所（${photos.length}枚）`, `Encircled area (${photos.length})`)}`
+    : `📖 ${annivEsc(a.name)}`;
+  const actions = transient
+    ? `<button class="atl-act" data-act="map">${tr('🗺 足跡の地図', '🗺 Footprint map')}</button>` +
+      `<button class="atl-act atl-act-go" data-act="register">${tr('📍 思い出の場所に登録', '📍 Save as memory place')}</button>`
+    : `<button class="atl-act" data-act="list">${tr('← 一覧', '← List')}</button>` +
       `<button class="atl-act" data-act="map">${tr('🗺 足跡の地図', '🗺 Footprint map')}</button>` +
-      `<button class="atl-act" data-act="addloc">${tr('📍 別の場所', '📍 Add place')}</button>` +
-    `</div>` +
+      `<button class="atl-act" data-act="addloc">${tr('📍 別の場所', '📍 Add place')}</button>`;
+  overlay.innerHTML =
+    `<div class="atl-header"><div class="atl-title">${title}</div><button class="atl-close" type="button">✕</button></div>` +
+    `<div class="atl-actions">${actions}</div>` +
     `<div class="atl-body"></div>`;
   document.body.appendChild(overlay);
-  const photos = photosInAnniv(a);   // この思い出の場所の全写真(時刻昇順・全円の和集合)＝代表写真拡大/左右比較で使う
-  annivTLState = { overlay, a, photos, mode: 'log', gridBig: false };   // v147: 表示モード(log/photos)
+  annivTLState = { overlay, a, photos, mode: 'log', gridBig: false, transient };   // v147: 表示モード(log/photos)
   overlay.querySelector('.atl-close').addEventListener('click', closeAnnivTimeline);
-  // v127: ログから 思い出の場所一覧 / 左右で比べる / 足跡の地図 へ相互遷移。
-  overlay.querySelector('[data-act="list"]').addEventListener('click', () => { closeAnnivTimeline(); openAnnivList(); });
-  overlay.querySelector('[data-act="map"]').addEventListener('click', () => {
+  // v127: ログから 思い出の場所一覧 / 左右で比べる / 足跡の地図 へ相互遷移。ボタンは transient で出し分け。
+  const actList = overlay.querySelector('[data-act="list"]');
+  if (actList) actList.addEventListener('click', () => { closeAnnivTimeline(); openAnnivList(); });
+  const actMap = overlay.querySelector('[data-act="map"]');
+  if (actMap) actMap.addEventListener('click', () => {
     const dayKeys = [...new Set((a.visits || []).filter(v => !v.planned).map(v => v.dayKey))];
     closeAnnivTimeline();
     showTripsMap(dayKeys, a);
   });
-  overlay.querySelector('[data-act="addloc"]').addEventListener('click', () => addLocationToAnniv(a));   // v143: 移転などで別の場所を同じ思い出の場所に
+  const actAddloc = overlay.querySelector('[data-act="addloc"]');
+  if (actAddloc) actAddloc.addEventListener('click', () => addLocationToAnniv(a));   // v143: 移転などで別の場所を同じ思い出の場所に
+  const actReg = overlay.querySelector('[data-act="register"]');   // v151: 囲んだ結果を思い出の場所として残す → 登録後は本物のログ(編集可)で開き直す
+  if (actReg) actReg.addEventListener('click', () => {
+    registerAnniversary(a._ci, a._list || photos, (saved) => { closeAnnivTimeline(); openAnnivTimeline(saved); });
+  });
   renderAnnivTimeline();
 }
 function renderAnnivTimeline() {
@@ -4434,16 +4492,22 @@ function renderAnnivTimeline() {
   body.appendChild(modeBar);
   modeBar.querySelectorAll('.atl-mode').forEach(b => b.addEventListener('click', () => { annivTLState.mode = b.dataset.m; renderAnnivTimeline(); }));
   if (mode === 'photos') { renderAnnivPhotos(); return; }
-  // v129: 基準日バー（任意）。設定すると各日に「N日前／N日後」を表示＝あの日からの隔たりを日数で感じる。
-  const baseBar = document.createElement('div');
-  baseBar.className = 'atl-basebar';
-  baseBar.innerHTML = a.baseDate
-    ? `<span class="atl-base-txt">${tr('🎯 基準日', '🎯 Base date')} <b>${a.baseDate}</b></span><button class="atl-base-edit" type="button">${tr('変更', 'Change')}</button><button class="atl-base-clear" type="button">${tr('解除', 'Clear')}</button>`
-    : `<button class="atl-base-set" type="button">${tr('🎯 基準日を設定', '🎯 Set a base date')}</button><span class="atl-base-hint">${tr('各日に「何日前／何日後」を出す', 'Show “N days before/after” on each day')}</span>`;
-  body.appendChild(baseBar);
-  const bSet = baseBar.querySelector('.atl-base-set'); if (bSet) bSet.addEventListener('click', () => setAnnivBaseDate(a));
-  const bEdit = baseBar.querySelector('.atl-base-edit'); if (bEdit) bEdit.addEventListener('click', () => setAnnivBaseDate(a));
-  const bClear = baseBar.querySelector('.atl-base-clear'); if (bClear) bClear.addEventListener('click', async () => { delete a.baseDate; await saveAnniv(a); renderAnnivTimeline(); });
+  if (annivTLState.transient) {   // v151: 未登録の囲み＝一言説明のみ（基準日/メモは登録後に）
+    const hint = document.createElement('div'); hint.className = 'atl-thint';
+    hint.textContent = tr('囲んだ範囲の写真を時系列で見ています。メモや基準日を残すには「📍 思い出の場所に登録」。', 'Viewing the encircled photos by time. To keep notes or a base date, tap “📍 Save as memory place”.');
+    body.appendChild(hint);
+  } else {
+    // v129: 基準日バー（任意）。設定すると各日に「N日前／N日後」を表示＝あの日からの隔たりを日数で感じる。
+    const baseBar = document.createElement('div');
+    baseBar.className = 'atl-basebar';
+    baseBar.innerHTML = a.baseDate
+      ? `<span class="atl-base-txt">${tr('🎯 基準日', '🎯 Base date')} <b>${a.baseDate}</b></span><button class="atl-base-edit" type="button">${tr('変更', 'Change')}</button><button class="atl-base-clear" type="button">${tr('解除', 'Clear')}</button>`
+      : `<button class="atl-base-set" type="button">${tr('🎯 基準日を設定', '🎯 Set a base date')}</button><span class="atl-base-hint">${tr('各日に「何日前／何日後」を出す', 'Show “N days before/after” on each day')}</span>`;
+    body.appendChild(baseBar);
+    const bSet = baseBar.querySelector('.atl-base-set'); if (bSet) bSet.addEventListener('click', () => setAnnivBaseDate(a));
+    const bEdit = baseBar.querySelector('.atl-base-edit'); if (bEdit) bEdit.addEventListener('click', () => setAnnivBaseDate(a));
+    const bClear = baseBar.querySelector('.atl-base-clear'); if (bClear) bClear.addEventListener('click', async () => { delete a.baseDate; await saveAnniv(a); renderAnnivTimeline(); });
+  }
   if (circlesOf(a).length > 1) {   // v143: 移転などで場所が複数積み重なっている印
     const pl = document.createElement('div'); pl.className = 'anniv-places';
     pl.textContent = tr(`📍 ${circlesOf(a).length} か所（移転などで場所が積み重なっています）`, `📍 ${circlesOf(a).length} places (moved / accumulated over locations)`);
@@ -4465,12 +4529,11 @@ function renderAnnivTimeline() {
     entry.innerHTML =
       `<div class="atl-date">${v.date}${offsetHtml}${isFuture ? `<span class="atl-badge">${tr('これから', 'Upcoming')}</span>` : ''}</div>` +
       photosHtml +
-      (!isFuture ? `<button class="atl-editphotos" type="button">${tr('🖼 代表写真を選ぶ', '🖼 Choose cover photos')}</button>` : '') +
-      `<textarea class="atl-comment" rows="2" placeholder="${isFuture ? tr('この日にしたいこと・行く理由…', 'What you want to do / your reason to go…') : tr('この日のこと・思い出したこと…', 'About this day / what you remembered…')}"></textarea>`;
+      (!isFuture && !annivTLState.transient ? `<button class="atl-editphotos" type="button">${tr('🖼 代表写真を選ぶ', '🖼 Choose cover photos')}</button>` : '') +
+      (!annivTLState.transient ? `<textarea class="atl-comment" rows="2" placeholder="${isFuture ? tr('この日にしたいこと・行く理由…', 'What you want to do / your reason to go…') : tr('この日のこと・思い出したこと…', 'About this day / what you remembered…')}"></textarea>` : '');
     body.appendChild(entry);
     const ta = entry.querySelector('.atl-comment');
-    ta.value = v.memo || '';                                   // value 経由で入れる（HTML エスケープ不要・安全）
-    ta.addEventListener('change', () => { v.memo = ta.value; saveAnniv(a); });
+    if (ta) { ta.value = v.memo || ''; ta.addEventListener('change', () => { v.memo = ta.value; saveAnniv(a); }); }   // v151: 未登録(囲み)は memo 欄なし
     const ep = entry.querySelector('.atl-editphotos');
     if (ep) ep.addEventListener('click', () => openVisitPhotoPicker(a, v));
     entry.querySelectorAll('.atl-photos img[data-id]').forEach(im => im.addEventListener('click', () => openAnnivPhotoZoom(a, im.dataset.id)));   // v127: 代表写真タップ→拡大(日にち横断スワイプ)
@@ -4496,11 +4559,13 @@ function renderAnnivTimeline() {
       body.appendChild(gap);
     }
   });
-  const add = document.createElement('button');
-  add.className = 'atl-add'; add.type = 'button';
-  add.textContent = tr('＋ あの日の続き', '＋ Continue that day');
-  add.addEventListener('click', () => addPlannedEntry(a));
-  body.appendChild(add);
+  if (!annivTLState.transient) {   // v151: 「＋あの日の続き」(未来の予定)は保存が要る＝登録後のみ
+    const add = document.createElement('button');
+    add.className = 'atl-add'; add.type = 'button';
+    add.textContent = tr('＋ あの日の続き', '＋ Continue that day');
+    add.addEventListener('click', () => addPlannedEntry(a));
+    body.appendChild(add);
+  }
 }
 // v147/v148: 「⇆ 比べる」共通（写真タブのバー内から呼ぶ＝写真を見る操作として自然な位置に）。
 async function openAnnivCompare(a) {
