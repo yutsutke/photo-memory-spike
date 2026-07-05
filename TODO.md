@@ -22,7 +22,7 @@
 > - **v150（このセッションの本体・コミット済）**: ユーザー「スマホで位置ロガーがぬけているんだけど、くわえることできる？」→ scope 質問に「**最初から B（背景・iOS 同等）まで**」→ `local-plugins/background-location/android/` を Kotlin で新規実装。**方式＝FGS(type=location)＋fused・ACCESS_BACKGROUND_LOCATION 不使用**（while-in-use だけで「閉じても記録」が成立＝Play の背景位置審査（デモ動画）を構造的に回避）。iOS と同契約＝JS 無改修。**S21 実機 E2E 全クリア**（権限2段→記録2点→drain→swipe-away 生存→再起動復元→清掃）。詳細 CHANGELOG v150。
 > - **▶ 次の一手（候補）**:
 >   1. **iOS 1.3(33) を審査提出**（v149＋v148 入り・1.3 train 開・最終ボタンはユーザー）＝セッション20からの持ち越し。
->   2. **Android を Google Play へ**＝登録($25)→署名(Play App Signing)→AAB→掲載素材。**⚠️要ユーザー判断: 初回提出をクリーン版（位置なし＝旧方針）に戻すか、位置入り（v150）で出すか**。位置入りでも背景位置「権限」は無いので重審査は回避できる見込みだが、FGS location の申告フォーム＋データセーフティ記載は必要。
+>   2. **Android を Google Play へ**＝登録($25)→署名(Play App Signing)→AAB→掲載素材。**✅決定（2026-07-05・ユーザー）＝クリーン版に戻さず「位置入り（v150）」で初回提出する**（旧「Android v1 はクリーン」方針を上書き＝Android も最初から iOS 1.2 と同じ「位置あり・広告なし」でデビュー）。背景位置「権限」は無いので重審査は回避見込みだが、**FGS location の申告フォーム（Play Console）＋データセーフティ「収集なし・端末内のみ」の記載は必要**。
 >   3. 実移動での軌跡/電池の確認（ユーザーの実使用 or 散歩テスト）。
 > - **借り物 S21 の後始末**: アプリはユーザーがいつでも端末から削除可（長押し→アンインストール、または `adb uninstall io.github.yutsutke.madeleine`）。現在アプリ内はテスト JPEG 4枚（IndexedDB）とロガーオフ・記録0の状態。
 >
