@@ -554,7 +554,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.102 (v149：🐛地図タイムラインの絞り込みバグ修正。🖼写真グリッド・⇆比べる が絞り込み中(pickDays/range)でも全期間を出していた→timelineFilteredPhotos で 📋一覧と同じ範囲に揃える。｜ v148：タイムラインの見せ方 統一(地図に📋一覧/🖼写真＋⇆比べる) ｜ v147：思い出ログに📖ログ/🖼写真 切替 ｜ v145：記念日→思い出の場所) · 2026-07-04';
+const BUILD = 'phase3.103 (v150：🛰️Android にも位置ロガー＝background-location に Android(Kotlin) 実装を追加（通知つき前面サービス＝閉じても記録・ACCESS_BACKGROUND_LOCATION なし）＋NATIVE_LOCATION を ios||android に。iOS/web は不変。｜ v149：🐛地図タイムラインの絞り込みバグ修正 ｜ v148：タイムラインの見せ方 統一 ｜ v147：思い出ログに📖ログ/🖼写真 切替) · 2026-07-05';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -1080,13 +1080,17 @@ const IS_NATIVE = !!(_cap && typeof _cap.isNativePlatform === 'function' && _cap
 // ★ Android v1 はクリーン版（位置なし・広告なし）＝ iOS のクリーン起動成功パターンを踏襲＝ここを false に。
 //   背景位置は Google の審査が厳しいので、リスク共有面 (背景位置) を Android v1 に入れない → 背景位置は Android v2。
 //   → プラットフォーム別に: iOS のみ true。Android/web は false。
+// ★ v150 で Android v2 着手＝background-location に Android(Kotlin) 実装を追加し Android も true に。
+//   方式＝通知つき前面サービス (FGS type=location)＝「アプリを閉じても記録」は成立しつつ、
+//   ACCESS_BACKGROUND_LOCATION は宣言しない（Google Play の最厳格審査ゲート＝デモ動画/目立つ同意を回避）。
+//   設定からの「強制停止」だけは止まる → 次回起動時にプラグイン load()/下の startLogger() が再アーム。
 // セット (iOS の位置あり)＝① getPlatform()==='ios' ② package.json に "background-location": "file:./local-plugins/background-location"
 //   ③ Info.plist の NSLocation* / UIBackgroundModes=location（文言は InfoPlist.strings ja/en が上書き）。
 // ★ v106 の教訓 (逆向きに戻す時用): JS で呼ばないだけでは不十分 — プラグインの CLLocationManager が
 //   バイナリに残ると Apple が purpose string を要求する (ITMS-90683)＝外す時は package.json から。
 // web (GitHub Pages) は IS_NATIVE=false なので LOCATION_AVAILABLE は常に true＝この値の影響なし（従来どおり前面ロガー）。
 const NATIVE_PLATFORM = (_cap && typeof _cap.getPlatform === 'function') ? _cap.getPlatform() : 'web';
-const NATIVE_LOCATION = (NATIVE_PLATFORM === 'ios');
+const NATIVE_LOCATION = (NATIVE_PLATFORM === 'ios' || NATIVE_PLATFORM === 'android');
 // スクショ用モード (v108): web を URL の ?shot で「native v1 見え」にする＝位置 UI(🛰️/地図トグル)
 // を隠し、App Store スクショを提出物(位置オフ)と一致させる。例: …/index.html?shot
 const SHOT_MODE = /(^|[?&#])shot\b/i.test(location.search + location.hash);
@@ -2502,7 +2506,9 @@ function stopNativeDrainTimer() { if (loggerDrainTimer) { clearInterval(loggerDr
 function loggerSyncStatusFromAuth() {
   if (!BgLoc) return;
   if (loggerNativeAuth === 'denied' || loggerNativeAuth === 'restricted')
-    loggerStatus = tr('位置情報が許可されていません（設定 →「あの日」→ 位置情報 →「常に許可」）', 'Location isn’t allowed (Settings → “A Past Day” → Location → “Always”)');
+    loggerStatus = (NATIVE_PLATFORM === 'android')
+      ? tr('位置情報が許可されていません（設定 → アプリ →「あの日」→ 権限 → 位置情報）', 'Location isn’t allowed (Settings → Apps → “A Past Day” → Permissions → Location)')
+      : tr('位置情報が許可されていません（設定 →「あの日」→ 位置情報 →「常に許可」）', 'Location isn’t allowed (Settings → “A Past Day” → Location → “Always”)');
   else if (loggerNativeAuth === 'whenInUse')
     loggerStatus = tr('「常に許可」にすると、アプリを閉じている間も記録できます（設定 → 位置情報）', 'With “Always,” it can record even while the app is closed (Settings → Location)');
   else loggerStatus = '';
@@ -2588,7 +2594,7 @@ function openLoggerPanel() {
   card.innerHTML =
     `<h2>${tr('🛰️ 位置ロガー', '🛰️ Location logger')}</h2>` +
     `<p class="logger-note">` + (BgLoc
-      ? tr('オンにすると、<b>アプリを閉じている間も</b> その日の移動の軌跡をそっと記録します（端末内だけ・外部送信なし）。あとで「🗺 地図」を開くと、青緑の線で振り返れます。', 'When on, it quietly records your day’s movement track <b>even while the app is closed</b> (on-device only, nothing sent out). Open “🗺 Map” later to look back on it as a teal line.')
+      ? tr('オンにすると、<b>アプリを閉じている間も</b> その日の移動の軌跡をそっと記録します（端末内だけ・外部送信なし）。あとで「🗺 地図」を開くと、青緑の線で振り返れます。', 'When on, it quietly records your day’s movement track <b>even while the app is closed</b> (on-device only, nothing sent out). Open “🗺 Map” later to look back on it as a teal line.') + (NATIVE_PLATFORM === 'android' ? tr('記録中は小さな通知が表示されます。', ' While recording, a small notification is shown.') : '')
       : tr('アプリを開いている間だけ、いまいる場所を記録します。あとで「🗺 地図」を開くと、その日の軌跡を青緑の線で振り返れます。<br>※ 閉じている間も記録し続ける常時ログは、今後のアプリ版で対応予定です。', 'Records where you are only while the app is open. Open “🗺 Map” later to look back on that day’s track as a teal line.<br>* Always-on logging that continues while closed is planned for a future app version.')) + `</p>` +
     `<div class="logger-modes">` +
       `<label class="logger-mode"><input type="radio" name="loggerMode" value="off"><span><b>${tr('⏸ オフ', '⏸ Off')}</b><small>${tr('記録しない（既定）', 'Don’t record (default)')}</small></span></label>` +

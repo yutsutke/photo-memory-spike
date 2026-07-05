@@ -1,0 +1,44 @@
+// background-location の Android ライブラリモジュール。
+// cap sync android が capacitor.settings.gradle に include し、app が project(':background-location') で依存する。
+// 版数はアプリ側 variables.gradle (rootProject.ext) を継承（単体ビルド用に fallback あり）。
+buildscript {
+    ext.kotlinVersion = project.hasProperty('kotlinVersion') ? rootProject.ext.kotlinVersion : '2.1.20'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+    }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace "io.github.yutsutke.backgroundlocation"
+    compileSdk project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 36
+    defaultConfig {
+        minSdkVersion project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
+        targetSdkVersion project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 36
+    }
+    compileOptions {
+        // capacitor-android (8.4) は Java 21 ソースレベル。app/capacitor.build.gradle と揃える
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+    kotlinOptions {
+        jvmTarget = '21'
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+    // fused location provider (重要=balanced power / こまめ=high accuracy の両モードの供給源)
+    implementation "com.google.android.gms:play-services-location:21.3.0"
+}

@@ -5,6 +5,40 @@
 
 ---
 
+## v150 — 🛰️ Android にも位置ロガー＝background-location の Android(Kotlin) 実装（閉じても記録・S21 実機 E2E YES） (2026-07-05)
+
+**背景**
+- 借り物の実機 Galaxy S21 (Android 13・USB デバッグ) で Android 版を触ったユーザーから「スマホで位置ロガーがぬけているんだけど、くわえることできる？」。Android v1 はクリーン版方針（`NATIVE_LOCATION` = iOS のみ）で**意図的に**外していたが、ユーザーが「最初から B（背景・iOS 同等）まで」と明示 → Android v2 の本丸＝背景位置ロガーに着手。
+
+**設計判断**
+- **方式＝通知つき前面サービス (FGS type=location) ＋ fused provider**。`ACCESS_BACKGROUND_LOCATION` は宣言しない: FGS が生きている間は while-in-use 権限だけで位置が取れる（Android 10+ の定義＝FGS は「使用中」扱い）＝「アプリを閉じても記録」が成立しつつ、**Google Play の最厳格審査ゲート（背景位置権限＝デモ動画・目立つ同意）を構造的に回避**。
+- **iOS と同契約**（`requestAlways`/`start({mode})`/`stop`/`drain`/`status`・点=`{id,t,lat,lng,acc}`・status 文字列も同一）＝ **JS 無改修**（文言微調整のみ）。photo-library で確立した「同契約で Android 実装」パターンの2例目＝もう定石。
+- モード対応: important＝iOS SLC 相当（balanced power・500m・interval 3分）／frequent＝iOS distanceFilter=25 相当（high accuracy・25m・20秒）。バッファ＝SharedPreferences（iOS の UserDefaults と同型・上限5000点・synchronized）。OS kill は `START_STICKY`＋保存モード復元（intent=null 分岐）。プラグイン `load()` でも再アーム（iOS の `resumeFromSavedMode` と同じ）。
+- **status マッピングの妙**: Android は fine/coarse が下りていれば **"always" を返す**。"whenInUse" を返すと JS が iOS 向け「設定→常に許可」ナッジを出して誤誘導になる（FGS モデルでは while-in-use＝Always 等価なので嘘ではない）。
+- 権限フロー: `requestAlways()` が位置＋（API33+）通知をチェーン要求。JS は requestAlways を await せず直後に start を呼ぶ（iOS 由来の呼び順）→ 権限が無い時の start は**モード保存だけ**行い、権限コールバック `permsCallback` が「許可が下りた瞬間にサービスを起こす」（iOS の `didChangeAuthorization`→`applyMode` と同じ役割分担）。
+
+**やったこと**
+- `local-plugins/background-location/android/` 新規＝`build.gradle`（play-services-location 21.3.0・Java21）・`AndroidManifest.xml`（位置/FGS/通知権限＋service 宣言を**プラグイン側に隔離**＝app 本体 manifest はクリーンのまま・photo-library と同じ流儀）・`BgLocationStore.kt`（バッファ）・`BgLocationService.kt`（FGS 本体）・`BackgroundLocationPlugin.kt`（ブリッジ）・通知用 vector アイコン。plugin package.json に `capacitor.android`。
+- index.html: `NATIVE_LOCATION = (ios || android)`・denied 時の設定パス文言を Android 分岐（設定→アプリ→権限）・🛰️パネル注記に「記録中は小さな通知が表示されます。」（Android のみ）。**web / iOS は不変**。
+
+**結果 / 観察（S21 実機 E2E＝全項目クリア）**
+- 🛰️ が ⚙️ メニューに出現 → こまめ選択 → **権限2段（位置「アプリの使用時のみ」→通知）** → 「**今日 2 点を記録 ・ 最終 15:05**」＝ service→SharedPreferences→drain(8秒タイマー)→IndexedDB track→パネル集計 の全パイプライン成功。
+- dumpsys: `isForeground=true foregroundId=7301 channel=bgloc`・**`allowWhileInUsePermissionInFgs=true`**（「使用時のみ」権限で FGS が位置を取れている証拠）。
+- **recents からスワイプで kill してもサービス生存**（タスク消滅は `dumpsys activity activities` で確認・ステータスバー📍点灯継続）＝ **One UI の swipe-away を FGS が生き延びた＝「閉じても記録」が Samsung 実機で成立**（Samsung はタスクキルが攻撃的という最大の未知数がクリア）。
+- 再起動 → モード復元（localStorage）・点数維持・サービス冪等（`activeMode` ガードで requestUpdates 再発行なし）。
+- テスト後クリーンアップ: オフ→サービス完全停止（dumpsys 0件）→記録全削除→📍消灯（借り物端末への配慮。知人の写真は引き続き未取り込み）。
+
+**ハマったところ**
+- PowerShell の `>` リダイレクトで screencap の PNG が壊れる（UTF-16 変換が混入）→ Bash ツール経由の `exec-out screencap -p >` で解決。バイナリを PowerShell リダイレクトに通さない。
+
+**教訓**
+- 「背景で動く」を Android で作る時、**ACCESS_BACKGROUND_LOCATION は必須ではない**。FGS(type=location) なら while-in-use だけで閉じても記録でき、Play の重審査も避けられる。iOS の SLC と完全等価ではない（force-stop では止まる・OS 再起動で自動復帰しない）が、このアプリの用途（その日の軌跡をそっと記録）には十分。
+
+**残課題 / 次の方向**
+- 実移動での軌跡（25m/500m ゲートの実挙動・電池コスト）はデスクで検証不能＝実使用待ち（iOS v96 の時と同じ段取り＝機構検証→1日歩行は後日）。
+- Samsung「使用していないアプリをスリープ」が長期的に FGS を殺す可能性 → 症状が出たら 設定→バッテリー でこのアプリを対象外に（UI 注記に足すかは様子見）。
+- Google Play 提出時: FGS location の申告フォーム（Play Console）＋データセーフティ（収集なし・端末内のみ）。背景位置**権限**は不使用なので動画審査は不要のはず。**Play 初回提出をクリーン版に戻すか位置入りで出すかは要ユーザー判断**（v150 で dev ビルドには位置が入った）。
+
 ## v149 — 🐛 地図タイムラインの絞り込みバグ修正（🖼写真・⇆比べる を 📋一覧と同じ範囲に揃える） (2026-07-04)
 
 **背景**

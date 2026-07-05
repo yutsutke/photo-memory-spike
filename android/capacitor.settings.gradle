@@ -2,5 +2,8 @@
 include ':capacitor-android'
 project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/android/capacitor')
 
+include ':background-location'
+project(':background-location').projectDir = new File('../local-plugins/background-location/android')
+
 include ':photo-library'
 project(':photo-library').projectDir = new File('../local-plugins/photo-library/android')

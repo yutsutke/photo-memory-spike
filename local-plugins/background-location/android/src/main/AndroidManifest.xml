@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 位置権限＋前面サービスはプラグイン側に置く＝このプラグインの android src を含む build にだけマージされる
+     (アプリ本体の AndroidManifest はクリーンのまま。photo-library と同じ流儀)。
+     ★ ACCESS_BACKGROUND_LOCATION は宣言しない: 「閉じても記録」は通知つき前面サービス (FGS type=location)
+       で成立する (FGS が生きている間は while-in-use 扱いで位置が取れる)。背景位置権限は Google Play の
+       最厳格審査ゲート (デモ動画・目立つ同意) なので、入れずに同じ体験を作るのがこのアプリの方針。 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- 前面サービス (API 28+ の一般権限 + API 34+ の type=location 個別権限) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- API 33+ で記録中の常駐通知を見せるため (拒否でもサービス自体は動く) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application>
+        <service
+            android:name="io.github.yutsutke.backgroundlocation.BgLocationService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+    </application>
+</manifest>
