@@ -561,7 +561,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.104 (v151：🗺地図に「📍現在地」ボタン（前面 geolocation で現在地へ寄せる・位置ありビルドのみ）＋🫧囲んで思い出を見る→deck ではなくログ(タイムライン)で開く（未登録＝一時表示・「📍登録」で残す）。web のみ＝native 契約不変。｜ v150：🛰️Android にも位置ロガー ｜ v149：🐛地図タイムラインの絞り込みバグ修正 ｜ v148：タイムラインの見せ方 統一) · 2026-07-05';
+const BUILD = 'phase3.105 (v152：🐛英語UIの間隔ラベル i18n＝"2.0年 apart"→"2.0 years apart"（intervalLabel を tr() 化・複数形対応・唯一の呼び出し=思い出ログのギャップ）。｜ v151：🗺地図に「📍現在地」ボタン＋🫧囲んで思い出を見る→ログ(タイムライン)で開く ｜ v150：🛰️Android にも位置ロガー ｜ v149：🐛地図タイムラインの絞り込みバグ修正) · 2026-07-06';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -4614,14 +4614,15 @@ function renderAnnivPhotos() {
   });
   body.appendChild(grid);
 }
-// 間隔の日本語ラベル（久しぶり感を出す）。
+// 間隔ラベル（久しぶり感を出す）。v152: 英語UIで単位が日本語のまま残っていた（"2.0年 apart"）→ tr() でロケール対応＋英語は複数形。
 function intervalLabel(ms) {
   const days = Math.round(ms / 86400000);
-  if (days < 45) return `${days}日`;
+  if (days < 45) return tr(`${days}日`, `${days} day${days === 1 ? '' : 's'}`);
   const months = Math.round(days / 30.4);
-  if (months < 18) return `${months}ヶ月`;
+  if (months < 18) return tr(`${months}ヶ月`, `${months} month${months === 1 ? '' : 's'}`);
   const years = days / 365.25;
-  return `${years.toFixed(years < 10 ? 1 : 0)}年`;
+  const y = years.toFixed(years < 10 ? 1 : 0);
+  return tr(`${y}年`, `${y} year${y === '1' ? '' : 's'}`);
 }
 // ログの代表写真タップ → 思い出の場所内の写真を日にち横断で左右スワイプできる拡大表示。閉じるとログへ戻る。
 function openAnnivPhotoZoom(a, photoId) {
