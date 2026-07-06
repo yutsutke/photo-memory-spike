@@ -23,7 +23,13 @@
 > - **店頭コピーを刷新（ASC＝Claude がブラウザ操作／最終「審査へ提出」はユーザー）**: プロモ用テキスト＝ヒーロー／説明文＝**先頭にヒーロー＋既存本文**（全書き換えせず）／リリースノート＝ヒーロー＋改善2点。**日英とも**。ヒーロー（日）=「このカフェ、2年ぶりだったんだ」／地図で行った場所を〇で囲むと写真が年をまたいで時系列に並ぶ／忘れていた時間がそっとよみがえる／ほかは触って見つかる。英=「This café — it had been two years.」…。**方針＝操作(囲む)でなく payoff(久しぶりがよみがえる)を主役に**＝汎用地図アプリ化を避けコアと地続き。
 > - **スクショ差し替え**: café「囲んだ場所/Encircled area」を**日英とも1枚目(ヒーロー)**に（既存4枚は後ろ＝各5枚）。元 960×2079→**1284×2778 にリサイズ**（6.5"スロット）。⚠️**ASC の file_upload はセッション外パス不可**（scratchpad も request_directory 済み Desktop も弾かれる）→ **ユーザーがドラッグ&ドロップ**、Claude は寸法調整＋配置/保存確認。次回も同じ段取り。
 > - **web(v152・push 済・BUILD `phase3.105`)**: `intervalLabel` を tr() 化＝英語UIの「2.0年 apart」→「2.0 years apart」（複数形・思い出ログのギャップが唯一の呼び出し）。preview で en/ja 両方確認・console 0。**1.3(34) には未反映＝次の Codemagic ビルドで乗る**。
-> - **▶ 次の一手**: ①**App Store への公開反映を確認**（〜24h・café ヒーロー版がストアに出るか・"is now available" メール／apps.apple.com/jp/app/id6784557053）。②**Android を Google Play へ**（位置入り v150・[[post-launch-roadmap]]／[[madeleine-product-repo]]）。③v152 ほか web 改善は次ビルドで iOS/Android に。
+> - **▶ 次の一手**: ①**App Store への公開反映を確認**（〜24h・café ヒーロー版がストアに出るか・"is now available" メール／apps.apple.com/jp/app/id6784557053）。②**Android を Google Play へ**（本命・下のチェックリスト）。③v152 ほか web 改善は次の Codemagic ビルドで iOS/Android に乗る（1.3(34) には未反映）。
+> - **📋 Android → Google Play 着手チェックリスト**（済＝v150 背景位置ロガー実機E2E・v141/142 クリーン起動＋写真全件 MediaStore エミュE2E・[[post-launch-roadmap]]／[[madeleine-product-repo]]。**方針＝初回から位置入り(v150)で出す＝クリーン版に戻さない**）:
+>   - (a) **Google Play Console 登録**（$25・一度きり）／(b) アプリ作成（パッケージ名 `io.github.yutsutke.madeleine`＝iOS と同じ・要現状確認）
+>   - (c) **署名＝Play App Signing**（アップロード鍵で署名→Play が配布鍵管理。Codemagic の署名情報を Android 用に）／(d) **AAB を release ビルド**（現状の Codemagic `android-debug` は debug APK＝**release/AAB workflow が要る**・要現状確認）
+>   - (e) **掲載素材**＝アイコン／スクショ（café ヒーロー流用可・Android サイズ）／掲載文（日英・iOS の店頭コピー流用＝「囲む→時系列」ヒーロー）
+>   - (f) **データセーフティ＝「収集なし・端末内のみ」**＋**FGS location の宣言フォーム**（背景位置"権限"は不使用＝`ACCESS_BACKGROUND_LOCATION` なし＝重審査/デモ動画は回避見込み）
+>   - (g) **実機で GPS/大量スループット確認**（エミュは位置を redact＝中古 Android 検討中／知人の写真17,097枚は取り込まない判断）。地図(Leaflet)・体験ロジック・i18n は web 共通で乗る。
 >
 > ## 🗺 セッション22（2026-07-05・web）＝地図に「📍現在地」ボタン ＋ 🫧囲む→ログ(タイムライン)で開く（v151）
 > - **ユーザー要望2点（実機＝思い出の場所ログ画面を触って）**: ①地図に現在地へ飛ぶボタンを増やしたい ②「囲んで思い出を見る」を、その段階で**思い出の場所ログのような画面**に遷移できないか（＋「挙動が重くなる？」）。→ 重くならない旨を回答（既定📖ログは1日数枚のサムネ・🖼写真グリッドも既存一覧と同じ `thumbUrl`＋`loading=lazy`＝全画像を1枚ずつ出す deck より軽い）。
