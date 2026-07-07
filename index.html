@@ -524,6 +524,8 @@
   <h1>あの日 <span class="tag">写真と足跡から蘇る</span> <span class="ver" id="ver"></span> <span class="count" id="count">— 枚</span><span class="count hidden" id="bgStatus"></span></h1>
   <!-- v113: ヘッダ整理。よく使う「🗺 過去の今日」を主役に、残りは ⚙️ メニューへ ([[ui-minimalism-works]]) -->
   <button id="btnMap" class="hdr-primary" title="今日の日付の軌跡を数年分まとめて地図で見る（毎日の入口）">🗺 過去の今日</button>
+  <!-- v153: 「いまいる場所」を起点に、現在地まわりの写真を古い順タイムラインで一気に見る主入口（位置ありビルドのみ・JSで出し分け） -->
+  <button id="btnHere" class="hdr-primary" title="いまいる場所のまわりの写真を、古い順のタイムラインで一気に見る">📍 いまの場所</button>
   <button id="btnTomorrow" class="hdr-primary" title="明日の日付の軌跡を数年分＝明日を計画する前に「過去の明日」を知る">🗺 過去の明日</button>
   <button id="btnMenu" title="メニュー（取り込み・AI・その他）">⚙️</button>
   <div id="menuDropdown" class="menu-dropdown hidden">
@@ -561,7 +563,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.105 (v152：🐛英語UIの間隔ラベル i18n＝"2.0年 apart"→"2.0 years apart"（intervalLabel を tr() 化・複数形対応・唯一の呼び出し=思い出ログのギャップ）。｜ v151：🗺地図に「📍現在地」ボタン＋🫧囲んで思い出を見る→ログ(タイムライン)で開く ｜ v150：🛰️Android にも位置ロガー ｜ v149：🐛地図タイムラインの絞り込みバグ修正) · 2026-07-06';
+const BUILD = 'phase3.106 (v153：📍トップに「いまの場所」ボタン＝アプリを開いて最短手順で現在地まわりの写真を古い順タイムラインで一気に見る（囲む操作を省略・段階半径400m→6kmで自動・位置ありビルドのみ）。｜ v152：🐛英語UIの間隔ラベル i18n＝"2.0年 apart"→"2.0 years apart" ｜ v151：🗺地図に「📍現在地」ボタン＋🫧囲んで思い出を見る→ログ(タイムライン) ｜ v150：🛰️Android にも位置ロガー) · 2026-07-07';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -587,6 +589,7 @@ function applyStaticI18n() {
   set('header h1 .tag', 'Photos & Footprints');
   set('#count', '— photos');
   set('#btnMap', '🗺 On This Day');
+  set('#btnHere', '📍 Here & now');
   set('#btnTomorrow', '🗺 On Tomorrow');
   set('#btnAdd', '📷 Import');
   set('#btnAnniv', '📍 Memory places');
@@ -597,6 +600,7 @@ function applyStaticI18n() {
   set('#btnClear', '🗑 Delete all');
   set('#btnInfo', 'ℹ️ Help & Info');
   setTitle('#btnMap', "See this day's date across past years on the map");
+  setTitle('#btnHere', 'See photos around you now, oldest-first, in one tap');
   setTitle('#btnTomorrow', "See tomorrow's date across past years on the map");
   setTitle('#btnMenu', 'Menu (import, AI, and more)');
   setTitle('#btnAdd', 'Import photos (files / folders)');
@@ -4401,6 +4405,42 @@ function openEncircleTimeline(list, ci) {
   openAnnivTimeline(transient);
 }
 
+// v153: トップの「📍 いまの場所」＝ アプリを開いて最短手順で「現在地まわりの過去の時系列の思い出」まで行く動線。
+//   囲む操作を省き、現在地を中心に段階的に半径を広げて最初に2枚以上見つかった円で openEncircleTimeline を開く
+//   （密な街なかは近所だけ、疎な土地は自然に広がる＝「いまの場所」の粒度が写真密度に追従）。
+//   位置オフ/スクショ用 build(LOCATION_AVAILABLE=false)ではボタン自体を出さない＝位置許可を求めない。
+async function openHereTimeline(btn) {
+  if (!LOCATION_AVAILABLE) return;
+  if (!navigator.geolocation) { logInfo(tr('この端末は位置情報に未対応です', 'This device doesn’t support location')); return; }
+  if (btn) { btn.disabled = true; btn.classList.add('locating'); }
+  const done = () => { if (btn) { btn.disabled = false; btn.classList.remove('locating'); } };
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const { latitude: lat, longitude: lng } = pos.coords;
+    if (!mapState) await openMapView();
+    done();
+    if (!mapState) return;   // 地図ライブラリ読込失敗など
+    const map = mapState.map;
+    // 現在地に寄せる＋青ドット（flyToCurrentLocation と同じ hereMarker を共有）。
+    map.setView([lat, lng], Math.max(map.getZoom() || 0, 15), { animate: true });
+    if (mapState.hereMarker) { try { map.removeLayer(mapState.hereMarker); } catch {} }
+    const icon = L.divIcon({ className: 'here-marker-wrap', html: '<div class="here-marker"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
+    mapState.hereMarker = L.marker([lat, lng], { icon, interactive: false, zIndexOffset: 1000 }).addTo(map);
+    // 現在地まわりの写真を段階的に広げて拾い、最初に2枚以上見つかった円でタイムラインを開く。
+    let list = null, radius = 0;
+    for (const r of [400, 800, 1500, 3000, 6000]) {
+      const l = photosInCircle(lat, lng, r);
+      if (l.length >= 2) { list = l; radius = r; break; }
+    }
+    if (list) openEncircleTimeline(list, { lat, lng, radius });
+    else logInfo(tr('この辺りには、まだ写真がありません（別の場所で試してみてください）', 'No photos around here yet (try another place)'));
+  }, err => {
+    done();
+    logInfo((err && err.code === 1)
+      ? tr('位置情報が許可されていません（設定で許可すると使えます）', 'Location permission is off (allow it in Settings to use this)')
+      : tr('現在地を取得できませんでした', 'Couldn’t get your current location'));
+  }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+}
+
 // 思い出の場所の写真リスト: 保存した円で再計算 (新しく撮った写真も拾う=live)。取れなければ保存済み photoId で解決。
 async function annivPhotoList(a) {
   let list = photosInAnniv(a);
@@ -5911,6 +5951,12 @@ if (LOCATION_AVAILABLE) document.getElementById('btnLogger').addEventListener('c
 else document.getElementById('btnLogger').classList.add('hidden');
 document.getElementById('btnIg').addEventListener('click', () => $igzip.click());
 document.getElementById('btnMap').addEventListener('click', () => openMapView());
+// v153: 「📍 いまの場所」＝ 現在地まわりの思い出タイムラインへ最短で。位置オフ build ではボタンを隠す（許可を求めない）。
+const btnHereEl = document.getElementById('btnHere');
+if (btnHereEl) {
+  if (LOCATION_AVAILABLE) btnHereEl.addEventListener('click', (e) => openHereTimeline(e.currentTarget));
+  else btnHereEl.classList.add('hidden');
+}
 document.getElementById('btnTomorrow').addEventListener('click', () => openMapView(null, { todayOffset: 1 }));   // v124: 過去の明日（明日の月日を数年分）
 document.getElementById('btnTrash').addEventListener('click', openExcludedModal);
 document.getElementById('btnClear').addEventListener('click', async () => {
