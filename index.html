@@ -15,7 +15,8 @@
   header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #111; z-index: 10; }
   header h1 { font-size: 15px; margin: 0; flex: 1; min-width: 0; }
   /* v154: ヘッダ2段化。1段目=タイトル(h1 は flex:1 で伸びて ⚙ を右へ押す)+⚙、2段目=主入口3ボタン。.hdr-primary-row を flex-basis:100% で常に独立行に（BUILD は ⚙ の ℹ️→情報 で確認） */
-  .hdr-primary-row { flex-basis: 100%; display: flex; gap: 6px; flex-wrap: wrap; }
+  .hdr-primary-row { flex-basis: 100%; display: flex; gap: 6px; }
+  .hdr-primary-row .hdr-primary { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }   /* v155: 拡大時も2段目を1行に保つ（均等幅で縮む） */
   header h1 .ver { font-size: 10px; color: #666; font-weight: normal; margin-left: 6px; letter-spacing: 0.5px; }
   header h1 .tag { font-size: 11px; color: #8a8a8a; font-weight: normal; margin-left: 6px; letter-spacing: 0.3px; }
   header .count { font-size: 12px; color: #8bf; margin-right: 4px; }
@@ -378,6 +379,10 @@
   #mmLayers .mc-pop-btn { flex: 1 1 0; min-width: 0; padding: 7px 6px; font-size: 11.5px; text-align: center; white-space: nowrap; }
   .mc-pop-status { font-size: 11px; color: #6ee0a3; margin-top: 8px; min-height: 1.2em; }
   .mc-pop-hint { font-size: 10px; color: #666; margin-top: 10px; line-height: 1.5; }
+  /* v155: 期間絞り込みのクイックボタン（1週間〜3年） */
+  .mc-pop-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .mc-pop-quick .mc-pop-btn { flex: 1 1 auto; padding: 7px 8px; font-size: 12px; }
+  .mc-pop-quicklabel { font-size: 10px; color: #666; margin: 0 0 12px; }
   .mc-help-row { font-size: 12px; color: #ccc; padding: 6px 0; line-height: 1.45; display: flex; gap: 9px; align-items: baseline; }
   .mc-help-row b { flex: 0 0 auto; min-width: 30px; color: #fff; font-weight: 600; }
   .mc-menu-item { display: block; width: 100%; text-align: left; padding: 11px 12px; margin: 6px 0; border: 1px solid #444; border-radius: 8px; background: #2a2a2a; color: #ddd; font-size: 13px; cursor: pointer; }
@@ -577,7 +582,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.107 (v154：📍「いまの場所」を半径選択式に（現在地に円＋スライダー100m〜10kmでライブ枚数・店⇔地域の粒度をユーザーが選ぶ・写真が少ないときは広げる導線＝混乱解消）＋ヘッダ2段化（1段目=タイトル+⚙／2段目=過去の今日・いまの場所・過去の明日）。｜ v153：📍トップに「いまの場所」ボタン ｜ v152：🐛英語UIの間隔ラベル i18n ｜ v151：🗺地図に📍現在地＋囲む→ログ) · 2026-07-07';
+const BUILD = 'phase3.108 (v155：🗺️地図バー再構成（1段目=◀ 🗺過去の今日 ▶ 📅全期間／2段目=🎲 📍 🫧囲んで思い出を見る ⋯表示＝「囲んで思い出を見る」を⋯メニューから地図バーへ昇格・現在地は📍アイコンのみ・◀▶日ナビ維持）＋期間絞り込みにクイックボタン（1週間/1ヶ月/3ヶ月/1年/3年＝今日から遡って）＋ヘッダ拡大時も2段維持（均等幅）。｜ v154：📍「いまの場所」半径選択＋ヘッダ2段 ｜ v153：📍いまの場所 ｜ v152：🐛英語ラベル) · 2026-07-07';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -2865,11 +2870,13 @@ async function openMapView(focusPhoto, opts) {
   overlay.innerHTML =
     `<div id="mapEl"></div>` +
     `<div class="map-ctrlbar">` +
-      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcPrev" title="${tr('前の日（過去の昨日…）', 'Previous day (yesterday in past years…)')}">◀</button><button class="mc-btn mc-icon" id="mcToday" title="${tr('今日（数年分の同じ月日）', 'Today (this date across years)')}">📆</button><button class="mc-btn mc-icon" id="mcNext" title="${tr('次の日（過去の明日…）', 'Next day (tomorrow in past years…)')}">▶</button></div>` +
+      // v155: 1段目=◀ 過去の今日 ▶ 全期間（日ナビ ◀▶ は維持・ユーザー選択）。
+      `<div class="mc-row"><button class="mc-btn mc-icon" id="mcPrev" title="${tr('前の日（過去の昨日…）', 'Previous day (yesterday in past years…)')}">◀</button><button class="mc-btn" id="mcToday" title="${tr('今日＝数年分の同じ月日に戻る', 'Back to today (this date across years)')}">${tr('🗺 過去の今日', '🗺 On This Day')}</button><button class="mc-btn mc-icon" id="mcNext" title="${tr('次の日（過去の明日…）', 'Next day (tomorrow in past years…)')}">▶</button><button class="mc-btn" id="mcFilter">${tr('📅 全期間', '📅 All time')}</button></div>` +
+      // v155: 2段目=🎲 📍(現在地=アイコンのみ) 🫧囲んで思い出を見る（⋯メニューから昇格） ⋯表示。
       `<div class="mc-row"><button class="mc-btn mc-icon" id="mcRoll" title="${tr('偶然の1日', 'A random day')}">🎲</button>` +
-      // v151: 現在地へ移動。位置オフ/スクショ用 build(LOCATION_AVAILABLE=false)では出さない＝位置許可を求めない。
-      (LOCATION_AVAILABLE ? `<button class="mc-btn" id="mcLocate" title="${tr('現在地へ移動', 'Go to my current location')}">${tr('📍 現在地', '📍 Locate')}</button>` : '') +
-      `<button class="mc-btn" id="mcFilter">${tr('📅 全期間', '📅 All time')}</button><button class="mc-btn" id="mcMore">${tr('⋯ 表示', '⋯ View')}</button></div>` +
+      // 現在地へ移動（📍のみ）。位置オフ/スクショ用 build(LOCATION_AVAILABLE=false)では出さない＝位置許可を求めない。
+      (LOCATION_AVAILABLE ? `<button class="mc-btn mc-icon" id="mcLocate" title="${tr('現在地へ移動', 'Go to my current location')}">📍</button>` : '') +
+      `<button class="mc-btn" id="mcEncircle" title="${tr('地図を円で囲んで、その範囲の写真を時系列で見る', 'Encircle an area to see its photos over time')}">${tr('🫧 囲んで思い出を見る', '🫧 Encircle')}</button><button class="mc-btn" id="mcMore">${tr('⋯ 表示', '⋯ View')}</button></div>` +
     `</div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopMore" hidden></div>` +
@@ -3317,6 +3324,8 @@ async function openMapView(focusPhoto, opts) {
   mcNext.addEventListener('click', () => { gotoTodayOffset((mapState.todayOffset || 0) + 1); });               // 次の日へ (過去の明日…) v87
   const mcLocate = overlay.querySelector('#mcLocate');   // v151: 📍 現在地へ移動（位置ありビルドのみ存在）
   if (mcLocate) mcLocate.addEventListener('click', () => flyToCurrentLocation(mcLocate));
+  const mcEncircle = overlay.querySelector('#mcEncircle');   // v155: 🫧 囲んで思い出を見る（⋯メニューから地図バーへ昇格）
+  if (mcEncircle) mcEncircle.addEventListener('click', () => { closePops(); startEncircleMode(); });
   // ───────────────────────────────────────────────────────────────────
 
   function closePops() {
@@ -3361,6 +3370,15 @@ async function openMapView(focusPhoto, opts) {
   // 日付/期間フィルタパネル (date 入力 2つ + 適用 / 全期間)
   popFilter.innerHTML =
     `<div class="mc-pop-title">${tr('日付・期間で絞り込み', 'Filter by date / range')}</div>` +
+    // v155: クイック期間（今日から遡って直近N）。よく使う範囲をワンタップで。
+    `<div class="mc-pop-quick" id="fQuick">` +
+      `<button class="mc-pop-btn" data-days="7">${tr('1週間', '1 week')}</button>` +
+      `<button class="mc-pop-btn" data-days="30">${tr('1ヶ月', '1 month')}</button>` +
+      `<button class="mc-pop-btn" data-days="90">${tr('3ヶ月', '3 months')}</button>` +
+      `<button class="mc-pop-btn" data-days="365">${tr('1年', '1 year')}</button>` +
+      `<button class="mc-pop-btn" data-days="1095">${tr('3年', '3 years')}</button>` +
+    `</div>` +
+    `<div class="mc-pop-quicklabel">${tr('↑ 今日から遡って絞り込み', '↑ From today, going back')}</div>` +
     `<label class="mc-pop-row">${tr('開始', 'From')} <input type="date" id="fFrom"></label>` +
     `<label class="mc-pop-row">${tr('終了', 'To')} <input type="date" id="fTo"></label>` +
     `<div class="mc-pop-actions"><button class="mc-pop-btn" id="fClear">${tr('全期間', 'All time')}</button><button class="mc-pop-btn" id="fAdd">${tr('＋ 追加', '＋ Add')}</button><button class="mc-pop-btn primary" id="fApply">${tr('適用', 'Apply')}</button></div>` +
@@ -3390,6 +3408,18 @@ async function openMapView(focusPhoto, opts) {
     applyFilter();
     closePops();
   });
+
+  // v155: クイック期間ボタン = 今日から遡って直近N日を表示（range=[今日-N, 今日] を「適用」相当で置き換え）。
+  popFilter.querySelectorAll('#fQuick button').forEach(qb => qb.addEventListener('click', () => {
+    const days = +qb.dataset.days;
+    const start = startOfDay(Date.now() - days * 86400000);
+    const end = endOfDay(Date.now());
+    mapState.pickDays = null; mapState.pickMode = null; mapState.focusedDay = null;
+    mapState.range = { start, end };
+    fFrom.value = toInputVal(start); fTo.value = toInputVal(end);
+    applyFilter();
+    closePops();
+  }));
 
   // 「＋ 追加」: いま入力中の日／期間を「重ねて表示する日の集合」(pickDays / 'days') に足す。
   // タイムラインの日付タップ (toggleDayFilter) と同じ状態に集約 → 片方で足した日がもう片方にも反映され、
@@ -3449,7 +3479,7 @@ async function openMapView(focusPhoto, opts) {
   popMore.innerHTML =
     `<div class="mc-pop-title">${tr('表示の設定', 'Display settings')}</div>` +
     `<button class="mc-menu-item" id="mmAnnivLog">${tr('📖 思い出の場所のログ', '📖 Memory place log')}</button>` +   // v128: 常時表示。思い出の場所由来の地図→そのログへ／通常地図→思い出の場所一覧へ
-    `<button class="mc-menu-item" id="mmCompare">${tr('🫧 囲んで思い出を見る', '🫧 Encircle to see memories')}</button>` +   // v120: 円で囲む→左右2リールで「あの頃と今」（v146: 表現を「比べる」→「思い出を見る」に）
+    // v155: 「🫧 囲んで思い出を見る」は地図バーの mcEncircle に昇格したので⋯メニューから削除。
     `<button class="mc-menu-item" id="mmRegister">${tr('📍 この辺りを思い出の場所に登録', '📍 Save this area as a memory place')}</button>` +   // v125: いま見ている地図の範囲を思い出の場所に
     // 位置オフ build (iOS v1) では軌跡まわりのトグルを出さない (v104)。記録が無いので元々空動作。
     (LOCATION_AVAILABLE
@@ -3472,8 +3502,6 @@ async function openMapView(focusPhoto, opts) {
   }
   const mmAnnivLog = popMore.querySelector('#mmAnnivLog');   // v127: 思い出の場所由来の地図 → ログへ戻る
   if (mmAnnivLog) mmAnnivLog.addEventListener('click', () => { closePops(); if (mapState && mapState.anniv) openAnnivTimeline(mapState.anniv); else openAnnivList(); });   // v128: 思い出の場所由来→そのログ／通常地図→思い出の場所一覧
-  const mmCompare = popMore.querySelector('#mmCompare');   // v120: 囲んで比べる = 円ジェスチャを開始
-  mmCompare.addEventListener('click', () => { closePops(); startEncircleMode(); });
   const mmRegister = popMore.querySelector('#mmRegister');   // v125: いま見ている地図の範囲を思い出の場所に登録
   if (mmRegister) mmRegister.addEventListener('click', () => {
     closePops();
