@@ -14,8 +14,8 @@
   body { margin: 0; padding: 0; background: #111; color: #eee; min-height: 100vh; }
   header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #111; z-index: 10; }
   header h1 { font-size: 15px; margin: 0; flex: 1; min-width: 0; }
-  /* 狭い画面ではタイトル+バージョンを独立行にし (BUILD を必ず見せる=iOS キャッシュ確認)、ボタンは下段へ折り返す */
-  @media (max-width: 600px) { header h1 { flex-basis: 100%; } }
+  /* v154: ヘッダ2段化。1段目=タイトル(h1 は flex:1 で伸びて ⚙ を右へ押す)+⚙、2段目=主入口3ボタン。.hdr-primary-row を flex-basis:100% で常に独立行に（BUILD は ⚙ の ℹ️→情報 で確認） */
+  .hdr-primary-row { flex-basis: 100%; display: flex; gap: 6px; flex-wrap: wrap; }
   header h1 .ver { font-size: 10px; color: #666; font-weight: normal; margin-left: 6px; letter-spacing: 0.5px; }
   header h1 .tag { font-size: 11px; color: #8a8a8a; font-weight: normal; margin-left: 6px; letter-spacing: 0.3px; }
   header .count { font-size: 12px; color: #8bf; margin-right: 4px; }
@@ -403,7 +403,7 @@
   .seal-del { flex: 0 0 auto; padding: 5px 12px; border: 1px solid #555; border-radius: 999px; background: #2a2a2a; color: #ddd; font-size: 12px; cursor: pointer; }
   .seal-del:active { opacity: 0.8; }
   /* 狭い画面では閉じる/レイヤ切替(上端の左右)と重なるので1段下げる */
-  @media (max-width: 719px) { .map-ctrlbar { top: 52px; } .mc-pop { top: 128px; } }
+  @media (max-width: 719px) { .map-ctrlbar { top: 52px; } .mc-pop { top: 128px; } .here-panel { top: 128px; } }
   .map-empty-note { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 1100; background: rgba(0,0,0,0.78); color: #ddd; border: 1px solid #444; border-radius: 8px; padding: 8px 14px; font-size: 12px; text-align: center; max-width: 80%; }
 
   /* 写真サムネのマーカー (L.divIcon の中身) */
@@ -414,6 +414,17 @@
   .here-marker::after { content: ''; position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; border-radius: 50%; background: rgba(42,131,255,0.4); transform: translate(-50%,-50%); animation: herePulse 1.8s ease-out infinite; }
   @keyframes herePulse { 0% { transform: translate(-50%,-50%) scale(1); opacity: 0.55; } 100% { transform: translate(-50%,-50%) scale(3.4); opacity: 0; } }
   .mc-btn.locating { opacity: 0.5; }
+  /* v154: 「いまの場所」の半径選択パネル（現在地に円を出し、スライダーで店⇔地域の粒度を選ぶ・ライブ枚数）。位置は mc-pop と同座標 */
+  .here-panel { position: absolute; top: 86px; left: 50%; transform: translateX(-50%); z-index: 1260; width: min(320px, 92vw); background: #1b1b1b; border: 1px solid #33c1b0; border-radius: 14px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); }
+  .here-panel-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .here-panel-title { font-size: 13px; font-weight: 600; color: #eee; }
+  .here-panel .here-cancel { background: #2f3438; color: #fff; border: none; border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
+  .here-radius { width: 100%; accent-color: #33c1b0; margin: 4px 0 8px; }
+  .here-panel-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #bbb; margin-bottom: 10px; }
+  .here-count { color: #6ee0a3; font-weight: 600; }
+  .here-go { width: 100%; padding: 10px; border: 1px solid #2a6; border-radius: 10px; background: #2a6; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .here-go:disabled { opacity: 0.45; background: #333; border-color: #444; cursor: default; }
+  .here-hint { font-size: 11px; color: #e0a05a; margin-top: 8px; line-height: 1.5; }
   /* 位置の由来をマーカー隅の小ドットで示す (v140): 足跡から=teal / 修正=amber */
   .photo-marker.loc-track, .photo-marker.loc-edited { position: relative; }
   .photo-marker.loc-track::after, .photo-marker.loc-edited::after { content: ''; position: absolute; right: -3px; top: -3px; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #1a1a1a; box-shadow: 0 0 2px rgba(0,0,0,0.6); }
@@ -522,12 +533,15 @@
 <header>
   <!-- v128: 写真枚数をタイトル行(h1)に入れて2段に圧縮 → ⚙が2段目に収まる -->
   <h1>あの日 <span class="tag">写真と足跡から蘇る</span> <span class="ver" id="ver"></span> <span class="count" id="count">— 枚</span><span class="count hidden" id="bgStatus"></span></h1>
-  <!-- v113: ヘッダ整理。よく使う「🗺 過去の今日」を主役に、残りは ⚙️ メニューへ ([[ui-minimalism-works]]) -->
-  <button id="btnMap" class="hdr-primary" title="今日の日付の軌跡を数年分まとめて地図で見る（毎日の入口）">🗺 過去の今日</button>
-  <!-- v153: 「いまいる場所」を起点に、現在地まわりの写真を古い順タイムラインで一気に見る主入口（位置ありビルドのみ・JSで出し分け） -->
-  <button id="btnHere" class="hdr-primary" title="いまいる場所のまわりの写真を、古い順のタイムラインで一気に見る">📍 いまの場所</button>
-  <button id="btnTomorrow" class="hdr-primary" title="明日の日付の軌跡を数年分＝明日を計画する前に「過去の明日」を知る">🗺 過去の明日</button>
   <button id="btnMenu" title="メニュー（取り込み・AI・その他）">⚙️</button>
+  <!-- v154: ヘッダを2段に。1段目=タイトル(h1)+⚙、2段目=主入口3ボタン（.hdr-primary-row が flex-basis:100% で常に独立行） -->
+  <div class="hdr-primary-row">
+    <!-- v113: よく使う「🗺 過去の今日」を主役に、残りは ⚙️ メニューへ ([[ui-minimalism-works]]) -->
+    <button id="btnMap" class="hdr-primary" title="今日の日付の軌跡を数年分まとめて地図で見る（毎日の入口）">🗺 過去の今日</button>
+    <!-- v153/154: 「いまいる場所」を起点に、現在地まわりの写真を範囲を選んでタイムラインで見る主入口（位置ありビルドのみ・JSで出し分け） -->
+    <button id="btnHere" class="hdr-primary" title="いまいる場所のまわりの写真を、範囲を選んで古い順のタイムラインで見る">📍 いまの場所</button>
+    <button id="btnTomorrow" class="hdr-primary" title="明日の日付の軌跡を数年分＝明日を計画する前に「過去の明日」を知る">🗺 過去の明日</button>
+  </div>
   <div id="menuDropdown" class="menu-dropdown hidden">
     <button id="btnAdd" class="import-trigger" title="画像を取り込む（ファイル / フォルダ）">📷 取り込む</button>
     <button id="btnAnniv" title="登録した思い出の場所（場所×時間の積層）">📍 思い出の場所</button>
@@ -563,7 +577,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.106 (v153：📍トップに「いまの場所」ボタン＝アプリを開いて最短手順で現在地まわりの写真を古い順タイムラインで一気に見る（囲む操作を省略・段階半径400m→6kmで自動・位置ありビルドのみ）。｜ v152：🐛英語UIの間隔ラベル i18n＝"2.0年 apart"→"2.0 years apart" ｜ v151：🗺地図に「📍現在地」ボタン＋🫧囲んで思い出を見る→ログ(タイムライン) ｜ v150：🛰️Android にも位置ロガー) · 2026-07-07';
+const BUILD = 'phase3.107 (v154：📍「いまの場所」を半径選択式に（現在地に円＋スライダー100m〜10kmでライブ枚数・店⇔地域の粒度をユーザーが選ぶ・写真が少ないときは広げる導線＝混乱解消）＋ヘッダ2段化（1段目=タイトル+⚙／2段目=過去の今日・いまの場所・過去の明日）。｜ v153：📍トップに「いまの場所」ボタン ｜ v152：🐛英語UIの間隔ラベル i18n ｜ v151：🗺地図に📍現在地＋囲む→ログ) · 2026-07-07';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -600,7 +614,7 @@ function applyStaticI18n() {
   set('#btnClear', '🗑 Delete all');
   set('#btnInfo', 'ℹ️ Help & Info');
   setTitle('#btnMap', "See this day's date across past years on the map");
-  setTitle('#btnHere', 'See photos around you now, oldest-first, in one tap');
+  setTitle('#btnHere', 'See photos around you now — choose a range, oldest-first');
   setTitle('#btnTomorrow', "See tomorrow's date across past years on the map");
   setTitle('#btnMenu', 'Menu (import, AI, and more)');
   setTitle('#btnAdd', 'Import photos (files / folders)');
@@ -3986,6 +4000,7 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
 function closeMapView() {
   if (!mapState) return;
   if (mapState.encircle) endEncircleMode();   // v120: 円ジェスチャ中なら後始末してから閉じる
+  if (mapState.hereMode) endHereRadiusMode();   // v154: 「いまの場所」半径選択中なら後始末
   try { mapState.map.remove(); } catch {}
   mapState.overlay.remove();
   mapState = null;
@@ -4405,9 +4420,9 @@ function openEncircleTimeline(list, ci) {
   openAnnivTimeline(transient);
 }
 
-// v153: トップの「📍 いまの場所」＝ アプリを開いて最短手順で「現在地まわりの過去の時系列の思い出」まで行く動線。
-//   囲む操作を省き、現在地を中心に段階的に半径を広げて最初に2枚以上見つかった円で openEncircleTimeline を開く
-//   （密な街なかは近所だけ、疎な土地は自然に広がる＝「いまの場所」の粒度が写真密度に追従）。
+// v153/v154: トップの「📍 いまの場所」＝ アプリを開いて最短手順で「現在地まわりの思い出」まで行く動線。
+//   現在地に寄せて青ドット＋円を出し、v154 で半径をユーザーが選べるようにした（店＝小さく／地域＝大きく）。
+//   スライダーでライブに枚数が見えるので「写真が少ない→広げる」も自明（写真が少ない場合の混乱を解消）。
 //   位置オフ/スクショ用 build(LOCATION_AVAILABLE=false)ではボタン自体を出さない＝位置許可を求めない。
 async function openHereTimeline(btn) {
   if (!LOCATION_AVAILABLE) return;
@@ -4425,20 +4440,88 @@ async function openHereTimeline(btn) {
     if (mapState.hereMarker) { try { map.removeLayer(mapState.hereMarker); } catch {} }
     const icon = L.divIcon({ className: 'here-marker-wrap', html: '<div class="here-marker"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
     mapState.hereMarker = L.marker([lat, lng], { icon, interactive: false, zIndexOffset: 1000 }).addTo(map);
-    // 現在地まわりの写真を段階的に広げて拾い、最初に2枚以上見つかった円でタイムラインを開く。
-    let list = null, radius = 0;
-    for (const r of [400, 800, 1500, 3000, 6000]) {
-      const l = photosInCircle(lat, lng, r);
-      if (l.length >= 2) { list = l; radius = r; break; }
-    }
-    if (list) openEncircleTimeline(list, { lat, lng, radius });
-    else logInfo(tr('この辺りには、まだ写真がありません（別の場所で試してみてください）', 'No photos around here yet (try another place)'));
+    // v154: 自動で開かず、半径をユーザーに選ばせる（円＋スライダー＋ライブ枚数）。
+    enterHereRadiusMode(lat, lng);
   }, err => {
     done();
     logInfo((err && err.code === 1)
       ? tr('位置情報が許可されていません（設定で許可すると使えます）', 'Location permission is off (allow it in Settings to use this)')
       : tr('現在地を取得できませんでした', 'Couldn’t get your current location'));
   }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+}
+
+// v154: 現在地を中心に半径を選ぶモード。円＋スライダー（100m〜10km・対数）＋ライブ枚数。
+//   2枚以上で「この範囲で見る」→ openEncircleTimeline。初期半径＝2枚以上入る最小（開いた瞬間に写真が見える＋調整可）。
+const HERE_MIN_R = 100, HERE_MAX_R = 10000;
+const hereSliderToRadius = (v) => Math.round(HERE_MIN_R * Math.pow(HERE_MAX_R / HERE_MIN_R, Math.max(0, Math.min(100, v)) / 100));
+const hereRadiusToSlider = (r) => Math.round(100 * Math.log(r / HERE_MIN_R) / Math.log(HERE_MAX_R / HERE_MIN_R));
+function enterHereRadiusMode(lat, lng) {
+  if (!mapState) return;
+  endHereRadiusMode();
+  const { map, overlay } = mapState;
+  if (mapState.closePops) mapState.closePops();
+
+  // 初期半径＝2枚以上入る最小（無ければ 1km から「広げてみて」状態で始まる）
+  let initR = 1000;
+  for (const r of [400, 800, 1500, 3000, 6000, 10000]) {
+    if (photosInCircle(lat, lng, r).length >= 2) { initR = r; break; }
+  }
+  const circle = L.circle([lat, lng], { radius: initR, color: '#33c1b0', weight: 2, fillColor: '#33c1b0', fillOpacity: 0.12 }).addTo(map);
+
+  const panel = document.createElement('div');
+  panel.className = 'here-panel';
+  panel.innerHTML =
+    `<div class="here-panel-top"><span class="here-panel-title">📍 ${tr('いまの場所の思い出', 'Memories around here')}</span><button class="here-cancel" type="button">${tr('やめる', 'Cancel')}</button></div>` +
+    `<input type="range" class="here-radius" min="0" max="100" step="1" aria-label="${tr('半径', 'Radius')}">` +
+    `<div class="here-panel-row"><span class="here-rlabel"></span><span class="here-count"></span></div>` +
+    `<button class="here-go" type="button">${tr('この範囲で見る', 'See this range')}</button>` +
+    `<div class="here-hint"></div>`;
+  overlay.appendChild(panel);
+
+  const slider = panel.querySelector('.here-radius');
+  const rlabel = panel.querySelector('.here-rlabel');
+  const countEl = panel.querySelector('.here-count');
+  const goBtn = panel.querySelector('.here-go');
+  const hint = panel.querySelector('.here-hint');
+  slider.value = hereRadiusToSlider(initR);
+
+  const fmtR = (r) => (r >= 1000)
+    ? tr(`半径 ${(r / 1000).toFixed(r % 1000 === 0 ? 0 : 1)}km`, `${(r / 1000).toFixed(r % 1000 === 0 ? 0 : 1)} km radius`)
+    : tr(`半径 ${r}m`, `${r} m radius`);
+
+  function refresh() {
+    const r = hereSliderToRadius(+slider.value);
+    circle.setRadius(r);
+    const n = photosInCircle(lat, lng, r).length;
+    rlabel.textContent = fmtR(r);
+    countEl.textContent = tr(`${n}枚`, `${n} photos`);
+    const ok = n >= 2;
+    goBtn.disabled = !ok;
+    hint.textContent = ok ? ''
+      : (n === 1 ? tr('この範囲には写真が1枚だけ。スライダーを右にして広げてみて。', 'Only 1 photo in this range. Slide right to widen it.')
+                 : tr('この範囲には写真がありません。スライダーを右にして広げてみて。', 'No photos in this range. Slide right to widen it.'));
+  }
+  slider.addEventListener('input', refresh);
+  slider.addEventListener('change', () => { try { map.fitBounds(circle.getBounds(), { padding: [60, 60], maxZoom: 16, animate: true }); } catch {} });
+  goBtn.addEventListener('click', () => {
+    const r = hereSliderToRadius(+slider.value);
+    const list = photosInCircle(lat, lng, r);
+    if (list.length < 2) return;
+    endHereRadiusMode();
+    openEncircleTimeline(list, { lat, lng, radius: r });
+  });
+  panel.querySelector('.here-cancel').addEventListener('click', endHereRadiusMode);
+
+  mapState.hereMode = { panel, circle };
+  refresh();
+  try { map.fitBounds(circle.getBounds(), { padding: [60, 60], maxZoom: 16, animate: true }); } catch {}
+}
+function endHereRadiusMode() {
+  if (!mapState || !mapState.hereMode) return;
+  const hm = mapState.hereMode;
+  try { if (hm.circle) mapState.map.removeLayer(hm.circle); } catch {}
+  try { hm.panel.remove(); } catch {}
+  mapState.hereMode = null;
 }
 
 // 思い出の場所の写真リスト: 保存した円で再計算 (新しく撮った写真も拾う=live)。取れなければ保存済み photoId で解決。
