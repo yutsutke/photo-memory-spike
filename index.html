@@ -582,7 +582,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.108 (v155：🗺️地図バー再構成（1段目=◀ 🗺過去の今日 ▶ 📅全期間／2段目=🎲 📍 🫧囲んで思い出を見る ⋯表示＝「囲んで思い出を見る」を⋯メニューから地図バーへ昇格・現在地は📍アイコンのみ・◀▶日ナビ維持）＋期間絞り込みにクイックボタン（1週間/1ヶ月/3ヶ月/1年/3年＝今日から遡って）＋ヘッダ拡大時も2段維持（均等幅）。｜ v154：📍「いまの場所」半径選択＋ヘッダ2段 ｜ v153：📍いまの場所 ｜ v152：🐛英語ラベル) · 2026-07-07';
+const BUILD = 'phase3.109 (v156：🗺️地図バー2段目を1行に＝「🫧 囲んで思い出を見る」を「🫧 囲んで見る」に短縮（スマホ縦で2段目が3段に折り返すのを解消・フル説明はツールチップ）。｜ v155：地図バー再構成（囲むをバーへ昇格・並び替え・現在地📍のみ）＋期間クイックボタン ｜ v154：📍「いまの場所」半径選択＋ヘッダ2段 ｜ v153：📍いまの場所) · 2026-07-07';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -2876,7 +2876,7 @@ async function openMapView(focusPhoto, opts) {
       `<div class="mc-row"><button class="mc-btn mc-icon" id="mcRoll" title="${tr('偶然の1日', 'A random day')}">🎲</button>` +
       // 現在地へ移動（📍のみ）。位置オフ/スクショ用 build(LOCATION_AVAILABLE=false)では出さない＝位置許可を求めない。
       (LOCATION_AVAILABLE ? `<button class="mc-btn mc-icon" id="mcLocate" title="${tr('現在地へ移動', 'Go to my current location')}">📍</button>` : '') +
-      `<button class="mc-btn" id="mcEncircle" title="${tr('地図を円で囲んで、その範囲の写真を時系列で見る', 'Encircle an area to see its photos over time')}">${tr('🫧 囲んで思い出を見る', '🫧 Encircle')}</button><button class="mc-btn" id="mcMore">${tr('⋯ 表示', '⋯ View')}</button></div>` +
+      `<button class="mc-btn" id="mcEncircle" title="${tr('地図を円で囲んで、その範囲の写真を時系列で見る', 'Encircle an area to see its photos over time')}">${tr('🫧 囲んで見る', '🫧 Encircle')}</button><button class="mc-btn" id="mcMore">${tr('⋯ 表示', '⋯ View')}</button></div>` +
     `</div>` +
     `<div class="mc-pop" id="mcPopFilter" hidden></div>` +
     `<div class="mc-pop" id="mcPopMore" hidden></div>` +
