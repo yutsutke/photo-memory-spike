@@ -5,6 +5,30 @@
 
 ---
 
+## v165 — 🎞️ 重ね撮り実機FB第4周（アイコン・「撮り重ねる」・カメラ全画面・アイコン長押し動線） (2026-07-09)
+
+**背景（実機FB 4点）**
+- ユーザー要望: ①**アプリアイコン長押し→重ね撮りへの動線**②📐を「重ねる」を意識したアイコンに③「また撮る」の言い換え（撮り重ねる/重ねる）④撮影時は**カメラを前面に・できるだけ大きな画面で**（ボタンはアイコン化・スライダーも写真に重ねる・上下分割も大きく2枚）。
+- アイコン=**🎞️（フィルム=時間のコマが重なる）**・文言=**「撮り重ねる」**をユーザー選択（AskUserQuestion）。
+
+**設計判断**
+- **アイコン置換は UI 表示文字列のみ**（約14箇所）。コード識別子（`rephoto*`/`.repho-*`）と歴史コメントの 📐 は不変＝grep 可能な履歴を保つ。英語は Shoot again 系→ **Layer a shot (at this angle)**。
+- **カメラ全画面化＝レイアウトだけの再構成**。`.repho-cam` の flex 3段（head/stage/ctrl）を廃止し stage を `inset:0`。✕（右上）・⊟⊞⏱🔄（左上の 42px アイコン円ボタン）・スライダー＋シャッター（下部グラデ）を映像の上にオーバーレイ。**fit/updateGuide/updateGrid/doRephotoCapture の数式は無改修**（v162-164 で実機検証済みの資産に触れない）。ヘッダ題名は削除＝ゴースト自体が文脈（[[ui-minimalism-works]]）。
+- 上下分割中は透明度スライダーを `visibility:hidden`（display でなく場所を保つ＝モード切替でシャッターがガタつかない）。タイマー表示は円内に `⏱/3s/10s`。分割時の📷いまタグはツール円の下（top 62px）へ。
+- **Quick Action は「static shortcut ＋ UserDefaults drain」の最小構成**。自前 micro-plugin `app-shortcuts`（`getPending` drain ＋ `shortcut` イベント＝BgLoc と同型・SPM 名一致 AppShortcuts）＋ AppDelegate `performActionFor`（pending 書き込み＋Notification）＋ Info.plist `UIApplicationShortcutItems`（type=rephoto・SF Symbol **square.stack.3d.up**・題名 InfoPlist.strings ja「重ね撮り」/en「Layered Shots」）。**コールド起動は `restLoadPromise`（全件追い読み完了）を待って `openRephotoList()`**＝シリーズ欠けの一覧を見せない。温かい復帰の取りこぼし保険に visibilitychange でも drain。**Android は Play 提出時に同契約で追加**（プラグイン不在なら AppSC=null で全て無効＝web/Android 不変）。
+- CapApp-SPM/Package.swift は**バニラのままコミット**が本リポの規約（CI の `cap sync ios` が既存2プラグインも注入している）＝ローカル sync 不要と確認して従った。
+
+**結果 / 観察（preview E2E 全green・console 0）**
+- 偽カメラ（canvas.captureStream・今回は videoWidth=480×640 を報告）で実経路 E2E: ステージ**全画面 [0,0,375,812]**・ゴースト時フレーム=3:4 最大内接 375×500・ツール4円ボタン⊟⊞⏱🔄＋✕の座標・下部グラデ内スライダー288px＋シャッター68px。**上下分割=フレーム全画面 812px・スライダー visibility:hidden・グリッドが各写真の contain box（305×406×上下）にフィット**・タイマー 3s→10s→⏱・⏱3秒→カウントダウン「3」→撮影→`rephotoOf` ひも付け→シリーズ「🎞️ 重ね撮り」（2枚・ボタン「🎞️ 撮り重ねる」）→一覧1行。掃除=dbClear・リロード後 console 0。
+- **実機確認が次**: web=Safari で全画面カメラの手触り／native=**1.5 ビルド（build 38〜）**で ①カメラが WKWebView で出るか（1.5(37) の宿題）②アイコン長押し→重ね撮り一覧。
+
+**残課題 / 次の方向**
+- Quick Action の実機確認は次の Codemagic ビルド（1.5 train・自動採番）から。1.5(37) には**入っていない**。
+- Android の Quick Action（shortcuts.xml + intent）と CAMERA 権限は Play 提出トラックで。
+- 次段候補（変わらず）: 重ねてスライダー再生・最初の基準をアプリ内カメラで撮る導線・シリーズ削除/写真の取り外し。
+
+---
+
 ## native — iOS MARKETING_VERSION 1.4→1.5 ＋ カメラ権限（重ね撮りをアプリ内で動かす準備） (2026-07-08)
 
 **背景**

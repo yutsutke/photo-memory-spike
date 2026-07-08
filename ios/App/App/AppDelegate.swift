@@ -33,6 +33,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
+    // v165: ホーム画面のアプリアイコン長押し（Quick Action・Info.plist の UIApplicationShortcutItems）
+    //   → 🎞️ 重ね撮りへの動線。pending を UserDefaults に書き（コールド起動は JS が初期化後に drain）、
+    //   起動中なら Notification 経由で AppShortcutsPlugin が即 JS へ配信する。
+    //   キー/通知名は AppShortcutsPlugin と同じ文字列リテラル（App target からローカル SPM の import を増やさない）。
+    func application(_ application: UIApplication, performActionFor shortcutItem: UIApplicationShortcutItem, completionHandler: @escaping (Bool) -> Void) {
+        UserDefaults.standard.set(shortcutItem.type, forKey: "pms_shortcut_pending")
+        NotificationCenter.default.post(name: Notification.Name("AppShortcutTapped"), object: nil, userInfo: ["type": shortcutItem.type])
+        completionHandler(true)
+    }
+
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
         // Called when the app was launched with a url. Feel free to add additional processing here,
         // but if you want the App API to support tracking app url opens, make sure to keep this call

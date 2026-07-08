@@ -74,5 +74,20 @@
 	<array>
 		<string>location</string>
 	</array>
+	<!-- v165: ホーム画面のアイコン長押し（Quick Action）→ 🎞️ 重ね撮り一覧へ直行。static shortcut。
+	     タイトルは InfoPlist.strings(ja/en) の "ShortcutRephotoTitle" で解決。アイコンは SF Symbol
+	     の square.stack.3d.up（四角が重なる図案＝重ね）。JS への橋渡しは AppDelegate + app-shortcuts
+	     プラグイン（local-plugins）。経緯は CHANGELOG v165。 -->
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>rephoto</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>ShortcutRephotoTitle</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>square.stack.3d.up</string>
+		</dict>
+	</array>
 </dict>
 </plist>

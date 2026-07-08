@@ -7,3 +7,6 @@
 "NSCameraUsageDescription" = "同じ角度の写真を時間を空けて重ねて撮る「重ね撮り」でカメラを使います。撮った写真は端末内だけで扱い、外部に送信することはありません。";
 "NSLocationWhenInUseUsageDescription" = "その日の軌跡をあとから振り返り、思い出を呼び起こすために、アプリの利用中に位置情報を記録します。位置情報は端末内だけに保存し、外部に送信することはありません。";
 "NSLocationAlwaysAndWhenInUseUsageDescription" = "アプリを閉じている間も、その日の移動の軌跡をそっと記録して、あとから「久しぶりの記憶」を思い出として振り返れるようにします（「位置ロガー」をオンにした時だけ）。位置情報は端末内だけに保存し、外部に送信することはありません。";
+
+/* Home-screen quick action (long-press app icon) — v165 */
+"ShortcutRephotoTitle" = "重ね撮り";

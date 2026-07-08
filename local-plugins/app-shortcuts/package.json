@@ -1,0 +1,25 @@
+{
+  "name": "app-shortcuts",
+  "version": "0.0.1",
+  "description": "Local Capacitor plugin: home-screen quick action (long-press app icon) → JS. iOS only for now; Android app shortcuts to be added with the Play release. For 'photo-memory-spike' (あの日).",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "ios/Sources",
+    "Package.swift"
+  ],
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native",
+    "quick-actions"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  }
+}
