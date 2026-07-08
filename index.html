@@ -588,7 +588,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.111 (v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に ｜ v155：地図バー再構成＋期間クイック ｜ v154：📍いまの場所 半径選択＋ヘッダ2段) · 2026-07-08';
+const BUILD = 'phase3.112 (v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に ｜ v155：地図バー再構成＋期間クイック ｜ v154：📍いまの場所 半径選択＋ヘッダ2段) · 2026-07-08';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -3799,9 +3799,9 @@ async function openMapView(focusPhoto, opts) {
 // v148: 地図タイムラインの写真モード＝全可視写真を時系列グリッド(月見出し・タップで全画面スワイプ)。
 // 思い出ログの写真グリッドと同じ見た目(.atl-grid)。all は新しい→古い順。
 // v158: groupBy='day' で日見出し(食べ物レンズの日ごとモード)。既定 'month' は従来どおり(地図タイムラインは無改修)。
-function buildTimelinePhotos(container, all, groupBy) {
+function buildTimelinePhotos(container, all, groupBy, big) {
   const byDay = groupBy === 'day';
-  const grid = document.createElement('div'); grid.className = 'atl-grid tl-photos';
+  const grid = document.createElement('div'); grid.className = 'atl-grid tl-photos' + (big ? ' big' : '');   // v159: big=2列(大きく)
   let cur = '';
   all.forEach(p => {
     const d = p.datetime;
@@ -4152,7 +4152,8 @@ function endEncircleMode() {
 // 左右2リール (縦 scroll-snap) の比較ビュー。同じ円内写真を左右独立にスクラブ＝片方を止めて見比べる。
 // 初期は 左=いちばん古い / 右=いちばん新しい ＝「あの頃」と「今」を最初から対面させる。
 let compareState = null;
-function openCompareView(list, circleInfo, canRegister, anniv) {
+function openCompareView(list, circleInfo, canRegister, anniv, opts) {
+  opts = opts || {};   // v159: 食べ物レンズ等から場所文脈なしで呼ぶ用（title 差し替え・足跡地図ボタン抑止）
   if (!list || list.length < 2) return;
   if (compareState) closeCompareView();
   const a = list[0].datetime, b = list[list.length - 1].datetime;
@@ -4162,9 +4163,9 @@ function openCompareView(list, circleInfo, canRegister, anniv) {
   overlay.className = 'compare-overlay';
   overlay.innerHTML =
     `<div class="cmp-header">` +
-      `<div class="cmp-title">${tr('この場所の、あの頃と今', 'This place, then and now')}<span class="cmp-sub"> · ${tr(`${list.length}枚`, `${list.length} photos`)} · ${span}</span></div>` +
+      `<div class="cmp-title">${opts.title ? annivEsc(opts.title) : tr('この場所の、あの頃と今', 'This place, then and now')}<span class="cmp-sub"> · ${tr(`${list.length}枚`, `${list.length} photos`)} · ${span}</span></div>` +
       `<div class="cmp-head-btns">` +
-        `<button class="cmp-tripmap" type="button">${tr('🗺 足跡の地図', '🗺 Footprint map')}</button>` +   // v124: 比較からも足跡の地図へ
+        (opts.hideTripMap ? '' : `<button class="cmp-tripmap" type="button">${tr('🗺 足跡の地図', '🗺 Footprint map')}</button>`) +   // v124: 比較からも足跡の地図へ（v159: food は場所文脈外なので隠す）
         (anniv ? `<button class="cmp-log" type="button">${tr('📖 ログ', '📖 Log')}</button>` : '') +   // v127: 思い出の場所由来なら ログへ
         ((circleInfo && canRegister) ? `<button class="cmp-anniv" type="button">${tr('📍 思い出の場所に登録', '📍 Save as memory place')}</button>` : '') +   // v121: 円を名前付き保存 (未登録の時だけ)
         `<button class="cmp-close" type="button">✕</button>` +
@@ -4189,7 +4190,8 @@ function openCompareView(list, circleInfo, canRegister, anniv) {
   compareState = { overlay, circleInfo, anniv: anniv || null };
   overlay.querySelector('.cmp-close').addEventListener('click', closeCompareView);
   const tripDayKeys = [...new Set(list.map(dayKeyOf))];   // v124: この一帯の全訪問日
-  overlay.querySelector('.cmp-tripmap').addEventListener('click', () => { closeCompareView(); showTripsMap(tripDayKeys, anniv || null); });
+  const tmBtn = overlay.querySelector('.cmp-tripmap');
+  if (tmBtn) tmBtn.addEventListener('click', () => { closeCompareView(); showTripsMap(tripDayKeys, anniv || null); });   // v159: hideTripMap 時はボタン無し
   const logBtn = overlay.querySelector('.cmp-log');   // v127: 比較 → 思い出の場所ログ
   if (logBtn) logBtn.addEventListener('click', () => { closeCompareView(); openAnnivTimeline(anniv); });
   const annivBtn = overlay.querySelector('.cmp-anniv');
@@ -5948,6 +5950,16 @@ let foodLensState = null;   // { overlay, phase, photos, loadMsg, loadPct }
 
 function closeFoodLens() { if (foodLensState) { foodLensState.overlay.remove(); foodLensState = null; } }
 
+// v159: 食べ物レンズから「⇆ 比べる」。食べ物レンズ(z1900)は開いたまま比較(z4000)を上に重ねる
+// →比較を閉じると食べ物レンズに戻る（思い出の場所は timeline z5000 で閉じる必要があるが food は不要）。
+// 足跡の地図ボタンは食べ物では場所文脈外＋z順問題(map z150 が food z1900 の下)なので hideTripMap で隠す。
+function openFoodCompare() {
+  if (!foodLensState) return;
+  const list = (foodLensState.photos || []).slice().reverse();   // 昔→今（compare は先頭=最古/末尾=最新を左右に置く）
+  if (list.length < 2) { logInfo(tr('比べるには写真が2枚以上必要です', 'Need at least 2 photos to compare')); return; }
+  openCompareView(list, null, false, null, { hideTripMap: true, title: tr('🍜 食べ物を見比べる', '🍜 Compare food') });
+}
+
 async function openFoodLens() {
   closeFoodLens();
   const overlay = document.createElement('div');
@@ -6026,17 +6038,25 @@ function renderFoodLens() {
   }
   // ready
   const photos = foodLensState.photos;
-  const bar = document.createElement('div'); bar.className = 'food-note food-count';
-  bar.textContent = tr(`🍜 食べ物 ${photos.length.toLocaleString()}枚（新しい順）`, `🍜 ${photos.length.toLocaleString()} food photo${photos.length === 1 ? '' : 's'} (newest first)`);
-  body.appendChild(bar);
   if (!photos.length) {
-    const em = document.createElement('div'); em.className = 'food-note';
-    em.textContent = tr('食べ物の写真が見つかりませんでした。（解析済みの写真から探しています）', 'No food photos found. (Searching among analyzed photos.)');
+    const em = document.createElement('div'); em.className = 'food-note food-count';
+    em.textContent = tr('🍜 食べ物の写真が見つかりませんでした。（解析済みの写真から探しています）', '🍜 No food photos found. (Searching among analyzed photos.)');
     body.appendChild(em);
     return;
   }
-  // v158: 月ごと / 日ごと 切替（既定=月ごと＝ユーザーが「使い道ある」と言った現状。日ごと＝「その日に食べたもの」がまとまる）
   const gb = foodLensState.groupBy || 'month';
+  const big = !!foodLensState.gridBig;
+  // v159: 思い出の場所と同じ写真バー（枚数 ＋ ⇆比べる ＋ 大きく/小さく）＝.atl-photobar 再利用
+  const pbar = document.createElement('div'); pbar.className = 'atl-photobar';
+  pbar.innerHTML = `<span>🍜 ${tr(`${photos.length.toLocaleString()}枚（新しい順）`, `${photos.length.toLocaleString()} · newest first`)}</span>` +
+    `<span class="atl-photobar-btns">` +
+      `<button class="atl-cmp" type="button">${tr('⇆ 比べる', '⇆ Compare')}</button>` +
+      `<button class="atl-size" type="button">${big ? tr('⊞ 小さく', '⊞ Smaller') : tr('⊡ 大きく', '⊡ Bigger')}</button>` +
+    `</span>`;
+  body.appendChild(pbar);
+  pbar.querySelector('.atl-cmp').addEventListener('click', openFoodCompare);
+  pbar.querySelector('.atl-size').addEventListener('click', () => { if (foodLensState) { foodLensState.gridBig = !big; renderFoodLens(); } });
+  // v158: 月ごと / 日ごと 切替（既定=月ごと＝ユーザーが「使い道ある」と言った現状。日ごと＝「その日に食べたもの」がまとまる）
   const modeBar = document.createElement('div'); modeBar.className = 'atl-modebar';
   modeBar.innerHTML =
     `<button data-g="month" class="atl-mode${gb === 'month' ? ' on' : ''}" type="button">📅 ${tr('月ごと', 'By month')}</button>` +
@@ -6047,7 +6067,7 @@ function renderFoodLens() {
     foodLensState.groupBy = b.dataset.g;
     renderFoodLens();   // photos は算出済み → 再分類せず並べ替えのみ（即時）
   }));
-  buildTimelinePhotos(body, photos, gb);   // 月/日見出し＋タップで全画面スワイプ (既存・新→古)
+  buildTimelinePhotos(body, photos, gb, big);   // 月/日見出し＋big=2列＋タップで全画面スワイプ (既存・新→古)
 }
 
 // 意味解析 (CLIP) のサンプル上限 (v27, ユーザー案「1万超えたらランダム間引き」)。
