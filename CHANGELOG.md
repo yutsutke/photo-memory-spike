@@ -5,6 +5,23 @@
 
 ---
 
+## native — iOS MARKETING_VERSION 1.4→1.5 ＋ カメラ権限（重ね撮りをアプリ内で動かす準備） (2026-07-08)
+
+**背景**
+- 重ね撮り(v161-164)を実機 Safari で確認→良好。**アプリ内でも動かすため 1.5 ビルドを回す**（ユーザーが Codemagic 実行）。1.4(35) は審査中＝train が閉じている→新ビルドは **1.5** へ（同 1.4 だと Codemagic Publishing が 90186/90062 で失敗＝v148 の実例）。
+
+**やったこと**
+- `MARKETING_VERSION` **1.4→1.5**（Debug/Release 両方・pbxproj）。
+- Info.plist に **`NSCameraUsageDescription`**（日本語ベース）＋ ja/en InfoPlist.strings にロケール別の用途文言（写真/位置と同じ流儀）。用途＝「重ね撮り」でカメラを使う・端末内のみ・外部送信なし。
+- **web app は不変**（BUILD 据え置き `phase3.117`）。
+
+**残課題 / 次の方向（実機ビルドで確定）**
+- ⚠️ Capacitor WKWebView の `getUserMedia` は、iOS 15+ で `WKUIDelegate.webView(_:requestMediaCapturePermissionFor:…)` の実装が要る場合がある。**Info.plist のカメラ用途文言は必要条件だが、それだけで WKWebView がカメラを許可するとは限らない** → **TestFlight 実機で「📐 重ね撮り」を開いてカメラ映像が出るか確認**。出なければ Capacitor の WebView 設定 or カスタム `WKUIDelegate` で許可を橋渡し（次の一手）。
+- Android のカメラ権限（Manifest `CAMERA`＋WebView 権限橋渡し）は別トラック（未着手）。
+- 将来 1.5 を審査提出する時、カメラ用途も審査対象に（写真/位置と同様に用途文言で説明）。
+
+---
+
 ## v164 — 📐 重ね撮りカメラの実機FB（セルフタイマー・グリッド線を写真にフィット・上下両方・2段UI） (2026-07-08)
 
 **背景（実機スクショ＋FB 4点）**

@@ -56,6 +56,12 @@
 	<string>あなたの写真から「久しぶりの記憶」をそっと呼び起こすために、写真ライブラリを読み込みます。写真は端末内だけで処理し、外部に送信することはありません。</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>取り込んだ画像を、あなたが選んだときだけ写真ライブラリへ保存します。</string>
+	<!-- 1.5: 「重ね撮り」(v161-164) でアプリ内カメラ(getUserMedia)を使う。同じ角度を時間を空けて
+	     重ねて撮り、変化を振り返る機能。撮影は端末内だけで扱い外部送信なし。文言はロケール別に
+	     InfoPlist.strings(ja/en) が上書き。⚠Capacitor WKWebView の getUserMedia は WKUIDelegate の
+	     requestMediaCapturePermissionFor 対応が要る場合あり＝実機ビルドで初めて確定。経緯は CHANGELOG v161/v164。 -->
+	<key>NSCameraUsageDescription</key>
+	<string>同じ角度の写真を時間を空けて重ねて撮る「重ね撮り」でカメラを使います。撮った写真は端末内だけで扱い、外部に送信することはありません。</string>
 	<!-- 1.2: 位置ロガー復活（ロードマップ②前半）。v104-106 で初回審査用に外していた位置宣言＋
 	     background-location プラグインを戻した（NATIVE_LOCATION=true とセット）。文言はロケール別に
 	     InfoPlist.strings(ja/en) が上書き。位置は端末内保存のみ＝外部送信なし（Privacy manifest は

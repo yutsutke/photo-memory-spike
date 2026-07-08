@@ -4,5 +4,6 @@
 /* Permission dialogs (English locale) — base Info.plist values are Japanese */
 "NSPhotoLibraryUsageDescription" = "A Past Day reads your photo library to gently bring back long-forgotten memories. Photos are processed only on this device and never leave it.";
 "NSPhotoLibraryAddUsageDescription" = "Saves imported images to your photo library only when you choose to.";
+"NSCameraUsageDescription" = "A Past Day uses the camera for “layered shots” — re-taking the same angle over time to see how things change. Photos stay on this device and are never sent anywhere.";
 "NSLocationWhenInUseUsageDescription" = "While you use the app, A Past Day records your location so you can later retrace the day's path and revive memories. Location data stays on this device and is never sent anywhere.";
 "NSLocationAlwaysAndWhenInUseUsageDescription" = "Even while the app is closed, A Past Day quietly records the day's path — only while the location logger is turned on — so you can look back on it later. Location data stays on this device and is never sent anywhere.";
