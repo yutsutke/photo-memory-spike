@@ -278,6 +278,15 @@
   .repho-tag-ref { top: calc(50% + 9px); }
   .repho-frame.split .repho-tag { display: block; }
   .repho-guide { display: none; position: absolute; left: 50%; top: 25%; transform: translate(-50%, -50%); border: 1.5px dashed rgba(255,255,255,0.65); border-radius: 4px; z-index: 2; pointer-events: none; }
+  /* v163: グリッド線（3×3・トグル）。分割時はカメラ(上半分)だけに */
+  .repho-grid { display: none; position: absolute; inset: 0; z-index: 2; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px); background-size: 100% 33.334%, 33.334% 100%; background-position: 0 -1px, -1px 0; }
+  .repho-grid.on { display: block; }
+  .repho-frame.split .repho-grid { height: 50%; }
+  /* v163: 📐 重ね撮り一覧（⚙メニューから） */
+  .rp-row { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid #222; cursor: pointer; }
+  .rp-row img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; flex: 0 0 auto; background: #000; }
+  .rp-row .rp-name { color: #fff; font-size: 15px; font-weight: 700; }
+  .rp-row .rp-meta { color: #8a8a8a; font-size: 12px; margin-top: 3px; }
   .repho-err { color: #f88; font-size: 13px; text-align: center; padding: 24px 18px; line-height: 1.7; }
   .repho-ctrl { flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); background: rgba(10,10,10,0.9); }
   .repho-opacity { display: flex; align-items: center; gap: 10px; color: #aaa; font-size: 12px; }
@@ -594,9 +603,10 @@
   <div id="menuDropdown" class="menu-dropdown hidden">
     <button id="btnAdd" class="import-trigger" title="画像を取り込む（ファイル / フォルダ）">📷 取り込む</button>
     <button id="btnAnniv" title="登録した思い出の場所（場所×時間の積層）">📍 思い出の場所</button>
+    <button id="btnRepho" title="重ね撮り：同じ角度を時間を空けて重ねた写真の一覧">📐 重ね撮り</button>
     <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦 SNS の zip から取り込む</button>
     <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠 AI で意味の近傍（β）</button>
-    <button id="btnLens" title="意味で写真を探す（食べ物・風景・人・ペット／言葉／写真から）日別・時系列で（AI 意味解析を利用）">🔍 意味で探す</button>
+    <button id="btnLens" title="食べ物の写真だけを時系列で振り返る（AI 意味解析を利用）">🍜 食べ物を振り返る</button>
     <button id="btnLogger" title="位置ロガー：開いている間だけ軌跡を記録">🛰️ 位置ロガー</button>
     <button id="btnTrash" class="hidden" title="削除（除外）した写真を戻す">♻️ 削除した写真を戻す</button>
     <button id="btnClear" title="全削除">🗑 全削除</button>
@@ -627,7 +637,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.115 (v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に ｜ v155：地図バー再構成＋期間クイック ｜ v154：📍いまの場所 半径選択＋ヘッダ2段) · 2026-07-08';
+const BUILD = 'phase3.116 (v163：📐重ね撮りを一級化＋⊞グリッド線＋🍜食べ物だけに（実機FB3点）＝①カメラに3×3グリッド線トグル②重ね撮り=⚙メニューに一覧・タイトル(✏)・🎯基準日(N日前/N日後)・日ごとメモ・📖ログ/🖼写真切替＝思い出の場所と同じ手触り(メタはroot写真レコードのrpTitle/rpBaseDate/rpNotes=スキーマレス・DB移行なし)③意味レンズのUIを「🍜食べ物を振り返る」だけに(チップ/言葉/写真検索は撤去・機構は残置)。｜ v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に ｜ v155：地図バー再構成＋期間クイック ｜ v154：📍いまの場所 半径選択＋ヘッダ2段) · 2026-07-08';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -659,7 +669,8 @@ function applyStaticI18n() {
   set('#btnAnniv', '📍 Memory places');
   set('#btnIg', '📦 Import from SNS zip');
   set('#btnAI', '🧠 AI: nearby by meaning (beta)');
-  set('#btnLens', '🔍 Search by meaning');
+  set('#btnRepho', '📐 Layered shots');
+  set('#btnLens', '🍜 Food memories');
   set('#btnLogger', '🛰️ Location logger');
   set('#btnTrash', '♻️ Restore deleted');
   set('#btnClear', '🗑 Delete all');
@@ -672,7 +683,8 @@ function applyStaticI18n() {
   setTitle('#btnAnniv', 'Saved memory places (place × time)');
   setTitle('#btnIg', 'Import from Instagram / X (export zip)');
   setTitle('#btnAI', 'Try semantic nearby with AI (beta)');
-  setTitle('#btnLens', 'Search photos by meaning (food / scenery / people / pets, words, or a photo), day by day (uses AI meaning analysis)');
+  setTitle('#btnRepho', 'Layered shots: series of the same angle taken over time');
+  setTitle('#btnLens', 'Look back on your food photos over time (uses AI meaning analysis)');
   setTitle('#btnLogger', 'Location logger: records your track only while open');
   setTitle('#btnTrash', 'Restore deleted (excluded) photos');
   setTitle('#btnClear', 'Delete all');
@@ -2270,7 +2282,7 @@ function showFullImage(photo, opts = {}) {
             (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '') +
             // v161: 📐 定点＝この写真を基準に同じ角度で重ね撮り。シリーズ(2枚以上)ができたら見る導線も
             `<button class="to-rephoto">${tr('📐 この角度でまた撮る', '📐 Shoot this angle again')}</button>` +
-            (rephotoSeriesOf(p).length >= 2 ? `<button class="to-rephoto-series">${tr(`📐 定点（${rephotoSeriesOf(p).length}枚）`, `📐 Fixed point (${rephotoSeriesOf(p).length})`)}</button>` : '')) +
+            (rephotoSeriesOf(p).length >= 2 ? `<button class="to-rephoto-series">${tr(`📐 重ね撮り（${rephotoSeriesOf(p).length}枚）`, `📐 Layered shots (${rephotoSeriesOf(p).length})`)}</button>` : '')) +
         `<button class="fix-date">${tr('📅 日付を直す', '📅 Fix the date')}</button>` +
       `</div>` +
       // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
@@ -6046,7 +6058,7 @@ async function openLens(initialKey) {
   const overlay = document.createElement('div');
   overlay.className = 'food-overlay';   // z1900 レイヤ（クラス名は据え置き）
   overlay.innerHTML =
-    `<div class="atl-header"><div class="atl-title">🔍 ${tr('意味で探す', 'Search by meaning')}</div><button class="atl-close" type="button">✕</button></div>` +
+    `<div class="atl-header"><div class="atl-title">🍜 ${tr('食べ物を振り返る', 'Food memories')}</div><button class="atl-close" type="button">✕</button></div>` +
     `<div class="atl-body"></div>`;
   document.body.appendChild(overlay);
   overlay.querySelector('.atl-close').addEventListener('click', closeLens);
@@ -6223,17 +6235,17 @@ function openRephotoCamera(base) {
   overlay.innerHTML =
     `<div class="repho-head"><div class="repho-title">📐 ${tr('この角度でまた撮る', 'Shoot this angle again')}</div><button class="atl-close" type="button">✕</button></div>` +
     `<div class="repho-stage"><div class="repho-frame"><video autoplay muted playsinline></video><img class="repho-ghost" alt="">` +
-      `<span class="repho-tag repho-tag-cam">📷 ${tr('いま', 'Now')}</span><span class="repho-tag repho-tag-ref">🖼 ${tr('基準', 'Reference')}</span><div class="repho-guide"></div></div></div>` +
+      `<span class="repho-tag repho-tag-cam">📷 ${tr('いま', 'Now')}</span><span class="repho-tag repho-tag-ref">🖼 ${tr('基準', 'Reference')}</span><div class="repho-guide"></div><div class="repho-grid"></div></div></div>` +
     `<div class="repho-ctrl">` +
       `<div class="repho-opacity"><span>${tr('基準', 'Ref')}</span><input type="range" min="0" max="85" value="45"><span>${tr('濃く', 'More')}</span></div>` +
       `<div class="repho-btns">` +
-        `<span class="repho-side"><button class="repho-tool repho-mode" type="button" title="${tr('上下に分けて両方まるごと見る', 'Stack camera and reference, both shown whole')}">⊟ ${tr('上下', 'Split')}</button></span>` +
+        `<span class="repho-side"><button class="repho-tool repho-mode" type="button" title="${tr('上下に分けて両方まるごと見る', 'Stack camera and reference, both shown whole')}">⊟ ${tr('上下', 'Split')}</button><button class="repho-tool repho-gridbtn" type="button" title="${tr('3×3 のグリッド線（構図合わせ用）', 'Show a 3×3 grid for composition')}">⊞ ${tr('線', 'Grid')}</button></span>` +
         `<button class="repho-shutter" type="button" title="${tr('撮る', 'Shoot')}"></button>` +
         `<span class="repho-side"><button class="repho-tool repho-flip" type="button">🔄 ${tr('カメラ', 'Camera')}</button></span>` +
       `</div>` +
     `</div>`;
   document.body.appendChild(overlay);
-  rephoState = { overlay, base, stream: null, facing: 'environment', mode: 'ghost', busy: false, aspect: null, _onResize: null };
+  rephoState = { overlay, base, stream: null, facing: 'environment', mode: 'ghost', grid: false, busy: false, aspect: null, _onResize: null };
   const frame = overlay.querySelector('.repho-frame');
   const ghost = overlay.querySelector('.repho-ghost');
   const slider = overlay.querySelector('.repho-opacity input');
@@ -6291,6 +6303,12 @@ function openRephotoCamera(base) {
     e.currentTarget.textContent = split ? `👻 ${tr('重ねる', 'Overlay')}` : `⊟ ${tr('上下', 'Split')}`;
     fit();   // v162: 分割=ステージいっぱい／ゴースト=アスペクト枠 に張り替え＋ガイド更新
   });
+  overlay.querySelector('.repho-gridbtn').addEventListener('click', (e) => {   // v163: グリッド線（実機FB「あると撮りやすいかも」・既定OFF）
+    if (!rephoState) return;
+    rephoState.grid = !rephoState.grid;
+    overlay.querySelector('.repho-grid').classList.toggle('on', rephoState.grid);
+    e.currentTarget.classList.toggle('on', rephoState.grid);
+  });
   overlay.querySelector('.repho-flip').addEventListener('click', () => {
     if (!rephoState) return;
     rephoState.facing = rephoState.facing === 'environment' ? 'user' : 'environment';
@@ -6335,7 +6353,7 @@ async function rephotoShoot() {
     rec.rephotoOf = rephotoRootOf(s.base);   // 定点シリーズにひも付け（スキーマレス＝DB 移行なし）
     await dbPut(rec);
     addPhotos([rec]);
-    logInfo(tr('📐 定点に1枚積みました', '📐 Added one shot to this fixed point'));
+    logInfo(tr('📐 重ね撮りに1枚積みました', '📐 Added one layered shot'));
     const root = photoById(rephotoRootOf(s.base)) || s.base;
     closeRephotoCamera();
     render();
@@ -6350,46 +6368,209 @@ async function rephotoShoot() {
   }
 }
 
-// ---- 📐 定点シリーズビュー（food-overlay=z1900 流用・タイムライン＋比べる＋また撮る） ----
-let rephoSeriesState = null;   // { overlay, root, gridBig }
+// ---- 📐 重ね撮りシリーズビュー（food-overlay=z1900 流用） ----
+// v163: 実機FB「思い出の場所みたいに、重ねた写真としてメニューから選べるといいね。基準日も欲しいし、
+//   メモも欲しい、タイトルも付けたい」→ 一級化。📖ログ（日ごと・メモ・基準日オフセット・時間の空きを
+//   高さで=v127 と同じ手触り）＋🖼写真（日ごとグリッド）。メタは root 写真レコードに載せる
+//   （rpTitle / rpBaseDate / rpNotes={dayKey:メモ}・photos ストアはスキーマレス＝DB 移行なし）。
+let rephoSeriesState = null;   // { overlay, root, mode:'log'|'photos', gridBig }
 function closeRephotoSeries() { if (rephoSeriesState) { rephoSeriesState.overlay.remove(); rephoSeriesState = null; } }
+function rephotoTitleOf(root) { return root.rpTitle || tr('重ね撮り', 'Layered shots'); }
 function openRephotoSeries(root) {
   if (!root) return;
   closeRephotoSeries();
   const overlay = document.createElement('div');
-  overlay.className = 'food-overlay';   // 全画面 z1900（拡大 z2000 / 比較 z4000 が上に乗る）
+  overlay.className = 'food-overlay';   // 全画面 z1900（拡大 z2000 / カメラ z2200 / 比較 z4000 が上に乗る）
   overlay.innerHTML =
-    `<div class="atl-header"><div class="atl-title">📐 ${tr('定点', 'Fixed point')}</div><button class="atl-close" type="button">✕</button></div>` +
+    `<div class="atl-header"><div class="atl-title"></div><button class="atl-close" type="button">✕</button></div>` +
+    `<div class="atl-actions">` +
+      `<button class="atl-act" data-act="list">${tr('← 一覧', '← List')}</button>` +
+      `<button class="atl-act" data-act="rename">${tr('✏ 名前', '✏ Name')}</button>` +
+      `<button class="atl-act atl-act-go" data-act="shoot">${tr('📐 また撮る', '📐 Shoot again')}</button>` +
+    `</div>` +
     `<div class="atl-body"></div>`;
   document.body.appendChild(overlay);
   overlay.querySelector('.atl-close').addEventListener('click', closeRephotoSeries);
-  rephoSeriesState = { overlay, root, gridBig: false };
+  overlay.querySelector('[data-act="list"]').addEventListener('click', () => { closeRephotoSeries(); openRephotoList(); });
+  overlay.querySelector('[data-act="rename"]').addEventListener('click', () => editRephotoTitle(root));
+  overlay.querySelector('[data-act="shoot"]').addEventListener('click', () => openRephotoCamera(root));
+  rephoSeriesState = { overlay, root, mode: 'log', gridBig: false };
   renderRephotoSeries();
 }
 function renderRephotoSeries() {
   if (!rephoSeriesState) return;
   const { overlay, root } = rephoSeriesState;
+  overlay.querySelector('.atl-title').textContent = `📐 ${rephotoTitleOf(root)}`;
   const body = overlay.querySelector('.atl-body');
   body.innerHTML = '';
   const series = rephotoSeriesOf(root);        // 昔→今（比べる用）
-  const photos = series.slice().reverse();     // 新→古（タイムライン既定）
-  const big = !!rephoSeriesState.gridBig;
-  const pbar = document.createElement('div');
-  pbar.className = 'atl-photobar';
-  pbar.innerHTML = `<span>📐 ${tr(`${photos.length}枚（新しい順）`, `${photos.length} · newest first`)}</span>` +
-    `<span class="atl-photobar-btns">` +
-      `<button class="repho-again" type="button">${tr('📐 また撮る', '📐 Shoot again')}</button>` +
-      `<button class="atl-cmp" type="button">${tr('⇆ 比べる', '⇆ Compare')}</button>` +
-      `<button class="atl-size" type="button">${big ? tr('⊞ 小さく', '⊞ Smaller') : tr('⊡ 大きく', '⊡ Bigger')}</button>` +
-    `</span>`;
-  body.appendChild(pbar);
-  pbar.querySelector('.repho-again').addEventListener('click', () => openRephotoCamera(root));   // カメラ z2200 はシリーズの上
-  pbar.querySelector('.atl-cmp').addEventListener('click', () => {
-    if (series.length < 2) { logInfo(tr('比べるには写真が2枚以上必要です', 'Need at least 2 photos to compare')); return; }
-    openCompareView(series, null, false, null, { hideTripMap: true, title: tr('📐 定点を見比べる', '📐 Fixed point · compare') });
+  const flatDesc = series.slice().reverse();   // 新→古（表示既定）
+  const mode = rephoSeriesState.mode || 'log';
+  // 表示モード切替（思い出の場所と同じ 📖ログ / 🖼写真）
+  const modeBar = document.createElement('div');
+  modeBar.className = 'atl-modebar';
+  modeBar.innerHTML =
+    `<button data-m="log" class="atl-mode${mode === 'log' ? ' on' : ''}" type="button">📖 ${tr('ログ', 'Log')}</button>` +
+    `<button data-m="photos" class="atl-mode${mode === 'photos' ? ' on' : ''}" type="button">🖼 ${tr('写真', 'Photos')}</button>`;
+  body.appendChild(modeBar);
+  modeBar.querySelectorAll('.atl-mode').forEach(b => b.addEventListener('click', () => { if (rephoSeriesState) { rephoSeriesState.mode = b.dataset.m; renderRephotoSeries(); } }));
+  if (mode === 'photos') {   // 🖼 写真＝日ごとグリッド＋比べる＋大きく（v161 の見た目）
+    const big = !!rephoSeriesState.gridBig;
+    const pbar = document.createElement('div');
+    pbar.className = 'atl-photobar';
+    pbar.innerHTML = `<span>📐 ${tr(`${flatDesc.length}枚（新しい順）`, `${flatDesc.length} · newest first`)}</span>` +
+      `<span class="atl-photobar-btns">` +
+        `<button class="atl-cmp" type="button">${tr('⇆ 比べる', '⇆ Compare')}</button>` +
+        `<button class="atl-size" type="button">${big ? tr('⊞ 小さく', '⊞ Smaller') : tr('⊡ 大きく', '⊡ Bigger')}</button>` +
+      `</span>`;
+    body.appendChild(pbar);
+    pbar.querySelector('.atl-cmp').addEventListener('click', openRephotoCompare);
+    pbar.querySelector('.atl-size').addEventListener('click', () => { if (rephoSeriesState) { rephoSeriesState.gridBig = !big; renderRephotoSeries(); } });
+    buildTimelinePhotos(body, flatDesc, 'day', big);
+    return;
+  }
+  // 📖 ログ＝日ごと（新→古）・基準日オフセット・メモ・時間の空きを高さで
+  const baseBar = document.createElement('div');
+  baseBar.className = 'atl-basebar';
+  baseBar.innerHTML = root.rpBaseDate
+    ? `<span class="atl-base-txt">${tr('🎯 基準日', '🎯 Base date')} <b>${root.rpBaseDate}</b></span><button class="atl-base-edit" type="button">${tr('変更', 'Change')}</button><button class="atl-base-clear" type="button">${tr('解除', 'Clear')}</button>`
+    : `<button class="atl-base-set" type="button">${tr('🎯 基準日を設定', '🎯 Set a base date')}</button><span class="atl-base-hint">${tr('各日に「何日前／何日後」を出す', 'Show “N days before/after” on each day')}</span>`;
+  body.appendChild(baseBar);
+  const bSet = baseBar.querySelector('.atl-base-set'); if (bSet) bSet.addEventListener('click', () => setRephotoBaseDate(root));
+  const bEdit = baseBar.querySelector('.atl-base-edit'); if (bEdit) bEdit.addEventListener('click', () => setRephotoBaseDate(root));
+  const bClear = baseBar.querySelector('.atl-base-clear'); if (bClear) bClear.addEventListener('click', async () => { delete root.rpBaseDate; await dbPut(root); renderRephotoSeries(); });
+  // 日ごとにまとめて新→古
+  const byDay = new Map();
+  series.forEach(p => { const dk = dayKeyOf(p); if (!byDay.has(dk)) byDay.set(dk, []); byDay.get(dk).push(p); });
+  const days = [...byDay.entries()].map(([dk, ps]) => {
+    const d = ps[0].datetime;
+    return { dk, ps, ms: new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(), label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` };
+  }).sort((a, b) => b.ms - a.ms);
+  if (!days.length) { const em = document.createElement('div'); em.className = 'atl-empty'; em.textContent = tr('まだ写真がありません。', 'No photos yet.'); body.appendChild(em); }
+  const baseMs = root.rpBaseDate ? (() => { const [y, m, d] = root.rpBaseDate.split('-').map(Number); return new Date(y, m - 1, d).getTime(); })() : null;
+  days.forEach((day, idx) => {
+    const entry = document.createElement('div');
+    entry.className = 'atl-entry';
+    let offsetHtml = '';
+    if (baseMs != null) {   // v129 の思い出の場所と同じ「あの日からの隔たり」
+      const off = Math.round((day.ms - baseMs) / 86400000);
+      offsetHtml = off === 0 ? `<span class="atl-offset base">${tr('基準日', 'Base date')}</span>` : `<span class="atl-offset">${tr(`${Math.abs(off).toLocaleString()}日${off > 0 ? '後' : '前'}`, `${Math.abs(off).toLocaleString()} days ${off > 0 ? 'later' : 'before'}`)}</span>`;
+    }
+    entry.innerHTML =
+      `<div class="atl-date">${day.label}${offsetHtml}</div>` +
+      `<div class="atl-photos">${day.ps.map(p => `<img src="${thumbUrl(p)}" data-id="${p.id}">`).join('')}</div>` +
+      `<textarea class="atl-comment" rows="2" placeholder="${tr('この頃のこと・変わったこと…', 'Notes from around this time…')}"></textarea>`;
+    body.appendChild(entry);
+    const ta = entry.querySelector('.atl-comment');
+    ta.value = (root.rpNotes && root.rpNotes[day.dk]) || '';
+    ta.addEventListener('change', () => { (root.rpNotes = root.rpNotes || {})[day.dk] = ta.value; dbPut(root); });
+    entry.querySelectorAll('.atl-photos img').forEach(im => im.addEventListener('click', () => {
+      const p = photoById(im.dataset.id);
+      if (p) showFullImage(p, { list: flatDesc, index: flatDesc.indexOf(p) });   // シリーズ内を日にち横断スワイプ（overlay z1900 は下に残る）
+    }));
+    const nxt = days[idx + 1];
+    if (nxt) {   // v127 と同じ: 空いた時間ほど「間」が広がる＝時間の積み重ねを体で感じる
+      const gapMs = day.ms - nxt.ms;
+      const dd = Math.max(0, Math.round(gapMs / 86400000));
+      const h = Math.min(160, Math.max(6, Math.round(18 * Math.log2(1 + dd / 20))));
+      const gap = document.createElement('div');
+      gap.className = 'atl-gap';
+      gap.style.minHeight = h + 'px';
+      if (dd >= 45) gap.innerHTML = `<span class="atl-gap-label">${tr(`${annivEsc(intervalLabel(gapMs))}のあいだ`, `${annivEsc(intervalLabel(gapMs))} apart`)}</span>`;
+      body.appendChild(gap);
+    }
   });
-  pbar.querySelector('.atl-size').addEventListener('click', () => { if (rephoSeriesState) { rephoSeriesState.gridBig = !big; renderRephotoSeries(); } });
-  buildTimelinePhotos(body, photos, 'day', big);   // 定点は1回の撮影=1日 → 日ごと見出しが自然
+}
+function openRephotoCompare() {
+  if (!rephoSeriesState) return;
+  const series = rephotoSeriesOf(rephoSeriesState.root);
+  if (series.length < 2) { logInfo(tr('比べるには写真が2枚以上必要です', 'Need at least 2 photos to compare')); return; }
+  openCompareView(series, null, false, null, { hideTripMap: true, title: `📐 ${tr(`${rephotoTitleOf(rephoSeriesState.root)}を見比べる`, `${rephotoTitleOf(rephoSeriesState.root)} · compare`)}` });
+}
+// ✏ タイトル（root.rpTitle）。空で解除。
+function editRephotoTitle(root) {
+  const modal = document.createElement('div'); modal.className = 'ai-modal anniv-z';
+  modal.innerHTML =
+    `<div class="ai-modal-card"><h2>${tr('✏ 名前を付ける', '✏ Name this series')}</h2><p>${tr('この重ね撮りに名前を付けられます。（例：からだ／駅前の桜／ベランダの朝）', 'Name this layered-shot series. (e.g. body / cherry tree / morning balcony)')}</p>` +
+    `<input type="text" class="anniv-name-input" maxlength="40" value="${annivEsc(root.rpTitle || '')}" placeholder="${tr('名前（空で解除）', 'Name (empty to clear)')}">` +
+    `<div class="actions"><button id="rpNameCancel">${tr('キャンセル', 'Cancel')}</button><button class="primary" id="rpNameOk">${tr('保存', 'Save')}</button></div></div>`;
+  document.body.appendChild(modal);
+  const close = () => modal.remove();
+  modal.querySelector('#rpNameCancel').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  const save = async () => {
+    const v = modal.querySelector('.anniv-name-input').value.trim();
+    if (v) root.rpTitle = v; else delete root.rpTitle;
+    await dbPut(root); close(); renderRephotoSeries();
+  };
+  modal.querySelector('#rpNameOk').addEventListener('click', save);
+  modal.querySelector('.anniv-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
+}
+// 🎯 基準日（root.rpBaseDate）。既定候補＝最初の1枚の日。
+function setRephotoBaseDate(root) {
+  const modal = document.createElement('div'); modal.className = 'ai-modal anniv-z';
+  const series = rephotoSeriesOf(root);
+  const f = series[0] && series[0].datetime;
+  const d0 = f ? `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}` : todayDateStr();
+  modal.innerHTML =
+    `<div class="ai-modal-card"><h2>${tr('🎯 基準日', '🎯 Base date')}</h2><p>${tr('この日を基準に、各日の「何日前／何日後」を表示します。（例：撮り始めた日・目標の日）', 'Shows “N days before/after” on each day, relative to this date. (e.g. the day you started, or a goal date.)')}</p>` +
+    `<input type="date" class="atl-date-input" value="${root.rpBaseDate || d0}"><div class="actions">` +
+    (root.rpBaseDate ? `<button id="rpBaseClear">${tr('解除', 'Clear')}</button>` : '') +
+    `<button id="rpBaseCancel">${tr('キャンセル', 'Cancel')}</button><button class="primary" id="rpBaseOk">${tr('設定', 'Set')}</button></div></div>`;
+  document.body.appendChild(modal);
+  const close = () => modal.remove();
+  modal.querySelector('#rpBaseCancel').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  const clr = modal.querySelector('#rpBaseClear');
+  if (clr) clr.addEventListener('click', async () => { delete root.rpBaseDate; await dbPut(root); close(); renderRephotoSeries(); });
+  modal.querySelector('#rpBaseOk').addEventListener('click', async () => {
+    const val = modal.querySelector('.atl-date-input').value; if (!val) { close(); return; }
+    root.rpBaseDate = val; await dbPut(root); close(); renderRephotoSeries();
+  });
+}
+// ---- 📐 重ね撮り一覧（⚙メニューから・思い出の場所の一覧に相当） ----
+let rephoListState = null;
+function closeRephotoList() { if (rephoListState) { rephoListState.overlay.remove(); rephoListState = null; } }
+function rephotoAllSeries() {
+  const byRoot = new Map();
+  allPhotos.forEach(p => { if (visible(p) && p.rephotoOf) { if (!byRoot.has(p.rephotoOf)) byRoot.set(p.rephotoOf, []); byRoot.get(p.rephotoOf).push(p); } });
+  const out = [];
+  for (const [rootId, children] of byRoot) {
+    const anchor = photoById(rootId) || children[0];   // root 写真が消えていても子から辿れる
+    const series = rephotoSeriesOf(anchor);
+    if (series.length >= 2) out.push({ root: anchor, series });
+  }
+  out.sort((a, b) => b.series[b.series.length - 1].datetime - a.series[a.series.length - 1].datetime);   // 最終更新の新しい順
+  return out;
+}
+function openRephotoList() {
+  closeRephotoList();
+  const overlay = document.createElement('div');
+  overlay.className = 'food-overlay';
+  overlay.innerHTML =
+    `<div class="atl-header"><div class="atl-title">📐 ${tr('重ね撮り', 'Layered shots')}</div><button class="atl-close" type="button">✕</button></div>` +
+    `<div class="atl-body"></div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.atl-close').addEventListener('click', closeRephotoList);
+  rephoListState = { overlay };
+  const body = overlay.querySelector('.atl-body');
+  const items = rephotoAllSeries();
+  if (!items.length) {
+    const em = document.createElement('div'); em.className = 'food-note';
+    em.innerHTML = `<p>${tr('同じ角度を時間を空けて重ねた写真が、ここに積み重なっていきます。', 'Series of the same angle, taken over time, pile up here.')}</p>` +
+      `<p>${tr('写真を開いて「📐 この角度でまた撮る」から始められます。', 'Open any photo and tap “📐 Shoot this angle again” to start.')}</p>`;
+    body.appendChild(em);
+    return;
+  }
+  items.forEach(({ root, series }) => {
+    const last = series[series.length - 1];
+    const ya = series[0].datetime.getFullYear(), yb = last.datetime.getFullYear();
+    const row = document.createElement('div');
+    row.className = 'rp-row';
+    row.innerHTML = `<img src="${thumbUrl(last)}" loading="lazy"><div><div class="rp-name">📐 ${annivEsc(rephotoTitleOf(root))}</div><div class="rp-meta">${tr(`${series.length}枚 · ${ya === yb ? `${ya}年` : `${ya}〜${yb}年`}`, `${series.length} · ${ya === yb ? ya : `${ya}–${yb}`}`)}</div></div>`;
+    row.addEventListener('click', () => { closeRephotoList(); openRephotoSeries(root); });
+    body.appendChild(row);
+  });
 }
 
 function renderLens() {
@@ -6407,7 +6588,8 @@ function renderLens() {
     body.appendChild(box);
     return;
   }
-  appendLensBar(body);   // カテゴリ/テキスト/写真 の切替バー（need-ai 以外は常に）
+  // v163: レンズバー（カテゴリ切替/言葉/写真で探す）は撤去＝実機 verdict「AI 性能に限界・食べ物だけ実用」。
+  //   機構（appendLensBar/runTextLens/runImageLens/lensProbOf 一般化）は将来モデル強化時の再挑戦用に残置（UI からは呼ばれない）。
   if (phase === 'loading') {
     const note = document.createElement('div'); note.className = 'food-note';
     const pct = lensState.loadPct || 0;
@@ -6663,7 +6845,8 @@ function onDocClickForMenu(e) {
 document.getElementById('btnAdd').addEventListener('click', (e) => openImportMenu(e.currentTarget));
 document.getElementById('btnAnniv').addEventListener('click', openAnnivList);   // v121: 思い出の場所の一覧
 document.getElementById('btnAI').addEventListener('click', openAIModal);
-document.getElementById('btnLens').addEventListener('click', () => openLens('food'));   // v160: 🔍 意味で探す（既定=食べ物）
+document.getElementById('btnLens').addEventListener('click', () => openLens('food'));   // v163: 🍜 食べ物を振り返る（意味レンズは食べ物だけに＝実機verdict）
+document.getElementById('btnRepho').addEventListener('click', openRephotoList);         // v163: 📐 重ね撮りの一覧
 document.getElementById('btnInfo').addEventListener('click', openInfoModal);
 // v113: ⚙️ メニューのドロップダウン開閉。外クリック / 項目クリックで閉じる
 // (btnAdd だけは importMenu サブメニューを出すので閉じない＝anchor を残す)。
