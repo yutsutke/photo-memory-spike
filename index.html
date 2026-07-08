@@ -278,10 +278,10 @@
   .repho-tag-ref { top: calc(50% + 9px); }
   .repho-frame.split .repho-tag { display: block; }
   .repho-guide { display: none; position: absolute; left: 50%; top: 25%; transform: translate(-50%, -50%); border: 1.5px dashed rgba(255,255,255,0.65); border-radius: 4px; z-index: 2; pointer-events: none; }
-  /* v163: グリッド線（3×3・トグル）。分割時はカメラ(上半分)だけに */
-  .repho-grid { display: none; position: absolute; inset: 0; z-index: 2; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px); background-size: 100% 33.334%, 33.334% 100%; background-position: 0 -1px, -1px 0; }
-  .repho-grid.on { display: block; }
-  .repho-frame.split .repho-grid { height: 50%; }
+  /* v164: グリッド線＝写真の実表示領域(contain後のbox)に JS で合わせる（はみ出し解消）。上=カメラ/下=基準の両方に同じ3×3 */
+  .repho-grid { display: none; position: absolute; z-index: 2; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.45) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.45) 1px, transparent 1px); background-size: 100% 33.334%, 33.334% 100%; }
+  .repho-count { display: none; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; font-weight: 800; color: #fff; text-shadow: 0 2px 24px rgba(0,0,0,0.85); pointer-events: none; font-size: 92px; line-height: 1; }
+  .repho-count.on { display: block; }
   /* v163: 📐 重ね撮り一覧（⚙メニューから） */
   .rp-row { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid #222; cursor: pointer; }
   .rp-row img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; flex: 0 0 auto; background: #000; }
@@ -291,11 +291,11 @@
   .repho-ctrl { flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); background: rgba(10,10,10,0.9); }
   .repho-opacity { display: flex; align-items: center; gap: 10px; color: #aaa; font-size: 12px; }
   .repho-opacity input { flex: 1 1 auto; accent-color: #33c1b0; }
-  .repho-btns { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .repho-side { flex: 0 0 auto; display: flex; gap: 8px; }
+  /* v164: ボタンが増えた（上下/線/⏱/カメラ）→ ツールを1段（中央寄せ・狭ければ折り返し）＋シャッターを別段中央に */
+  .repho-tools { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
   .repho-tool { background: #222; color: #ddd; border: 1px solid #444; border-radius: 999px; padding: 9px 13px; font-size: 13px; cursor: pointer; white-space: nowrap; }
   .repho-tool.on { background: #1e6b5e; border-color: #1e6b5e; color: #fff; }
-  .repho-shutter { flex: 0 0 auto; width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff; background: #e5e5e5; cursor: pointer; margin: 0 auto; }
+  .repho-shutter { flex: 0 0 auto; width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff; background: #e5e5e5; cursor: pointer; margin: 2px auto 0; }
   .repho-shutter:active { background: #999; }
   .repho-shutter:disabled { opacity: 0.4; }
   /* v24: フル表示の下部キャプション。日時 (純正写真アプリで辿る鍵) + 写真アプリ動線 */
@@ -637,7 +637,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.116 (v163：📐重ね撮りを一級化＋⊞グリッド線＋🍜食べ物だけに（実機FB3点）＝①カメラに3×3グリッド線トグル②重ね撮り=⚙メニューに一覧・タイトル(✏)・🎯基準日(N日前/N日後)・日ごとメモ・📖ログ/🖼写真切替＝思い出の場所と同じ手触り(メタはroot写真レコードのrpTitle/rpBaseDate/rpNotes=スキーマレス・DB移行なし)③意味レンズのUIを「🍜食べ物を振り返る」だけに(チップ/言葉/写真検索は撤去・機構は残置)。｜ v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に ｜ v155：地図バー再構成＋期間クイック ｜ v154：📍いまの場所 半径選択＋ヘッダ2段) · 2026-07-08';
+const BUILD = 'phase3.117 (v164：📐重ね撮りカメラの実機FB4点＝①⏱セルフタイマー（オフ/3秒/10秒＋中央カウントダウン）②グリッド線を写真の実表示領域(contain box)にフィット＝写真外の黒帯にはみ出さない③基準側にもグリッド線（上=カメラ/下=基準の両方に同じ3×3）④ボタン増でコントロールを2段（ツール中央寄せ＋シャッター別段）。｜ v163：📐重ね撮りを一級化＋⊞グリッド線＋🍜食べ物だけに（実機FB3点）＝①カメラに3×3グリッド線トグル②重ね撮り=⚙メニューに一覧・タイトル(✏)・🎯基準日(N日前/N日後)・日ごとメモ・📖ログ/🖼写真切替＝思い出の場所と同じ手触り(メタはroot写真レコードのrpTitle/rpBaseDate/rpNotes=スキーマレス・DB移行なし)③意味レンズのUIを「🍜食べ物を振り返る」だけに(チップ/言葉/写真検索は撤去・機構は残置)。｜ v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に ｜ v155：地図バー再構成＋期間クイック ｜ v154：📍いまの場所 半径選択＋ヘッダ2段) · 2026-07-08';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -6235,17 +6235,20 @@ function openRephotoCamera(base) {
   overlay.innerHTML =
     `<div class="repho-head"><div class="repho-title">📐 ${tr('この角度でまた撮る', 'Shoot this angle again')}</div><button class="atl-close" type="button">✕</button></div>` +
     `<div class="repho-stage"><div class="repho-frame"><video autoplay muted playsinline></video><img class="repho-ghost" alt="">` +
-      `<span class="repho-tag repho-tag-cam">📷 ${tr('いま', 'Now')}</span><span class="repho-tag repho-tag-ref">🖼 ${tr('基準', 'Reference')}</span><div class="repho-guide"></div><div class="repho-grid"></div></div></div>` +
+      `<span class="repho-tag repho-tag-cam">📷 ${tr('いま', 'Now')}</span><span class="repho-tag repho-tag-ref">🖼 ${tr('基準', 'Reference')}</span>` +
+      `<div class="repho-guide"></div><div class="repho-grid repho-grid-cam"></div><div class="repho-grid repho-grid-ref"></div><div class="repho-count"></div></div></div>` +
     `<div class="repho-ctrl">` +
       `<div class="repho-opacity"><span>${tr('基準', 'Ref')}</span><input type="range" min="0" max="85" value="45"><span>${tr('濃く', 'More')}</span></div>` +
-      `<div class="repho-btns">` +
-        `<span class="repho-side"><button class="repho-tool repho-mode" type="button" title="${tr('上下に分けて両方まるごと見る', 'Stack camera and reference, both shown whole')}">⊟ ${tr('上下', 'Split')}</button><button class="repho-tool repho-gridbtn" type="button" title="${tr('3×3 のグリッド線（構図合わせ用）', 'Show a 3×3 grid for composition')}">⊞ ${tr('線', 'Grid')}</button></span>` +
-        `<button class="repho-shutter" type="button" title="${tr('撮る', 'Shoot')}"></button>` +
-        `<span class="repho-side"><button class="repho-tool repho-flip" type="button">🔄 ${tr('カメラ', 'Camera')}</button></span>` +
+      `<div class="repho-tools">` +
+        `<button class="repho-tool repho-mode" type="button" title="${tr('上下に分けて両方まるごと見る', 'Stack camera and reference, both shown whole')}">⊟ ${tr('上下', 'Split')}</button>` +
+        `<button class="repho-tool repho-gridbtn" type="button" title="${tr('3×3 のグリッド線（構図合わせ用）', 'Show a 3×3 grid for composition')}">⊞ ${tr('線', 'Grid')}</button>` +
+        `<button class="repho-tool repho-timer" type="button" title="${tr('セルフタイマー（オフ / 3秒 / 10秒）', 'Self-timer (off / 3s / 10s)')}">⏱ ${tr('オフ', 'Off')}</button>` +
+        `<button class="repho-tool repho-flip" type="button">🔄 ${tr('カメラ', 'Camera')}</button>` +
       `</div>` +
+      `<button class="repho-shutter" type="button" title="${tr('撮る', 'Shoot')}"></button>` +
     `</div>`;
   document.body.appendChild(overlay);
-  rephoState = { overlay, base, stream: null, facing: 'environment', mode: 'ghost', grid: false, busy: false, aspect: null, _onResize: null };
+  rephoState = { overlay, base, stream: null, facing: 'environment', mode: 'ghost', grid: false, timer: 0, busy: false, aspect: null, _onResize: null };
   const frame = overlay.querySelector('.repho-frame');
   const ghost = overlay.querySelector('.repho-ghost');
   const slider = overlay.querySelector('.repho-opacity input');
@@ -6267,6 +6270,30 @@ function openRephotoCamera(base) {
     guide.style.width = Math.round(gw) + 'px';
     guide.style.height = Math.round(gh) + 'px';
   };
+  // v164: グリッド線を「写真の実表示領域(contain 後の box)」に合わせる＝写真の外(黒帯)にはみ出さない。
+  //   上=カメラ / 下=基準 の両方に同じ 3×3（各写真をそれぞれ3分割＝アスペクトが同じなら線が揃う）。
+  const gcam = overlay.querySelector('.repho-grid-cam');
+  const gref = overlay.querySelector('.repho-grid-ref');
+  const containBox = (dispW, dispH, natW, natH, offY) => {   // dispセル内に contain された写真の box（offY=セルの上端）
+    if (!natW || !natH) return { left: 0, top: offY, w: dispW, h: dispH };
+    let w = dispW, h = dispW * natH / natW;
+    if (h > dispH) { h = dispH; w = dispH * natW / natH; }
+    return { left: (dispW - w) / 2, top: offY + (dispH - h) / 2, w, h };
+  };
+  const place = (el, b) => { el.style.display = 'block'; el.style.left = Math.round(b.left) + 'px'; el.style.top = Math.round(b.top) + 'px'; el.style.width = Math.round(b.w) + 'px'; el.style.height = Math.round(b.h) + 'px'; };
+  const updateGrid = () => {
+    if (!rephoState || !rephoState.grid) { gcam.style.display = 'none'; gref.style.display = 'none'; return; }
+    const v = overlay.querySelector('video');
+    const fw = frame.clientWidth, fh = frame.clientHeight;
+    if (rephoState.mode === 'split') {
+      const cellH = fh / 2;
+      place(gcam, containBox(fw, cellH, v.videoWidth, v.videoHeight, 0));           // 上＝カメラ映像の実領域
+      place(gref, containBox(fw, cellH, ghost.naturalWidth, ghost.naturalHeight, cellH));   // 下＝基準写真の実領域
+    } else {
+      place(gcam, { left: 0, top: 0, w: fw, h: fh });   // ゴースト＝frame が基準アスペクト枠＝写真ぴったり（重なるので1枚で両方に乗る）
+      gref.style.display = 'none';
+    }
+  };
   // 枠: ゴースト=基準写真の縦横比の最大内接ボックス（video も ghost も cover で重なる＝同じ額縁）
   //     分割(v162)=ステージいっぱい（各半分に contain で両方まるごと見える・実機FB）
   const fit = () => {
@@ -6283,8 +6310,9 @@ function openRephotoCamera(base) {
       frame.style.height = Math.round(h) + 'px';
     }
     updateGuide();
+    updateGrid();
   };
-  overlay.querySelector('video').addEventListener('loadedmetadata', updateGuide);
+  overlay.querySelector('video').addEventListener('loadedmetadata', () => { updateGuide(); updateGrid(); });
   ghost.addEventListener('load', () => {
     if (!rephoState) return;
     if (ghost.naturalWidth && ghost.naturalHeight) rephoState.aspect = ghost.naturalWidth / ghost.naturalHeight;
@@ -6303,11 +6331,17 @@ function openRephotoCamera(base) {
     e.currentTarget.textContent = split ? `👻 ${tr('重ねる', 'Overlay')}` : `⊟ ${tr('上下', 'Split')}`;
     fit();   // v162: 分割=ステージいっぱい／ゴースト=アスペクト枠 に張り替え＋ガイド更新
   });
-  overlay.querySelector('.repho-gridbtn').addEventListener('click', (e) => {   // v163: グリッド線（実機FB「あると撮りやすいかも」・既定OFF）
+  overlay.querySelector('.repho-gridbtn').addEventListener('click', (e) => {   // v163→164: グリッド線（写真領域にフィット・上下両方・既定OFF）
     if (!rephoState) return;
     rephoState.grid = !rephoState.grid;
-    overlay.querySelector('.repho-grid').classList.toggle('on', rephoState.grid);
     e.currentTarget.classList.toggle('on', rephoState.grid);
+    updateGrid();
+  });
+  overlay.querySelector('.repho-timer').addEventListener('click', (e) => {   // v164: セルフタイマー オフ→3秒→10秒（比べて撮る時に構え直す時間）
+    if (!rephoState) return;
+    rephoState.timer = rephoState.timer === 0 ? 3 : rephoState.timer === 3 ? 10 : 0;
+    e.currentTarget.classList.toggle('on', rephoState.timer > 0);
+    e.currentTarget.textContent = rephoState.timer === 0 ? `⏱ ${tr('オフ', 'Off')}` : `⏱ ${rephoState.timer}${tr('秒', 's')}`;
   });
   overlay.querySelector('.repho-flip').addEventListener('click', () => {
     if (!rephoState) return;
@@ -6320,15 +6354,41 @@ function openRephotoCamera(base) {
   startRephotoStream();
 }
 
-async function rephotoShoot() {
+// シャッター＝タイマーがあればカウントダウン→撮影、無ければ即撮影。
+function rephotoShoot() {
   const s = rephoState;
   if (!s || s.busy) return;
   const video = s.overlay.querySelector('video');
+  if (!video.videoWidth || !video.videoHeight) { logErr(tr('カメラの準備がまだです', 'Camera is not ready yet')); return; }
+  if (s.timer > 0) { runRephotoCountdown(s.timer); return; }   // v164: セルフタイマー
+  doRephotoCapture();
+}
+
+// v164: セルフタイマー（比べて撮る時に構え直す・自撮りで離れる）。大きな数字を中央に。
+function runRephotoCountdown(sec) {
+  const s = rephoState; if (!s) return;
+  s.busy = true;   // カウント中はシャッター無効
+  const shutter = s.overlay.querySelector('.repho-shutter'); if (shutter) shutter.disabled = true;
+  const badge = s.overlay.querySelector('.repho-count');
+  badge.classList.add('on');
+  let n = sec;
+  const step = () => {
+    if (!rephoState) return;   // ✕ で閉じられたら中断（撮らない）
+    if (n <= 0) { badge.classList.remove('on'); badge.textContent = ''; doRephotoCapture(); return; }
+    badge.textContent = n; n--; setTimeout(step, 1000);
+  };
+  step();
+}
+
+async function doRephotoCapture() {
+  const s = rephoState;
+  if (!s) return;
+  const video = s.overlay.querySelector('video');
   const vw = video.videoWidth, vh = video.videoHeight;
-  if (!vw || !vh) { logErr(tr('カメラの準備がまだです', 'Camera is not ready yet')); return; }
+  if (!vw || !vh) { logErr(tr('カメラの準備がまだです', 'Camera is not ready yet')); s.busy = false; return; }
   s.busy = true;
   const btn = s.overlay.querySelector('.repho-shutter');
-  btn.disabled = true;
+  if (btn) btn.disabled = true;
   try {
     // 基準写真と同じ縦横比で中央 crop（プレビューの cover と同じ見え方を保存する）
     const A = s.aspect || vw / vh;
