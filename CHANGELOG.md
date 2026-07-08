@@ -5,6 +5,40 @@
 
 ---
 
+## v161 — 📐 定点＝同じ角度を時間を空けて重ね撮り（ゴースト重ねカメラ＋定点シリーズ） (2026-07-08)
+
+**背景**
+- ユーザー要望: 「同じ角度の写真を、時間を空けて何度も重ねたい。自分の体形だったり、町の風景だったり。右に基準の写真・左でカメラモードみたいなのはできる？」＝定点観測（再撮影/progress photo）。App Store プロモの「積み重ね」と同思想（場所に積む=思い出の場所／**時間に積む=定点**）。
+- 同日の意味レンズ verdict（「AI性能が限界・食べ物だけ実用」→拡張凍結）を受けて、次の一手として着手。
+
+**設計判断**
+- **方式＝ゴースト重ねを既定**（基準写真を半透明でカメラ映像に重ねる＝定点観測アプリの定石。目が直接ズレを見るので左右分割より精度が出る）＋**左右分割（左=カメラ・右=基準）を切替**で両方持つ（ユーザー案の形も残す・コストほぼゼロ）。透明度スライダー（既定45%）・前面/背面切替。
+- **前面カメラはプレビューと基準を両方ミラー**して合わせやすく、**保存は非ミラー**＝シリーズ内で向きが揃う。**撮影は基準写真と同じ縦横比で中央 crop**（プレビューの cover と同じ見え方を保存）＝シリーズ全部が同じ額縁。長辺 2048px 上限。
+- **撮った1枚は普通の写真**＝既存 `importOne(file, {datetime: now, dateSource: 'exif'})` をそのまま通す（record 化＋dbPut 一気通貫・today の撮影＝撮影日タグ）→ **`p.rephotoOf = root id` でひも付け**（photos ストアはスキーマレス＝**DB 移行なし**・思い出の場所のような新ストアを作らない）。シリーズ＝基準＋その子ら（`rephotoSeriesOf`）。
+- **見る側は既存資産を再利用**: シリーズビュー（`food-overlay` z1900 流用）＝`buildTimelinePhotos`（**日ごと見出し**＝1回の撮影=1日が自然）＋⇆比べる（`openCompareView` hideTripMap）＋「📐 また撮る」（カメラ z2200 はシリーズの上）。
+- **入口＝拡大表示**の「📐 この角度でまた撮る」（どの写真も基準にできる）＋シリーズが2枚以上なら「📐 定点（N枚）」。⚙メニューには足さない（[[ui-minimalism-works]]・入口は写真そのもの）。
+- **⚠️ native 注意**: カメラは `getUserMedia`＝**今の iOS アプリ(1.3/1.4)では動かない**（`NSCameraUsageDescription` が Info.plist に無い）→ **1.5 ビルドで Info.plist / Android Manifest に権限宣言を足す**。まず web（GitHub Pages を iPhone Safari）で手触り検証（HTTPS なので今日から動く）。
+
+**やったこと**
+- CSS `.repho-*`（カメラ z2200・枠=基準アスペクトの最大内接・mirror/split modifier・シャッター）。
+- `rephotoRootOf`/`rephotoSeriesOf`／`openRephotoCamera`（getUserMedia・ghost・fit・分割/前後切替）／`rephotoShoot`（crop→toBlob→importOne→rephotoOf→addPhotos→シリーズへ）／`openRephotoSeries`/`renderRephotoSeries`。
+- `paintCap`（拡大表示）非 anniv 分岐に「📐 この角度でまた撮る」＋「📐 定点（N枚）」。
+
+**結果 / 観察（preview E2E 全 green・console 0）**
+- getUserMedia を canvas.captureStream でスタブし実コードパスを E2E: 拡大→📐→カメラ（video ready・ghost opacity 0.45・枠 fit 375px・分割トグル on/off）→シャッター→**本物の importOne 経路**（toJpegBlob/createThumbnail/dbPut）で record 生成（`rephotoOf` 付与・`dateSource: 'exif'`・thumb あり）→シリーズ「📐 2枚（新しい順）・日ごと見出し（7/8水・6/1月）・また撮る/比べる/大きく」→⇆比べる（「📐 定点を見比べる」・足跡地図なし）→拡大に「📐 定点（2枚）」。テストレコードは dbClear で掃除。
+- **実機（Safari）の手触りが次**＝本物のカメラでゴースト合わせ・シャッター・シリーズの積み重なり。
+
+**教訓**
+- 「撮る」機能でも書くのは**カメラ UI だけ**で済んだ＝取り込み（importOne）・タイムライン・比べる・拡大が全部再利用可能な部品になっている。v157-159 で「結果ビューを1つに寄せた」効果がそのまま効いた。
+- photos ストアがスキーマレスなことを活かし、シリーズを**新ストアでなく写真レコードのフィールド（rephotoOf）**で表現＝DB 移行なし・機種変更の写し替え（§⑥）にもそのまま乗る。
+
+**残課題 / 次の方向**
+- **実機 Safari で手触り検証**（ゴーストの合わせやすさ・シャッター・前面ミラー）→ 刺されば **iOS 1.5 でカメラ権限宣言**（Info.plist `NSCameraUsageDescription`・Android Manifest `CAMERA`＋WebView 権限橋渡しの確認）。
+- 溜まったら「**重ねてスライダー再生**」（2枚を半透明で行き来／パラパラ）＝体形変化に一番効くはずの次段。
+- 最初の基準をアプリ内カメラで撮る導線（今は既存写真だけが基準になれる）。位置の自動付与（geolocation）は v140 の足跡自動確定が拾い得るので保留。
+
+---
+
 ## v160 — 🔍 意味レンズ＝食べ物レンズを汎用化（カテゴリ／フリーテキスト／写真で探す） (2026-07-08)
 
 **背景**
