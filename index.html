@@ -250,6 +250,17 @@
   .food-note { color: #bbb; font-size: 13px; line-height: 1.65; padding: 6px 2px 14px; }
   .food-note p { margin: 0 0 10px; }
   .food-count { color: #7fe3d6; font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* v160: 意味レンズのバー（カテゴリチップ / 言葉で探す / 写真で探す） */
+  .lens-bar { margin: 0 0 12px; }
+  .lens-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+  .lens-chips::-webkit-scrollbar { display: none; }
+  .lens-chip { flex: 0 0 auto; padding: 7px 13px; border: 1px solid #3a3a3a; border-radius: 999px; background: #1c1c1c; color: #ccc; font-size: 13px; white-space: nowrap; cursor: pointer; }
+  .lens-chip.on { background: #1e6b5e; color: #fff; border-color: #1e6b5e; font-weight: 700; }
+  .lens-search { display: flex; gap: 6px; margin: 8px 0 6px; }
+  .lens-q { flex: 1 1 auto; min-width: 0; box-sizing: border-box; background: #1c1c1c; color: #eee; border: 1px solid #333; border-radius: 999px; padding: 9px 14px; font-size: 14px; }
+  .lens-q::placeholder { color: #666; }
+  .lens-go { flex: 0 0 auto; background: #262626; color: #eee; border: 1px solid #3a3a3a; border-radius: 999px; padding: 9px 16px; font-size: 13px; cursor: pointer; }
+  .lens-photo { display: block; width: 100%; box-sizing: border-box; background: none; border: 1px dashed #3a6f66; color: #7fe3d6; border-radius: 12px; padding: 10px; font-size: 13px; cursor: pointer; }
   /* v24: フル表示の下部キャプション。日時 (純正写真アプリで辿る鍵) + 写真アプリ動線 */
   .full-cap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2001; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.72)); display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .full-cap .dt { color: #fff; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
@@ -557,7 +568,7 @@
     <button id="btnAnniv" title="登録した思い出の場所（場所×時間の積層）">📍 思い出の場所</button>
     <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦 SNS の zip から取り込む</button>
     <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠 AI で意味の近傍（β）</button>
-    <button id="btnFood" title="食べ物の写真だけを日別・時系列で見る（AI 意味解析を利用）">🍜 食べ物を時系列で</button>
+    <button id="btnLens" title="意味で写真を探す（食べ物・風景・人・ペット／言葉／写真から）日別・時系列で（AI 意味解析を利用）">🔍 意味で探す</button>
     <button id="btnLogger" title="位置ロガー：開いている間だけ軌跡を記録">🛰️ 位置ロガー</button>
     <button id="btnTrash" class="hidden" title="削除（除外）した写真を戻す">♻️ 削除した写真を戻す</button>
     <button id="btnClear" title="全削除">🗑 全削除</button>
@@ -588,7 +599,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.112 (v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に ｜ v155：地図バー再構成＋期間クイック ｜ v154：📍いまの場所 半径選択＋ヘッダ2段) · 2026-07-08';
+const BUILD = 'phase3.113 (v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に ｜ v155：地図バー再構成＋期間クイック ｜ v154：📍いまの場所 半径選択＋ヘッダ2段) · 2026-07-08';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -620,7 +631,7 @@ function applyStaticI18n() {
   set('#btnAnniv', '📍 Memory places');
   set('#btnIg', '📦 Import from SNS zip');
   set('#btnAI', '🧠 AI: nearby by meaning (beta)');
-  set('#btnFood', '🍜 Food by time');
+  set('#btnLens', '🔍 Search by meaning');
   set('#btnLogger', '🛰️ Location logger');
   set('#btnTrash', '♻️ Restore deleted');
   set('#btnClear', '🗑 Delete all');
@@ -633,7 +644,7 @@ function applyStaticI18n() {
   setTitle('#btnAnniv', 'Saved memory places (place × time)');
   setTitle('#btnIg', 'Import from Instagram / X (export zip)');
   setTitle('#btnAI', 'Try semantic nearby with AI (beta)');
-  setTitle('#btnFood', 'See only food photos, day by day (uses AI meaning analysis)');
+  setTitle('#btnLens', 'Search photos by meaning (food / scenery / people / pets, words, or a photo), day by day (uses AI meaning analysis)');
   setTitle('#btnLogger', 'Location logger: records your track only while open');
   setTitle('#btnTrash', 'Restore deleted (excluded) photos');
   setTitle('#btnClear', 'Delete all');
@@ -5872,19 +5883,25 @@ let aiTextModel = null;     // CLIPTextModelWithProjection (lazy)
 let aiTokenizer = null;     // AutoTokenizer (lazy)
 let aiTextLoading = false;  // 文章モデル DL / init 中
 
-// 食べ物 vs 他カテゴリ。全ラベルを並べて softmax し、食べ物語群の確率和がしきい値以上なら食べ物。
-// (CLIP の対照事前学習を素直に使うゼロショット。語群/しきい値は実機で調整。)
-const FOOD_PROMPTS = [
-  'a plate of food', 'a bowl of food', 'a delicious meal', 'a dish of food on a table',
-  'food at a restaurant', 'a home cooked meal', 'a dessert or sweets', 'ramen, sushi or Japanese food',
+// v160: 意味レンズ = カテゴリ(食べ物/風景/人/ペット)・フリーテキスト・写真(似た画像) を同じ CLIP 埋め込みで探す。
+//   カテゴリ/テキスト = 陽性プロンプト vs 対抗プロンプトを softmax（食べ物 v157 と同じゼロショット）。
+//   写真 = アップロード画像の embedding とコサイン類似で上位N（reverse image search）。語群/しきい値は実機で調整。
+const CLIP_LOGIT_SCALE = 100;    // CLIP の学習済み logit_scale ≒ 100
+const LENS_MIN_PROB = 0.5;       // カテゴリ/テキスト: softmax 後の一致確率しきい値 (実機で調整)
+const LENS_IMAGE_TOPK = 60;      // 写真レンズ: 似た上位N枚
+const LENS_IMAGE_MIN_COS = 0.6;  // 写真レンズ: これ未満のコサインは「似ていない」ので除外
+// カテゴリ = 陽性プロンプト群。判定は「全カテゴリ＋その他」を並べた softmax でこのカテゴリの確率和 ≥ しきい値
+// （＝実質マルチクラス。食べ物 v157 の "food vs 他全部" をそのまま各カテゴリに一般化）。
+const LENS_CATEGORIES = [
+  { key: 'food',      emoji: '🍜', ja: '食べ物', en: 'Food',    prompts: ['a plate of food', 'a bowl of food', 'a delicious meal', 'food at a restaurant', 'a home cooked meal', 'a dessert or sweets', 'ramen, sushi or Japanese food'] },
+  { key: 'landscape', emoji: '🏞', ja: '風景',   en: 'Scenery', prompts: ['a landscape', 'scenery of mountains or the sea', 'a beautiful view', 'nature scenery', 'a cityscape or skyline', 'the sky at sunset'] },
+  { key: 'people',    emoji: '👤', ja: '人',     en: 'People',  prompts: ['a person', 'a group of people', 'a portrait of someone', 'a selfie', 'friends together', 'a family photo'] },
+  { key: 'pet',       emoji: '🐾', ja: 'ペット', en: 'Pets',    prompts: ['a pet', 'a cat', 'a dog', 'a cute animal', 'a pet at home'] },
 ];
-const NONFOOD_PROMPTS = [
-  'a person', 'a group of people', 'a selfie', 'a landscape or scenery',
-  'a building or a street', 'an animal or a pet', 'a screenshot or a document', 'an everyday object',
-];
-const FOOD_LOGIT_SCALE = 100;   // CLIP の学習済み logit_scale ≒ 100
-const FOOD_MIN_PROB = 0.5;      // softmax 後の「食べ物」確率しきい値 (実機で調整)
-let _foodLabelVecs = null;      // { food:Float32Array[], other:Float32Array[] } (テキスト埋め込みキャッシュ)
+const LENS_OTHER_PROMPTS = ['a document or a screenshot', 'text or a note', 'an everyday object', 'a car or a vehicle', 'a building or a room', 'a piece of paper'];   // どのカテゴリでもない対抗（誤検出抑制）
+const LENS_TEXT_ANCHORS = ['a random photo', 'a person', 'a landscape', 'food', 'an animal', 'a building', 'a document or a screenshot', 'an everyday object'];         // フリーテキストの対抗アンカー
+let _lensCategoryVecs = null;    // { food:[], landscape:[], people:[], pet:[], _other:[] } キャッシュ
+let _lensTextAnchorVecs = null;  // フリーテキスト対抗アンカーのキャッシュ
 
 // 文章側モデル (tokenizer + text encoder) を遅延ロード。画像モデルは opt-in 済で DL 済のはず →
 // 追加分は文章重みのみ。onProgress({pct,file}) で進捗を返す。
@@ -5925,106 +5942,211 @@ async function encodeTexts(prompts, onProgress) {
   return vecs;
 }
 
-async function ensureFoodLabelVecs(onProgress) {
-  if (_foodLabelVecs) return _foodLabelVecs;
-  const all = await encodeTexts([...FOOD_PROMPTS, ...NONFOOD_PROMPTS], onProgress);
-  _foodLabelVecs = { food: all.slice(0, FOOD_PROMPTS.length), other: all.slice(FOOD_PROMPTS.length) };
-  return _foodLabelVecs;
+// カテゴリ全語＋その他を一度だけエンコードしてキャッシュ（key→ベクトル群）。
+async function ensureCategoryVecs(onProgress) {
+  if (_lensCategoryVecs) return _lensCategoryVecs;
+  const flat = [];
+  for (const c of LENS_CATEGORIES) flat.push(...c.prompts);
+  flat.push(...LENS_OTHER_PROMPTS);
+  const vecs = await encodeTexts(flat, onProgress);
+  const map = {}; let i = 0;
+  for (const c of LENS_CATEGORIES) { map[c.key] = vecs.slice(i, i + c.prompts.length); i += c.prompts.length; }
+  map._other = vecs.slice(i);
+  _lensCategoryVecs = map;
+  return map;
+}
+// カテゴリ key の対抗 = 他の全カテゴリ＋その他（このカテゴリだけを陽性に、残りを陰性に）。
+function categoryNegatives(key, map) {
+  const neg = [];
+  for (const c of LENS_CATEGORIES) if (c.key !== key) neg.push(...map[c.key]);
+  neg.push(...map._other);
+  return neg;
+}
+async function ensureTextAnchorVecs(onProgress) {
+  if (_lensTextAnchorVecs) return _lensTextAnchorVecs;
+  _lensTextAnchorVecs = await encodeTexts(LENS_TEXT_ANCHORS, onProgress);
+  return _lensTextAnchorVecs;
+}
+// アップロード画像を CLIP 画像エンコーダで 512 次元に（保存済み写真 embedding と同じ空間）。端末内・送信なし。
+async function extractImageEmbedding(file) {
+  await loadAIPipeline();   // aiExtractor（画像側・opt-in 済なら DL 済）
+  const url = URL.createObjectURL(file);
+  try {
+    const result = await aiExtractor(url, { pooling: 'mean', normalize: true });
+    return result?.data || result;
+  } finally { URL.revokeObjectURL(url); }
 }
 
 function _cosDot(a, b) { let s = 0; const n = Math.min(a.length, b.length); for (let i = 0; i < n; i++) s += a[i] * b[i]; return s; }
 
-// この写真が食べ物である確率 (ゼロショット)。全ラベルの logit を softmax し、食べ物語群の和。
-function foodProbOf(embedding, labels) {
+// この写真が陽性語群にどれだけ合うか (ゼロショット確率)。陽性＋陰性の logit を softmax し陽性の和。
+function lensProbOf(embedding, posVecs, negVecs) {
   const logits = [];
-  for (const v of labels.food)  logits.push(FOOD_LOGIT_SCALE * _cosDot(embedding, v));
-  for (const v of labels.other) logits.push(FOOD_LOGIT_SCALE * _cosDot(embedding, v));
+  for (const v of posVecs) logits.push(CLIP_LOGIT_SCALE * _cosDot(embedding, v));
+  for (const v of negVecs) logits.push(CLIP_LOGIT_SCALE * _cosDot(embedding, v));
   const mx = Math.max(...logits);
   let sum = 0; const ex = logits.map(l => { const e = Math.exp(l - mx); sum += e; return e; });
-  let food = 0; for (let i = 0; i < labels.food.length; i++) food += ex[i];
-  return food / (sum || 1);
+  let pos = 0; for (let i = 0; i < posVecs.length; i++) pos += ex[i];
+  return pos / (sum || 1);
 }
 
-// ---- 🍜 食べ物レンズ オーバーレイ (全画面・z1900) ----
-let foodLensState = null;   // { overlay, phase, photos, loadMsg, loadPct }
+// ---- 🔍 意味レンズ オーバーレイ (全画面・z1900) ----
+let lensState = null;   // { overlay, phase, lens, photos, loadMsg, loadPct, groupBy, gridBig, error }
 
-function closeFoodLens() { if (foodLensState) { foodLensState.overlay.remove(); foodLensState = null; } }
+function closeLens() { if (lensState) { lensState.overlay.remove(); lensState = null; } }
 
-// v159: 食べ物レンズから「⇆ 比べる」。食べ物レンズ(z1900)は開いたまま比較(z4000)を上に重ねる
-// →比較を閉じると食べ物レンズに戻る（思い出の場所は timeline z5000 で閉じる必要があるが food は不要）。
-// 足跡の地図ボタンは食べ物では場所文脈外＋z順問題(map z150 が food z1900 の下)なので hideTripMap で隠す。
-function openFoodCompare() {
-  if (!foodLensState) return;
-  const list = (foodLensState.photos || []).slice().reverse();   // 昔→今（compare は先頭=最古/末尾=最新を左右に置く）
+// レンズ結果から「⇆ 比べる」。レンズ(z1900)は開いたまま比較(z4000)を上に重ね、閉じると戻る。
+// 足跡の地図は意味レンズでは場所文脈外＋z順問題(map z150 が z1900 の下)なので hideTripMap で隠す。
+function openLensCompare() {
+  if (!lensState) return;
+  const list = (lensState.photos || []).slice().reverse();   // 昔→今（compare は先頭=最古/末尾=最新を左右に置く）
   if (list.length < 2) { logInfo(tr('比べるには写真が2枚以上必要です', 'Need at least 2 photos to compare')); return; }
-  openCompareView(list, null, false, null, { hideTripMap: true, title: tr('🍜 食べ物を見比べる', '🍜 Compare food') });
+  const lab = (lensState.lens && lensState.lens.label) || '🔍';
+  openCompareView(list, null, false, null, { hideTripMap: true, title: `${lab} ${tr('を見比べる', '· compare')}` });
 }
 
-async function openFoodLens() {
-  closeFoodLens();
+async function openLens(initialKey) {
+  closeLens();
   const overlay = document.createElement('div');
-  overlay.className = 'food-overlay';
+  overlay.className = 'food-overlay';   // z1900 レイヤ（クラス名は据え置き）
   overlay.innerHTML =
-    `<div class="atl-header"><div class="atl-title">🍜 ${tr('食べ物', 'Food')}</div><button class="atl-close" type="button">✕</button></div>` +
+    `<div class="atl-header"><div class="atl-title">🔍 ${tr('意味で探す', 'Search by meaning')}</div><button class="atl-close" type="button">✕</button></div>` +
     `<div class="atl-body"></div>`;
   document.body.appendChild(overlay);
-  overlay.querySelector('.atl-close').addEventListener('click', closeFoodLens);
-  foodLensState = { overlay, phase: 'loading', photos: [], loadMsg: '', loadPct: 0, groupBy: 'month' };
+  overlay.querySelector('.atl-close').addEventListener('click', closeLens);
+  lensState = { overlay, phase: 'ready', lens: null, photos: [], loadMsg: '', loadPct: 0, groupBy: 'month', gridBig: false };
 
   const embedded = allPhotos.filter(p => visible(p) && p.embedding);
   if (embedded.length < 3) {   // AI 未解析 → まず 🧠 で解析してもらう
-    foodLensState.phase = 'need-ai';
-    renderFoodLens();
+    lensState.phase = 'need-ai';
+    renderLens();
     return;
   }
-  renderFoodLens();
+  renderLens();   // まずレンズバーを出す
+  const cat = LENS_CATEGORIES.find(c => c.key === (initialKey || 'food')) || LENS_CATEGORIES[0];
+  runCategoryLens(cat);   // 既定＝食べ物（最初に刺さったカテゴリ）
+}
+
+// レンズ共通ランナー: scoreFn(embedded, onProgress)→一致写真配列 を受け、時系列に並べて表示。
+async function runLensScoring(scoreFn) {
+  if (!lensState) return;
+  const embedded = allPhotos.filter(p => visible(p) && p.embedding);
+  lensState.phase = 'loading';
+  lensState.loadMsg = tr('探しています…', 'Searching…');
+  lensState.loadPct = 0;
+  renderLens();
   try {
-    const labels = await ensureFoodLabelVecs(({ pct }) => {
-      if (!foodLensState) return;
-      foodLensState.loadMsg = tr('文章モデルを読み込み中…', 'Loading text model…');
-      foodLensState.loadPct = pct;
-      renderFoodLens();
+    const matched = await scoreFn(embedded, ({ pct }) => {
+      if (!lensState) return;
+      lensState.loadMsg = tr('文章モデルを読み込み中…', 'Loading text model…');
+      lensState.loadPct = pct;
+      renderLens();
     });
-    if (!foodLensState) return;   // 途中で閉じられた
-    foodLensState.loadMsg = tr('食べ物を探しています…', 'Finding food…');
-    renderFoodLens();
-    const foods = embedded
-      .map(p => ({ p, prob: foodProbOf(p.embedding, labels) }))
-      .filter(x => x.prob >= FOOD_MIN_PROB)
-      .map(x => x.p)
-      .sort((a, b) => b.datetime - a.datetime);   // 新→古
-    if (!foodLensState) return;
-    foodLensState.photos = foods;
-    foodLensState.phase = 'ready';
-    renderFoodLens();
+    if (!lensState) return;   // 途中で閉じ/切替
+    matched.sort((a, b) => b.datetime - a.datetime);   // 新→古（画像レンズは上位N済→ここで時系列に）
+    lensState.photos = matched;
+    lensState.phase = 'ready';
+    renderLens();
   } catch (e) {
-    if (!foodLensState) return;
-    foodLensState.phase = 'error';
-    foodLensState.error = e?.message || String(e);
-    renderFoodLens();
-    console.warn('[food-lens]', e);
+    if (!lensState) return;
+    lensState.phase = 'error';
+    lensState.error = e?.message || String(e);
+    renderLens();
+    console.warn('[lens]', e);
   }
 }
 
-function renderFoodLens() {
-  if (!foodLensState) return;
-  const body = foodLensState.overlay.querySelector('.atl-body');
-  const { phase } = foodLensState;
+function runCategoryLens(cat) {
+  if (!lensState) return;
+  lensState.lens = { type: 'category', key: cat.key, label: `${cat.emoji} ${tr(cat.ja, cat.en)}` };
+  runLensScoring(async (embedded, onProgress) => {
+    const map = await ensureCategoryVecs(onProgress);
+    const neg = categoryNegatives(cat.key, map);
+    return embedded.filter(p => lensProbOf(p.embedding, map[cat.key], neg) >= LENS_MIN_PROB);
+  });
+}
+
+function runTextLens(query) {
+  if (!lensState) return;
+  lensState.lens = { type: 'text', query, label: `🔤 “${query}”` };
+  runLensScoring(async (embedded, onProgress) => {
+    const anchors = await ensureTextAnchorVecs(onProgress);
+    const pos = await encodeTexts([query, `a photo of ${query}`]);   // 語＋"a photo of 語"
+    return embedded.filter(p => lensProbOf(p.embedding, pos, anchors) >= LENS_MIN_PROB);
+  });
+}
+
+function runImageLens(file) {
+  if (!lensState) return;
+  lensState.lens = { type: 'image', label: tr('📷 似た写真', '📷 Similar photos') };
+  runLensScoring(async (embedded) => {
+    const q = await extractImageEmbedding(file);   // アップロード画像の embedding
+    return embedded
+      .map(p => ({ p, s: _cosDot(p.embedding, q) }))
+      .filter(x => x.s >= LENS_IMAGE_MIN_COS)
+      .sort((a, b) => b.s - a.s)
+      .slice(0, LENS_IMAGE_TOPK)
+      .map(x => x.p);
+  });
+}
+
+// レンズバー: カテゴリチップ＋フリーテキスト＋写真で探す（切替でレンズを再実行）。
+function appendLensBar(body) {
+  const cur = lensState.lens || {};
+  const bar = document.createElement('div'); bar.className = 'lens-bar';
+  const chips = document.createElement('div'); chips.className = 'lens-chips';
+  LENS_CATEGORIES.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'lens-chip' + (cur.type === 'category' && cur.key === c.key ? ' on' : '');
+    b.type = 'button';
+    b.textContent = `${c.emoji} ${tr(c.ja, c.en)}`;
+    b.addEventListener('click', () => runCategoryLens(c));
+    chips.appendChild(b);
+  });
+  bar.appendChild(chips);
+  const row = document.createElement('div'); row.className = 'lens-search';
+  row.innerHTML = `<input type="text" class="lens-q" placeholder="${tr('言葉で探す（例：海、誕生日、桜…）', 'Search by words (e.g. sea, birthday, blossom…)')}" value="${cur.type === 'text' ? annivEsc(cur.query) : ''}"><button class="lens-go" type="button">${tr('探す', 'Go')}</button>`;
+  bar.appendChild(row);
+  const input = row.querySelector('.lens-q');
+  const go = () => { const q = input.value.trim(); if (q) runTextLens(q); };
+  row.querySelector('.lens-go').addEventListener('click', go);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  const photoBtn = document.createElement('button'); photoBtn.className = 'lens-photo'; photoBtn.type = 'button';
+  photoBtn.textContent = tr('📷 写真で探す（似た写真）', '📷 Search by photo (similar)');
+  photoBtn.addEventListener('click', lensPhotoInput);
+  bar.appendChild(photoBtn);
+  body.appendChild(bar);
+}
+
+// 「📷 写真で探す」用の一時ファイル入力（アップロードした写真は端末内で埋め込み化するだけ・送信なし）。
+function lensPhotoInput() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*'; inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.addEventListener('change', () => { const f = inp.files && inp.files[0]; inp.remove(); if (f) runImageLens(f); });
+  inp.click();
+}
+
+function renderLens() {
+  if (!lensState) return;
+  const body = lensState.overlay.querySelector('.atl-body');
+  const { phase } = lensState;
   body.innerHTML = '';
   if (phase === 'need-ai') {
     const box = document.createElement('div'); box.className = 'food-note';
-    box.innerHTML = `<p>${tr('食べ物レンズは AI の意味解析を使います。まず写真を解析してください（端末内で完結・写真は送信しません）。', 'The food lens uses AI meaning analysis. Please analyze your photos first (on-device; photos are never sent).')}</p>`;
+    box.innerHTML = `<p>${tr('意味で探すには AI の意味解析を使います。まず写真を解析してください（端末内で完結・写真は送信しません）。', 'Searching by meaning uses AI meaning analysis. Please analyze your photos first (on-device; photos are never sent).')}</p>`;
     const b = document.createElement('button'); b.className = 'atl-act atl-act-go';
     b.textContent = tr('🧠 AI で解析する', '🧠 Analyze with AI');
-    b.addEventListener('click', () => { closeFoodLens(); openAIModal(); });
+    b.addEventListener('click', () => { closeLens(); openAIModal(); });
     box.appendChild(b);
     body.appendChild(box);
     return;
   }
+  appendLensBar(body);   // カテゴリ/テキスト/写真 の切替バー（need-ai 以外は常に）
   if (phase === 'loading') {
     const note = document.createElement('div'); note.className = 'food-note';
-    const pct = foodLensState.loadPct || 0;
-    note.innerHTML = `<p>${foodLensState.loadMsg || tr('準備中…', 'Preparing…')}</p>` +
+    const pct = lensState.loadPct || 0;
+    note.innerHTML = `<p>${lensState.loadMsg || tr('準備中…', 'Preparing…')}</p>` +
       (aiTextLoading ? `<div style="height:6px;background:#222;border-radius:999px;overflow:hidden;margin:8px 0;"><div style="height:100%;background:#33c1b0;width:${pct}%;transition:width .2s;"></div></div>` +
         `<p style="font-size:11px;color:#888;">${tr('初回だけ文章用モデルを読み込みます（端末内・写真は送信しません）。', 'Loads the text model once (on-device; photos are never sent).')}</p>` : '');
     body.appendChild(note);
@@ -6032,40 +6154,41 @@ function renderFoodLens() {
   }
   if (phase === 'error') {
     const note = document.createElement('div'); note.className = 'food-note';
-    note.innerHTML = `<p style="color:#f88;">${tr('エラー', 'Error')}: ${foodLensState.error || ''}</p>`;
+    note.innerHTML = `<p style="color:#f88;">${tr('エラー', 'Error')}: ${lensState.error || ''}</p>`;
     body.appendChild(note);
     return;
   }
   // ready
-  const photos = foodLensState.photos;
+  const photos = lensState.photos;
+  const label = (lensState.lens && lensState.lens.label) || '🔍';
   if (!photos.length) {
     const em = document.createElement('div'); em.className = 'food-note food-count';
-    em.textContent = tr('🍜 食べ物の写真が見つかりませんでした。（解析済みの写真から探しています）', '🍜 No food photos found. (Searching among analyzed photos.)');
+    em.textContent = tr(`${label} は見つかりませんでした。（解析済みの写真から探しています）`, `No matches for ${label}. (Searching among analyzed photos.)`);
     body.appendChild(em);
     return;
   }
-  const gb = foodLensState.groupBy || 'month';
-  const big = !!foodLensState.gridBig;
-  // v159: 思い出の場所と同じ写真バー（枚数 ＋ ⇆比べる ＋ 大きく/小さく）＝.atl-photobar 再利用
+  const gb = lensState.groupBy || 'month';
+  const big = !!lensState.gridBig;
+  // v159: 思い出の場所と同じ写真バー（レンズ名＋枚数 ＋ ⇆比べる ＋ 大きく/小さく）＝.atl-photobar 再利用
   const pbar = document.createElement('div'); pbar.className = 'atl-photobar';
-  pbar.innerHTML = `<span>🍜 ${tr(`${photos.length.toLocaleString()}枚（新しい順）`, `${photos.length.toLocaleString()} · newest first`)}</span>` +
+  pbar.innerHTML = `<span>${label} ${tr(`· ${photos.length.toLocaleString()}枚（新しい順）`, `· ${photos.length.toLocaleString()} · newest first`)}</span>` +
     `<span class="atl-photobar-btns">` +
       `<button class="atl-cmp" type="button">${tr('⇆ 比べる', '⇆ Compare')}</button>` +
       `<button class="atl-size" type="button">${big ? tr('⊞ 小さく', '⊞ Smaller') : tr('⊡ 大きく', '⊡ Bigger')}</button>` +
     `</span>`;
   body.appendChild(pbar);
-  pbar.querySelector('.atl-cmp').addEventListener('click', openFoodCompare);
-  pbar.querySelector('.atl-size').addEventListener('click', () => { if (foodLensState) { foodLensState.gridBig = !big; renderFoodLens(); } });
-  // v158: 月ごと / 日ごと 切替（既定=月ごと＝ユーザーが「使い道ある」と言った現状。日ごと＝「その日に食べたもの」がまとまる）
+  pbar.querySelector('.atl-cmp').addEventListener('click', openLensCompare);
+  pbar.querySelector('.atl-size').addEventListener('click', () => { if (lensState) { lensState.gridBig = !big; renderLens(); } });
+  // v158: 月ごと / 日ごと 切替
   const modeBar = document.createElement('div'); modeBar.className = 'atl-modebar';
   modeBar.innerHTML =
     `<button data-g="month" class="atl-mode${gb === 'month' ? ' on' : ''}" type="button">📅 ${tr('月ごと', 'By month')}</button>` +
     `<button data-g="day" class="atl-mode${gb === 'day' ? ' on' : ''}" type="button">📆 ${tr('日ごと', 'By day')}</button>`;
   body.appendChild(modeBar);
   modeBar.querySelectorAll('.atl-mode').forEach(b => b.addEventListener('click', () => {
-    if (!foodLensState || foodLensState.groupBy === b.dataset.g) return;
-    foodLensState.groupBy = b.dataset.g;
-    renderFoodLens();   // photos は算出済み → 再分類せず並べ替えのみ（即時）
+    if (!lensState || lensState.groupBy === b.dataset.g) return;
+    lensState.groupBy = b.dataset.g;
+    renderLens();   // photos は算出済み → 再分類せず並べ替えのみ（即時）
   }));
   buildTimelinePhotos(body, photos, gb, big);   // 月/日見出し＋big=2列＋タップで全画面スワイプ (既存・新→古)
 }
@@ -6275,7 +6398,7 @@ function onDocClickForMenu(e) {
 document.getElementById('btnAdd').addEventListener('click', (e) => openImportMenu(e.currentTarget));
 document.getElementById('btnAnniv').addEventListener('click', openAnnivList);   // v121: 思い出の場所の一覧
 document.getElementById('btnAI').addEventListener('click', openAIModal);
-document.getElementById('btnFood').addEventListener('click', openFoodLens);   // v157: 🍜 食べ物を日別・時系列で
+document.getElementById('btnLens').addEventListener('click', () => openLens('food'));   // v160: 🔍 意味で探す（既定=食べ物）
 document.getElementById('btnInfo').addEventListener('click', openInfoModal);
 // v113: ⚙️ メニューのドロップダウン開閉。外クリック / 項目クリックで閉じる
 // (btnAdd だけは importMenu サブメニューを出すので閉じない＝anchor を残す)。
