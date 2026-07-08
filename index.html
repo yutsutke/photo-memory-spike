@@ -588,7 +588,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.110 (v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に ｜ v155：地図バー再構成＋期間クイック ｜ v154：📍いまの場所 半径選択＋ヘッダ2段) · 2026-07-08';
+const BUILD = 'phase3.111 (v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に ｜ v155：地図バー再構成＋期間クイック ｜ v154：📍いまの場所 半径選択＋ヘッダ2段) · 2026-07-08';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -3798,16 +3798,20 @@ async function openMapView(focusPhoto, opts) {
 // 写真タップ: いま地図に出ている GPS 写真ならフォーカス、それ以外 (フィルタ圏外/GPS無し) はフル画像。
 // v148: 地図タイムラインの写真モード＝全可視写真を時系列グリッド(月見出し・タップで全画面スワイプ)。
 // 思い出ログの写真グリッドと同じ見た目(.atl-grid)。all は新しい→古い順。
-function buildTimelinePhotos(container, all) {
+// v158: groupBy='day' で日見出し(食べ物レンズの日ごとモード)。既定 'month' は従来どおり(地図タイムラインは無改修)。
+function buildTimelinePhotos(container, all, groupBy) {
+  const byDay = groupBy === 'day';
   const grid = document.createElement('div'); grid.className = 'atl-grid tl-photos';
   let cur = '';
   all.forEach(p => {
     const d = p.datetime;
-    const key = d.getFullYear() + '-' + d.getMonth();
+    const key = byDay ? (d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate()) : (d.getFullYear() + '-' + d.getMonth());
     if (key !== cur) {
       cur = key;
       const h = document.createElement('div'); h.className = 'atl-grid-head';
-      h.textContent = tr(`${d.getFullYear()}年${_annivMonJa[d.getMonth()]}`, `${_annivMonEn[d.getMonth()]} ${d.getFullYear()}`);
+      h.textContent = byDay
+        ? tr(`${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${_wdayJa[d.getDay()]}）`, `${_annivMonEn[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} (${_wdayEn[d.getDay()]})`)
+        : tr(`${d.getFullYear()}年${_annivMonJa[d.getMonth()]}`, `${_annivMonEn[d.getMonth()]} ${d.getFullYear()}`);
       grid.appendChild(h);
     }
     const im = document.createElement('img'); im.src = thumbUrl(p); im.loading = 'lazy';
@@ -4738,6 +4742,8 @@ async function openAnnivCompare(a) {
 // 月見出しで時の流れを可視化・小/大トグル・タップで全画面スワイプ(既存 openAnnivPhotoZoom)。
 const _annivMonJa = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 const _annivMonEn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const _wdayJa = ['日','月','火','水','木','金','土'];                      // v158: 日ごとモードの曜日 (d.getDay() 0=日)
+const _wdayEn = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function renderAnnivPhotos() {
   if (!annivTLState) return;
   const { overlay, a } = annivTLState;
@@ -5951,7 +5957,7 @@ async function openFoodLens() {
     `<div class="atl-body"></div>`;
   document.body.appendChild(overlay);
   overlay.querySelector('.atl-close').addEventListener('click', closeFoodLens);
-  foodLensState = { overlay, phase: 'loading', photos: [], loadMsg: '', loadPct: 0 };
+  foodLensState = { overlay, phase: 'loading', photos: [], loadMsg: '', loadPct: 0, groupBy: 'month' };
 
   const embedded = allPhotos.filter(p => visible(p) && p.embedding);
   if (embedded.length < 3) {   // AI 未解析 → まず 🧠 で解析してもらう
@@ -6029,7 +6035,19 @@ function renderFoodLens() {
     body.appendChild(em);
     return;
   }
-  buildTimelinePhotos(body, photos);   // 月見出し＋タップで全画面スワイプ (既存・新→古)
+  // v158: 月ごと / 日ごと 切替（既定=月ごと＝ユーザーが「使い道ある」と言った現状。日ごと＝「その日に食べたもの」がまとまる）
+  const gb = foodLensState.groupBy || 'month';
+  const modeBar = document.createElement('div'); modeBar.className = 'atl-modebar';
+  modeBar.innerHTML =
+    `<button data-g="month" class="atl-mode${gb === 'month' ? ' on' : ''}" type="button">📅 ${tr('月ごと', 'By month')}</button>` +
+    `<button data-g="day" class="atl-mode${gb === 'day' ? ' on' : ''}" type="button">📆 ${tr('日ごと', 'By day')}</button>`;
+  body.appendChild(modeBar);
+  modeBar.querySelectorAll('.atl-mode').forEach(b => b.addEventListener('click', () => {
+    if (!foodLensState || foodLensState.groupBy === b.dataset.g) return;
+    foodLensState.groupBy = b.dataset.g;
+    renderFoodLens();   // photos は算出済み → 再分類せず並べ替えのみ（即時）
+  }));
+  buildTimelinePhotos(body, photos, gb);   // 月/日見出し＋タップで全画面スワイプ (既存・新→古)
 }
 
 // 意味解析 (CLIP) のサンプル上限 (v27, ユーザー案「1万超えたらランダム間引き」)。
