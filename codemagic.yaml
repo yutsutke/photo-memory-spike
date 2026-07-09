@@ -129,3 +129,62 @@ workflows:
 
     artifacts:
       - android/app/build/outputs/**/*.apk
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Android — リリース版（位置あり・広告なし・v150/v142 入り）の署名付き AAB を作る。
+  #
+  # 狙い: Google Play にアップロードする成果物（.aab）を作る。android-debug が
+  #       「起動するか」の de-risk だったのに対し、これは配布物そのもの。
+  #       位置/写真/カメラ権限は local-plugins 側 Manifest から merge される（app 本体は
+  #       INTERNET のみのクリーン）＝この AAB は iOS 1.2 相当の「位置あり・広告なし」フル版。
+  #
+  # 前提（Codemagic の Web UI で一度だけ設定する）:
+  #   1. アップロード鍵（keystore=.jks）を用意（keytool で生成＝Play App Signing の「アップロード鍵」）。
+  #   2. Codemagic → Code signing identities → Android keystores に .jks と
+  #      パスワード/エイリアスを登録し、reference name を付ける（下の android_signing の名前に合わせる）。
+  #   3. Codemagic がビルド時に CM_KEYSTORE_PATH / CM_KEYSTORE_PASSWORD / CM_KEY_ALIAS /
+  #      CM_KEY_PASSWORD を注入 → android/app/build.gradle の signingConfigs.release が読む。
+  #
+  # 使い方: この android-release を選び「Start new build」→ artifacts の *.aab を
+  #        Play Console にアップロード（初回は手動アップロードでよい）。
+  #
+  # 技術メモ:
+  #   - versionCode は $BUILD_NUMBER で自動採番（build.gradle 側で読む）＝手で上げない。
+  #   - instance は iOS と同じ mac_mini_m2（個人プランは macOS M2 のみ＝Android も可）。
+  # ────────────────────────────────────────────────────────────────────────────
+  android-release:
+    name: あの日 Android → Play（署名付き AAB）
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      android_signing:
+        # ↓ Codemagic UI で登録した Android keystore の reference name に合わせる
+        - madeleine_upload
+      node: 22
+      # Capacitor 8.4 の capacitor-android は Java 21 ソースレベル＝JDK 21 必須。
+      java: 21
+    scripts:
+      - name: npm 依存をインストール
+        script: npm install
+
+      - name: web を www/ へ同期し Capacitor Android を sync
+        script: |
+          npm run sync:web
+          npx cap sync android
+
+      - name: リリース AAB をビルド（署名付き）
+        script: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew bundleRelease --stacktrace
+
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+
+    # 初回は Play Console へ手動アップロード。サービスアカウント JSON を登録したら
+    # 下を有効化して track: internal（内部テスト）へ自動アップロードもできる。
+    # publishing:
+    #   google_play:
+    #     credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+    #     track: internal
+    #     submit_as_draft: true

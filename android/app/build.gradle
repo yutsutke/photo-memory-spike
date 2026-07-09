@@ -7,7 +7,9 @@ android {
         applicationId "io.github.yutsutke.madeleine"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        // versionCode は CI（Codemagic）の連番 BUILD_NUMBER を採番＝Play へのアップロードは単調増加。
+        // ローカル（env 無し）は 1 に落ちる＝手元 debug/emulator は従来どおり（Play には出さない）。
+        versionCode (System.getenv("BUILD_NUMBER") ?: "1").toInteger()
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -16,8 +18,28 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // リリース署名（アップロード鍵）。Play App Signing 前提＝この鍵で署名した AAB を Play が受け取り、
+    // 配布用の署名鍵は Play が管理する（アップロード鍵は紛失しても Play で再設定できる）。
+    // 鍵(.jks)と各パスワードは Codemagic の Android code signing に登録し、ビルド時に
+    // CM_KEYSTORE_PATH / CM_KEYSTORE_PASSWORD / CM_KEY_ALIAS / CM_KEY_PASSWORD として注入される。
+    // ★ 公開リポなので鍵や生パスワードは絶対にコミットしない（.gitignore 済／値は CI の Secure のみ）。
+    signingConfigs {
+        release {
+            def ksPath = System.getenv("CM_KEYSTORE_PATH")
+            if (ksPath) {
+                storeFile file(ksPath)
+                storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CM_KEY_ALIAS")
+                keyPassword System.getenv("CM_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
+            // CI で鍵が注入されている時だけ署名する（手元の release ビルドは未署名でも壊れない）。
+            if (System.getenv("CM_KEYSTORE_PATH")) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

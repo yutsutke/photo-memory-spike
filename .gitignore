@@ -29,3 +29,9 @@ android/app/src/main/assets/public/
 android/capacitor-cordova-android-plugins/
 # local plugin の Android ビルド生成物 (included project の build 出力は plugin 配下に出る)
 local-plugins/*/android/build/
+
+# リリース署名鍵は絶対にコミットしない（公開リポ＝鍵とパスワードは Codemagic の Secure のみ）
+*.jks
+*.keystore
+*.p12
+key.properties

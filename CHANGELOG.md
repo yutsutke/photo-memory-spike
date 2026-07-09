@@ -5,6 +5,29 @@
 
 ---
 
+## v168 — Android リリースパイプライン整備＋アップロード鍵生成（Google Play 着手） (2026-07-09)
+
+**背景**
+- iOS は 1.4 公開・1.5 TestFlight まで来た。公開後ロードマップ③「Android を Google Play へ」に本腰。Android は v141（クリーン起動）/v142（写真全件 MediaStore）/v150（背景位置ロガー）まで実装済だが、**配布物＝署名付き AAB を作る導線が無かった**（Codemagic は `assembleDebug` の debug APK のみ・build.gradle に署名設定なし）。
+
+**やったこと（native/CI のみ・web=index.html 無改修＝BUILD `phase3.123` 据え置き）**
+- `android/app/build.gradle`: `signingConfigs.release` を追加（Codemagic が注入する `CM_KEYSTORE_PATH`/`CM_KEYSTORE_PASSWORD`/`CM_KEY_ALIAS`/`CM_KEY_PASSWORD` を読む・env 無しの手元 debug/emulator は無影響の guard 付き）。`versionCode` を `$BUILD_NUMBER` 採番に（iOS の agvtool と同思想）。
+- `codemagic.yaml`: **`android-release` workflow 新設**＝`bundleRelease` で署名付き `.aab` を生成し artifact 化。`android_signing: [madeleine_upload]` で鍵注入。google_play への自動アップロードはコメントで温存（初回は手動アップロード）。
+- `.gitignore`: `*.jks`/`*.keystore`/`*.p12`/`key.properties` を除外（**公開リポなので鍵を絶対に出さない**）。
+- **アップロード鍵を keytool で生成**（`Desktop\madeleine-keystore\madeleine-upload.jks`・PKCS12・RSA2048・有効期限30年・alias `madeleine-upload`・リポ外＋`KEYSTORE-INFO.txt` 同梱）。SHA-256 = `31:2B:7A:76:…:E1:95`。Play App Signing 前提＝紛失しても Play で再設定可。
+
+**設計判断**
+- **署名は Codemagic の Android keystores（`CM_*` 注入）方式**＝iOS の自動署名と同じく「鍵は CI の Secure、リポには置かない」を Android でも踏襲。
+- **release AAB は位置あり・広告なしのフル版**（位置/写真/カメラ権限は local-plugins 側 Manifest から merge＝app 本体は INTERNET のみのクリーン）＝2026-07-05 決定「Android 初回もクリーン版に戻さず位置入りで出す」に沿う。データセーフティは全て端末内処理＝「収集なし」で通せる。
+- **背景位置は `ACCESS_BACKGROUND_LOCATION` 不使用**（FGS type=location で「閉じても記録」）＝Play の背景位置審査ゲートを構造回避（v150 の方針）。ただし FGS location の**申告フォーム**は必要。
+
+**残課題 / 次の方向**
+- ⚠️**未検証**＝Codemagic に鍵を登録→初回 AAB ビルドを回すまでパイプラインが通るか未確認（ユーザーが鍵登録＋Start build）。
+- **律速＝Play アカウント未登録**（$25・本人確認に数日）。かつ**2023/11 以降の個人アカウントは production 前に「20人×14日クローズドテスト」必須**（現行ルール・要確認）→初回ゴールは**内部テストに署名付き AAB**。
+- Claude 側の残＝データセーフティ/コンテンツレーティング/掲載文（日英・iOS 流用）/スクショ Android サイズの下書き。実機で GPS/大量スループット確認（エミュは位置を redact）。
+
+---
+
 ## v167 — 🗺️ 地図タイムラインの「🖼写真」タブに「大きく/小さく」トグル (2026-07-09)
 
 **背景**
