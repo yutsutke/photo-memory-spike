@@ -23,6 +23,13 @@
 - **①トグル**: 既定 ON→GPS 拒否で基準の位置(10,10)を継承／OFF(`rpInheritLoc=false`)→GPS 拒否で **継承せず null,null**。
 - **教訓**: 「基準写真」は3役（ゴースト／位置継承元／実質の代表）を兼ねるが、**metadata アンカーは root のまま**にして `rpBasePhotoId` は"指す"だけ＝ `rephotoRootOf`/グルーピング/子の linkage を一切変えずに差し替え可能（データ移行ゼロ）。フォルダー識別も「子を持つ or rpFolder」の2条件に広げるだけで既存シリーズと共存。
 
+**追記（同 v166・設定の再描画バグ修正・実機FB）**
+- **症状（実機 iOS Safari）**: ⚙設定や題名✎で変更しても**その場で表示が切り替わらない**（位置トグルの ON/OFF・基準写真を囲む枠・基準日・タイトル）。ただし**一度閉じて開くと変更されている**。
+- **原因**: これらは全部 `await dbPut(root)` の**後**に再描画していた。**iOS Safari は IndexedDB から読み出した Blob（写真の `thumb`）を含むレコードを再 put すると transaction が hang しやすい**（WebKit 既知バグ）→ `await` が返らず再描画に到達しない。一方 in-memory の値（`root.rpInheritLoc` 等）は await の前に変わっているので、**閉じて開くと反映されて見える**。撮影の `dbPut(rec)` は Blob が canvas 生成の新品で hang しない（撮影は動く）／思い出の場所は Blob 無しの別ストアなので無関係、と全て符合。
+- **対処**: 変更系は **先に in-memory 更新＋再描画し、保存は待たずに裏で投げる**（`rpPersist(root)`＝`dbPut` を fire-and-forget・失敗は `logErr` で可視化）。対象＝位置トグル／基準写真ピッカー／基準日（設定・解除）／タイトル／日ごとメモ。**基準写真ピッカーは選択後もピッカーに留まり枠を即移動**（従来は renderMain で main に戻り枠が動いて見えなかった）。
+- **検証（preview）**: `window.dbPut` を**永久に解決しない Promise に差し替え**（＝iOS の tx hang を再現）→ **4系統すべて即反映**（トグル ON→OFF／枠 index0→2 に移動しピッカー維持／題名「重ね撮り」→「コーデ」／基準日ボタン→2024-01-10・ログ offset「10日後/基準日/7日前」）。通常 dbPut に戻して DB 直読み＝`rpInheritLoc:false` が永続。console 0。
+- **教訓（このプロジェクト固有）**: **iOS Safari では「写真レコード（Blob 入り）を再 put して await→UI 更新」は危険**。メタだけ変えたい時も dbPut を UI のクリティカルパスに置かない＝**楽観更新（先に描画）＋保存は裏**。preview（Chrome）では再現しないので、**dbPut を hang させて iOS を再現**するのが検証の型。将来メタを頻繁に更新するなら Blob を持たない別ストア化も候補。
+
 **追記（同 v166・UI 整理・ユーザーFB）**
 - **基準日の「設定」を ⚙設定へ移動**（ログ上の `.atl-basebar` を撤去）。ログには**値による「N日前／N日後」offset 表示だけ残す**（設定は ⚙ に集約）。`setRephotoBaseDate(root, after)` に完了コールバックを追加＝⚙から呼ぶと日付 modal 確定後に設定 modal を再描画。⚙設定は3行に（基準写真／🎯基準日／位置トグル）。
 - **名前はチップをやめ、題名の横の ✎ だけ**（アクション行から「✏ 名前」ボタン撤去＝[← 一覧][⚙ 設定][🎞️ 撮り重ねる] の3つに）。`.atl-title` を innerHTML 化しタイトル span（textContent で安全）＋`.rp-nameedit`（✎）。
