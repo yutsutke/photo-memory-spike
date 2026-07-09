@@ -316,6 +316,10 @@
   .rp-set-base { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 0 auto; }
   .rp-set-base img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; background: #000; }
   .rp-set-basechg { font-size: 12px; background: #2a2a2a; color: #ddd; border: 1px solid #4a4a4a; border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+  .rp-set-basedate { flex: 0 0 auto; font-size: 13px; background: #2a2a2a; color: #ddd; border: 1px solid #4a4a4a; border-radius: 999px; padding: 8px 14px; cursor: pointer; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* v166: 名前は題名の横の ✎ だけ（「✏ 名前」チップ撤去） */
+  .rp-nameedit { background: none; border: 0; color: #9ad; font-size: 15px; cursor: pointer; padding: 2px 6px; vertical-align: middle; }
+  .rp-nameedit:active { color: #cfe2ff; }
   .rp-toggle { flex: 0 0 auto; min-width: 58px; padding: 8px 14px; border-radius: 999px; border: 1px solid #4a4a4a; background: #2a2a2a; color: #aaa; font-weight: 700; font-size: 12px; cursor: pointer; }
   .rp-toggle.on { background: #1e6b5e; border-color: #1e6b5e; color: #fff; }
   .rp-pick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 52vh; overflow: auto; margin: 6px 0 4px; }
@@ -661,7 +665,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.120 (v166：🎞️重ね撮りを「フォルダー」化（想定外の使い方＝食事/コーデ/メイク/友達を続けて撮る）＝①位置の基準継承をフォルダーごとにON/OFF（rpInheritLoc・既定ON・⚙設定・場所が変わるフォルダーはOFF）②基準写真を変更可能（rpBasePhotoId・既定=最初の1枚・⚙設定の写真ピッカー・ゴースト兼位置継承元）③一覧「＋新しい重ね撮り」で拡大写真を介さず新規作成（ゴーストなしカメラ=newseries・最初の1枚がrpFolder root・カメラ実比率で保存）。rephotoAllSeries を rpFolder 対応（明示フォルダーは1枚でも一覧）。preview E2E green（新規→root rpFolder＋現在地/既定ONで基準位置継承/トグルOFFで継承せず/基準=Cゴースト＋子はroot Rにひも付く/設定モーダル）。console0。｜ v165+：🎞️重ね撮りで撮った写真に位置情報＝定点(同じ場所)なので地図/いまの場所/囲むに乗せる。優先=撮影時の現在地GPS(その場にいる=最も正確・openで先取りしてシャッターに間に合わせる)→取れなければ基準写真の位置を継承(同じ場所の良い近似)→両方無ければnull。位置はアプリ内レコードに持つだけ=端末内・書き出すJPEGには焼き込まない(Data Not Collected不変)・?shot等LOCATION_AVAILABLE=falseはGPS呼ばず基準継承のみ。preview 3経路green(現在地35.111取得/GPS拒否→基準34.7継承/両方null)。｜ v165：🎞️重ね撮り実機FB第4周＝①アイコン📐→🎞️（アプリ内の全UI表示・「重なるコマ」・コード識別子/コメントは不変）②「また撮る」→「撮り重ねる」（入口=この角度で撮り重ねる／英 Layer a shot (at this angle)）③カメラ全画面化＝ヘッダと黒帯コントロールを廃止し映像を画面いっぱいに・✕(右上)/⊟⊞⏱🔄(左上のアイコン円ボタン42px)/透明度スライダー+シャッター(下部グラデの浮きUI)を映像の上にオーバーレイ・上下分割中はスライダー自動非表示(visibility=場所は保つ)・⏱表示は3s/10s・撮影crop/fit/updateGuide/updateGridの数式は無改修 ④iOS：ホーム画面のアプリアイコン長押し（Quick Action）→🎞️重ね撮り一覧へ直行＝自前 app-shortcuts プラグイン新設(getPending drain+shortcutイベント=BgLocと同型)+AppDelegate performActionFor+Info.plist static shortcut(SF Symbol square.stack.3d.up・題名ja/en)・コールド起動は全件追い読み(restLoadPromise)完了を待って開く＝シリーズ欠けなし・web/Androidはプラグイン不在で全て無効＝不変・カメラ同様 native 1.5 ビルドから。｜ v164：📐重ね撮りカメラの実機FB4点＝①⏱セルフタイマー（オフ/3秒/10秒＋中央カウントダウン）②グリッド線を写真の実表示領域(contain box)にフィット＝写真外の黒帯にはみ出さない③基準側にもグリッド線（上=カメラ/下=基準の両方に同じ3×3）④ボタン増でコントロールを2段（ツール中央寄せ＋シャッター別段）。｜ v163：📐重ね撮りを一級化＋⊞グリッド線＋🍜食べ物だけに（実機FB3点）＝①カメラに3×3グリッド線トグル②重ね撮り=⚙メニューに一覧・タイトル(✏)・🎯基準日(N日前/N日後)・日ごとメモ・📖ログ/🖼写真切替＝思い出の場所と同じ手触り(メタはroot写真レコードのrpTitle/rpBaseDate/rpNotes=スキーマレス・DB移行なし)③意味レンズのUIを「🍜食べ物を振り返る」だけに(チップ/言葉/写真検索は撤去・機構は残置)。｜ v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に·位置情報) · 2026-07-09';
+const BUILD = 'phase3.121 (v166+：🎞️重ね撮りUI整理＝①基準日の設定を⚙設定の中へ移動（ログの基準日バー撤去・値による「N日前/N日後」offset表示は残す）②名前はチップ「✏名前」を撤去し題名の横の✎だけに（アクション行 [←一覧][⚙設定][🎞️撮り重ねる] の3つに）。preview green（⚙3行=基準写真/🎯基準日/位置トグル・⚙から基準日設定→ボタン更新＋offset「10日後/基準日/7日前」・✎でリネーム・console0）。｜ v166：🎞️重ね撮りを「フォルダー」化（想定外の使い方＝食事/コーデ/メイク/友達を続けて撮る）＝①位置の基準継承をフォルダーごとにON/OFF（rpInheritLoc・既定ON・⚙設定・場所が変わるフォルダーはOFF）②基準写真を変更可能（rpBasePhotoId・既定=最初の1枚・⚙設定の写真ピッカー・ゴースト兼位置継承元）③一覧「＋新しい重ね撮り」で拡大写真を介さず新規作成（ゴーストなしカメラ=newseries・最初の1枚がrpFolder root・カメラ実比率で保存）。rephotoAllSeries を rpFolder 対応（明示フォルダーは1枚でも一覧）。preview E2E green（新規→root rpFolder＋現在地/既定ONで基準位置継承/トグルOFFで継承せず/基準=Cゴースト＋子はroot Rにひも付く/設定モーダル）。console0。｜ v165+：🎞️重ね撮りで撮った写真に位置情報＝定点(同じ場所)なので地図/いまの場所/囲むに乗せる。優先=撮影時の現在地GPS(その場にいる=最も正確・openで先取りしてシャッターに間に合わせる)→取れなければ基準写真の位置を継承(同じ場所の良い近似)→両方無ければnull。位置はアプリ内レコードに持つだけ=端末内・書き出すJPEGには焼き込まない(Data Not Collected不変)・?shot等LOCATION_AVAILABLE=falseはGPS呼ばず基準継承のみ。preview 3経路green(現在地35.111取得/GPS拒否→基準34.7継承/両方null)。｜ v165：🎞️重ね撮り実機FB第4周＝①アイコン📐→🎞️（アプリ内の全UI表示・「重なるコマ」・コード識別子/コメントは不変）②「また撮る」→「撮り重ねる」（入口=この角度で撮り重ねる／英 Layer a shot (at this angle)）③カメラ全画面化＝ヘッダと黒帯コントロールを廃止し映像を画面いっぱいに・✕(右上)/⊟⊞⏱🔄(左上のアイコン円ボタン42px)/透明度スライダー+シャッター(下部グラデの浮きUI)を映像の上にオーバーレイ・上下分割中はスライダー自動非表示(visibility=場所は保つ)・⏱表示は3s/10s・撮影crop/fit/updateGuide/updateGridの数式は無改修 ④iOS：ホーム画面のアプリアイコン長押し（Quick Action）→🎞️重ね撮り一覧へ直行＝自前 app-shortcuts プラグイン新設(getPending drain+shortcutイベント=BgLocと同型)+AppDelegate performActionFor+Info.plist static shortcut(SF Symbol square.stack.3d.up・題名ja/en)・コールド起動は全件追い読み(restLoadPromise)完了を待って開く＝シリーズ欠けなし・web/Androidはプラグイン不在で全て無効＝不変・カメラ同様 native 1.5 ビルドから。｜ v164：📐重ね撮りカメラの実機FB4点＝①⏱セルフタイマー（オフ/3秒/10秒＋中央カウントダウン）②グリッド線を写真の実表示領域(contain box)にフィット＝写真外の黒帯にはみ出さない③基準側にもグリッド線（上=カメラ/下=基準の両方に同じ3×3）④ボタン増でコントロールを2段（ツール中央寄せ＋シャッター別段）。｜ v163：📐重ね撮りを一級化＋⊞グリッド線＋🍜食べ物だけに（実機FB3点）＝①カメラに3×3グリッド線トグル②重ね撮り=⚙メニューに一覧・タイトル(✏)・🎯基準日(N日前/N日後)・日ごとメモ・📖ログ/🖼写真切替＝思い出の場所と同じ手触り(メタはroot写真レコードのrpTitle/rpBaseDate/rpNotes=スキーマレス・DB移行なし)③意味レンズのUIを「🍜食べ物を振り返る」だけに(チップ/言葉/写真検索は撤去・機構は残置)。｜ v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に·位置情報) · 2026-07-09';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -6536,7 +6540,6 @@ function openRephotoSeries(root) {
     `<div class="atl-header"><div class="atl-title"></div><button class="atl-close" type="button">✕</button></div>` +
     `<div class="atl-actions">` +
       `<button class="atl-act" data-act="list">${tr('← 一覧', '← List')}</button>` +
-      `<button class="atl-act" data-act="rename">${tr('✏ 名前', '✏ Name')}</button>` +
       `<button class="atl-act" data-act="settings">${tr('⚙ 設定', '⚙ Settings')}</button>` +
       `<button class="atl-act atl-act-go" data-act="shoot">${tr('🎞️ 撮り重ねる', '🎞️ Layer a shot')}</button>` +
     `</div>` +
@@ -6544,7 +6547,6 @@ function openRephotoSeries(root) {
   document.body.appendChild(overlay);
   overlay.querySelector('.atl-close').addEventListener('click', closeRephotoSeries);
   overlay.querySelector('[data-act="list"]').addEventListener('click', () => { closeRephotoSeries(); openRephotoList(); });
-  overlay.querySelector('[data-act="rename"]').addEventListener('click', () => editRephotoTitle(root));
   overlay.querySelector('[data-act="settings"]').addEventListener('click', () => openRephotoSettings(root));
   overlay.querySelector('[data-act="shoot"]').addEventListener('click', () => openRephotoCamera(rephotoBasePhotoOf(root)));   // v166: 基準写真をゴーストに（既定=最初の1枚）
   rephoSeriesState = { overlay, root, mode: 'log', gridBig: false };
@@ -6553,7 +6555,11 @@ function openRephotoSeries(root) {
 function renderRephotoSeries() {
   if (!rephoSeriesState) return;
   const { overlay, root } = rephoSeriesState;
-  overlay.querySelector('.atl-title').textContent = `🎞️ ${rephotoTitleOf(root)}`;
+  // v166: 名前はチップをやめ、題名の横の ✎ だけ（「✏ 名前」ボタン撤去＝アクション行が軽くなる）
+  const titleEl = overlay.querySelector('.atl-title');
+  titleEl.innerHTML = `🎞️ <span class="rp-titletext"></span> <button class="rp-nameedit" type="button" title="${tr('名前を変える', 'Rename')}">✎</button>`;
+  titleEl.querySelector('.rp-titletext').textContent = rephotoTitleOf(root);   // textContent＝ユーザー文字列を安全に
+  titleEl.querySelector('.rp-nameedit').addEventListener('click', () => editRephotoTitle(root));
   const body = overlay.querySelector('.atl-body');
   body.innerHTML = '';
   const series = rephotoSeriesOf(root);        // 昔→今（比べる用）
@@ -6583,15 +6589,7 @@ function renderRephotoSeries() {
     return;
   }
   // 📖 ログ＝日ごと（新→古）・基準日オフセット・メモ・時間の空きを高さで
-  const baseBar = document.createElement('div');
-  baseBar.className = 'atl-basebar';
-  baseBar.innerHTML = root.rpBaseDate
-    ? `<span class="atl-base-txt">${tr('🎯 基準日', '🎯 Base date')} <b>${root.rpBaseDate}</b></span><button class="atl-base-edit" type="button">${tr('変更', 'Change')}</button><button class="atl-base-clear" type="button">${tr('解除', 'Clear')}</button>`
-    : `<button class="atl-base-set" type="button">${tr('🎯 基準日を設定', '🎯 Set a base date')}</button><span class="atl-base-hint">${tr('各日に「何日前／何日後」を出す', 'Show “N days before/after” on each day')}</span>`;
-  body.appendChild(baseBar);
-  const bSet = baseBar.querySelector('.atl-base-set'); if (bSet) bSet.addEventListener('click', () => setRephotoBaseDate(root));
-  const bEdit = baseBar.querySelector('.atl-base-edit'); if (bEdit) bEdit.addEventListener('click', () => setRephotoBaseDate(root));
-  const bClear = baseBar.querySelector('.atl-base-clear'); if (bClear) bClear.addEventListener('click', async () => { delete root.rpBaseDate; await dbPut(root); renderRephotoSeries(); });
+  // v166: 基準日の「設定」は ⚙設定 に移動（ユーザーFB）。ここでは値があれば各日の offset を出すだけ。
   // 日ごとにまとめて新→古
   const byDay = new Map();
   series.forEach(p => { const dk = dayKeyOf(p); if (!byDay.has(dk)) byDay.set(dk, []); byDay.get(dk).push(p); });
@@ -6671,11 +6669,14 @@ function openRephotoSettings(root) {
       `<div class="ai-modal-card"><h2>${tr('⚙ このフォルダーの設定', '⚙ Folder settings')}</h2>` +
       `<div class="rp-set-row"><div class="rp-set-label">${tr('基準写真', 'Reference photo')}<span class="rp-set-hint">${tr('重ねる時の下敷き。位置を引き継ぐ時の元。', 'The underlay when layering, and the source for inherited location.')}</span></div>` +
         `<div class="rp-set-base"><img src="${thumbUrl(base)}" alt=""><button class="rp-set-basechg" type="button">${tr('変更', 'Change')}</button></div></div>` +
+      `<div class="rp-set-row"><div class="rp-set-label">${tr('🎯 基準日', '🎯 Base date')}<span class="rp-set-hint">${tr('各日に「何日前／何日後」を表示（撮り始めた日・目標の日など）。', 'Shows “N days before/after” on each day (start day, goal day, etc.).')}</span></div>` +
+        `<button class="rp-set-basedate" type="button">${root.rpBaseDate ? annivEsc(root.rpBaseDate) : tr('設定', 'Set')}</button></div>` +
       `<div class="rp-set-row"><div class="rp-set-label">${tr('位置を基準から引き継ぐ', 'Inherit location from reference')}<span class="rp-set-hint">${tr('GPSが取れない時だけ効きます。同じ場所を重ねる定点向け。食事・コーデ・友達など場所が変わるフォルダーはオフに。', 'Applies only when GPS is unavailable. For same-spot series; turn off for food, outfits, friends and other place-varying folders.')}</span></div>` +
         `<button class="rp-toggle${on ? ' on' : ''}" type="button" role="switch" aria-checked="${on}">${on ? 'ON' : 'OFF'}</button></div>` +
       `<div class="actions"><button class="primary" id="rpSetClose">${tr('閉じる', 'Close')}</button></div></div>`;
     modal.querySelector('#rpSetClose').addEventListener('click', close);
     modal.querySelector('.rp-toggle').addEventListener('click', async () => { root.rpInheritLoc = !(root.rpInheritLoc !== false); await dbPut(root); renderMain(); });
+    modal.querySelector('.rp-set-basedate').addEventListener('click', () => setRephotoBaseDate(root, renderMain));   // v166: 基準日設定を⚙内に
     modal.querySelector('.rp-set-basechg').addEventListener('click', renderPick);
   };
   const renderPick = () => {
@@ -6695,8 +6696,8 @@ function openRephotoSettings(root) {
   modal.addEventListener('click', e => { if (e.target === modal) close(); });
   renderMain();
 }
-// 🎯 基準日（root.rpBaseDate）。既定候補＝最初の1枚の日。
-function setRephotoBaseDate(root) {
+// 🎯 基準日（root.rpBaseDate）。既定候補＝最初の1枚の日。after=完了後コールバック（⚙設定から呼ぶ時の再描画用・v166）。
+function setRephotoBaseDate(root, after) {
   const modal = document.createElement('div'); modal.className = 'ai-modal anniv-z';
   const series = rephotoSeriesOf(root);
   const f = series[0] && series[0].datetime;
@@ -6711,10 +6712,10 @@ function setRephotoBaseDate(root) {
   modal.querySelector('#rpBaseCancel').addEventListener('click', close);
   modal.addEventListener('click', e => { if (e.target === modal) close(); });
   const clr = modal.querySelector('#rpBaseClear');
-  if (clr) clr.addEventListener('click', async () => { delete root.rpBaseDate; await dbPut(root); close(); renderRephotoSeries(); });
+  if (clr) clr.addEventListener('click', async () => { delete root.rpBaseDate; await dbPut(root); close(); renderRephotoSeries(); if (after) after(); });
   modal.querySelector('#rpBaseOk').addEventListener('click', async () => {
     const val = modal.querySelector('.atl-date-input').value; if (!val) { close(); return; }
-    root.rpBaseDate = val; await dbPut(root); close(); renderRephotoSeries();
+    root.rpBaseDate = val; await dbPut(root); close(); renderRephotoSeries(); if (after) after();
   });
 }
 // ---- 📐 重ね撮り一覧（⚙メニューから・思い出の場所の一覧に相当） ----
