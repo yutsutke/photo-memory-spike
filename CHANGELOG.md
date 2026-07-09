@@ -22,9 +22,17 @@
 - 偽カメラ（canvas.captureStream・今回は videoWidth=480×640 を報告）で実経路 E2E: ステージ**全画面 [0,0,375,812]**・ゴースト時フレーム=3:4 最大内接 375×500・ツール4円ボタン⊟⊞⏱🔄＋✕の座標・下部グラデ内スライダー288px＋シャッター68px。**上下分割=フレーム全画面 812px・スライダー visibility:hidden・グリッドが各写真の contain box（305×406×上下）にフィット**・タイマー 3s→10s→⏱・⏱3秒→カウントダウン「3」→撮影→`rephotoOf` ひも付け→シリーズ「🎞️ 重ね撮り」（2枚・ボタン「🎞️ 撮り重ねる」）→一覧1行。掃除=dbClear・リロード後 console 0。
 - **実機確認が次**: web=Safari で全画面カメラの手触り／native=**1.5 ビルド（build 38〜）**で ①カメラが WKWebView で出るか（1.5(37) の宿題）②アイコン長押し→重ね撮り一覧。
 
+**追記（同 v165・位置情報）**
+- ユーザー質問「重ね撮りで撮ると位置情報は保存されない？」→ コード確認で **YES（保存されていなかった）**＝アプリ内カメラの canvas JPEG は EXIF 無し＆`doRephotoCapture` が `importOne` に lat/lng を渡していなかった → `lat:null,lng:null`。
+- **定点＝同じ場所**なので位置があれば 地図/いまの場所/囲む に自然に乗る（フィルタは `p.lat!=null` のみ＝他は無改修）→ ユーザー選択「**現在地＋基準fallback**」を実装。優先＝撮影時の現在地 GPS（`currentGeoOnce()`＝`getCurrentPosition` を `openRephotoCamera` で先取りして `rephoState.geo` に載せ、シャッターに間に合わせる）→ 取れなければ基準写真の `lat/lng` を継承（同じ場所の良い近似）→ 両方無ければ null。`importOne(file,{...,lat,lng})` に渡す（override.lat が使われる）。
+- **プライバシー**: 位置はアプリ内レコード（IndexedDB・端末内）に持つだけ。**書き出す JPEG には焼き込まない**＝「Data Not Collected」不変。`?shot` 等 `LOCATION_AVAILABLE=false` は GPS を呼ばず（許可を求めず）基準継承のみ。
+- **preview 3経路 green**（1件ずつ・偽カメラは canvas をアニメさせて captureStream にフレームを出す＝videoWidth 報告が撮影の前提）: ①現在地スタブ→撮影写真が 35.111,139.222（基準は位置なし）②GPS 拒否→基準 34.7,135.5 を継承 ③GPS 拒否＋基準なし→null,null。console 0。
+- **教訓（preview）**: 偽カメラは**静的 canvas だと captureStream がフレームを出さず `videoWidth=0`** のまま＝本体の「準備前」ガードで撮影されない。**canvas を setInterval で再描画**し、シャッター前に `videoWidth>0` をポーリングしてから押すこと。1 eval に複数撮影を詰めると 30s タイムアウト＝**1経路1 eval**。leftover の captureStream tick は `for(i){clearInterval(i)}` で掃除。
+
 **残課題 / 次の方向**
 - Quick Action の実機確認は次の Codemagic ビルド（1.5 train・自動採番）から。1.5(37) には**入っていない**。
 - Android の Quick Action（shortcuts.xml + intent）と CAMERA 権限は Play 提出トラックで。
+- 位置の実機確認（web Safari で現在地許可プロンプト→撮影写真が地図に乗るか／native はロガー許可済で再プロンプトなし）。
 - 次段候補（変わらず）: 重ねてスライダー再生・最初の基準をアプリ内カメラで撮る導線・シリーズ削除/写真の取り外し。
 
 ---
