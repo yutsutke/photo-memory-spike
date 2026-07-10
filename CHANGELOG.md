@@ -5,6 +5,29 @@
 
 ---
 
+## v172 — 🐛 web 撮影の回帰修正（シリーズに残らない）＋📍思い出の場所も左スワイプ削除 (2026-07-10)
+
+**背景 / 症状**
+- v170 で web の重ね撮り撮影に「端末フォト保存＝ダウンロード fallback」を足したが、実機（iOS Safari）で**撮った写真が重ね撮りシリーズに残らなくなった**（ユーザー報告）。
+- 併せてユーザー要望：📍思い出の場所の一覧も、重ね撮り一覧と同じく行を左スワイプ→「削除」にしたい。
+
+**原因 → 対処**
+- 原因：`saveRephotoToLibrary` の web パスが撮影のたびに `<a download>` を click。**iOS Safari は blob の `download` を無視してその URL に遷移**し、撮影フロー（`await importOne`→`dbPut`→シリーズ表示）を途中で unload していた。しかも save は import と並行起動なので click が dbPut より先に走る。
+- 対処：**web の端末保存（ダウンロード）を撤去**。`saveRephotoToLibrary` は native（`PhotoLib.savePhoto`）が無ければ即 `null` を返す＝web は従来どおりアプリ内シリーズに残すだけ（端末フォトへは native のみ）。撮影フローは v170 以前の known-good に戻る。
+
+**やったこと（web のみ・native 契約不変）**
+- ↑ の web 保存撤去（回帰修正）。
+- 📍思い出の場所の一覧を重ね撮り一覧と同じ **scroll-snap スワイプ削除**に：各 `.anniv-row` を `.anniv-row-wrap`（`overflow-x:auto; scroll-snap-type:x mandatory`）で包み、右端に `.anniv-row-swdel`（赤・「削除」）。従来の**常時表示の inline 🗑（`.anniv-row-del`）は撤去**しスワイプに一本化。削除アクションは既存（confirm→`annivDelete`＝場所の登録だけ削除・写真は消えない→一覧再描画）を流用。行タップ→ログ（`openAnnivTimeline`）は不変。
+
+**結果 / 観察**
+- preview E2E green：**回帰修正＝実 `doRephotoCapture` を getUserMedia スタブで走らせ、シリーズが 1→2 に増え child が rephotoOf でひも付く／web の save は null**。思い出の場所＝wrap/row/swdel 構造・scroll-snap・inline🗑撤去・行タップ動線維持。console 0。
+- 実機の手触り（スワイプ表示・撮影がシリーズに残るか）が最終確認。
+
+**教訓**
+- **web で「保存」を撮影フローに割り込ませない**：iOS Safari の blob `download` はページ遷移を起こしうる。端末フォト保存は native の責務、web は据え置き（必要なら非同期・非割り込みの明示ボタンで別途）。
+
+---
+
 ## v171 — 🎞️ 重ね撮り一覧で左スワイプ→フォルダ削除（既存の2択モーダルへ） (2026-07-10)
 
 **背景**
