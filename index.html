@@ -273,19 +273,22 @@
      映像を画面いっぱいに。✕・ツール(⊟⊞⏱🔄)・透明度スライダー・シャッターは全部アイコン/浮き UI で
      映像の上にオーバーレイ。撮影 crop の数式（fit/updateGuide/updateGrid/doRephotoCapture）は無改修。 */
   .repho-cam { position: fixed; inset: 0; z-index: 2200; background: #000; }
-  .repho-stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .repho-stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }   /* v173: 基準スワイプ用（ページスクロールを奪わせない） */
   .repho-frame { position: relative; max-width: 100%; max-height: 100%; overflow: hidden; background: #050505; }
   .repho-frame video, .repho-frame .repho-ghost { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .repho-ghost { pointer-events: none; }
   .repho-frame.mirror video, .repho-frame.mirror .repho-ghost { transform: scaleX(-1); }   /* 前面: プレビューと基準を両方ミラー＝合わせやすく、保存は非ミラー */
   /* v162: 分割は上下＋全体表示(contain)＝縦持ちで両方が最大サイズ・まるごと見える(実機FB「一部しか見えない」)。破線=保存される範囲 */
   .repho-frame.split { display: grid; grid-template-rows: 1fr 1fr; gap: 2px; }
-  .repho-frame.split video, .repho-frame.split .repho-ghost { position: relative; inset: auto; opacity: 1 !important; object-fit: contain; background: #000; min-height: 0; }
+  .repho-frame.split.split-h { grid-template-rows: none; grid-template-columns: 1fr 1fr; }   /* v173: 横持ち＝左右（縦持ち＝従来の上下）。fit() が stage の縦横で付け外し */
+  .repho-frame.split video, .repho-frame.split .repho-ghost { position: relative; inset: auto; opacity: 1 !important; object-fit: contain; background: #000; min-height: 0; min-width: 0; }
   .repho-tag { display: none; position: absolute; left: 8px; z-index: 3; background: rgba(0,0,0,0.55); color: #fff; font-size: 11px; padding: 3px 9px; border-radius: 999px; pointer-events: none; }
   .repho-tag-cam { top: calc(62px + env(safe-area-inset-top)); }   /* v165: 全画面化＝左上のツール円ボタンの下に */
   .repho-tag-ref { top: calc(50% + 9px); }
+  .repho-frame.split-h .repho-tag-ref { left: calc(50% + 10px); top: calc(10px + env(safe-area-inset-top)); }   /* v173: 左右分割＝右セルの左上（✕は右端なので干渉しない） */
   .repho-frame.split .repho-tag { display: block; }
   .repho-guide { display: none; position: absolute; left: 50%; top: 25%; transform: translate(-50%, -50%); border: 1.5px dashed rgba(255,255,255,0.65); border-radius: 4px; z-index: 2; pointer-events: none; }
+  .repho-frame.split-h .repho-guide { left: 25%; top: 50%; }   /* v173: 左右分割＝カメラは左セル */
   /* v164: グリッド線＝写真の実表示領域(contain後のbox)に JS で合わせる（はみ出し解消）。上=カメラ/下=基準の両方に同じ3×3 */
   .repho-grid { display: none; position: absolute; z-index: 2; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.45) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.45) 1px, transparent 1px); background-size: 100% 33.334%, 33.334% 100%; }
   .repho-count { display: none; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; font-weight: 800; color: #fff; text-shadow: 0 2px 24px rgba(0,0,0,0.85); pointer-events: none; font-size: 92px; line-height: 1; }
@@ -309,6 +312,13 @@
   .repho-opacity { display: flex; align-items: center; gap: 10px; color: #ddd; font-size: 12px; width: min(340px, 84%); text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
   .repho-opacity input { flex: 1 1 auto; accent-color: #33c1b0; }
   .repho-cam.split .repho-opacity { visibility: hidden; }   /* v165: 上下分割＝ゴースト透明度は無関係（場所は保ってガタつかせない） */
+  /* v173: 基準スワイプバー＝フォルダー内の別の写真を下敷きに切替（‹›タップ or 映像を左右スワイプ）＋📌で基準写真に確定 */
+  .repho-refbar { display: flex; align-items: center; gap: 8px; color: #eee; font-size: 12px; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
+  .repho-refbar .repho-refinfo { min-width: 92px; text-align: center; white-space: nowrap; }
+  .repho-refarrow { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; border-radius: 50%; background: rgba(20,20,20,0.55); color: #eee; border: 1px solid rgba(255,255,255,0.25); font-size: 17px; line-height: 1; cursor: pointer; }
+  .repho-refarrow:disabled { opacity: 0.35; }
+  .repho-refpin { height: 30px; border-radius: 999px; padding: 0 12px; background: rgba(20,20,20,0.55); color: #eee; border: 1px solid rgba(255,255,255,0.25); font-size: 12px; line-height: 1; cursor: pointer; white-space: nowrap; }
+  .repho-refpin.on { background: rgba(30,107,94,0.92); border-color: rgba(30,107,94,0.92); color: #fff; }
   /* v164→v165: ツール（上下/線/⏱/カメラ）はアイコンだけの 42px 円ボタンで左上に浮かべる（映像を隠さない） */
   .repho-tools { position: absolute; top: calc(10px + env(safe-area-inset-top)); left: 12px; z-index: 7; display: flex; gap: 8px; }
   .repho-tool { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; padding: 0; border-radius: 50%; background: rgba(20,20,20,0.55); color: #eee; border: 1px solid rgba(255,255,255,0.25); font-size: 17px; line-height: 1; cursor: pointer; white-space: nowrap; }
@@ -685,7 +695,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.127 (v172：🐛web の重ね撮り撮影がシリーズに残らない回帰を修正（v170 の web ダウンロード fallback が iOS Safari で blob ダウンロード→ページ遷移し撮影フローを壊していた→web の端末保存を撤去・端末フォト保存は native のみ）＋📍思い出の場所の一覧も行を左スワイプ→「削除」（重ね撮り一覧と同じ .anniv-row-wrap scroll-snap・従来の inline 🗑 は置換）。preview 検証。｜ v171：🎞️重ね撮り一覧でフォルダを左スワイプ→「削除」→既存の2択モーダル（フォルダだけ削除／写真ごと非表示）。スワイプ＝各行を .rp-row-wrap(scroll-snap x mandatory)で包み .rp-row(100%)＋.rp-row-del(84px) を横スクロールで出す＝実機サクサク（JS スワイプ判定なし）・タップは従来どおりシリーズを開く。非表示は既存 excludePhoto＝「🗑削除した写真」から復元可。削除後は openRephotoList で一覧を再描画。preview で構造検証。｜ v170：🎞️重ね撮りの撮影を端末の写真アプリ（カメラロール）にも保存＋撮影サイズ選択（S=1024/M=2048/L=3072）。保存＝native は自前 PhotoLibrary プラグインに savePhoto を追加（iOS=PHPhotoLibrary・Info.plist の NSPhotoLibraryAddUsageDescription は既存／Android=MediaStore・新権限なし）、web はダウンロード（iOS Safari は共有→写真に保存）。サイズ＝カメラツールに S/M/L トグル（rephoState.captureMax→doRephotoCapture の MAX）＝主にカメラロールに残る原画の解像度（アプリ内は従来どおり thumb）。端末フォトに残る＝アンインストールしても写真が残る。native は次の1.5ビルドから・web はダウンロードで検証。｜ v169：🎞️重ね撮りの削除＝①フォルダごと削除（⚙設定の「🗑このフォルダを削除」）②フォルダ内の1枚を削除（拡大表示の「🗑削除」）。どちらも2択＝「フォルダから外す」(rephotoフラグ削除→通常写真として地図/タイムラインに残す)／「非表示」(既存 excluded＝どこからも消える・🗑削除した写真から復元可)。root(器)を外す時は最古の子を新rootに昇格して器を保つ。buildTimelinePhotos に後方互換の第5引数 opts(fullOpts) を足し写真モードからも削除導線。preview で検証。｜ v167：🗺️地図タイムラインの「🖼写真」タブに「⊡大きく/⊞小さく」トグル追加（実機FB＝写真を拡大して表示）＝思い出の場所/重ね撮りと同じ .atl-photobar/.atl-size を流用・状態は mapState.tlBig・buildTimelinePhotos の big 引数へ（.atl-grid.big=2列 ⇔ 4列）・絞り込み(pickDays/range)は timelineFilteredPhotos で従来どおり尊重・写真タップ→全画面拡大は既存のまま。preview green（地図→写真タブ→大きく=2列/小さく=4列・ボタン文言連動・console0）。｜ v166++：🎞️重ね撮り設定の再描画バグ修正（実機FB）＝⚙設定/題名✎の変更（位置トグル・基準写真枠・基準日・タイトル）が実機iOSでその場で反映されず「閉じて開くと反映」だった＝原因は全部 await dbPut(root) の後に再描画→iOS Safari は IDBから読んだ Blob(thumb) を含む写真レコードの再put で tx が hang しやすく再描画に到達しない（in-memory値は先に変わる）。→ 先に in-memory更新＋再描画し保存は裏で（rpPersist・失敗はlogErr）。基準写真ピッカーは選択後もピッカーに留まり枠を即移動。preview で dbPut を永久hangに差し替えても全4系統が即反映＝再現&修正確認／通常dbPutでDB永続も確認。｜ v166+：🎞️重ね撮りUI整理＝①基準日の設定を⚙設定の中へ移動（ログの基準日バー撤去・値による「N日前/N日後」offset表示は残す）②名前はチップ「✏名前」を撤去し題名の横の✎だけに（アクション行 [←一覧][⚙設定][🎞️撮り重ねる] の3つに）。preview green（⚙3行=基準写真/🎯基準日/位置トグル・⚙から基準日設定→ボタン更新＋offset「10日後/基準日/7日前」・✎でリネーム・console0）。｜ v166：🎞️重ね撮りを「フォルダー」化（想定外の使い方＝食事/コーデ/メイク/友達を続けて撮る）＝①位置の基準継承をフォルダーごとにON/OFF（rpInheritLoc・既定ON・⚙設定・場所が変わるフォルダーはOFF）②基準写真を変更可能（rpBasePhotoId・既定=最初の1枚・⚙設定の写真ピッカー・ゴースト兼位置継承元）③一覧「＋新しい重ね撮り」で拡大写真を介さず新規作成（ゴーストなしカメラ=newseries・最初の1枚がrpFolder root・カメラ実比率で保存）。rephotoAllSeries を rpFolder 対応（明示フォルダーは1枚でも一覧）。preview E2E green（新規→root rpFolder＋現在地/既定ONで基準位置継承/トグルOFFで継承せず/基準=Cゴースト＋子はroot Rにひも付く/設定モーダル）。console0。｜ v165+：🎞️重ね撮りで撮った写真に位置情報＝定点(同じ場所)なので地図/いまの場所/囲むに乗せる。優先=撮影時の現在地GPS(その場にいる=最も正確・openで先取りしてシャッターに間に合わせる)→取れなければ基準写真の位置を継承(同じ場所の良い近似)→両方無ければnull。位置はアプリ内レコードに持つだけ=端末内・書き出すJPEGには焼き込まない(Data Not Collected不変)・?shot等LOCATION_AVAILABLE=falseはGPS呼ばず基準継承のみ。preview 3経路green(現在地35.111取得/GPS拒否→基準34.7継承/両方null)。｜ v165：🎞️重ね撮り実機FB第4周＝①アイコン📐→🎞️（アプリ内の全UI表示・「重なるコマ」・コード識別子/コメントは不変）②「また撮る」→「撮り重ねる」（入口=この角度で撮り重ねる／英 Layer a shot (at this angle)）③カメラ全画面化＝ヘッダと黒帯コントロールを廃止し映像を画面いっぱいに・✕(右上)/⊟⊞⏱🔄(左上のアイコン円ボタン42px)/透明度スライダー+シャッター(下部グラデの浮きUI)を映像の上にオーバーレイ・上下分割中はスライダー自動非表示(visibility=場所は保つ)・⏱表示は3s/10s・撮影crop/fit/updateGuide/updateGridの数式は無改修 ④iOS：ホーム画面のアプリアイコン長押し（Quick Action）→🎞️重ね撮り一覧へ直行＝自前 app-shortcuts プラグイン新設(getPending drain+shortcutイベント=BgLocと同型)+AppDelegate performActionFor+Info.plist static shortcut(SF Symbol square.stack.3d.up・題名ja/en)・コールド起動は全件追い読み(restLoadPromise)完了を待って開く＝シリーズ欠けなし・web/Androidはプラグイン不在で全て無効＝不変・カメラ同様 native 1.5 ビルドから。｜ v164：📐重ね撮りカメラの実機FB4点＝①⏱セルフタイマー（オフ/3秒/10秒＋中央カウントダウン）②グリッド線を写真の実表示領域(contain box)にフィット＝写真外の黒帯にはみ出さない③基準側にもグリッド線（上=カメラ/下=基準の両方に同じ3×3）④ボタン増でコントロールを2段（ツール中央寄せ＋シャッター別段）。｜ v163：📐重ね撮りを一級化＋⊞グリッド線＋🍜食べ物だけに（実機FB3点）＝①カメラに3×3グリッド線トグル②重ね撮り=⚙メニューに一覧・タイトル(✏)・🎯基準日(N日前/N日後)・日ごとメモ・📖ログ/🖼写真切替＝思い出の場所と同じ手触り(メタはroot写真レコードのrpTitle/rpBaseDate/rpNotes=スキーマレス・DB移行なし)③意味レンズのUIを「🍜食べ物を振り返る」だけに(チップ/言葉/写真検索は撤去・機構は残置)。｜ v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に·位置情報) · 2026-07-09';
+const BUILD = 'phase3.128 (v173：🎞️重ね撮りカメラ＝①基準写真をスワイプで切替（ゴーストでも2画面でも・映像を左右スワイプ or ‹›・フォルダー内の別の写真を下敷きに・表示中の写真が保存の額縁と位置継承元・📌で root.rpBasePhotoId を永続確定＝⚙設定と同じ・rpPersist で保存は裏）②2画面を横持ちで左右分割に（縦持ち=上下/横持ち=左右・fit() が stage の縦横で split-h を自動付け外し・guide/grid の数式をセル横割りに拡張・containBox に offX）。preview 検証。｜ v172：🐛web の重ね撮り撮影がシリーズに残らない回帰を修正（v170 の web ダウンロード fallback が iOS Safari で blob ダウンロード→ページ遷移し撮影フローを壊していた→web の端末保存を撤去・端末フォト保存は native のみ）＋📍思い出の場所の一覧も行を左スワイプ→「削除」（重ね撮り一覧と同じ .anniv-row-wrap scroll-snap・従来の inline 🗑 は置換）。preview 検証。｜ v171：🎞️重ね撮り一覧でフォルダを左スワイプ→「削除」→既存の2択モーダル（フォルダだけ削除／写真ごと非表示）。スワイプ＝各行を .rp-row-wrap(scroll-snap x mandatory)で包み .rp-row(100%)＋.rp-row-del(84px) を横スクロールで出す＝実機サクサク（JS スワイプ判定なし）・タップは従来どおりシリーズを開く。非表示は既存 excludePhoto＝「🗑削除した写真」から復元可。削除後は openRephotoList で一覧を再描画。preview で構造検証。｜ v170：🎞️重ね撮りの撮影を端末の写真アプリ（カメラロール）にも保存＋撮影サイズ選択（S=1024/M=2048/L=3072）。保存＝native は自前 PhotoLibrary プラグインに savePhoto を追加（iOS=PHPhotoLibrary・Info.plist の NSPhotoLibraryAddUsageDescription は既存／Android=MediaStore・新権限なし）、web はダウンロード（iOS Safari は共有→写真に保存）。サイズ＝カメラツールに S/M/L トグル（rephoState.captureMax→doRephotoCapture の MAX）＝主にカメラロールに残る原画の解像度（アプリ内は従来どおり thumb）。端末フォトに残る＝アンインストールしても写真が残る。native は次の1.5ビルドから・web はダウンロードで検証。｜ v169：🎞️重ね撮りの削除＝①フォルダごと削除（⚙設定の「🗑このフォルダを削除」）②フォルダ内の1枚を削除（拡大表示の「🗑削除」）。どちらも2択＝「フォルダから外す」(rephotoフラグ削除→通常写真として地図/タイムラインに残す)／「非表示」(既存 excluded＝どこからも消える・🗑削除した写真から復元可)。root(器)を外す時は最古の子を新rootに昇格して器を保つ。buildTimelinePhotos に後方互換の第5引数 opts(fullOpts) を足し写真モードからも削除導線。preview で検証。｜ v167：🗺️地図タイムラインの「🖼写真」タブに「⊡大きく/⊞小さく」トグル追加（実機FB＝写真を拡大して表示）＝思い出の場所/重ね撮りと同じ .atl-photobar/.atl-size を流用・状態は mapState.tlBig・buildTimelinePhotos の big 引数へ（.atl-grid.big=2列 ⇔ 4列）・絞り込み(pickDays/range)は timelineFilteredPhotos で従来どおり尊重・写真タップ→全画面拡大は既存のまま。preview green（地図→写真タブ→大きく=2列/小さく=4列・ボタン文言連動・console0）。｜ v166++：🎞️重ね撮り設定の再描画バグ修正（実機FB）＝⚙設定/題名✎の変更（位置トグル・基準写真枠・基準日・タイトル）が実機iOSでその場で反映されず「閉じて開くと反映」だった＝原因は全部 await dbPut(root) の後に再描画→iOS Safari は IDBから読んだ Blob(thumb) を含む写真レコードの再put で tx が hang しやすく再描画に到達しない（in-memory値は先に変わる）。→ 先に in-memory更新＋再描画し保存は裏で（rpPersist・失敗はlogErr）。基準写真ピッカーは選択後もピッカーに留まり枠を即移動。preview で dbPut を永久hangに差し替えても全4系統が即反映＝再現&修正確認／通常dbPutでDB永続も確認。｜ v166+：🎞️重ね撮りUI整理＝①基準日の設定を⚙設定の中へ移動（ログの基準日バー撤去・値による「N日前/N日後」offset表示は残す）②名前はチップ「✏名前」を撤去し題名の横の✎だけに（アクション行 [←一覧][⚙設定][🎞️撮り重ねる] の3つに）。preview green（⚙3行=基準写真/🎯基準日/位置トグル・⚙から基準日設定→ボタン更新＋offset「10日後/基準日/7日前」・✎でリネーム・console0）。｜ v166：🎞️重ね撮りを「フォルダー」化（想定外の使い方＝食事/コーデ/メイク/友達を続けて撮る）＝①位置の基準継承をフォルダーごとにON/OFF（rpInheritLoc・既定ON・⚙設定・場所が変わるフォルダーはOFF）②基準写真を変更可能（rpBasePhotoId・既定=最初の1枚・⚙設定の写真ピッカー・ゴースト兼位置継承元）③一覧「＋新しい重ね撮り」で拡大写真を介さず新規作成（ゴーストなしカメラ=newseries・最初の1枚がrpFolder root・カメラ実比率で保存）。rephotoAllSeries を rpFolder 対応（明示フォルダーは1枚でも一覧）。preview E2E green（新規→root rpFolder＋現在地/既定ONで基準位置継承/トグルOFFで継承せず/基準=Cゴースト＋子はroot Rにひも付く/設定モーダル）。console0。｜ v165+：🎞️重ね撮りで撮った写真に位置情報＝定点(同じ場所)なので地図/いまの場所/囲むに乗せる。優先=撮影時の現在地GPS(その場にいる=最も正確・openで先取りしてシャッターに間に合わせる)→取れなければ基準写真の位置を継承(同じ場所の良い近似)→両方無ければnull。位置はアプリ内レコードに持つだけ=端末内・書き出すJPEGには焼き込まない(Data Not Collected不変)・?shot等LOCATION_AVAILABLE=falseはGPS呼ばず基準継承のみ。preview 3経路green(現在地35.111取得/GPS拒否→基準34.7継承/両方null)。｜ v165：🎞️重ね撮り実機FB第4周＝①アイコン📐→🎞️（アプリ内の全UI表示・「重なるコマ」・コード識別子/コメントは不変）②「また撮る」→「撮り重ねる」（入口=この角度で撮り重ねる／英 Layer a shot (at this angle)）③カメラ全画面化＝ヘッダと黒帯コントロールを廃止し映像を画面いっぱいに・✕(右上)/⊟⊞⏱🔄(左上のアイコン円ボタン42px)/透明度スライダー+シャッター(下部グラデの浮きUI)を映像の上にオーバーレイ・上下分割中はスライダー自動非表示(visibility=場所は保つ)・⏱表示は3s/10s・撮影crop/fit/updateGuide/updateGridの数式は無改修 ④iOS：ホーム画面のアプリアイコン長押し（Quick Action）→🎞️重ね撮り一覧へ直行＝自前 app-shortcuts プラグイン新設(getPending drain+shortcutイベント=BgLocと同型)+AppDelegate performActionFor+Info.plist static shortcut(SF Symbol square.stack.3d.up・題名ja/en)・コールド起動は全件追い読み(restLoadPromise)完了を待って開く＝シリーズ欠けなし・web/Androidはプラグイン不在で全て無効＝不変・カメラ同様 native 1.5 ビルドから。｜ v164：📐重ね撮りカメラの実機FB4点＝①⏱セルフタイマー（オフ/3秒/10秒＋中央カウントダウン）②グリッド線を写真の実表示領域(contain box)にフィット＝写真外の黒帯にはみ出さない③基準側にもグリッド線（上=カメラ/下=基準の両方に同じ3×3）④ボタン増でコントロールを2段（ツール中央寄せ＋シャッター別段）。｜ v163：📐重ね撮りを一級化＋⊞グリッド線＋🍜食べ物だけに（実機FB3点）＝①カメラに3×3グリッド線トグル②重ね撮り=⚙メニューに一覧・タイトル(✏)・🎯基準日(N日前/N日後)・日ごとメモ・📖ログ/🖼写真切替＝思い出の場所と同じ手触り(メタはroot写真レコードのrpTitle/rpBaseDate/rpNotes=スキーマレス・DB移行なし)③意味レンズのUIを「🍜食べ物を振り返る」だけに(チップ/言葉/写真検索は撤去・機構は残置)。｜ v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に·位置情報) · 2026-07-09';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -6447,7 +6457,7 @@ function openRephotoCamera(base, opts) {
       `<span class="repho-tag repho-tag-cam">📷 ${tr('いま', 'Now')}</span><span class="repho-tag repho-tag-ref">🖼 ${tr('基準', 'Reference')}</span>` +
       `<div class="repho-guide"></div><div class="repho-grid repho-grid-cam"></div><div class="repho-grid repho-grid-ref"></div><div class="repho-count"></div></div></div>` +
     `<div class="repho-tools">` +
-      `<button class="repho-tool repho-mode" type="button" title="${tr('上下に分けて両方まるごと見る', 'Stack camera and reference, both shown whole')}">⊟</button>` +
+      `<button class="repho-tool repho-mode" type="button" title="${tr('2画面で両方まるごと見る（縦持ち=上下・横持ち=左右）', 'Split view, both shown whole (portrait: stacked / landscape: side by side)')}">⊟</button>` +
       `<button class="repho-tool repho-gridbtn" type="button" title="${tr('3×3 のグリッド線（構図合わせ用）', 'Show a 3×3 grid for composition')}">⊞</button>` +
       `<button class="repho-tool repho-timer" type="button" title="${tr('セルフタイマー（オフ / 3秒 / 10秒）', 'Self-timer (off / 3s / 10s)')}">⏱</button>` +
       `<button class="repho-tool repho-size" type="button" title="${tr('保存する写真のサイズ（S=小1024 / M=標準2048 / L=大3072）', 'Saved photo size (S=small 1024 / M=standard 2048 / L=large 3072)')}">M</button>` +
@@ -6455,6 +6465,12 @@ function openRephotoCamera(base, opts) {
     `</div>` +
     `<button class="repho-x" type="button" title="${tr('閉じる', 'Close')}">✕</button>` +
     `<div class="repho-ctrl">` +
+      `<div class="repho-refbar" style="display:none">` +   // v173: 基準スワイプバー（フォルダー2枚以上で表示）
+        `<button class="repho-refarrow repho-refprev" type="button" title="${tr('前の写真を下敷きに', 'Previous photo as underlay')}">‹</button>` +
+        `<span class="repho-refinfo"></span>` +
+        `<button class="repho-refarrow repho-refnext" type="button" title="${tr('次の写真を下敷きに', 'Next photo as underlay')}">›</button>` +
+        `<button class="repho-refpin" type="button" title="${tr('表示中の写真をこのフォルダーの基準写真にする', 'Make the shown photo this folder’s reference photo')}"></button>` +
+      `</div>` +
       `<div class="repho-opacity"><span>${tr('基準', 'Ref')}</span><input type="range" min="0" max="85" value="45"><span>${tr('濃く', 'More')}</span></div>` +
       `<button class="repho-shutter" type="button" title="${tr('撮る', 'Shoot')}"></button>` +
     `</div>`;
@@ -6472,7 +6488,9 @@ function openRephotoCamera(base, opts) {
     if (!rephoState) { guide.style.display = 'none'; return; }
     const v = overlay.querySelector('video');
     if (rephoState.mode !== 'split' || !v.videoWidth || !v.videoHeight) { guide.style.display = 'none'; return; }
-    const cellW = frame.clientWidth, cellH = frame.clientHeight / 2;
+    const horiz = frame.classList.contains('split-h');   // v173: 横持ち＝左右分割（カメラは左セル）
+    const cellW = horiz ? frame.clientWidth / 2 : frame.clientWidth;
+    const cellH = horiz ? frame.clientHeight : frame.clientHeight / 2;
     let dw = cellW, dh = dw * v.videoHeight / v.videoWidth;   // contain されたカメラ映像の表示サイズ
     if (dh > cellH) { dh = cellH; dw = dh * v.videoWidth / v.videoHeight; }
     const A = rephoState.aspect || v.videoWidth / v.videoHeight;
@@ -6486,11 +6504,11 @@ function openRephotoCamera(base, opts) {
   //   上=カメラ / 下=基準 の両方に同じ 3×3（各写真をそれぞれ3分割＝アスペクトが同じなら線が揃う）。
   const gcam = overlay.querySelector('.repho-grid-cam');
   const gref = overlay.querySelector('.repho-grid-ref');
-  const containBox = (dispW, dispH, natW, natH, offY) => {   // dispセル内に contain された写真の box（offY=セルの上端）
-    if (!natW || !natH) return { left: 0, top: offY, w: dispW, h: dispH };
+  const containBox = (dispW, dispH, natW, natH, offX, offY) => {   // dispセル内に contain された写真の box（offX/offY=セルの左上・v173 で左右分割にも対応）
+    if (!natW || !natH) return { left: offX, top: offY, w: dispW, h: dispH };
     let w = dispW, h = dispW * natH / natW;
     if (h > dispH) { h = dispH; w = dispH * natW / natH; }
-    return { left: (dispW - w) / 2, top: offY + (dispH - h) / 2, w, h };
+    return { left: offX + (dispW - w) / 2, top: offY + (dispH - h) / 2, w, h };
   };
   const place = (el, b) => { el.style.display = 'block'; el.style.left = Math.round(b.left) + 'px'; el.style.top = Math.round(b.top) + 'px'; el.style.width = Math.round(b.w) + 'px'; el.style.height = Math.round(b.h) + 'px'; };
   const updateGrid = () => {
@@ -6498,9 +6516,15 @@ function openRephotoCamera(base, opts) {
     const v = overlay.querySelector('video');
     const fw = frame.clientWidth, fh = frame.clientHeight;
     if (rephoState.mode === 'split') {
-      const cellH = fh / 2;
-      place(gcam, containBox(fw, cellH, v.videoWidth, v.videoHeight, 0));           // 上＝カメラ映像の実領域
-      place(gref, containBox(fw, cellH, ghost.naturalWidth, ghost.naturalHeight, cellH));   // 下＝基準写真の実領域
+      if (frame.classList.contains('split-h')) {   // v173: 横持ち＝左右（左=カメラ/右=基準）
+        const cellW = fw / 2;
+        place(gcam, containBox(cellW, fh, v.videoWidth, v.videoHeight, 0, 0));
+        place(gref, containBox(cellW, fh, ghost.naturalWidth, ghost.naturalHeight, cellW, 0));
+      } else {                                      // 縦持ち＝上下（上=カメラ/下=基準・従来）
+        const cellH = fh / 2;
+        place(gcam, containBox(fw, cellH, v.videoWidth, v.videoHeight, 0, 0));
+        place(gref, containBox(fw, cellH, ghost.naturalWidth, ghost.naturalHeight, 0, cellH));
+      }
     } else {
       place(gcam, { left: 0, top: 0, w: fw, h: fh });   // ゴースト＝frame が基準アスペクト枠＝写真ぴったり（重なるので1枚で両方に乗る）
       gref.style.display = 'none';
@@ -6512,6 +6536,7 @@ function openRephotoCamera(base, opts) {
     if (!rephoState) return;
     const stage = overlay.querySelector('.repho-stage');
     if (rephoState.mode === 'split') {
+      frame.classList.toggle('split-h', stage.clientWidth > stage.clientHeight);   // v173: 縦持ち=上下 / 横持ち=左右（回転で自動切替＝resize 経由）
       frame.style.width = '100%';
       frame.style.height = '100%';
     } else {
@@ -6546,7 +6571,7 @@ function openRephotoCamera(base, opts) {
     overlay.classList.toggle('split', split);   // v165: 分割中は透明度スライダーを隠す（重ね表示でだけ意味がある）
     e.currentTarget.classList.toggle('on', split);
     e.currentTarget.textContent = split ? '👻' : '⊟';   // v165: アイコンのみ＝押すと切り替わる先
-    e.currentTarget.title = split ? tr('重ねて表示に戻す', 'Back to overlay view') : tr('上下に分けて両方まるごと見る', 'Stack camera and reference, both shown whole');
+    e.currentTarget.title = split ? tr('重ねて表示に戻す', 'Back to overlay view') : tr('2画面で両方まるごと見る（縦持ち=上下・横持ち=左右）', 'Split view, both shown whole (portrait: stacked / landscape: side by side)');
     fit();   // v162: 分割=ステージいっぱい／ゴースト=アスペクト枠 に張り替え＋ガイド更新
   });
   overlay.querySelector('.repho-gridbtn').addEventListener('click', (e) => {   // v163→164: グリッド線（写真領域にフィット・上下両方・既定OFF）
@@ -6576,6 +6601,58 @@ function openRephotoCamera(base, opts) {
     startRephotoStream();
   });
   overlay.querySelector('.repho-shutter').addEventListener('click', rephotoShoot);
+  // v173: 基準写真のスワイプ切替（ゴーストでも2画面でも）＝フォルダー内の別の写真を下敷きにできる。
+  //   ‹›タップ or 映像を左右スワイプ。表示中の写真が保存の額縁（aspect・ghost load 経由）と位置継承元（s.base）になる。
+  //   📌で root.rpBasePhotoId を永続変更（⚙設定の基準写真ピッカーと同じ・先に反映＋保存は裏＝rpPersist・v166+ の教訓）。
+  const refbar = overlay.querySelector('.repho-refbar');
+  const refSeries = (!newSeries && base) ? rephotoSeriesOf(base) : [];   // 昔→今
+  let refIdx = base ? refSeries.findIndex(x => x.id === base.id) : -1;
+  const refRootOf = () => photoById(rephotoRootOf(rephoState.base)) || rephoState.base;
+  const updateRefbar = () => {
+    if (!rephoState || refIdx < 0 || refSeries.length < 2) { refbar.style.display = 'none'; return; }
+    refbar.style.display = 'flex';
+    const p = refSeries[refIdx];
+    const d = p.datetime ? new Date(p.datetime) : null;
+    refbar.querySelector('.repho-refinfo').textContent = `🖼 ${refIdx + 1}/${refSeries.length}` + (d ? ` · ${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}` : '');
+    refbar.querySelector('.repho-refprev').disabled = refIdx <= 0;
+    refbar.querySelector('.repho-refnext').disabled = refIdx >= refSeries.length - 1;
+    const isBase = rephotoBasePhotoOf(refRootOf()).id === p.id;
+    const pin = refbar.querySelector('.repho-refpin');
+    pin.classList.toggle('on', isBase);
+    pin.disabled = isBase;
+    pin.textContent = isBase ? tr('📌 基準写真', '📌 Reference') : tr('📌 基準写真にする', '📌 Set as reference');
+  };
+  const setRef = (i) => {
+    if (!rephoState || rephoState.busy || refIdx < 0 || refSeries.length < 2) return;
+    const ni = Math.max(0, Math.min(refSeries.length - 1, i));
+    if (ni === refIdx) return;
+    refIdx = ni;
+    rephoState.base = refSeries[refIdx];
+    ghost.src = thumbUrl(rephoState.base);   // load ハンドラが aspect と枠（fit）を更新＝crop 数式は無改修
+    updateRefbar();
+  };
+  refbar.querySelector('.repho-refprev').addEventListener('click', () => setRef(refIdx - 1));
+  refbar.querySelector('.repho-refnext').addEventListener('click', () => setRef(refIdx + 1));
+  refbar.querySelector('.repho-refpin').addEventListener('click', () => {
+    if (!rephoState || refIdx < 0) return;
+    const root = refRootOf(), p = refSeries[refIdx];
+    if (p.id === root.id) delete root.rpBasePhotoId; else root.rpBasePhotoId = p.id;   // root 自身＝既定（rpBasePhotoId 不要）
+    updateRefbar(); rpPersist(root);
+    logInfo(tr('📌 この写真を基準写真にしました', '📌 Set as the reference photo'));
+  });
+  // スワイプ＝stage 全面（ツール/✕/シャッターは兄弟要素なので届かない）。横優勢＋48px 以上だけ反応＝構図合わせの誤爆を避ける。
+  const stageEl = overlay.querySelector('.repho-stage');
+  let swipeStart = null;
+  stageEl.addEventListener('pointerdown', e => { swipeStart = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+  stageEl.addEventListener('pointerup', e => {
+    if (!swipeStart || e.pointerId !== swipeStart.id) return;
+    const dx = e.clientX - swipeStart.x, dy = e.clientY - swipeStart.y;
+    swipeStart = null;
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    setRef(refIdx + (dx < 0 ? 1 : -1));   // 左へ払う＝次（新しい方）
+  });
+  stageEl.addEventListener('pointercancel', () => { swipeStart = null; });
+  updateRefbar();
   fit();
   startRephotoStream();
 }
