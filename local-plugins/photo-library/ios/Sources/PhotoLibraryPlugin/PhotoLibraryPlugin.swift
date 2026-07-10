@@ -14,7 +14,8 @@ public class PhotoLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "requestAccess", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "enumerate", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "thumbnail", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "thumbnail", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "savePhoto", returnType: CAPPluginReturnPromise)
     ]
 
     private let iso = ISO8601DateFormatter()
@@ -103,6 +104,40 @@ public class PhotoLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject("thumbnail failed: \(error.localizedDescription)")
             }
             // image==nil かつ error 無しの中間コールバックは無視し、最終結果を待つ
+        }
+    }
+
+    /// 撮った写真データ（base64 JPEG）を端末の写真ライブラリ（カメラロール）に保存する（v170・重ね撮り用）。
+    /// 追加のみ権限（.addOnly）を確認してから保存。Info.plist の NSPhotoLibraryAddUsageDescription が文言。
+    @objc func savePhoto(_ call: CAPPluginCall) {
+        guard let b64 = call.getString("base64"), let data = Data(base64Encoded: b64) else {
+            call.reject("base64 required")
+            return
+        }
+        let write: () -> Void = {
+            PHPhotoLibrary.shared().performChanges({
+                let req = PHAssetCreationRequest.forAsset()
+                req.addResource(with: .photo, data: data, options: nil)
+            }, completionHandler: { success, error in
+                if success {
+                    call.resolve(["saved": true])
+                } else {
+                    call.reject("save failed: \(error?.localizedDescription ?? "unknown")")
+                }
+            })
+        }
+        if #available(iOS 14, *) {
+            PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+                if status == .authorized || status == .limited {
+                    write()
+                } else {
+                    call.reject("no photo add permission")
+                }
+            }
+        } else {
+            PHPhotoLibrary.requestAuthorization { status in
+                if status == .authorized { write() } else { call.reject("no photo permission") }
+            }
         }
     }
 

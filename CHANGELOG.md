@@ -5,6 +5,31 @@
 
 ---
 
+## v170 — 🎞️ 重ね撮りを端末の写真アプリ（カメラロール）にも保存＋撮影サイズ選択（S/M/L） (2026-07-10)
+
+**背景**
+- ユーザー要望2点：①重ね撮りで撮った写真を**端末の写真アプリ（カメラロール）にも保存**したい ②**撮影時に写真のサイズを選べる**ようにしたい。
+- v169 で確認したとおり、重ね撮りは従来アプリ内 IndexedDB のみ（thumb・端末フォトに残らない＝アンインストールで消える）。端末フォトに保存すれば OS の写真ライブラリに残り、アンインストール耐性＋純正写真アプリで見られる。
+
+**やったこと**
+- **端末フォトへ保存（native）**: 自前 `PhotoLibrary` プラグインに `savePhoto({base64, name})` を追加。iOS=PHPhotoLibrary（`.addOnly` 権限→`PHAssetCreationRequest`・Info.plist の `NSPhotoLibraryAddUsageDescription` は既存＝**権限宣言の追加なし**）／Android=MediaStore（Pictures に insert・API29+ は**新権限不要**・`IS_PENDING` で原子的に書く）。JS は `saveRephotoToLibrary(blob, name)`＝native なら base64 化して `PhotoLib.savePhoto`、**web はダウンロード**（iOS Safari は共有→「写真に保存」）。ベストエフォート（失敗しても取り込みは続行）で import と並行実行し、成功時トーストに「（端末にも保存）」。
+- **撮影サイズ選択（web/native 共通）**: カメラツール行に **S/M/L トグル**（`repho-size`・`rephoState.captureMax` 既定2048）を追加。`doRephotoCapture` のスケール上限 `MAX` を `captureMax` に（S=1024 / M=2048 / L=3072）。カメラ映像より大きくはしない（`min(1, MAX/長辺)`）＝L は実質「カメラ解像度そのまま」。**主にカメラロールに残る原画の解像度**（アプリ内は従来どおり thumb のみ＝表示・容量は不変）。
+
+**設計判断**
+- 端末フォト保存は **native のみ**（ブラウザは端末の写真ライブラリに直接書けない）。web はダウンロードで代替＝web でも検証可能＋iOS Safari 経由で写真に保存もできる。
+- iOS の権限は `.addOnly`（追加のみ）＝読み取りより軽く審査摩擦が小さい。データセーフティは端末内処理のまま（外部送信なし）。
+- アプリ内は thumb 維持（`KEEP_ORIGINAL=false` のまま）＝**端末フォト＝原画バックアップ / アプリ＝軽い索引**の役割分担。
+
+**結果 / 観察**
+- preview E2E green（web）：カメラ（getUserMedia スタブ）でサイズボタン出現・M→L→S→M サイクル＋captureMax 連動・既存ツール5ボタン維持（回帰なし）・`saveRephotoToLibrary` の web 分岐・console 0。
+- **native（savePhoto）は preview 検証不可＝コードレビュー済み・次の Codemagic 1.5 ビルドで実機確認**（iOS カメラロール保存・Android Pictures 保存・権限プロンプト）。
+
+**残課題 / 次の方向**
+- 実機で：撮影→カメラロールに入るか（iOS/Android）、サイズ L の実解像度、web ダウンロードの iOS Safari 挙動。
+- 保存は既定 ON（毎回）。「保存したくない回」の要望が出たらカメラに保存トグルを足す。
+
+---
+
 ## v169 — 🎞️ 重ね撮りの削除（フォルダ削除・写真削除／「外すだけ」と「非表示」を選べる） (2026-07-10)
 
 **背景**

@@ -2,6 +2,7 @@ package io.github.yutsutke.photolibrary
 
 import android.Manifest
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
@@ -267,6 +268,47 @@ class PhotoLibraryPlugin : Plugin() {
             }
         }
         return bmp
+    }
+
+    // ---------------- savePhoto (v170) ----------------
+
+    /** 撮った写真（base64 JPEG）を端末の写真アプリ（MediaStore / Pictures）に保存する（重ね撮り用）。
+     *  API 29+ は自分で作ったメディアの追加に権限不要。<=28 は WRITE_EXTERNAL_STORAGE が要る（未宣言なので
+     *  失敗しうる＝JS 側でベストエフォート扱い）。 */
+    @PluginMethod
+    fun savePhoto(call: PluginCall) {
+        val b64 = call.getString("base64")
+        if (b64 == null) { call.reject("base64 required"); return }
+        val name = call.getString("name") ?: "rephoto_${System.currentTimeMillis()}.jpg"
+        executor.execute {
+            try {
+                val bytes = Base64.decode(b64, Base64.DEFAULT)
+                val resolver = context.contentResolver
+                val collection = if (Build.VERSION.SDK_INT >= 29)
+                    MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                val values = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, name)
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures")
+                        put(MediaStore.Images.Media.IS_PENDING, 1)
+                    }
+                }
+                val uri = resolver.insert(collection, values)
+                    ?: throw IllegalStateException("insert failed")
+                resolver.openOutputStream(uri)?.use { it.write(bytes) }
+                    ?: throw IllegalStateException("open output failed")
+                if (Build.VERSION.SDK_INT >= 29) {
+                    values.clear()
+                    values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    resolver.update(uri, values, null, null)
+                }
+                call.resolve(JSObject().put("saved", true))
+            } catch (e: Exception) {
+                call.reject("save failed: ${e.message}")
+            }
+        }
     }
 
     private class ExifLite(val lat: Double?, val lng: Double?, val dateMs: Long?)
