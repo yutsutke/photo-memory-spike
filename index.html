@@ -562,6 +562,16 @@
   .here-panel .here-cancel { background: #2f3438; color: #fff; border: none; border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
   .here-radius { width: 100%; accent-color: #33c1b0; margin: 4px 0 8px; }
   .here-panel-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #bbb; margin-bottom: 10px; }
+  /* ✏️ 手書きの移動線 (v187): パネルは here-panel を土台に、点タイプのチップと取り消しだけ足す */
+  .hand-panel .hand-chips { display: flex; gap: 6px; margin-bottom: 8px; }
+  .hand-panel .hand-chips .mc-pop-btn { flex: 1 1 0; min-width: 0; padding: 7px 4px; font-size: 12px; white-space: nowrap; text-align: center; }
+  .hand-hint { font-size: 11px; color: #9ab0ac; line-height: 1.5; }
+  .hand-days { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow-y: auto; }
+  .hand-pt-wrap { background: none; border: none; }
+  .hand-pt { box-sizing: border-box; width: 18px; height: 18px; border-radius: 50%; background: rgba(10,20,18,0.85); border: 2px solid #2ee6c0; box-shadow: 0 1px 5px rgba(0,0,0,0.6); }
+  .hand-pt.stay { background: #2ee6c0; box-shadow: 0 0 0 3px rgba(46,230,192,0.25), 0 1px 5px rgba(0,0,0,0.6); }
+  .hand-pop { display: flex; flex-direction: column; gap: 6px; }
+  .hand-pop button { background: #2f3438; color: #eee; border: none; border-radius: 8px; padding: 7px 10px; font-size: 12.5px; cursor: pointer; text-align: left; }
   .here-count { color: #6ee0a3; font-weight: 600; }
   .here-go { width: 100%; padding: 10px; border: 1px solid #2a6; border-radius: 10px; background: #2a6; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
   .here-go:disabled { opacity: 0.45; background: #333; border-color: #444; cursor: default; }
@@ -720,7 +730,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.139 (v186：🧭タイムライン系の「最後に使った表示」を記憶（ユーザーFB「写真大きくをよく見る／位置修正の時はその画面を連続で見る→最後に使った画面から開いてほしい」）＝**4画面それぞれ独立に localStorage 記憶し次回そこから開く**：①地図タイムライン（📋一覧⇄🖼写真・⊡大きく/⊞小さく）②思い出の場所（📖ログ⇄🖼写真・大きく/小さく）③重ね撮り（📖ログ⇄🖼写真・大きく/小さく）④食べ物を振り返る（📅月ごと⇄📆日ごと・大きく/小さく）。共通ヘルパ `getViewPref/saveViewPref`（1キー pms-viewPrefs に surface ごと・値は緩く復元＝未知値は各画面の既定へ）。各画面の state 初期化を getViewPref から・各トグルで saveViewPref。preview E2E green（4画面とも 既定→写真/大きく等に切替→保存→閉じて再オープンで復元・タブの on クラス/ボタン文言も一致・console 0）。｜ v185：🎞️実機FB2点＝①連続撮影ラベルの説明「（撮ってもカメラに残る）」と title を削除（ユーザー依頼・「連続撮影：オン/オフ」だけに）②「起動→重ね撮り→2画面/透過がない→1枚撮ると出る」の正体＝**＋新しい重ね撮り（新規フォルダー）のカメラは1枚目まで下敷きが無いので透過/2画面を出さない仕様（v166）**が2度混乱を生んだ→新規カメラの間だけ1行ヒント「1枚目を撮ると、その写真が下敷きになります（透過・2画面は2枚目から）」を表示（.repho-newhint・1枚撮って newseries が外れると CSS ごと消える・既存フォルダーのカメラには出ない）。🎉アプリ側の連続撮影は新1.5ビルドで解消をユーザー確認（v184の切り分けどおり）。preview green（新規=ヒント表示・ラベル オン/オフのみ・title 無し／撮影→ヒント消滅＋透過/下敷き出現／既存カメラ=ヒント無し・console 0）。｜ v184：🎞️実機FB「iOSで連続撮影がオフのまま変更できない」対応＝**原因はほぼ TestFlight 1.5(42) が v177（横持ちで⚙パネルあふれ→2列化）より前のビルド**であること（webは v176 時点で連続撮影の実機使用実績あり・コードのタップ/保存経路は正常）→対処=新しい 1.5 ビルドで解消。web には保険3点：①🔁連続撮影の行を上へ移動（保存サイズの直後＝5番目。最下段は古いビルド/低い画面で見切れやすく、スクロール直後のタップも食われやすい）②`.repho-tool`/`.repho-trow` に touch-action:manipulation（ダブルタップズーム/タップ遅延にタップを食われない）③パネルに overscroll-behavior:contain。preview green（行順5番目・トグルでラベル/onクラス/rpCamPrefs.cont 往復・touchAction=manipulation・横持ち844×390=2列で🔁がtop107-146に完全表示＋トグル動作・console 0）。｜ v183：🐘10万枚スケールの残り2点（ユーザー承認）＝①**取り込みメモリ解放**＝取り込みで作った thumb Blob は「メモリ生まれ」のまま allPhotos に残り、1セッション数万枚で数GB積む構造（Chromium はディスク退避するが iOS WebKit は保証なし）→ **DB へ書けた後、500枚ごとに IndexedDB から読み直したディスク参照 Blob に差し替え**（`queueThumbRelief`/`relieveThumbBatch`/`flushThumbRelief`・readonly tx 1本・thumbUrl 済み=表示中かも は差し替えずスキップ・失敗しても取り込み続行＝最適化であって必須でない）。呼び出し点＝native 背景/fast-track・web 背景/fast-track・zip(Instagram/X) の全5経路＋各末尾で端数 flush。photoById は import 中 O(n)/回 になるため使わず1パスで引く。②**ℹ️に使用容量**＝storage.estimate で「このアプリの使用容量/端末側の上限目安＋写真N枚・1枚平均→10万枚なら約◯GB の見込み」（100枚以上で平均行・概算＝足跡/AI含む・削除直後は compaction 前で過大に出ることあり）。preview E2E green（ユニット600件＝共有1Blob→600個の個別ディスク参照に差し替え・自動flush(500)＋最終flush(100)・size>0／web実経路 importFiles 12件＝[relief] 11枚（表示中1枚スキップ＝設計どおり）／ℹ️表示「107MB・612枚・平均175KB→17.5GB」（平均は直前の8万件削除の未compaction込み＝概算表記どおり）／console 0）。｜ v180-v182：🐘10万枚スケール対応（ユーザー要望3本柱）＝【v180 取り込み】ヘッダの🌀進捗をタップ→⏸停止（confirm・残り時間EMA目安つき。native=processNativeRest／web=runBackgroundImport／dev生成 の3ループ共通・バッチ区切りで安全停止・続きは差分同期＝📚再実行/選び直しで再開）＋native取り込みを「新しい順」に（途中で止めても直近ぶんから使える＝2000枚ずつ分ける案の実利を区切り操作なしで実現）＋枚数ラベルの全件reduceを400ms throttle（取り込み中は毎枚呼ばれ実質O(n²)だったのを解消）。【v181 地図】線＝表示日数で自動切替（≤30日 日ごと色分け=従来／≤200日 全日同色・multi-ring polyline 2レイヤ(canvas・縁取り+本線)のみ／超は線なし=点・密度が担う）・写真＝表示枚数で自動切替（≤300 サムネクラスタ=従来／≤8千 白点circleMarker(canvas共有レンダラ・タップでpopup)／超は密度タイル=自作GridLayer（teal 12pxセル・log濃淡・ズームごとに点をタイルへバケツ分けキャッシュ＝10万点でも各タイル数ms）。密度中はタイムライン/写真入口から spotlight（一時サムネ1個）で個別到達・ドリルダウンは既存の🫧囲むが担う）＋推定配置マーカー≤200／記録点ドット≤2万の上限ガード＋autoConfirmTrackPass は ghosts>1000 の窓をスキップ（全期間×10万の総当たり回避）。【v182 タイムライン】一覧=総数2千超で窓モード（pickDays/range を先に適用した行だけ200件ずつ・絞り込み変更は署名チェックで作り直し・「さらに表示」＋IntersectionObserver 自動追い足し）・写真グリッド(buildTimelinePhotos)=240件ずつチャンク（地図写真タブ/思い出の場所/レンズ/重ね撮りに共通で効く・クリック index の indexOf 廃止）・全画面スワイプ=開いた位置の前後600枚だけ slide 化（通し番号「N / 全体」は維持）。閾値は全部定数＝実機の手触りで調整前提。preview E2E green（#devダミー8万件: 走行中ループに⏸→80000のバッチ境界で停止＆flag自動リセット／過去の今日=従来(12日181枚サムネ+色分け線)／全期間71,991枚=密度タイル+線0+一覧200件チャンク／3ヶ月1,550枚=白点+単色線2レイヤ／1週間117枚=従来／日見出しタップ=15件に作り直し／密度で項目タップ=spotlight／写真タブ240→480／デッキ1201slides・「1 / 80000」／console 0）。｜ v179：🎞️「写真の形」をフォルダーのカメラでも選択可（実機FB「保存範囲の白い破線が縦撮り用/横撮り用と安定しない→⚙から選べるように」）＝⚙パネルの形トグルを 自動（基準写真と同じ・既定）→▯縦長→▭横長 の3段に拡張・選択は root.rpAspect でフォルダーに記憶（スキーマレス・先に反映＋保存は裏=rpPersist）・明示指定中は基準スワイプ/ghost load で枠を上書きしない＝破線ガイドと保存 crop が揺れない。｜ v178：🎞️新規フォルダーのカメラに「写真の形」トグル＝▯縦長(3:4)⇄▭横長(4:3)（⚙パネル・既定=カメラの向きを正規化・rpCamPrefs.aspectMode で前回を記憶・最初の1枚がフォルダーの額縁＝以降の撮り重ねは同じ形・既存フォルダーは基準写真の額縁のままなので行ごと非表示）。｜ v177：🎞️重ね撮り実機FB＝①シリーズ画面の「← 一覧」ボタン撤去＋✕で一覧へ戻る（ドリルダウン＝閉じ切るのは一覧側の✕）②横持ちで⚙パネル(8行)が画面からはみ出し最下段の🔁連続撮影がスクロールバー無しのiOSで「無い」ように見え選択できなかった→低い画面(max-height:500px)では2列グリッドで全行を画面内に。｜ v176：🎞️①連続撮影の瞬間にシャッター音（合成Web Audio・アセット不要・端末内／rephotoShoot のタップで解錠→doRephotoCapture で鳴らす＝タイマー撮影も実際に撮る瞬間・マナーモードは鳴らない）②🐛連続撮影で撮った写真が✕で戻ると増えていないバグ修正＝原因は連続分岐が render() のみで下敷きに開いたままのシリーズビュー(食べ物オーバーレイ)を再描画していなかった→撮影ごとに renderRephotoSeries() で即反映＋✕時は shotRoot に着地（新規フォルダー等シリーズ未オープン時は openRephotoSeries で開く）。｜ v175：🎞️カメラのアイコン整理＝画面上は⚙とシャッターだけ・写真は全画面に戻す（実機FB「すっきりしたけど画面が小さくて醜い→最大化して重なりを減らす・アイコンは歯車にしまう」）＝①v174 の stage inset を撤回（全画面復活）②ツール5ボタン（2画面/グリッド/タイマー/サイズ/前後）＋基準バー表示＋スライダー表示＋連続撮影を ⚙パネル（左上・状態ラベル付き行）に収納③基準バー/スライダーは⚙からオンオフ④モード（ゴースト/2画面）・グリッド・サイズ・バー表示・透明度・連続撮影を localStorage（rpCamPrefs）で記憶＝次回同じ状態で開く（タイマー/前後カメラは記憶しない）⑤🔁連続撮影＝撮ってもカメラに残る（フォルダーに戻らず積める・新規フォルダーは1枚目撮影後もそのまま連続可・撮った1枚が下敷きに）。｜ v174：🎞️重ね撮りカメラの重なり解消（実機FB「写真にアイコンが重ならないように・📌はアイコンに・日付表示は残す」）＝①📌基準写真ボタンをアイコン円ボタン化（確定済み=緑・文言はtitleへ・日付/枚数表示は維持）②写真とコントロールの重なりを構造的に解消＝fit() が stage の inset を計算（縦持ち：上帯=ツール/下帯=基準バー+スライダー+シャッター。横持ち：上帯=ツール+基準バー(中央)/右帯=シャッター(iOSカメラ流)/下帯=スライダー(ゴースト時のみ)・.repho-cam.landscape で配置替え）＝写真がボタンの下に潜らない。タグ位置も 8px に追従。｜ v173：🎞️重ね撮りカメラ＝①基準写真をスワイプで切替（ゴーストでも2画面でも・映像を左右スワイプ or ‹›・フォルダー内の別の写真を下敷きに・表示中の写真が保存の額縁と位置継承元・📌で root.rpBasePhotoId を永続確定＝⚙設定と同じ・rpPersist で保存は裏）②2画面を横持ちで左右分割に（縦持ち=上下/横持ち=左右・fit() が stage の縦横で split-h を自動付け外し・guide/grid の数式をセル横割りに拡張・containBox に offX）。preview 検証。｜ v172：🐛web の重ね撮り撮影がシリーズに残らない回帰を修正（v170 の web ダウンロード fallback が iOS Safari で blob ダウンロード→ページ遷移し撮影フローを壊していた→web の端末保存を撤去・端末フォト保存は native のみ）＋📍思い出の場所の一覧も行を左スワイプ→「削除」（重ね撮り一覧と同じ .anniv-row-wrap scroll-snap・従来の inline 🗑 は置換）。preview 検証。｜ v171：🎞️重ね撮り一覧でフォルダを左スワイプ→「削除」→既存の2択モーダル（フォルダだけ削除／写真ごと非表示）。スワイプ＝各行を .rp-row-wrap(scroll-snap x mandatory)で包み .rp-row(100%)＋.rp-row-del(84px) を横スクロールで出す＝実機サクサク（JS スワイプ判定なし）・タップは従来どおりシリーズを開く。非表示は既存 excludePhoto＝「🗑削除した写真」から復元可。削除後は openRephotoList で一覧を再描画。preview で構造検証。｜ v170：🎞️重ね撮りの撮影を端末の写真アプリ（カメラロール）にも保存＋撮影サイズ選択（S=1024/M=2048/L=3072）。保存＝native は自前 PhotoLibrary プラグインに savePhoto を追加（iOS=PHPhotoLibrary・Info.plist の NSPhotoLibraryAddUsageDescription は既存／Android=MediaStore・新権限なし）、web はダウンロード（iOS Safari は共有→写真に保存）。サイズ＝カメラツールに S/M/L トグル（rephoState.captureMax→doRephotoCapture の MAX）＝主にカメラロールに残る原画の解像度（アプリ内は従来どおり thumb）。端末フォトに残る＝アンインストールしても写真が残る。native は次の1.5ビルドから・web はダウンロードで検証。｜ v169：🎞️重ね撮りの削除＝①フォルダごと削除（⚙設定の「🗑このフォルダを削除」）②フォルダ内の1枚を削除（拡大表示の「🗑削除」）。どちらも2択＝「フォルダから外す」(rephotoフラグ削除→通常写真として地図/タイムラインに残す)／「非表示」(既存 excluded＝どこからも消える・🗑削除した写真から復元可)。root(器)を外す時は最古の子を新rootに昇格して器を保つ。buildTimelinePhotos に後方互換の第5引数 opts(fullOpts) を足し写真モードからも削除導線。preview で検証。｜ v167：🗺️地図タイムラインの「🖼写真」タブに「⊡大きく/⊞小さく」トグル追加（実機FB＝写真を拡大して表示）＝思い出の場所/重ね撮りと同じ .atl-photobar/.atl-size を流用・状態は mapState.tlBig・buildTimelinePhotos の big 引数へ（.atl-grid.big=2列 ⇔ 4列）・絞り込み(pickDays/range)は timelineFilteredPhotos で従来どおり尊重・写真タップ→全画面拡大は既存のまま。preview green（地図→写真タブ→大きく=2列/小さく=4列・ボタン文言連動・console0）。｜ v166++：🎞️重ね撮り設定の再描画バグ修正（実機FB）＝⚙設定/題名✎の変更（位置トグル・基準写真枠・基準日・タイトル）が実機iOSでその場で反映されず「閉じて開くと反映」だった＝原因は全部 await dbPut(root) の後に再描画→iOS Safari は IDBから読んだ Blob(thumb) を含む写真レコードの再put で tx が hang しやすく再描画に到達しない（in-memory値は先に変わる）。→ 先に in-memory更新＋再描画し保存は裏で（rpPersist・失敗はlogErr）。基準写真ピッカーは選択後もピッカーに留まり枠を即移動。preview で dbPut を永久hangに差し替えても全4系統が即反映＝再現&修正確認／通常dbPutでDB永続も確認。｜ v166+：🎞️重ね撮りUI整理＝①基準日の設定を⚙設定の中へ移動（ログの基準日バー撤去・値による「N日前/N日後」offset表示は残す）②名前はチップ「✏名前」を撤去し題名の横の✎だけに（アクション行 [←一覧][⚙設定][🎞️撮り重ねる] の3つに）。preview green（⚙3行=基準写真/🎯基準日/位置トグル・⚙から基準日設定→ボタン更新＋offset「10日後/基準日/7日前」・✎でリネーム・console0）。｜ v166：🎞️重ね撮りを「フォルダー」化（想定外の使い方＝食事/コーデ/メイク/友達を続けて撮る）＝①位置の基準継承をフォルダーごとにON/OFF（rpInheritLoc・既定ON・⚙設定・場所が変わるフォルダーはOFF）②基準写真を変更可能（rpBasePhotoId・既定=最初の1枚・⚙設定の写真ピッカー・ゴースト兼位置継承元）③一覧「＋新しい重ね撮り」で拡大写真を介さず新規作成（ゴーストなしカメラ=newseries・最初の1枚がrpFolder root・カメラ実比率で保存）。rephotoAllSeries を rpFolder 対応（明示フォルダーは1枚でも一覧）。preview E2E green（新規→root rpFolder＋現在地/既定ONで基準位置継承/トグルOFFで継承せず/基準=Cゴースト＋子はroot Rにひも付く/設定モーダル）。console0。｜ v165+：🎞️重ね撮りで撮った写真に位置情報＝定点(同じ場所)なので地図/いまの場所/囲むに乗せる。優先=撮影時の現在地GPS(その場にいる=最も正確・openで先取りしてシャッターに間に合わせる)→取れなければ基準写真の位置を継承(同じ場所の良い近似)→両方無ければnull。位置はアプリ内レコードに持つだけ=端末内・書き出すJPEGには焼き込まない(Data Not Collected不変)・?shot等LOCATION_AVAILABLE=falseはGPS呼ばず基準継承のみ。preview 3経路green(現在地35.111取得/GPS拒否→基準34.7継承/両方null)。｜ v165：🎞️重ね撮り実機FB第4周＝①アイコン📐→🎞️（アプリ内の全UI表示・「重なるコマ」・コード識別子/コメントは不変）②「また撮る」→「撮り重ねる」（入口=この角度で撮り重ねる／英 Layer a shot (at this angle)）③カメラ全画面化＝ヘッダと黒帯コントロールを廃止し映像を画面いっぱいに・✕(右上)/⊟⊞⏱🔄(左上のアイコン円ボタン42px)/透明度スライダー+シャッター(下部グラデの浮きUI)を映像の上にオーバーレイ・上下分割中はスライダー自動非表示(visibility=場所は保つ)・⏱表示は3s/10s・撮影crop/fit/updateGuide/updateGridの数式は無改修 ④iOS：ホーム画面のアプリアイコン長押し（Quick Action）→🎞️重ね撮り一覧へ直行＝自前 app-shortcuts プラグイン新設(getPending drain+shortcutイベント=BgLocと同型)+AppDelegate performActionFor+Info.plist static shortcut(SF Symbol square.stack.3d.up・題名ja/en)・コールド起動は全件追い読み(restLoadPromise)完了を待って開く＝シリーズ欠けなし・web/Androidはプラグイン不在で全て無効＝不変・カメラ同様 native 1.5 ビルドから。｜ v164：📐重ね撮りカメラの実機FB4点＝①⏱セルフタイマー（オフ/3秒/10秒＋中央カウントダウン）②グリッド線を写真の実表示領域(contain box)にフィット＝写真外の黒帯にはみ出さない③基準側にもグリッド線（上=カメラ/下=基準の両方に同じ3×3）④ボタン増でコントロールを2段（ツール中央寄せ＋シャッター別段）。｜ v163：📐重ね撮りを一級化＋⊞グリッド線＋🍜食べ物だけに（実機FB3点）＝①カメラに3×3グリッド線トグル②重ね撮り=⚙メニューに一覧・タイトル(✏)・🎯基準日(N日前/N日後)・日ごとメモ・📖ログ/🖼写真切替＝思い出の場所と同じ手触り(メタはroot写真レコードのrpTitle/rpBaseDate/rpNotes=スキーマレス・DB移行なし)③意味レンズのUIを「🍜食べ物を振り返る」だけに(チップ/言葉/写真検索は撤去・機構は残置)。｜ v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に·位置情報) · 2026-07-11';
+const BUILD = 'phase3.140 (v187：✏️手書きの移動線（実機要望「その日の移動線を手書きで引きたい・点は簡単に打てて線はロジックで」）＝日にちを1日に固定し、確定済みの点（GPS写真・ロガー・手書き）を起点/終点に 🚶通過/☕滞在 の点をタップで打つ。点は「タップ位置に最も近い区間」の前後の点から距離按分した時刻を持ち、線は既存の時刻順マージ（v139 drawTrips）がロジックで引く＝手書き専用の線ロジックは作らない・全部手書きでデータが増えすぎない歯止め＝確定点の間にだけ打てる。データ＝track ストアに src=hand(+stay) で同居（座標+時刻の精神・DB移行なし・機種変更で一緒に移る）。入口＝地図の⋯表示「✏️この日の道を手書き」（複数日表示中は日選択パネル・LOCATION_AVAILABLE時のみ）。編集中＝点をドラッグで移動（時刻不変）・点タップで滞在⇄通過/🗑削除・↩取り消し・ダブルタップズーム無効化（点2連打ち事故防止）・日/期間の切替や囲む/いまの場所へ移ると自動終了。☕滞在は普段も小さなtealリングで残る・🚶通過は線を曲げるだけで見えない。ロガーの🗑削除（すべて/日ごと）は手書きをスキップ＝ロガー整理で手書きが消えない（設定の全データ削除では消える）。手書き編集中は足跡からの自動確定(v140)を保留し✓終了で再試行＝描き終えた道の上にGPSなし写真が乗る（バッジ「足跡から」・位置を直すで修正可）。軌跡トグルOFFでも手書きの点は常に線に乗る（ユーザーが自分で描いた足取りはロガー表示と独立）。｜ v186：🧭タイムライン系の「最後に使った表示」を記憶（ユーザーFB「写真大きくをよく見る／位置修正の時はその画面を連続で見る→最後に使った画面から開いてほしい」）＝**4画面それぞれ独立に localStorage 記憶し次回そこから開く**：①地図タイムライン（📋一覧⇄🖼写真・⊡大きく/⊞小さく）②思い出の場所（📖ログ⇄🖼写真・大きく/小さく）③重ね撮り（📖ログ⇄🖼写真・大きく/小さく）④食べ物を振り返る（📅月ごと⇄📆日ごと・大きく/小さく）。共通ヘルパ `getViewPref/saveViewPref`（1キー pms-viewPrefs に surface ごと・値は緩く復元＝未知値は各画面の既定へ）。各画面の state 初期化を getViewPref から・各トグルで saveViewPref。preview E2E green（4画面とも 既定→写真/大きく等に切替→保存→閉じて再オープンで復元・タブの on クラス/ボタン文言も一致・console 0）。｜ v185：🎞️実機FB2点＝①連続撮影ラベルの説明「（撮ってもカメラに残る）」と title を削除（ユーザー依頼・「連続撮影：オン/オフ」だけに）②「起動→重ね撮り→2画面/透過がない→1枚撮ると出る」の正体＝**＋新しい重ね撮り（新規フォルダー）のカメラは1枚目まで下敷きが無いので透過/2画面を出さない仕様（v166）**が2度混乱を生んだ→新規カメラの間だけ1行ヒント「1枚目を撮ると、その写真が下敷きになります（透過・2画面は2枚目から）」を表示（.repho-newhint・1枚撮って newseries が外れると CSS ごと消える・既存フォルダーのカメラには出ない）。🎉アプリ側の連続撮影は新1.5ビルドで解消をユーザー確認（v184の切り分けどおり）。preview green（新規=ヒント表示・ラベル オン/オフのみ・title 無し／撮影→ヒント消滅＋透過/下敷き出現／既存カメラ=ヒント無し・console 0）。｜ v184：🎞️実機FB「iOSで連続撮影がオフのまま変更できない」対応＝**原因はほぼ TestFlight 1.5(42) が v177（横持ちで⚙パネルあふれ→2列化）より前のビルド**であること（webは v176 時点で連続撮影の実機使用実績あり・コードのタップ/保存経路は正常）→対処=新しい 1.5 ビルドで解消。web には保険3点：①🔁連続撮影の行を上へ移動（保存サイズの直後＝5番目。最下段は古いビルド/低い画面で見切れやすく、スクロール直後のタップも食われやすい）②`.repho-tool`/`.repho-trow` に touch-action:manipulation（ダブルタップズーム/タップ遅延にタップを食われない）③パネルに overscroll-behavior:contain。preview green（行順5番目・トグルでラベル/onクラス/rpCamPrefs.cont 往復・touchAction=manipulation・横持ち844×390=2列で🔁がtop107-146に完全表示＋トグル動作・console 0）。｜ v183：🐘10万枚スケールの残り2点（ユーザー承認）＝①**取り込みメモリ解放**＝取り込みで作った thumb Blob は「メモリ生まれ」のまま allPhotos に残り、1セッション数万枚で数GB積む構造（Chromium はディスク退避するが iOS WebKit は保証なし）→ **DB へ書けた後、500枚ごとに IndexedDB から読み直したディスク参照 Blob に差し替え**（`queueThumbRelief`/`relieveThumbBatch`/`flushThumbRelief`・readonly tx 1本・thumbUrl 済み=表示中かも は差し替えずスキップ・失敗しても取り込み続行＝最適化であって必須でない）。呼び出し点＝native 背景/fast-track・web 背景/fast-track・zip(Instagram/X) の全5経路＋各末尾で端数 flush。photoById は import 中 O(n)/回 になるため使わず1パスで引く。②**ℹ️に使用容量**＝storage.estimate で「このアプリの使用容量/端末側の上限目安＋写真N枚・1枚平均→10万枚なら約◯GB の見込み」（100枚以上で平均行・概算＝足跡/AI含む・削除直後は compaction 前で過大に出ることあり）。preview E2E green（ユニット600件＝共有1Blob→600個の個別ディスク参照に差し替え・自動flush(500)＋最終flush(100)・size>0／web実経路 importFiles 12件＝[relief] 11枚（表示中1枚スキップ＝設計どおり）／ℹ️表示「107MB・612枚・平均175KB→17.5GB」（平均は直前の8万件削除の未compaction込み＝概算表記どおり）／console 0）。｜ v180-v182：🐘10万枚スケール対応（ユーザー要望3本柱）＝【v180 取り込み】ヘッダの🌀進捗をタップ→⏸停止（confirm・残り時間EMA目安つき。native=processNativeRest／web=runBackgroundImport／dev生成 の3ループ共通・バッチ区切りで安全停止・続きは差分同期＝📚再実行/選び直しで再開）＋native取り込みを「新しい順」に（途中で止めても直近ぶんから使える＝2000枚ずつ分ける案の実利を区切り操作なしで実現）＋枚数ラベルの全件reduceを400ms throttle（取り込み中は毎枚呼ばれ実質O(n²)だったのを解消）。【v181 地図】線＝表示日数で自動切替（≤30日 日ごと色分け=従来／≤200日 全日同色・multi-ring polyline 2レイヤ(canvas・縁取り+本線)のみ／超は線なし=点・密度が担う）・写真＝表示枚数で自動切替（≤300 サムネクラスタ=従来／≤8千 白点circleMarker(canvas共有レンダラ・タップでpopup)／超は密度タイル=自作GridLayer（teal 12pxセル・log濃淡・ズームごとに点をタイルへバケツ分けキャッシュ＝10万点でも各タイル数ms）。密度中はタイムライン/写真入口から spotlight（一時サムネ1個）で個別到達・ドリルダウンは既存の🫧囲むが担う）＋推定配置マーカー≤200／記録点ドット≤2万の上限ガード＋autoConfirmTrackPass は ghosts>1000 の窓をスキップ（全期間×10万の総当たり回避）。【v182 タイムライン】一覧=総数2千超で窓モード（pickDays/range を先に適用した行だけ200件ずつ・絞り込み変更は署名チェックで作り直し・「さらに表示」＋IntersectionObserver 自動追い足し）・写真グリッド(buildTimelinePhotos)=240件ずつチャンク（地図写真タブ/思い出の場所/レンズ/重ね撮りに共通で効く・クリック index の indexOf 廃止）・全画面スワイプ=開いた位置の前後600枚だけ slide 化（通し番号「N / 全体」は維持）。閾値は全部定数＝実機の手触りで調整前提。preview E2E green（#devダミー8万件: 走行中ループに⏸→80000のバッチ境界で停止＆flag自動リセット／過去の今日=従来(12日181枚サムネ+色分け線)／全期間71,991枚=密度タイル+線0+一覧200件チャンク／3ヶ月1,550枚=白点+単色線2レイヤ／1週間117枚=従来／日見出しタップ=15件に作り直し／密度で項目タップ=spotlight／写真タブ240→480／デッキ1201slides・「1 / 80000」／console 0）。｜ v179：🎞️「写真の形」をフォルダーのカメラでも選択可（実機FB「保存範囲の白い破線が縦撮り用/横撮り用と安定しない→⚙から選べるように」）＝⚙パネルの形トグルを 自動（基準写真と同じ・既定）→▯縦長→▭横長 の3段に拡張・選択は root.rpAspect でフォルダーに記憶（スキーマレス・先に反映＋保存は裏=rpPersist）・明示指定中は基準スワイプ/ghost load で枠を上書きしない＝破線ガイドと保存 crop が揺れない。｜ v178：🎞️新規フォルダーのカメラに「写真の形」トグル＝▯縦長(3:4)⇄▭横長(4:3)（⚙パネル・既定=カメラの向きを正規化・rpCamPrefs.aspectMode で前回を記憶・最初の1枚がフォルダーの額縁＝以降の撮り重ねは同じ形・既存フォルダーは基準写真の額縁のままなので行ごと非表示）。｜ v177：🎞️重ね撮り実機FB＝①シリーズ画面の「← 一覧」ボタン撤去＋✕で一覧へ戻る（ドリルダウン＝閉じ切るのは一覧側の✕）②横持ちで⚙パネル(8行)が画面からはみ出し最下段の🔁連続撮影がスクロールバー無しのiOSで「無い」ように見え選択できなかった→低い画面(max-height:500px)では2列グリッドで全行を画面内に。｜ v176：🎞️①連続撮影の瞬間にシャッター音（合成Web Audio・アセット不要・端末内／rephotoShoot のタップで解錠→doRephotoCapture で鳴らす＝タイマー撮影も実際に撮る瞬間・マナーモードは鳴らない）②🐛連続撮影で撮った写真が✕で戻ると増えていないバグ修正＝原因は連続分岐が render() のみで下敷きに開いたままのシリーズビュー(食べ物オーバーレイ)を再描画していなかった→撮影ごとに renderRephotoSeries() で即反映＋✕時は shotRoot に着地（新規フォルダー等シリーズ未オープン時は openRephotoSeries で開く）。｜ v175：🎞️カメラのアイコン整理＝画面上は⚙とシャッターだけ・写真は全画面に戻す（実機FB「すっきりしたけど画面が小さくて醜い→最大化して重なりを減らす・アイコンは歯車にしまう」）＝①v174 の stage inset を撤回（全画面復活）②ツール5ボタン（2画面/グリッド/タイマー/サイズ/前後）＋基準バー表示＋スライダー表示＋連続撮影を ⚙パネル（左上・状態ラベル付き行）に収納③基準バー/スライダーは⚙からオンオフ④モード（ゴースト/2画面）・グリッド・サイズ・バー表示・透明度・連続撮影を localStorage（rpCamPrefs）で記憶＝次回同じ状態で開く（タイマー/前後カメラは記憶しない）⑤🔁連続撮影＝撮ってもカメラに残る（フォルダーに戻らず積める・新規フォルダーは1枚目撮影後もそのまま連続可・撮った1枚が下敷きに）。｜ v174：🎞️重ね撮りカメラの重なり解消（実機FB「写真にアイコンが重ならないように・📌はアイコンに・日付表示は残す」）＝①📌基準写真ボタンをアイコン円ボタン化（確定済み=緑・文言はtitleへ・日付/枚数表示は維持）②写真とコントロールの重なりを構造的に解消＝fit() が stage の inset を計算（縦持ち：上帯=ツール/下帯=基準バー+スライダー+シャッター。横持ち：上帯=ツール+基準バー(中央)/右帯=シャッター(iOSカメラ流)/下帯=スライダー(ゴースト時のみ)・.repho-cam.landscape で配置替え）＝写真がボタンの下に潜らない。タグ位置も 8px に追従。｜ v173：🎞️重ね撮りカメラ＝①基準写真をスワイプで切替（ゴーストでも2画面でも・映像を左右スワイプ or ‹›・フォルダー内の別の写真を下敷きに・表示中の写真が保存の額縁と位置継承元・📌で root.rpBasePhotoId を永続確定＝⚙設定と同じ・rpPersist で保存は裏）②2画面を横持ちで左右分割に（縦持ち=上下/横持ち=左右・fit() が stage の縦横で split-h を自動付け外し・guide/grid の数式をセル横割りに拡張・containBox に offX）。preview 検証。｜ v172：🐛web の重ね撮り撮影がシリーズに残らない回帰を修正（v170 の web ダウンロード fallback が iOS Safari で blob ダウンロード→ページ遷移し撮影フローを壊していた→web の端末保存を撤去・端末フォト保存は native のみ）＋📍思い出の場所の一覧も行を左スワイプ→「削除」（重ね撮り一覧と同じ .anniv-row-wrap scroll-snap・従来の inline 🗑 は置換）。preview 検証。｜ v171：🎞️重ね撮り一覧でフォルダを左スワイプ→「削除」→既存の2択モーダル（フォルダだけ削除／写真ごと非表示）。スワイプ＝各行を .rp-row-wrap(scroll-snap x mandatory)で包み .rp-row(100%)＋.rp-row-del(84px) を横スクロールで出す＝実機サクサク（JS スワイプ判定なし）・タップは従来どおりシリーズを開く。非表示は既存 excludePhoto＝「🗑削除した写真」から復元可。削除後は openRephotoList で一覧を再描画。preview で構造検証。｜ v170：🎞️重ね撮りの撮影を端末の写真アプリ（カメラロール）にも保存＋撮影サイズ選択（S=1024/M=2048/L=3072）。保存＝native は自前 PhotoLibrary プラグインに savePhoto を追加（iOS=PHPhotoLibrary・Info.plist の NSPhotoLibraryAddUsageDescription は既存／Android=MediaStore・新権限なし）、web はダウンロード（iOS Safari は共有→写真に保存）。サイズ＝カメラツールに S/M/L トグル（rephoState.captureMax→doRephotoCapture の MAX）＝主にカメラロールに残る原画の解像度（アプリ内は従来どおり thumb）。端末フォトに残る＝アンインストールしても写真が残る。native は次の1.5ビルドから・web はダウンロードで検証。｜ v169：🎞️重ね撮りの削除＝①フォルダごと削除（⚙設定の「🗑このフォルダを削除」）②フォルダ内の1枚を削除（拡大表示の「🗑削除」）。どちらも2択＝「フォルダから外す」(rephotoフラグ削除→通常写真として地図/タイムラインに残す)／「非表示」(既存 excluded＝どこからも消える・🗑削除した写真から復元可)。root(器)を外す時は最古の子を新rootに昇格して器を保つ。buildTimelinePhotos に後方互換の第5引数 opts(fullOpts) を足し写真モードからも削除導線。preview で検証。｜ v167：🗺️地図タイムラインの「🖼写真」タブに「⊡大きく/⊞小さく」トグル追加（実機FB＝写真を拡大して表示）＝思い出の場所/重ね撮りと同じ .atl-photobar/.atl-size を流用・状態は mapState.tlBig・buildTimelinePhotos の big 引数へ（.atl-grid.big=2列 ⇔ 4列）・絞り込み(pickDays/range)は timelineFilteredPhotos で従来どおり尊重・写真タップ→全画面拡大は既存のまま。preview green（地図→写真タブ→大きく=2列/小さく=4列・ボタン文言連動・console0）。｜ v166++：🎞️重ね撮り設定の再描画バグ修正（実機FB）＝⚙設定/題名✎の変更（位置トグル・基準写真枠・基準日・タイトル）が実機iOSでその場で反映されず「閉じて開くと反映」だった＝原因は全部 await dbPut(root) の後に再描画→iOS Safari は IDBから読んだ Blob(thumb) を含む写真レコードの再put で tx が hang しやすく再描画に到達しない（in-memory値は先に変わる）。→ 先に in-memory更新＋再描画し保存は裏で（rpPersist・失敗はlogErr）。基準写真ピッカーは選択後もピッカーに留まり枠を即移動。preview で dbPut を永久hangに差し替えても全4系統が即反映＝再現&修正確認／通常dbPutでDB永続も確認。｜ v166+：🎞️重ね撮りUI整理＝①基準日の設定を⚙設定の中へ移動（ログの基準日バー撤去・値による「N日前/N日後」offset表示は残す）②名前はチップ「✏名前」を撤去し題名の横の✎だけに（アクション行 [←一覧][⚙設定][🎞️撮り重ねる] の3つに）。preview green（⚙3行=基準写真/🎯基準日/位置トグル・⚙から基準日設定→ボタン更新＋offset「10日後/基準日/7日前」・✎でリネーム・console0）。｜ v166：🎞️重ね撮りを「フォルダー」化（想定外の使い方＝食事/コーデ/メイク/友達を続けて撮る）＝①位置の基準継承をフォルダーごとにON/OFF（rpInheritLoc・既定ON・⚙設定・場所が変わるフォルダーはOFF）②基準写真を変更可能（rpBasePhotoId・既定=最初の1枚・⚙設定の写真ピッカー・ゴースト兼位置継承元）③一覧「＋新しい重ね撮り」で拡大写真を介さず新規作成（ゴーストなしカメラ=newseries・最初の1枚がrpFolder root・カメラ実比率で保存）。rephotoAllSeries を rpFolder 対応（明示フォルダーは1枚でも一覧）。preview E2E green（新規→root rpFolder＋現在地/既定ONで基準位置継承/トグルOFFで継承せず/基準=Cゴースト＋子はroot Rにひも付く/設定モーダル）。console0。｜ v165+：🎞️重ね撮りで撮った写真に位置情報＝定点(同じ場所)なので地図/いまの場所/囲むに乗せる。優先=撮影時の現在地GPS(その場にいる=最も正確・openで先取りしてシャッターに間に合わせる)→取れなければ基準写真の位置を継承(同じ場所の良い近似)→両方無ければnull。位置はアプリ内レコードに持つだけ=端末内・書き出すJPEGには焼き込まない(Data Not Collected不変)・?shot等LOCATION_AVAILABLE=falseはGPS呼ばず基準継承のみ。preview 3経路green(現在地35.111取得/GPS拒否→基準34.7継承/両方null)。｜ v165：🎞️重ね撮り実機FB第4周＝①アイコン📐→🎞️（アプリ内の全UI表示・「重なるコマ」・コード識別子/コメントは不変）②「また撮る」→「撮り重ねる」（入口=この角度で撮り重ねる／英 Layer a shot (at this angle)）③カメラ全画面化＝ヘッダと黒帯コントロールを廃止し映像を画面いっぱいに・✕(右上)/⊟⊞⏱🔄(左上のアイコン円ボタン42px)/透明度スライダー+シャッター(下部グラデの浮きUI)を映像の上にオーバーレイ・上下分割中はスライダー自動非表示(visibility=場所は保つ)・⏱表示は3s/10s・撮影crop/fit/updateGuide/updateGridの数式は無改修 ④iOS：ホーム画面のアプリアイコン長押し（Quick Action）→🎞️重ね撮り一覧へ直行＝自前 app-shortcuts プラグイン新設(getPending drain+shortcutイベント=BgLocと同型)+AppDelegate performActionFor+Info.plist static shortcut(SF Symbol square.stack.3d.up・題名ja/en)・コールド起動は全件追い読み(restLoadPromise)完了を待って開く＝シリーズ欠けなし・web/Androidはプラグイン不在で全て無効＝不変・カメラ同様 native 1.5 ビルドから。｜ v164：📐重ね撮りカメラの実機FB4点＝①⏱セルフタイマー（オフ/3秒/10秒＋中央カウントダウン）②グリッド線を写真の実表示領域(contain box)にフィット＝写真外の黒帯にはみ出さない③基準側にもグリッド線（上=カメラ/下=基準の両方に同じ3×3）④ボタン増でコントロールを2段（ツール中央寄せ＋シャッター別段）。｜ v163：📐重ね撮りを一級化＋⊞グリッド線＋🍜食べ物だけに（実機FB3点）＝①カメラに3×3グリッド線トグル②重ね撮り=⚙メニューに一覧・タイトル(✏)・🎯基準日(N日前/N日後)・日ごとメモ・📖ログ/🖼写真切替＝思い出の場所と同じ手触り(メタはroot写真レコードのrpTitle/rpBaseDate/rpNotes=スキーマレス・DB移行なし)③意味レンズのUIを「🍜食べ物を振り返る」だけに(チップ/言葉/写真検索は撤去・機構は残置)。｜ v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に·位置情報) · 2026-07-11';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -964,6 +974,9 @@ async function annivDelete(id) {
 
 // ── 位置ロガーの記録ストア (track, v73) ──────────────────────
 // 1点 = {id, t(epoch ms), lat, lng, acc, mode}。t インデックスで日/期間を範囲取得 (昇順)。
+// v187: ✏️手書きの移動線の点も src:'hand' (+stay) で同居する (座標+時刻の精神を維持・機種変更で一緒に移る)。
+//   ロガーの削除 (trackClearRange) は手書きをスキップ＝ロガー整理でユーザーの手書きが消えない。
+function isHandPt(q) { return !!q && q.src === 'hand'; }
 async function trackPut(point) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -992,12 +1005,23 @@ async function trackClear() {
   });
 }
 // 特定の時間帯だけ削除 (v140: 位置ロガーの日別削除)。t インデックスをカーソルで range 削除。
+// v187: ✏️手書きの点 (src:'hand') はスキップ＝「ロガーの記録を消す」でユーザーの手書きは消さない。
 async function trackClearRange(startMs, endMs) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(TRACK_STORE, 'readwrite');
     const req = tx.objectStore(TRACK_STORE).index('t').openCursor(IDBKeyRange.bound(startMs, endMs));
-    req.onsuccess = () => { const c = req.result; if (c) { c.delete(); c.continue(); } };
+    req.onsuccess = () => { const c = req.result; if (c) { if (!isHandPt(c.value)) c.delete(); c.continue(); } };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+// 1点だけ削除 (v187: ✏️手書きの点の取り消し/削除用)。
+async function trackDelete(id) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(TRACK_STORE, 'readwrite');
+    tx.objectStore(TRACK_STORE).delete(id);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -2946,10 +2970,10 @@ function openLoggerPanel() {
     else { daysBox.hidden = true; }
   });
 
-  // すべての記録を消す (v140: 確認あり)
+  // すべての記録を消す (v140: 確認あり)。v187: trackClearRange 経由=✏️手書きの点は残す (全データ削除は trackClear のまま)。
   card.querySelector('#loggerClear').addEventListener('click', async () => {
     if (!confirm(tr('記録した位置の軌跡を「すべて」消します。よろしいですか？（写真は消えません）', 'This deletes ALL recorded location tracks. Are you sure? (Photos are not deleted.)'))) return;
-    try { await trackClear(); } catch {}
+    try { await trackClearRange(0, Date.now() + 86400000); } catch {}
     loggerLast = null;
     if (mapState && mapState.refreshTrack) mapState.refreshTrack();
     if (!daysBox.hidden) renderTrackDays();
@@ -2962,6 +2986,7 @@ function openLoggerPanel() {
     daysBox.innerHTML = `<div class="logger-day-empty">${tr('読み込み中…', 'Loading…')}</div>`;
     let pts = [];
     try { pts = await trackGetRange(0, Date.now()); } catch {}
+    pts = pts.filter(p => !isHandPt(p));   // v187: ✏️手書きの点はロガーの記録ではない (数えない・ここからは消さない)
     if (!document.getElementById('loggerPanel')) return;   // 集計中に閉じられた
     if (!pts.length) { daysBox.innerHTML = `<div class="logger-day-empty">${tr('記録がありません。', 'No records yet.')}</div>`; return; }
     const byDay = new Map();
@@ -3354,6 +3379,7 @@ async function openMapView(focusPhoto, opts) {
     if (mapState.markerMode !== 'density') return;
     const pts = mapState.filteredGps.slice();
     if (mapState.showTrack && mapState.trackMerge) for (const arr of mapState.trackMerge.values()) for (const q of arr) pts.push({ lat: q.lat, lng: q.lng });
+    if (mapState.handMerge) for (const arr of mapState.handMerge.values()) for (const q of arr) pts.push({ lat: q.lat, lng: q.lng });   // v187: 手書きも密度に乗せる
     if (!pts.length) return;
     mapState.densityLayer = makeDensityLayer(pts).addTo(map);
   }
@@ -3372,9 +3398,11 @@ async function openMapView(focusPhoto, opts) {
     //   segmentByGap・dayKeyOf）が写真と同じに扱える。
     const line = (() => {
       const tm = mapState.showTrack ? mapState.trackMerge : null;
-      if (!tm || !tm.size) return mapState.lineGps;
+      const hm = mapState.handMerge;   // v187: ✏️手書きの点は軌跡トグルと無関係に常に線へ (ユーザーが自分で描いた足取り)
+      if ((!tm || !tm.size) && (!hm || !hm.size)) return mapState.lineGps;
       const merged = mapState.lineGps.slice();
-      for (const arr of tm.values()) for (const q of arr) merged.push({ lat: q.lat, lng: q.lng, datetime: new Date(q.t), _track: true });
+      if (tm) for (const arr of tm.values()) for (const q of arr) merged.push({ lat: q.lat, lng: q.lng, datetime: new Date(q.t), _track: true });
+      if (hm) for (const arr of hm.values()) for (const q of arr) merged.push({ lat: q.lat, lng: q.lng, datetime: new Date(q.t), _track: true, _hand: true });
       merged.sort((a, b) => a.datetime - b.datetime);
       return merged;
     })();
@@ -3512,6 +3540,7 @@ async function openMapView(focusPhoto, opts) {
     for (const l of mapState.estLayers) map.removeLayer(l);
     mapState.trackLayers = []; mapState.estLayers = [];
     mapState.trackMerge = null;   // v139: 窓が変わった/OFF の古い合流キャッシュを捨てる
+    mapState.handMerge = null;    // v187: ✏️手書きの点も同様に積み直す
     const windows = [];                              // 表示中の時間窓を集める
     if (mapState.pickDays) {
       const folded = mapState.foldedDays;
@@ -3528,12 +3557,14 @@ async function openMapView(focusPhoto, opts) {
     }
     const myMap = map;
     // v140: 足跡から写真の位置を自動確定 (既定ON・🛰️パネルで切替)。位置が付いたら real マーカーとして引き直す。
-    if (autoConfirmTrackEnabled()) {
+    // v187: ✏️手書き編集中は保留（描きかけの線で写真を確定しない。終了時に _autoTrackTried を戻して再試行）。
+    if (autoConfirmTrackEnabled() && !mapState.handEdit) {
       const n = await autoConfirmTrackPass(windows);
       if (!mapState || mapState.map !== myMap) return;         // 閉じられた/再オープン
       if (n > 0) { if (mapState.refreshData) mapState.refreshData(); return; }
     }
-    if (!mapState.showTrack && !mapState.showEstimated) { drawTrips(); return; }   // OFF=写真のみの線へ戻す
+    // v187: ✏️手書きの点 (src:'hand') は軌跡トグル OFF でも「その日の線」に乗せるため、窓の走査は常に行う
+    //   (ロガー由来の描画だけ showTrack でスキップ。既定は両トグル ON なのでコストは従来同等)。
     const fitPts = [];
     let trackDots = 0;   // v181: 記録点ドットの予算 (全期間級の窓で数万レイヤ作らない。超過ぶんは線/密度にだけ乗る)
     for (const [s, e] of windows) {
@@ -3541,9 +3572,28 @@ async function openMapView(focusPhoto, opts) {
       try { pts = await trackGetRange(s, e); } catch {}
       if (!mapState || mapState.map !== myMap) return;   // 閉じられた/再オープン → 破棄
       if (!pts.length) continue;
-      if (mapState.showTrack) {
+      // v187: 手書き点はロガーと分けて handMerge に積む (線は drawTrips が両方を時刻順に混ぜる)。
+      const handPts = [], logPts = [];
+      for (const p of pts) (isHandPt(p) ? handPts : logPts).push(p);
+      if (handPts.length) {
+        if (!mapState.handMerge) mapState.handMerge = new Map();
+        const editDk = mapState.handEdit && mapState.handEdit.dayKey;
+        for (const p of handPts) {
+          const d = new Date(p.t); const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+          if (!mapState.handMerge.has(k)) mapState.handMerge.set(k, []);
+          mapState.handMerge.get(k).push(p);
+          fitPts.push([p.lat, p.lng]);
+          // ☕滞在の点は普段も小さなリングで示す (🚶通過は線を曲げるだけ＝描かない)。
+          //   編集中の日は redrawHandMarkers のドラッグ可能マーカーが担うのでここでは出さない。
+          if (p.stay && k !== editDk) {
+            mapState.trackLayers.push(L.circleMarker([p.lat, p.lng],
+              { renderer: dotRenderer, radius: 4.5, color: '#2ee6c0', weight: 2, opacity: 0.95, fillColor: '#0a0a0a', fillOpacity: 0.85 }).addTo(myMap));
+          }
+        }
+      }
+      if (mapState.showTrack && logPts.length) {
         const byDay = new Map();                          // 日ごとに分割 (dayKeyOf と同形式のキー)
-        for (const p of pts) { const d = new Date(p.t); const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(p); }
+        for (const p of logPts) { const d = new Date(p.t); const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(p); }
         for (const [k, arr] of byDay) {
           // v139: 線はここで引かず drawTrips へ渡す（写真の点と時刻順に混ざって本線1本になる）。
           if (!mapState.trackMerge) mapState.trackMerge = new Map();
@@ -3585,6 +3635,7 @@ async function openMapView(focusPhoto, opts) {
 
   // 日付/期間フィルタを適用: 表示するマーカーと動線を絞り、bounds を合わせ、タイムライン UI を更新。
   function applyFilter(opts) {
+    if (mapState.handEdit) endHandDrawMode(true);   // v187: 表示する日/期間が変わる＝✏️手書きモードは終了 (パネル/マーカー掃除)
     const fgAll = visibleGps();
     // 選択モード (random3 / day / days) で折りたたんだ日は、地図から「線も写真(マーカー)も」消す。
     // 線の色 index は全日基準で安定させたいので lineGps は全日のまま (drawTrips が畳んだ日をスキップ)、
@@ -3597,6 +3648,7 @@ async function openMapView(focusPhoto, opts) {
     mapState.filteredGps = fg;     // マーカー (畳んだ日を除く)
     mapState.lineGps = fgAll;      // 線の色 index 用 (全日。畳んだ日の線は drawTrips でスキップ)
     mapState.trackMerge = null;    // v139: 窓が変わる＝前の窓のロガー点は混ぜない (refreshTrack が積み直す)
+    mapState.handMerge = null;     // v187: 手書きの点も同様
     cluster.clearLayers();
     markerById.clear();
     clearDotLayers();
@@ -3903,7 +3955,8 @@ async function openMapView(focusPhoto, opts) {
     // 位置オフ build (iOS v1) では軌跡まわりのトグルを出さない (v104)。記録が無いので元々空動作。
     (LOCATION_AVAILABLE
       ? `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> ${tr('🛰️ 自分の軌跡（ロガー）', '🛰️ My track (logger)')}</label>` +
-        `<label class="mc-pop-check"><input type="checkbox" id="mmEst"> ${tr('📍 GPSなし写真を軌跡から配置', '📍 Place GPS-less photos from track')}</label>`
+        `<label class="mc-pop-check"><input type="checkbox" id="mmEst"> ${tr('📍 GPSなし写真を軌跡から配置', '📍 Place GPS-less photos from track')}</label>` +
+        `<button class="mc-menu-item" id="mmHand">${tr('✏️ この日の道を手書き', "✏️ Hand-draw this day's route")}</button>`   // v187
       : '') +
     `<button class="mc-menu-item" id="mmSeal">${tr('🔒 記憶の封印', '🔒 Seal memories')}</button>` +
     `<button class="mc-menu-item" id="mmHelp">${tr('ⓘ アイコンの説明', 'ⓘ Icon guide')}</button>` +
@@ -3919,6 +3972,19 @@ async function openMapView(focusPhoto, opts) {
     mmEst.checked = mapState.showEstimated;
     mmEst.addEventListener('change', () => { mapState.showEstimated = mmEst.checked; refreshTrack(); });
   }
+  const mmHand = popMore.querySelector('#mmHand');   // v187: ✏️手書きの移動線 (日を1つに固定して点を打つ)
+  if (mmHand) mmHand.addEventListener('click', () => {
+    closePops();
+    const folded = mapState.foldedDays;
+    const days = (mapState.pickDays || []).filter(dk => {
+      if (!folded || !folded.size) return true;
+      const [yy, mm2, dd2] = dk.split('-').map(Number);
+      return !folded.has(new Date(yy, mm2, dd2).getTime());
+    });
+    if (!days.length) { logInfo(tr('先に日を選んでください（🗺過去の今日・写真の🗺・🎲・📅）', 'Pick a day first (🗺 On This Day, a photo\'s 🗺, 🎲, or 📅)')); return; }
+    if (days.length === 1) { enterHandDrawMode(days[0]); return; }
+    openHandDayChooser(days);
+  });
   const mmAnnivLog = popMore.querySelector('#mmAnnivLog');   // v127: 思い出の場所由来の地図 → ログへ戻る
   if (mmAnnivLog) mmAnnivLog.addEventListener('click', () => { closePops(); if (mapState && mapState.anniv) openAnnivTimeline(mapState.anniv); else openAnnivList(); });   // v128: 思い出の場所由来→そのログ／通常地図→思い出の場所一覧
   const mmRegister = popMore.querySelector('#mmRegister');   // v125: いま見ている地図の範囲を思い出の場所に登録
@@ -4149,6 +4215,9 @@ async function openMapView(focusPhoto, opts) {
   map.on('click', () => {   // 背景タップ: パネルを閉じ、軌跡のハイライト(他を暗く)も解除
     closePops();
     if (mapState.focusedDay) { mapState.focusedDay = null; drawTrips(); if (mapState.updateTimelineUI) mapState.updateTimelineUI(); }   // v122: 背景タップで解除→タイムラインも戻す
+  });
+  map.on('click', (e) => {   // v187: ✏️手書きモード中は地図タップ=通過/滞在の点を打つ (locEdit のピン移動とは排他)
+    if (mapState && mapState.handEdit && !mapState.locEdit) handDrawTap(e.latlng);
   });
 
   // タイムライン (フィルタ操作の主役) を先に組み、updateTimelineUI フックを mapState に立ててから適用。
@@ -4529,6 +4598,7 @@ function closeMapView() {
   if (!mapState) return;
   if (mapState.encircle) endEncircleMode();   // v120: 円ジェスチャ中なら後始末してから閉じる
   if (mapState.hereMode) endHereRadiusMode();   // v154: 「いまの場所」半径選択中なら後始末
+  if (mapState.handEdit) endHandDrawMode(true);   // v187: ✏️手書き中なら後始末してから閉じる
   try { mapState.map.remove(); } catch {}
   mapState.overlay.remove();
   mapState = null;
@@ -4554,6 +4624,7 @@ function photosInCircle(lat, lng, radiusM) {
 // 地図に円を描くモードに入る。中心を押して外へドラッグ=半径。離すと円内の写真で比較ビュー。
 function startEncircleMode() {
   if (!mapState || mapState.encircle) return;
+  if (mapState.handEdit) endHandDrawMode(true);   // v187: ✏️手書きとは排他
   const { map, overlay } = mapState;
   const mapEl = overlay.querySelector('#mapEl');
   try { map.closePopup(); } catch {}
@@ -4990,6 +5061,7 @@ const hereRadiusToSlider = (r) => Math.round(100 * Math.log(r / HERE_MIN_R) / Ma
 function enterHereRadiusMode(lat, lng) {
   if (!mapState) return;
   endHereRadiusMode();
+  if (mapState.handEdit) endHandDrawMode(true);   // v187: ✏️手書きとは排他
   const { map, overlay } = mapState;
   if (mapState.closePops) mapState.closePops();
 
@@ -5054,6 +5126,217 @@ function endHereRadiusMode() {
   try { if (hm.circle) mapState.map.removeLayer(hm.circle); } catch {}
   try { hm.panel.remove(); } catch {}
   mapState.hereMode = null;
+}
+
+// ============================================================
+// ✏️ 手書きの移動線 (v187) — 「点は人間が打つ・線はロジックが引く」
+//   日にちを1日に固定し、確定済みの点 (GPS写真・ロガー・手書き) を起点/終点として、
+//   そのあいだに 🚶通過 / ☕滞在 の点をタップで打つ。点には「タップ位置に最も近い区間の
+//   前後の点」から距離按分した時刻を与える＝既存の「時刻順に1本」(v139 drawTrips) が
+//   そのまま線を引く (手書き専用の線ロジックは作らない)。
+//   データは track ストアに src:'hand' (+stay) で同居＝座標+時刻のみの精神・DB移行なし。
+//   全部手書きだとデータが増えすぎる、の歯止め＝確定点の「間」にしか打てない設計。
+// ============================================================
+
+// その日の「時刻を持つ確定点」を時刻順に (GPS写真 + ロガー + 手書き)。手書き点は rec を持つ。
+async function handDaySeq(dayKey) {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const s = new Date(y, m, d).getTime(), e = s + 86400000 - 1;
+  const seq = [];
+  for (const p of allPhotos) {
+    if (!visible(p) || p.lat == null || p.lng == null) continue;
+    const t = p.datetime.getTime();
+    if (t < s || t > e) continue;
+    seq.push({ t, lat: p.lat, lng: p.lng, rec: null });
+  }
+  let pts = [];
+  try { pts = await trackGetRange(s, e); } catch {}
+  for (const q of pts) seq.push({ t: q.t, lat: q.lat, lng: q.lng, rec: isHandPt(q) ? q : null });
+  seq.sort((a, b) => a.t - b.t);
+  return seq;
+}
+
+function handDayLabel(dayKey) {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  return new Date(y, m, d).toLocaleDateString(LANG === 'ja' ? 'ja-JP' : 'en-US',
+    { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' });
+}
+
+async function enterHandDrawMode(dayKey) {
+  if (!mapState) return;
+  endHandDrawMode(true);
+  endHereRadiusMode();
+  if (mapState.encircle) endEncircleMode();
+  if (mapState.closePops) mapState.closePops();
+  const seq0 = await handDaySeq(dayKey);
+  if (!mapState) return;
+  if (seq0.length < 2) {
+    logInfo(tr('この日は位置の確定した点が2つ未満です。手書きの点は、確定した点の「あいだ」に打ちます（写真の📍位置を確定してから）',
+               'This day has fewer than 2 confirmed points. Hand-drawn points go between confirmed ones — confirm photo locations first.'));
+    return;
+  }
+  // 日にちの固定＝この日だけの表示に絞る (単一日=時刻→空の色の線)。setPick→applyFilter は
+  // handEdit を立てる前に走らせる (applyFilter の v187 ガードで自滅しないように)。
+  if (!(mapState.pickDays && mapState.pickDays.length === 1 && mapState.pickDays[0] === dayKey)) {
+    if (mapState.setPick) mapState.setPick([dayKey], 'day');
+    if (!mapState) return;
+  }
+  const { map, overlay } = mapState;
+  try { map.doubleClickZoom.disable(); } catch {}   // ダブルタップズームで点が2連で入る事故を避ける (終了時に戻す)
+
+  const panel = document.createElement('div');
+  panel.className = 'here-panel hand-panel';
+  panel.innerHTML =
+    `<div class="here-panel-top"><span class="here-panel-title">✏️ ${handDayLabel(dayKey)}</span><button class="here-cancel" type="button">${tr('✓ 終了', '✓ Done')}</button></div>` +
+    `<div class="hand-chips">` +
+      `<button class="mc-pop-btn hand-type primary" data-type="pass" type="button">${tr('🚶 通過', '🚶 Passed')}</button>` +
+      `<button class="mc-pop-btn hand-type" data-type="stay" type="button">${tr('☕ 滞在', '☕ Stayed')}</button>` +
+      `<button class="mc-pop-btn hand-undo" type="button" disabled>${tr('↩ 取り消し', '↩ Undo')}</button>` +
+    `</div>` +
+    `<div class="hand-hint">${tr('通った場所をタップ → 前後の点のあいだに入り、線がつながります。点はドラッグで動かせます', 'Tap where you went — it slots between the points and the line follows. Drag a point to move it.')}</div>`;
+  overlay.appendChild(panel);
+
+  const he = { dayKey, panel, markers: [], type: 'pass', undo: [] };
+  mapState.handEdit = he;
+
+  const chips = panel.querySelectorAll('.hand-type');
+  chips.forEach(b => b.addEventListener('click', () => {
+    he.type = b.dataset.type;
+    chips.forEach(x => x.classList.toggle('primary', x === b));
+  }));
+  panel.querySelector('.hand-undo').addEventListener('click', async () => {
+    const he2 = mapState && mapState.handEdit;
+    if (!he2 || !he2.undo.length) return;
+    const id = he2.undo.pop();
+    try { await trackDelete(id); } catch {}
+    if (mapState && mapState.refreshTrack) mapState.refreshTrack();
+    redrawHandMarkers();
+  });
+  panel.querySelector('.here-cancel').addEventListener('click', () => endHandDrawMode());
+
+  if (mapState.refreshTrack) mapState.refreshTrack();   // 編集中の日の☕リングを一旦引っ込め、編集マーカーに委ねる
+  await redrawHandMarkers();
+}
+
+// 編集中の日の手書き点を、ドラッグ可能なマーカーで出し直す (追加/削除/切替のたびに呼ぶ)。
+async function redrawHandMarkers() {
+  const he = mapState && mapState.handEdit;
+  if (!he) return;
+  const map = mapState.map;
+  for (const m of he.markers) { try { map.removeLayer(m); } catch {} }
+  he.markers = [];
+  const [y, m, d] = he.dayKey.split('-').map(Number);
+  const s = new Date(y, m, d).getTime();
+  let pts = [];
+  try { pts = await trackGetRange(s, s + 86400000 - 1); } catch {}
+  if (!mapState || mapState.handEdit !== he) return;   // 集計中に終了された
+  for (const rec of pts.filter(isHandPt)) {
+    const icon = L.divIcon({ className: 'hand-pt-wrap', html: `<div class="hand-pt${rec.stay ? ' stay' : ''}"></div>`, iconSize: [18, 18], iconAnchor: [9, 9] });
+    const mk = L.marker([rec.lat, rec.lng], { icon, draggable: true, bubblingMouseEvents: false }).addTo(map);
+    mk.on('dragend', async () => {
+      const ll = mk.getLatLng();
+      rec.lat = +ll.lat.toFixed(6); rec.lng = +ll.lng.toFixed(6);   // 時刻は変えない＝前後関係が崩れない
+      try { await trackPut(rec); } catch {}
+      if (mapState && mapState.refreshTrack) mapState.refreshTrack();
+    });
+    mk.bindPopup(() => buildHandPtPopup(rec), { closeButton: false });
+    he.markers.push(mk);
+  }
+  const undoBtn = he.panel.querySelector('.hand-undo');
+  if (undoBtn) undoBtn.disabled = !he.undo.length;
+}
+
+function buildHandPtPopup(rec) {
+  const el = document.createElement('div');
+  el.className = 'hand-pop';
+  el.innerHTML =
+    `<button class="hp-toggle" type="button">${rec.stay ? tr('🚶 通過にする', '🚶 Make it passed') : tr('☕ 滞在にする', '☕ Make it stayed')}</button>` +
+    `<button class="hp-del" type="button">${tr('🗑 この点を消す', '🗑 Remove this point')}</button>`;
+  el.querySelector('.hp-toggle').addEventListener('click', async () => {
+    if (rec.stay) delete rec.stay; else rec.stay = 1;
+    try { await trackPut(rec); } catch {}
+    try { mapState.map.closePopup(); } catch {}
+    if (mapState && mapState.refreshTrack) mapState.refreshTrack();
+    redrawHandMarkers();
+  });
+  el.querySelector('.hp-del').addEventListener('click', async () => {
+    try { await trackDelete(rec.id); } catch {}
+    const he = mapState && mapState.handEdit;
+    if (he) he.undo = he.undo.filter(id => id !== rec.id);
+    try { mapState.map.closePopup(); } catch {}
+    if (mapState && mapState.refreshTrack) mapState.refreshTrack();
+    redrawHandMarkers();
+  });
+  return el;
+}
+
+// 地図タップ→点を打つ。タップ位置に最も近い「確定点の区間」を探し、区間内の距離按分で時刻を与える。
+async function handDrawTap(ll) {
+  const he = mapState && mapState.handEdit;
+  if (!he) return;
+  const seq = await handDaySeq(he.dayKey);
+  if (!mapState || mapState.handEdit !== he) return;
+  if (seq.length < 2) return;
+  const map = mapState.map;
+  const P = map.latLngToLayerPoint(ll);
+  let best = null;
+  for (let i = 0; i < seq.length - 1; i++) {
+    const a = map.latLngToLayerPoint([seq[i].lat, seq[i].lng]);
+    const b = map.latLngToLayerPoint([seq[i + 1].lat, seq[i + 1].lng]);
+    const cp = L.LineUtil.closestPointOnSegment(P, a, b);
+    const dist = P.distanceTo(cp);
+    if (!best || dist < best.dist) {
+      const ab = a.distanceTo(b);
+      best = { dist, i, frac: ab > 0 ? a.distanceTo(cp) / ab : 0.5 };
+    }
+  }
+  const A = seq[best.i], B = seq[best.i + 1];
+  const f = Math.min(0.98, Math.max(0.02, best.frac));
+  let t = Math.round(A.t + (B.t - A.t) * f);
+  if (t <= A.t) t = A.t + 1;
+  if (t >= B.t) t = Math.max(A.t + 1, B.t - 1);
+  const rec = { id: crypto.randomUUID(), t, lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6), acc: 0, src: 'hand' };
+  if (he.type === 'stay') rec.stay = 1;
+  try { await trackPut(rec); }
+  catch (err) { logErr(tr(`点の保存に失敗: ${err?.message || err}`, `Failed to save the point: ${err?.message || err}`)); return; }
+  he.undo.push(rec.id);
+  if (mapState.refreshTrack) mapState.refreshTrack();   // handMerge を積み直し→線が即つながる
+  redrawHandMarkers();
+}
+
+function endHandDrawMode(skipRefresh) {
+  if (!mapState || !mapState.handEdit) return;
+  const he = mapState.handEdit;
+  mapState.handEdit = null;
+  for (const m of he.markers) { try { mapState.map.removeLayer(m); } catch {} }
+  try { he.panel.remove(); } catch {}
+  try { mapState.map.doubleClickZoom.enable(); } catch {}
+  try { mapState.map.closePopup(); } catch {}
+  // 描き終えた線を「新しい軌跡」として扱い、この日の GPSなし写真の自動確定 (v140) を再試行できるようにする
+  // ＝手書きを終えると、その日の写真が描いた道の上に乗る (由来バッジ「足跡から」・📍位置を直すで修正可)。
+  for (const p of allPhotos) { if (p.lat == null && p.lng == null && dayKeyOf(p) === he.dayKey) delete p._autoTrackTried; }
+  if (!skipRefresh && mapState.refreshTrack) mapState.refreshTrack();
+}
+
+// 複数日を表示中に✏️を押した時の「どの日?」選択 (過去の今日=数年分などから1日を選ぶ)。
+function openHandDayChooser(days) {
+  if (!mapState) return;
+  endHereRadiusMode();
+  const { overlay } = mapState;
+  const panel = document.createElement('div');
+  panel.className = 'here-panel hand-panel';
+  const sorted = days.slice().sort((a, b) => {
+    const pa = a.split('-').map(Number), pb = b.split('-').map(Number);
+    return new Date(pb[0], pb[1], pb[2]) - new Date(pa[0], pa[1], pa[2]);   // 新しい日が上
+  });
+  panel.innerHTML =
+    `<div class="here-panel-top"><span class="here-panel-title">${tr('✏️ どの日の道を手書きする？', '✏️ Which day to hand-draw?')}</span><button class="here-cancel" type="button">${tr('やめる', 'Cancel')}</button></div>` +
+    `<div class="hand-days">` +
+      sorted.map(dk => `<button class="mc-pop-btn hand-day" data-dk="${dk}" type="button">${handDayLabel(dk)}</button>`).join('') +
+    `</div>`;
+  overlay.appendChild(panel);
+  panel.querySelector('.here-cancel').addEventListener('click', () => panel.remove());
+  panel.querySelectorAll('.hand-day').forEach(b => b.addEventListener('click', () => { panel.remove(); enterHandDrawMode(b.dataset.dk); }));
 }
 
 // 思い出の場所の写真リスト: 保存した円で再計算 (新しく撮った写真も拾う=live)。取れなければ保存済み photoId で解決。
