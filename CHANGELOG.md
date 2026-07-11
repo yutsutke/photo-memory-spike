@@ -5,6 +5,28 @@
 
 ---
 
+## v189 — 🍏 iOS を 1.6 でビルド可能に（1.5 審査中と分離・手書きを native で試す用） (2026-07-12)
+
+**背景**
+- ✏️手書きの移動線（v187-188）を **native で試したい**（ユーザー要望「native で試したい。1.5 が審査中、1.6 でビルドできるように」）。
+- 1.5 は審査待ち（承認後 **自動リリース**）。同じ 1.5 train にビルドを足すと審査対象のビルドと紛れうる → **MARKETING_VERSION を 1.6 に上げて新 train に分離**（過去に 1.1 審査中→1.2 でやったのと同じ定石）。
+
+**設計判断**
+- `ios/App/App.xcodeproj/project.pbxproj` の **`MARKETING_VERSION` 1.5→1.6**（Debug/Release の2箇所）。これだけで Codemagic のビルドが 1.6 になる（codemagic.yaml は MARKETING_VERSION を上書きしない・build番号は `agvtool new-version -all "$BUILD_NUMBER"` で連番自動採番＝手で触らない）。
+- **web/native コードは無改修**。手書きは web 完結（track ストア src:'hand'）＝native 契約不変なので、CI の `sync:web`→`cap sync ios` で現状の web（`phase3.141`＝v187-188 手書き＋v180-186 の10万枚スケール等すべて）が 1.6 に自動で乗る。
+- **BUILD 文字列は phase3.141 据え置き**（web を1バイトも変えていない＝上げると「web が変わった」と誤認させるため）。1.6 ビルドの ℹ️ で `phase3.141` が見えれば「v187-188 入り」の確認になる。
+- TestFlight と App Store 審査は独立＝1.5 審査中でも 1.6 を TestFlight に配信できる（`submit_to_testflight: true` で自動）。1.5 の複数ビルド(42-46)を審査提出後も TestFlight に上げていたのと同じ。
+
+**結果 / 観察**
+- push 済み。**次はユーザーが Codemagic の `ios-testflight` ワークフローを「Start new build」**→ 1.6(build N) が TestFlight に配信 → 実機で ✏️手書き（地図⋯「✏️この日の道を手書き」）＋v180-186 を試す。
+- カメラ権限（NSCameraUsageDescription）は 1.5(37+) で既に入っている＝重ね撮りカメラもこの 1.6 で動く。手書きは既存の位置権限で動く（新権限なし）。
+
+**残課題 / 次の方向**
+- 1.6 実機で手書きの手触り（②☕視認性・③前後トグル・地図タップの命中）。web preview と実機タップは命中特性が違う（[[preview-raf-not-firing]]）＝実機が最終確認。
+- 1.5 が承認・自動公開されたら、1.6 に「次の審査提出版」を積んでいく（web の新規 FB を乗せてから提出）。
+
+---
+
 ## v188 — ✏️ 手書きの移動線 実機FB＝☕滞在を分かりやすく＋挿入の「前/後」を明確に (2026-07-12)
 
 **背景（実機FB・v187 の初回試用）**
