@@ -575,6 +575,20 @@
   .hand-pt { box-sizing: border-box; width: 20px; height: 20px; border-radius: 50%; background: rgba(10,20,18,0.88); border: 2px solid #2ee6c0; box-shadow: 0 1px 5px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; }
   .hand-pt.stay { width: 28px; height: 28px; background: #17b89e; border-color: #eafffb; box-shadow: 0 0 0 3px rgba(46,230,192,0.4), 0 2px 7px rgba(0,0,0,0.65); font-size: 15px; }   /* v188: ☕滞在を塗り+白縁+絵文字で通過とはっきり差を付ける */
   .hand-pt.stay-static { width: 24px; height: 24px; font-size: 13px; }
+  /* 🤝 もらった思い出 (peer pack, v194): 相手の写真マーカーは太めのパック色枠・線頭に👤名前ラベル */
+  .photo-marker.peer { border-width: 3px; }
+  .peer-line-label { background: rgba(12,12,14,0.85); border: 1.5px solid #ff7eb6; color: #fff; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; width: max-content; box-shadow: 0 1px 5px rgba(0,0,0,0.55); }
+  .peer-tag { font-weight: 600; }
+  .pack-row-sub { color: #9a9a9a; font-size: 12px; margin-top: 2px; }
+  .pack-row-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .pack-row-actions .mc-pop-btn { font-size: 12.5px; }
+  .pack-import-row { margin: 4px 0 12px; }
+  .pack-note { color: #8b8b8b; font-size: 12px; line-height: 1.6; margin-top: 10px; }
+  .share-summary { color: #bdbdbd; font-size: 13px; line-height: 1.7; margin: 6px 0 10px; }
+  .share-field { margin: 10px 0; }
+  .share-field label { display: block; font-size: 12.5px; color: #9a9a9a; margin-bottom: 4px; }
+  .share-field input[type="text"] { width: 100%; box-sizing: border-box; background: #222; border: 1px solid #3a3a3a; border-radius: 8px; color: #eee; padding: 9px 10px; font-size: 15px; }
+  .share-check { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 12px 0 4px; }
   .hand-pop { display: flex; flex-direction: column; gap: 6px; }
   .hand-pop button { background: #2f3438; color: #eee; border: none; border-radius: 8px; padding: 7px 10px; font-size: 12.5px; cursor: pointer; text-align: left; }
   .here-count { color: #6ee0a3; font-weight: 600; }
@@ -702,6 +716,7 @@
     <button id="btnAdd" class="import-trigger" title="画像を取り込む（ファイル / フォルダ）">📷 取り込む</button>
     <button id="btnAnniv" title="登録した思い出の場所（場所×時間の積層）">📍 思い出の場所</button>
     <button id="btnRepho" title="重ね撮り：同じ角度を時間を空けて重ねた写真の一覧">🎞️ 重ね撮り</button>
+    <button id="btnPacks" title="家族や友達と渡し合った思い出（日パック）の取り込み・一覧">🤝 もらった思い出</button>
     <button id="btnIg" title="Instagram / X 取り込み (エクスポート zip)">📦 SNS の zip から取り込む</button>
     <button id="btnAI" title="AI で意味の近傍を試す (β)">🧠 AI で意味の近傍（β）</button>
     <button id="btnLens" title="食べ物の写真だけを時系列で振り返る（AI 意味解析を利用）">🍜 食べ物を振り返る</button>
@@ -735,7 +750,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.145 (v193：✏️期間絞り込み（クイック1週間・📅の期間指定）からも手書きに入れる＝実機FB「一週間を選択→✏️→どの日から直す？モーダルが見つからない」の正体はクイックが pickDays でなく range を立てるため「先に日を選んで」で弾かれモーダル不到達だった→range 中は期間内の暦日（写真ゼロ日も一級=v190）を日リスト化してモーダルへ（1週間=8日）・期間が HAND_MAX_DAYS(10日) 超は「期間が長すぎます（N日）…期間を短く」警告・モーダル各日に写真枚数「・N枚」を添える（空の日と区別）・「先に日を」文言に期間の絞り込みを追記。preview E2E green。｜ v192：✏️複数日の手書き修正で「どの日から直す？」モーダルを復活（実機FB「複数日選んだ時に先に日を選択するモーダルがどこにあるかわからない」＝v191でパネル内チップに統合したら入口が見えなくなった）→複数日で✏️→まず日選択モーダル→選ぶと編集に入りパネル上部の日切替チップで他の日にも切替可（数日まとめて修正は維持）。単一日/🎲(1日)はモーダルを挟まず直行。preview E2E green。｜ v191：✏️手書き修正の「1日固定」を緩和＝複数日を選択中でも折り畳まず、パネルの日切替チップ（.hand-daypick・横スクロール・アクティブ日を強調＋その日へ地図を寄せる）で数日をまとめて修正できる。日が HAND_MAX_DAYS(=10) を超えると✏️押下で警告（📅/🎲で絞る誘導）。旧 openHandDayChooser（別画面で日選択）は日切替チップに統合し撤去。単一日は従来どおり折り畳み（時刻色の線）。realN/フリーハンド/写真ゼロ日の入口(v190)は不変。preview E2E green。｜ v190：✏️手書きモードを写真の無い日にも開放＝確定点が2つ未満（写真無し/GPS 0〜1枚）の日もフリーハンドで道を描ける。realN=写真+ロガーの確定点で分岐：≥2は従来の按分のまま無改修／≤1はタップ順＝道順で最寄り点の前後に入れ端の外側も許す（描き始め〜描き終わり）・空の日は正午起点。写真ゼロの日の入口＝📅フィルタ「＋追加」で単日なら写真が無くても足せる（range 空追加は従来どおり拒否）。線は保存せず点だけ（座標+時刻・src=hand）＝データ増加の歯止め不変。preview E2E green。｜ v188：✏️手書きの移動線 実機FB2点＝②☕滞在マークを分かりやすく（teal塗り+白縁+☕絵文字マーカー・編集中も常時表示も統一＝🚶通過は線のみで差が明確）③挿入の向きを明確に（「タップ位置に最も近い"線分"」→折り返す/入り組んだ道で意図しない区間に入る→「最も近い"点"＋前/後トグル」に変更＝パネル「◀近くの点の前／近くの点の後▶」既定=後・時刻は選んだ区間A-Bへ投影按分。①操作感=現状維持で足りる・④入口の深さ=OK のFB反映）。preview E2E green（最寄り点+dir前後で挿入区間が切り替わる検算・☕divIcon存在・console 0）＝実機の手触りが次。v187：✏️手書きの移動線（実機要望「その日の移動線を手書きで引きたい・点は簡単に打てて線はロジックで」）＝日にちを1日に固定し、確定済みの点（GPS写真・ロガー・手書き）を起点/終点に 🚶通過/☕滞在 の点をタップで打つ。点は「タップ位置に最も近い区間」の前後の点から距離按分した時刻を持ち、線は既存の時刻順マージ（v139 drawTrips）がロジックで引く＝手書き専用の線ロジックは作らない・全部手書きでデータが増えすぎない歯止め＝確定点の間にだけ打てる。データ＝track ストアに src=hand(+stay) で同居（座標+時刻の精神・DB移行なし・機種変更で一緒に移る）。入口＝地図の⋯表示「✏️この日の道を手書き」（複数日表示中は日選択パネル・LOCATION_AVAILABLE時のみ）。編集中＝点をドラッグで移動（時刻不変）・点タップで滞在⇄通過/🗑削除・↩取り消し・ダブルタップズーム無効化（点2連打ち事故防止）・日/期間の切替や囲む/いまの場所へ移ると自動終了。☕滞在は普段も小さなtealリングで残る・🚶通過は線を曲げるだけで見えない。ロガーの🗑削除（すべて/日ごと）は手書きをスキップ＝ロガー整理で手書きが消えない（設定の全データ削除では消える）。手書き編集中は足跡からの自動確定(v140)を保留し✓終了で再試行＝描き終えた道の上にGPSなし写真が乗る（バッジ「足跡から」・位置を直すで修正可）。軌跡トグルOFFでも手書きの点は常に線に乗る（ユーザーが自分で描いた足取りはロガー表示と独立）。｜ v186：🧭タイムライン系の「最後に使った表示」を記憶（ユーザーFB「写真大きくをよく見る／位置修正の時はその画面を連続で見る→最後に使った画面から開いてほしい」）＝**4画面それぞれ独立に localStorage 記憶し次回そこから開く**：①地図タイムライン（📋一覧⇄🖼写真・⊡大きく/⊞小さく）②思い出の場所（📖ログ⇄🖼写真・大きく/小さく）③重ね撮り（📖ログ⇄🖼写真・大きく/小さく）④食べ物を振り返る（📅月ごと⇄📆日ごと・大きく/小さく）。共通ヘルパ `getViewPref/saveViewPref`（1キー pms-viewPrefs に surface ごと・値は緩く復元＝未知値は各画面の既定へ）。各画面の state 初期化を getViewPref から・各トグルで saveViewPref。preview E2E green（4画面とも 既定→写真/大きく等に切替→保存→閉じて再オープンで復元・タブの on クラス/ボタン文言も一致・console 0）。｜ v185：🎞️実機FB2点＝①連続撮影ラベルの説明「（撮ってもカメラに残る）」と title を削除（ユーザー依頼・「連続撮影：オン/オフ」だけに）②「起動→重ね撮り→2画面/透過がない→1枚撮ると出る」の正体＝**＋新しい重ね撮り（新規フォルダー）のカメラは1枚目まで下敷きが無いので透過/2画面を出さない仕様（v166）**が2度混乱を生んだ→新規カメラの間だけ1行ヒント「1枚目を撮ると、その写真が下敷きになります（透過・2画面は2枚目から）」を表示（.repho-newhint・1枚撮って newseries が外れると CSS ごと消える・既存フォルダーのカメラには出ない）。🎉アプリ側の連続撮影は新1.5ビルドで解消をユーザー確認（v184の切り分けどおり）。preview green（新規=ヒント表示・ラベル オン/オフのみ・title 無し／撮影→ヒント消滅＋透過/下敷き出現／既存カメラ=ヒント無し・console 0）。｜ v184：🎞️実機FB「iOSで連続撮影がオフのまま変更できない」対応＝**原因はほぼ TestFlight 1.5(42) が v177（横持ちで⚙パネルあふれ→2列化）より前のビルド**であること（webは v176 時点で連続撮影の実機使用実績あり・コードのタップ/保存経路は正常）→対処=新しい 1.5 ビルドで解消。web には保険3点：①🔁連続撮影の行を上へ移動（保存サイズの直後＝5番目。最下段は古いビルド/低い画面で見切れやすく、スクロール直後のタップも食われやすい）②`.repho-tool`/`.repho-trow` に touch-action:manipulation（ダブルタップズーム/タップ遅延にタップを食われない）③パネルに overscroll-behavior:contain。preview green（行順5番目・トグルでラベル/onクラス/rpCamPrefs.cont 往復・touchAction=manipulation・横持ち844×390=2列で🔁がtop107-146に完全表示＋トグル動作・console 0）。｜ v183：🐘10万枚スケールの残り2点（ユーザー承認）＝①**取り込みメモリ解放**＝取り込みで作った thumb Blob は「メモリ生まれ」のまま allPhotos に残り、1セッション数万枚で数GB積む構造（Chromium はディスク退避するが iOS WebKit は保証なし）→ **DB へ書けた後、500枚ごとに IndexedDB から読み直したディスク参照 Blob に差し替え**（`queueThumbRelief`/`relieveThumbBatch`/`flushThumbRelief`・readonly tx 1本・thumbUrl 済み=表示中かも は差し替えずスキップ・失敗しても取り込み続行＝最適化であって必須でない）。呼び出し点＝native 背景/fast-track・web 背景/fast-track・zip(Instagram/X) の全5経路＋各末尾で端数 flush。photoById は import 中 O(n)/回 になるため使わず1パスで引く。②**ℹ️に使用容量**＝storage.estimate で「このアプリの使用容量/端末側の上限目安＋写真N枚・1枚平均→10万枚なら約◯GB の見込み」（100枚以上で平均行・概算＝足跡/AI含む・削除直後は compaction 前で過大に出ることあり）。preview E2E green（ユニット600件＝共有1Blob→600個の個別ディスク参照に差し替え・自動flush(500)＋最終flush(100)・size>0／web実経路 importFiles 12件＝[relief] 11枚（表示中1枚スキップ＝設計どおり）／ℹ️表示「107MB・612枚・平均175KB→17.5GB」（平均は直前の8万件削除の未compaction込み＝概算表記どおり）／console 0）。｜ v180-v182：🐘10万枚スケール対応（ユーザー要望3本柱）＝【v180 取り込み】ヘッダの🌀進捗をタップ→⏸停止（confirm・残り時間EMA目安つき。native=processNativeRest／web=runBackgroundImport／dev生成 の3ループ共通・バッチ区切りで安全停止・続きは差分同期＝📚再実行/選び直しで再開）＋native取り込みを「新しい順」に（途中で止めても直近ぶんから使える＝2000枚ずつ分ける案の実利を区切り操作なしで実現）＋枚数ラベルの全件reduceを400ms throttle（取り込み中は毎枚呼ばれ実質O(n²)だったのを解消）。【v181 地図】線＝表示日数で自動切替（≤30日 日ごと色分け=従来／≤200日 全日同色・multi-ring polyline 2レイヤ(canvas・縁取り+本線)のみ／超は線なし=点・密度が担う）・写真＝表示枚数で自動切替（≤300 サムネクラスタ=従来／≤8千 白点circleMarker(canvas共有レンダラ・タップでpopup)／超は密度タイル=自作GridLayer（teal 12pxセル・log濃淡・ズームごとに点をタイルへバケツ分けキャッシュ＝10万点でも各タイル数ms）。密度中はタイムライン/写真入口から spotlight（一時サムネ1個）で個別到達・ドリルダウンは既存の🫧囲むが担う）＋推定配置マーカー≤200／記録点ドット≤2万の上限ガード＋autoConfirmTrackPass は ghosts>1000 の窓をスキップ（全期間×10万の総当たり回避）。【v182 タイムライン】一覧=総数2千超で窓モード（pickDays/range を先に適用した行だけ200件ずつ・絞り込み変更は署名チェックで作り直し・「さらに表示」＋IntersectionObserver 自動追い足し）・写真グリッド(buildTimelinePhotos)=240件ずつチャンク（地図写真タブ/思い出の場所/レンズ/重ね撮りに共通で効く・クリック index の indexOf 廃止）・全画面スワイプ=開いた位置の前後600枚だけ slide 化（通し番号「N / 全体」は維持）。閾値は全部定数＝実機の手触りで調整前提。preview E2E green（#devダミー8万件: 走行中ループに⏸→80000のバッチ境界で停止＆flag自動リセット／過去の今日=従来(12日181枚サムネ+色分け線)／全期間71,991枚=密度タイル+線0+一覧200件チャンク／3ヶ月1,550枚=白点+単色線2レイヤ／1週間117枚=従来／日見出しタップ=15件に作り直し／密度で項目タップ=spotlight／写真タブ240→480／デッキ1201slides・「1 / 80000」／console 0）。｜ v179：🎞️「写真の形」をフォルダーのカメラでも選択可（実機FB「保存範囲の白い破線が縦撮り用/横撮り用と安定しない→⚙から選べるように」）＝⚙パネルの形トグルを 自動（基準写真と同じ・既定）→▯縦長→▭横長 の3段に拡張・選択は root.rpAspect でフォルダーに記憶（スキーマレス・先に反映＋保存は裏=rpPersist）・明示指定中は基準スワイプ/ghost load で枠を上書きしない＝破線ガイドと保存 crop が揺れない。｜ v178：🎞️新規フォルダーのカメラに「写真の形」トグル＝▯縦長(3:4)⇄▭横長(4:3)（⚙パネル・既定=カメラの向きを正規化・rpCamPrefs.aspectMode で前回を記憶・最初の1枚がフォルダーの額縁＝以降の撮り重ねは同じ形・既存フォルダーは基準写真の額縁のままなので行ごと非表示）。｜ v177：🎞️重ね撮り実機FB＝①シリーズ画面の「← 一覧」ボタン撤去＋✕で一覧へ戻る（ドリルダウン＝閉じ切るのは一覧側の✕）②横持ちで⚙パネル(8行)が画面からはみ出し最下段の🔁連続撮影がスクロールバー無しのiOSで「無い」ように見え選択できなかった→低い画面(max-height:500px)では2列グリッドで全行を画面内に。｜ v176：🎞️①連続撮影の瞬間にシャッター音（合成Web Audio・アセット不要・端末内／rephotoShoot のタップで解錠→doRephotoCapture で鳴らす＝タイマー撮影も実際に撮る瞬間・マナーモードは鳴らない）②🐛連続撮影で撮った写真が✕で戻ると増えていないバグ修正＝原因は連続分岐が render() のみで下敷きに開いたままのシリーズビュー(食べ物オーバーレイ)を再描画していなかった→撮影ごとに renderRephotoSeries() で即反映＋✕時は shotRoot に着地（新規フォルダー等シリーズ未オープン時は openRephotoSeries で開く）。｜ v175：🎞️カメラのアイコン整理＝画面上は⚙とシャッターだけ・写真は全画面に戻す（実機FB「すっきりしたけど画面が小さくて醜い→最大化して重なりを減らす・アイコンは歯車にしまう」）＝①v174 の stage inset を撤回（全画面復活）②ツール5ボタン（2画面/グリッド/タイマー/サイズ/前後）＋基準バー表示＋スライダー表示＋連続撮影を ⚙パネル（左上・状態ラベル付き行）に収納③基準バー/スライダーは⚙からオンオフ④モード（ゴースト/2画面）・グリッド・サイズ・バー表示・透明度・連続撮影を localStorage（rpCamPrefs）で記憶＝次回同じ状態で開く（タイマー/前後カメラは記憶しない）⑤🔁連続撮影＝撮ってもカメラに残る（フォルダーに戻らず積める・新規フォルダーは1枚目撮影後もそのまま連続可・撮った1枚が下敷きに）。｜ v174：🎞️重ね撮りカメラの重なり解消（実機FB「写真にアイコンが重ならないように・📌はアイコンに・日付表示は残す」）＝①📌基準写真ボタンをアイコン円ボタン化（確定済み=緑・文言はtitleへ・日付/枚数表示は維持）②写真とコントロールの重なりを構造的に解消＝fit() が stage の inset を計算（縦持ち：上帯=ツール/下帯=基準バー+スライダー+シャッター。横持ち：上帯=ツール+基準バー(中央)/右帯=シャッター(iOSカメラ流)/下帯=スライダー(ゴースト時のみ)・.repho-cam.landscape で配置替え）＝写真がボタンの下に潜らない。タグ位置も 8px に追従。｜ v173：🎞️重ね撮りカメラ＝①基準写真をスワイプで切替（ゴーストでも2画面でも・映像を左右スワイプ or ‹›・フォルダー内の別の写真を下敷きに・表示中の写真が保存の額縁と位置継承元・📌で root.rpBasePhotoId を永続確定＝⚙設定と同じ・rpPersist で保存は裏）②2画面を横持ちで左右分割に（縦持ち=上下/横持ち=左右・fit() が stage の縦横で split-h を自動付け外し・guide/grid の数式をセル横割りに拡張・containBox に offX）。preview 検証。｜ v172：🐛web の重ね撮り撮影がシリーズに残らない回帰を修正（v170 の web ダウンロード fallback が iOS Safari で blob ダウンロード→ページ遷移し撮影フローを壊していた→web の端末保存を撤去・端末フォト保存は native のみ）＋📍思い出の場所の一覧も行を左スワイプ→「削除」（重ね撮り一覧と同じ .anniv-row-wrap scroll-snap・従来の inline 🗑 は置換）。preview 検証。｜ v171：🎞️重ね撮り一覧でフォルダを左スワイプ→「削除」→既存の2択モーダル（フォルダだけ削除／写真ごと非表示）。スワイプ＝各行を .rp-row-wrap(scroll-snap x mandatory)で包み .rp-row(100%)＋.rp-row-del(84px) を横スクロールで出す＝実機サクサク（JS スワイプ判定なし）・タップは従来どおりシリーズを開く。非表示は既存 excludePhoto＝「🗑削除した写真」から復元可。削除後は openRephotoList で一覧を再描画。preview で構造検証。｜ v170：🎞️重ね撮りの撮影を端末の写真アプリ（カメラロール）にも保存＋撮影サイズ選択（S=1024/M=2048/L=3072）。保存＝native は自前 PhotoLibrary プラグインに savePhoto を追加（iOS=PHPhotoLibrary・Info.plist の NSPhotoLibraryAddUsageDescription は既存／Android=MediaStore・新権限なし）、web はダウンロード（iOS Safari は共有→写真に保存）。サイズ＝カメラツールに S/M/L トグル（rephoState.captureMax→doRephotoCapture の MAX）＝主にカメラロールに残る原画の解像度（アプリ内は従来どおり thumb）。端末フォトに残る＝アンインストールしても写真が残る。native は次の1.5ビルドから・web はダウンロードで検証。｜ v169：🎞️重ね撮りの削除＝①フォルダごと削除（⚙設定の「🗑このフォルダを削除」）②フォルダ内の1枚を削除（拡大表示の「🗑削除」）。どちらも2択＝「フォルダから外す」(rephotoフラグ削除→通常写真として地図/タイムラインに残す)／「非表示」(既存 excluded＝どこからも消える・🗑削除した写真から復元可)。root(器)を外す時は最古の子を新rootに昇格して器を保つ。buildTimelinePhotos に後方互換の第5引数 opts(fullOpts) を足し写真モードからも削除導線。preview で検証。｜ v167：🗺️地図タイムラインの「🖼写真」タブに「⊡大きく/⊞小さく」トグル追加（実機FB＝写真を拡大して表示）＝思い出の場所/重ね撮りと同じ .atl-photobar/.atl-size を流用・状態は mapState.tlBig・buildTimelinePhotos の big 引数へ（.atl-grid.big=2列 ⇔ 4列）・絞り込み(pickDays/range)は timelineFilteredPhotos で従来どおり尊重・写真タップ→全画面拡大は既存のまま。preview green（地図→写真タブ→大きく=2列/小さく=4列・ボタン文言連動・console0）。｜ v166++：🎞️重ね撮り設定の再描画バグ修正（実機FB）＝⚙設定/題名✎の変更（位置トグル・基準写真枠・基準日・タイトル）が実機iOSでその場で反映されず「閉じて開くと反映」だった＝原因は全部 await dbPut(root) の後に再描画→iOS Safari は IDBから読んだ Blob(thumb) を含む写真レコードの再put で tx が hang しやすく再描画に到達しない（in-memory値は先に変わる）。→ 先に in-memory更新＋再描画し保存は裏で（rpPersist・失敗はlogErr）。基準写真ピッカーは選択後もピッカーに留まり枠を即移動。preview で dbPut を永久hangに差し替えても全4系統が即反映＝再現&修正確認／通常dbPutでDB永続も確認。｜ v166+：🎞️重ね撮りUI整理＝①基準日の設定を⚙設定の中へ移動（ログの基準日バー撤去・値による「N日前/N日後」offset表示は残す）②名前はチップ「✏名前」を撤去し題名の横の✎だけに（アクション行 [←一覧][⚙設定][🎞️撮り重ねる] の3つに）。preview green（⚙3行=基準写真/🎯基準日/位置トグル・⚙から基準日設定→ボタン更新＋offset「10日後/基準日/7日前」・✎でリネーム・console0）。｜ v166：🎞️重ね撮りを「フォルダー」化（想定外の使い方＝食事/コーデ/メイク/友達を続けて撮る）＝①位置の基準継承をフォルダーごとにON/OFF（rpInheritLoc・既定ON・⚙設定・場所が変わるフォルダーはOFF）②基準写真を変更可能（rpBasePhotoId・既定=最初の1枚・⚙設定の写真ピッカー・ゴースト兼位置継承元）③一覧「＋新しい重ね撮り」で拡大写真を介さず新規作成（ゴーストなしカメラ=newseries・最初の1枚がrpFolder root・カメラ実比率で保存）。rephotoAllSeries を rpFolder 対応（明示フォルダーは1枚でも一覧）。preview E2E green（新規→root rpFolder＋現在地/既定ONで基準位置継承/トグルOFFで継承せず/基準=Cゴースト＋子はroot Rにひも付く/設定モーダル）。console0。｜ v165+：🎞️重ね撮りで撮った写真に位置情報＝定点(同じ場所)なので地図/いまの場所/囲むに乗せる。優先=撮影時の現在地GPS(その場にいる=最も正確・openで先取りしてシャッターに間に合わせる)→取れなければ基準写真の位置を継承(同じ場所の良い近似)→両方無ければnull。位置はアプリ内レコードに持つだけ=端末内・書き出すJPEGには焼き込まない(Data Not Collected不変)・?shot等LOCATION_AVAILABLE=falseはGPS呼ばず基準継承のみ。preview 3経路green(現在地35.111取得/GPS拒否→基準34.7継承/両方null)。｜ v165：🎞️重ね撮り実機FB第4周＝①アイコン📐→🎞️（アプリ内の全UI表示・「重なるコマ」・コード識別子/コメントは不変）②「また撮る」→「撮り重ねる」（入口=この角度で撮り重ねる／英 Layer a shot (at this angle)）③カメラ全画面化＝ヘッダと黒帯コントロールを廃止し映像を画面いっぱいに・✕(右上)/⊟⊞⏱🔄(左上のアイコン円ボタン42px)/透明度スライダー+シャッター(下部グラデの浮きUI)を映像の上にオーバーレイ・上下分割中はスライダー自動非表示(visibility=場所は保つ)・⏱表示は3s/10s・撮影crop/fit/updateGuide/updateGridの数式は無改修 ④iOS：ホーム画面のアプリアイコン長押し（Quick Action）→🎞️重ね撮り一覧へ直行＝自前 app-shortcuts プラグイン新設(getPending drain+shortcutイベント=BgLocと同型)+AppDelegate performActionFor+Info.plist static shortcut(SF Symbol square.stack.3d.up・題名ja/en)・コールド起動は全件追い読み(restLoadPromise)完了を待って開く＝シリーズ欠けなし・web/Androidはプラグイン不在で全て無効＝不変・カメラ同様 native 1.5 ビルドから。｜ v164：📐重ね撮りカメラの実機FB4点＝①⏱セルフタイマー（オフ/3秒/10秒＋中央カウントダウン）②グリッド線を写真の実表示領域(contain box)にフィット＝写真外の黒帯にはみ出さない③基準側にもグリッド線（上=カメラ/下=基準の両方に同じ3×3）④ボタン増でコントロールを2段（ツール中央寄せ＋シャッター別段）。｜ v163：📐重ね撮りを一級化＋⊞グリッド線＋🍜食べ物だけに（実機FB3点）＝①カメラに3×3グリッド線トグル②重ね撮り=⚙メニューに一覧・タイトル(✏)・🎯基準日(N日前/N日後)・日ごとメモ・📖ログ/🖼写真切替＝思い出の場所と同じ手触り(メタはroot写真レコードのrpTitle/rpBaseDate/rpNotes=スキーマレス・DB移行なし)③意味レンズのUIを「🍜食べ物を振り返る」だけに(チップ/言葉/写真検索は撤去・機構は残置)。｜ v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に·位置情報) · 2026-07-11';
+const BUILD = 'phase3.146 (v194：🤝もらった思い出＝家族/友達と「日パック」を渡し合う（シェア un-park 第一手・サーバーなし＝JSON手渡し）。ユースケース＝①過去の旅行を家族/友達に渡す②知り合った人と同じ旅行先の道を比べる（時間ズレ×同じ地域＝「重ね歩き」）。📤書き出し＝地図⋯表示「この思い出を渡す」→表示中の日々（pickDays/期間→写真日+足あと日・上限31日）→名前+「🖼写真も入れる」（外すと足あとだけ数十KB）→共有シート（AirDrop/LINE・iOS Safari）or ダウンロード（native WKWebView は次版＝正直に案内）。📥取り込み＝⚙「🤝もらった思い出」→ファイル→検証（app/kind/id・座標/時刻クランプ・画像は createThumbnail 再エンコード＝正規化・上限3000枚/10万点）→写真は photos ストアに peerPack/peerName・足あとは track に src:peer+pack+name（新ストアなし・DB移行なし・同idパックは置き換え）→取り込み後そのまま地図で開き「同じ地域にある自分の日（≤6日）」を自動で重ねる＋「N年ずれ」トースト（重ね撮りの間隔ラベル流用）。表示＝相手の写真は 地図・地図タイムライン・囲む（→思い出の場所ログ含む）だけ（visible() から常に除外＝トップ/ランダム/ウォーク/レンズ/重ね撮り/枚数に混ざらない・地図系だけ mapVisible()）・パック単位「🖼写真を表示」トグル（localStorage pms-peerPacks）・相手の線＝パック色の破線+線頭に👤名前ラベル（自分の時刻順マージには混ぜない＝drawPeerLines）・相手の写真マーカー＝パック色の太枠・popup/拡大/タイムライン行は読み取り専用（位置直す/削除/日付直す/重ね撮りを出さない）。ガード＝isPeerPt を ロガー統計/日別削除/すべて消す/自動確定(autoConfirmTrackPass)/推定配置の基盤/手書きの骨格(handDaySeq) から除外＝友達の散歩に自分の写真がピン留めされない。パック一覧＝レコード走査から導出（メタ別持ちしない）・🗑でパック丸ごと削除（相手の端末に影響なし）。｜ v193：✏️期間絞り込み（クイック1週間・📅の期間指定）からも手書きに入れる＝実機FB「一週間を選択→✏️→どの日から直す？モーダルが見つからない」の正体はクイックが pickDays でなく range を立てるため「先に日を選んで」で弾かれモーダル不到達だった→range 中は期間内の暦日（写真ゼロ日も一級=v190）を日リスト化してモーダルへ（1週間=8日）・期間が HAND_MAX_DAYS(10日) 超は「期間が長すぎます（N日）…期間を短く」警告・モーダル各日に写真枚数「・N枚」を添える（空の日と区別）・「先に日を」文言に期間の絞り込みを追記。preview E2E green。｜ v192：✏️複数日の手書き修正で「どの日から直す？」モーダルを復活（実機FB「複数日選んだ時に先に日を選択するモーダルがどこにあるかわからない」＝v191でパネル内チップに統合したら入口が見えなくなった）→複数日で✏️→まず日選択モーダル→選ぶと編集に入りパネル上部の日切替チップで他の日にも切替可（数日まとめて修正は維持）。単一日/🎲(1日)はモーダルを挟まず直行。preview E2E green。｜ v191：✏️手書き修正の「1日固定」を緩和＝複数日を選択中でも折り畳まず、パネルの日切替チップ（.hand-daypick・横スクロール・アクティブ日を強調＋その日へ地図を寄せる）で数日をまとめて修正できる。日が HAND_MAX_DAYS(=10) を超えると✏️押下で警告（📅/🎲で絞る誘導）。旧 openHandDayChooser（別画面で日選択）は日切替チップに統合し撤去。単一日は従来どおり折り畳み（時刻色の線）。realN/フリーハンド/写真ゼロ日の入口(v190)は不変。preview E2E green。｜ v190：✏️手書きモードを写真の無い日にも開放＝確定点が2つ未満（写真無し/GPS 0〜1枚）の日もフリーハンドで道を描ける。realN=写真+ロガーの確定点で分岐：≥2は従来の按分のまま無改修／≤1はタップ順＝道順で最寄り点の前後に入れ端の外側も許す（描き始め〜描き終わり）・空の日は正午起点。写真ゼロの日の入口＝📅フィルタ「＋追加」で単日なら写真が無くても足せる（range 空追加は従来どおり拒否）。線は保存せず点だけ（座標+時刻・src=hand）＝データ増加の歯止め不変。preview E2E green。｜ v188：✏️手書きの移動線 実機FB2点＝②☕滞在マークを分かりやすく（teal塗り+白縁+☕絵文字マーカー・編集中も常時表示も統一＝🚶通過は線のみで差が明確）③挿入の向きを明確に（「タップ位置に最も近い"線分"」→折り返す/入り組んだ道で意図しない区間に入る→「最も近い"点"＋前/後トグル」に変更＝パネル「◀近くの点の前／近くの点の後▶」既定=後・時刻は選んだ区間A-Bへ投影按分。①操作感=現状維持で足りる・④入口の深さ=OK のFB反映）。preview E2E green（最寄り点+dir前後で挿入区間が切り替わる検算・☕divIcon存在・console 0）＝実機の手触りが次。v187：✏️手書きの移動線（実機要望「その日の移動線を手書きで引きたい・点は簡単に打てて線はロジックで」）＝日にちを1日に固定し、確定済みの点（GPS写真・ロガー・手書き）を起点/終点に 🚶通過/☕滞在 の点をタップで打つ。点は「タップ位置に最も近い区間」の前後の点から距離按分した時刻を持ち、線は既存の時刻順マージ（v139 drawTrips）がロジックで引く＝手書き専用の線ロジックは作らない・全部手書きでデータが増えすぎない歯止め＝確定点の間にだけ打てる。データ＝track ストアに src=hand(+stay) で同居（座標+時刻の精神・DB移行なし・機種変更で一緒に移る）。入口＝地図の⋯表示「✏️この日の道を手書き」（複数日表示中は日選択パネル・LOCATION_AVAILABLE時のみ）。編集中＝点をドラッグで移動（時刻不変）・点タップで滞在⇄通過/🗑削除・↩取り消し・ダブルタップズーム無効化（点2連打ち事故防止）・日/期間の切替や囲む/いまの場所へ移ると自動終了。☕滞在は普段も小さなtealリングで残る・🚶通過は線を曲げるだけで見えない。ロガーの🗑削除（すべて/日ごと）は手書きをスキップ＝ロガー整理で手書きが消えない（設定の全データ削除では消える）。手書き編集中は足跡からの自動確定(v140)を保留し✓終了で再試行＝描き終えた道の上にGPSなし写真が乗る（バッジ「足跡から」・位置を直すで修正可）。軌跡トグルOFFでも手書きの点は常に線に乗る（ユーザーが自分で描いた足取りはロガー表示と独立）。｜ v186：🧭タイムライン系の「最後に使った表示」を記憶（ユーザーFB「写真大きくをよく見る／位置修正の時はその画面を連続で見る→最後に使った画面から開いてほしい」）＝**4画面それぞれ独立に localStorage 記憶し次回そこから開く**：①地図タイムライン（📋一覧⇄🖼写真・⊡大きく/⊞小さく）②思い出の場所（📖ログ⇄🖼写真・大きく/小さく）③重ね撮り（📖ログ⇄🖼写真・大きく/小さく）④食べ物を振り返る（📅月ごと⇄📆日ごと・大きく/小さく）。共通ヘルパ `getViewPref/saveViewPref`（1キー pms-viewPrefs に surface ごと・値は緩く復元＝未知値は各画面の既定へ）。各画面の state 初期化を getViewPref から・各トグルで saveViewPref。preview E2E green（4画面とも 既定→写真/大きく等に切替→保存→閉じて再オープンで復元・タブの on クラス/ボタン文言も一致・console 0）。｜ v185：🎞️実機FB2点＝①連続撮影ラベルの説明「（撮ってもカメラに残る）」と title を削除（ユーザー依頼・「連続撮影：オン/オフ」だけに）②「起動→重ね撮り→2画面/透過がない→1枚撮ると出る」の正体＝**＋新しい重ね撮り（新規フォルダー）のカメラは1枚目まで下敷きが無いので透過/2画面を出さない仕様（v166）**が2度混乱を生んだ→新規カメラの間だけ1行ヒント「1枚目を撮ると、その写真が下敷きになります（透過・2画面は2枚目から）」を表示（.repho-newhint・1枚撮って newseries が外れると CSS ごと消える・既存フォルダーのカメラには出ない）。🎉アプリ側の連続撮影は新1.5ビルドで解消をユーザー確認（v184の切り分けどおり）。preview green（新規=ヒント表示・ラベル オン/オフのみ・title 無し／撮影→ヒント消滅＋透過/下敷き出現／既存カメラ=ヒント無し・console 0）。｜ v184：🎞️実機FB「iOSで連続撮影がオフのまま変更できない」対応＝**原因はほぼ TestFlight 1.5(42) が v177（横持ちで⚙パネルあふれ→2列化）より前のビルド**であること（webは v176 時点で連続撮影の実機使用実績あり・コードのタップ/保存経路は正常）→対処=新しい 1.5 ビルドで解消。web には保険3点：①🔁連続撮影の行を上へ移動（保存サイズの直後＝5番目。最下段は古いビルド/低い画面で見切れやすく、スクロール直後のタップも食われやすい）②`.repho-tool`/`.repho-trow` に touch-action:manipulation（ダブルタップズーム/タップ遅延にタップを食われない）③パネルに overscroll-behavior:contain。preview green（行順5番目・トグルでラベル/onクラス/rpCamPrefs.cont 往復・touchAction=manipulation・横持ち844×390=2列で🔁がtop107-146に完全表示＋トグル動作・console 0）。｜ v183：🐘10万枚スケールの残り2点（ユーザー承認）＝①**取り込みメモリ解放**＝取り込みで作った thumb Blob は「メモリ生まれ」のまま allPhotos に残り、1セッション数万枚で数GB積む構造（Chromium はディスク退避するが iOS WebKit は保証なし）→ **DB へ書けた後、500枚ごとに IndexedDB から読み直したディスク参照 Blob に差し替え**（`queueThumbRelief`/`relieveThumbBatch`/`flushThumbRelief`・readonly tx 1本・thumbUrl 済み=表示中かも は差し替えずスキップ・失敗しても取り込み続行＝最適化であって必須でない）。呼び出し点＝native 背景/fast-track・web 背景/fast-track・zip(Instagram/X) の全5経路＋各末尾で端数 flush。photoById は import 中 O(n)/回 になるため使わず1パスで引く。②**ℹ️に使用容量**＝storage.estimate で「このアプリの使用容量/端末側の上限目安＋写真N枚・1枚平均→10万枚なら約◯GB の見込み」（100枚以上で平均行・概算＝足跡/AI含む・削除直後は compaction 前で過大に出ることあり）。preview E2E green（ユニット600件＝共有1Blob→600個の個別ディスク参照に差し替え・自動flush(500)＋最終flush(100)・size>0／web実経路 importFiles 12件＝[relief] 11枚（表示中1枚スキップ＝設計どおり）／ℹ️表示「107MB・612枚・平均175KB→17.5GB」（平均は直前の8万件削除の未compaction込み＝概算表記どおり）／console 0）。｜ v180-v182：🐘10万枚スケール対応（ユーザー要望3本柱）＝【v180 取り込み】ヘッダの🌀進捗をタップ→⏸停止（confirm・残り時間EMA目安つき。native=processNativeRest／web=runBackgroundImport／dev生成 の3ループ共通・バッチ区切りで安全停止・続きは差分同期＝📚再実行/選び直しで再開）＋native取り込みを「新しい順」に（途中で止めても直近ぶんから使える＝2000枚ずつ分ける案の実利を区切り操作なしで実現）＋枚数ラベルの全件reduceを400ms throttle（取り込み中は毎枚呼ばれ実質O(n²)だったのを解消）。【v181 地図】線＝表示日数で自動切替（≤30日 日ごと色分け=従来／≤200日 全日同色・multi-ring polyline 2レイヤ(canvas・縁取り+本線)のみ／超は線なし=点・密度が担う）・写真＝表示枚数で自動切替（≤300 サムネクラスタ=従来／≤8千 白点circleMarker(canvas共有レンダラ・タップでpopup)／超は密度タイル=自作GridLayer（teal 12pxセル・log濃淡・ズームごとに点をタイルへバケツ分けキャッシュ＝10万点でも各タイル数ms）。密度中はタイムライン/写真入口から spotlight（一時サムネ1個）で個別到達・ドリルダウンは既存の🫧囲むが担う）＋推定配置マーカー≤200／記録点ドット≤2万の上限ガード＋autoConfirmTrackPass は ghosts>1000 の窓をスキップ（全期間×10万の総当たり回避）。【v182 タイムライン】一覧=総数2千超で窓モード（pickDays/range を先に適用した行だけ200件ずつ・絞り込み変更は署名チェックで作り直し・「さらに表示」＋IntersectionObserver 自動追い足し）・写真グリッド(buildTimelinePhotos)=240件ずつチャンク（地図写真タブ/思い出の場所/レンズ/重ね撮りに共通で効く・クリック index の indexOf 廃止）・全画面スワイプ=開いた位置の前後600枚だけ slide 化（通し番号「N / 全体」は維持）。閾値は全部定数＝実機の手触りで調整前提。preview E2E green（#devダミー8万件: 走行中ループに⏸→80000のバッチ境界で停止＆flag自動リセット／過去の今日=従来(12日181枚サムネ+色分け線)／全期間71,991枚=密度タイル+線0+一覧200件チャンク／3ヶ月1,550枚=白点+単色線2レイヤ／1週間117枚=従来／日見出しタップ=15件に作り直し／密度で項目タップ=spotlight／写真タブ240→480／デッキ1201slides・「1 / 80000」／console 0）。｜ v179：🎞️「写真の形」をフォルダーのカメラでも選択可（実機FB「保存範囲の白い破線が縦撮り用/横撮り用と安定しない→⚙から選べるように」）＝⚙パネルの形トグルを 自動（基準写真と同じ・既定）→▯縦長→▭横長 の3段に拡張・選択は root.rpAspect でフォルダーに記憶（スキーマレス・先に反映＋保存は裏=rpPersist）・明示指定中は基準スワイプ/ghost load で枠を上書きしない＝破線ガイドと保存 crop が揺れない。｜ v178：🎞️新規フォルダーのカメラに「写真の形」トグル＝▯縦長(3:4)⇄▭横長(4:3)（⚙パネル・既定=カメラの向きを正規化・rpCamPrefs.aspectMode で前回を記憶・最初の1枚がフォルダーの額縁＝以降の撮り重ねは同じ形・既存フォルダーは基準写真の額縁のままなので行ごと非表示）。｜ v177：🎞️重ね撮り実機FB＝①シリーズ画面の「← 一覧」ボタン撤去＋✕で一覧へ戻る（ドリルダウン＝閉じ切るのは一覧側の✕）②横持ちで⚙パネル(8行)が画面からはみ出し最下段の🔁連続撮影がスクロールバー無しのiOSで「無い」ように見え選択できなかった→低い画面(max-height:500px)では2列グリッドで全行を画面内に。｜ v176：🎞️①連続撮影の瞬間にシャッター音（合成Web Audio・アセット不要・端末内／rephotoShoot のタップで解錠→doRephotoCapture で鳴らす＝タイマー撮影も実際に撮る瞬間・マナーモードは鳴らない）②🐛連続撮影で撮った写真が✕で戻ると増えていないバグ修正＝原因は連続分岐が render() のみで下敷きに開いたままのシリーズビュー(食べ物オーバーレイ)を再描画していなかった→撮影ごとに renderRephotoSeries() で即反映＋✕時は shotRoot に着地（新規フォルダー等シリーズ未オープン時は openRephotoSeries で開く）。｜ v175：🎞️カメラのアイコン整理＝画面上は⚙とシャッターだけ・写真は全画面に戻す（実機FB「すっきりしたけど画面が小さくて醜い→最大化して重なりを減らす・アイコンは歯車にしまう」）＝①v174 の stage inset を撤回（全画面復活）②ツール5ボタン（2画面/グリッド/タイマー/サイズ/前後）＋基準バー表示＋スライダー表示＋連続撮影を ⚙パネル（左上・状態ラベル付き行）に収納③基準バー/スライダーは⚙からオンオフ④モード（ゴースト/2画面）・グリッド・サイズ・バー表示・透明度・連続撮影を localStorage（rpCamPrefs）で記憶＝次回同じ状態で開く（タイマー/前後カメラは記憶しない）⑤🔁連続撮影＝撮ってもカメラに残る（フォルダーに戻らず積める・新規フォルダーは1枚目撮影後もそのまま連続可・撮った1枚が下敷きに）。｜ v174：🎞️重ね撮りカメラの重なり解消（実機FB「写真にアイコンが重ならないように・📌はアイコンに・日付表示は残す」）＝①📌基準写真ボタンをアイコン円ボタン化（確定済み=緑・文言はtitleへ・日付/枚数表示は維持）②写真とコントロールの重なりを構造的に解消＝fit() が stage の inset を計算（縦持ち：上帯=ツール/下帯=基準バー+スライダー+シャッター。横持ち：上帯=ツール+基準バー(中央)/右帯=シャッター(iOSカメラ流)/下帯=スライダー(ゴースト時のみ)・.repho-cam.landscape で配置替え）＝写真がボタンの下に潜らない。タグ位置も 8px に追従。｜ v173：🎞️重ね撮りカメラ＝①基準写真をスワイプで切替（ゴーストでも2画面でも・映像を左右スワイプ or ‹›・フォルダー内の別の写真を下敷きに・表示中の写真が保存の額縁と位置継承元・📌で root.rpBasePhotoId を永続確定＝⚙設定と同じ・rpPersist で保存は裏）②2画面を横持ちで左右分割に（縦持ち=上下/横持ち=左右・fit() が stage の縦横で split-h を自動付け外し・guide/grid の数式をセル横割りに拡張・containBox に offX）。preview 検証。｜ v172：🐛web の重ね撮り撮影がシリーズに残らない回帰を修正（v170 の web ダウンロード fallback が iOS Safari で blob ダウンロード→ページ遷移し撮影フローを壊していた→web の端末保存を撤去・端末フォト保存は native のみ）＋📍思い出の場所の一覧も行を左スワイプ→「削除」（重ね撮り一覧と同じ .anniv-row-wrap scroll-snap・従来の inline 🗑 は置換）。preview 検証。｜ v171：🎞️重ね撮り一覧でフォルダを左スワイプ→「削除」→既存の2択モーダル（フォルダだけ削除／写真ごと非表示）。スワイプ＝各行を .rp-row-wrap(scroll-snap x mandatory)で包み .rp-row(100%)＋.rp-row-del(84px) を横スクロールで出す＝実機サクサク（JS スワイプ判定なし）・タップは従来どおりシリーズを開く。非表示は既存 excludePhoto＝「🗑削除した写真」から復元可。削除後は openRephotoList で一覧を再描画。preview で構造検証。｜ v170：🎞️重ね撮りの撮影を端末の写真アプリ（カメラロール）にも保存＋撮影サイズ選択（S=1024/M=2048/L=3072）。保存＝native は自前 PhotoLibrary プラグインに savePhoto を追加（iOS=PHPhotoLibrary・Info.plist の NSPhotoLibraryAddUsageDescription は既存／Android=MediaStore・新権限なし）、web はダウンロード（iOS Safari は共有→写真に保存）。サイズ＝カメラツールに S/M/L トグル（rephoState.captureMax→doRephotoCapture の MAX）＝主にカメラロールに残る原画の解像度（アプリ内は従来どおり thumb）。端末フォトに残る＝アンインストールしても写真が残る。native は次の1.5ビルドから・web はダウンロードで検証。｜ v169：🎞️重ね撮りの削除＝①フォルダごと削除（⚙設定の「🗑このフォルダを削除」）②フォルダ内の1枚を削除（拡大表示の「🗑削除」）。どちらも2択＝「フォルダから外す」(rephotoフラグ削除→通常写真として地図/タイムラインに残す)／「非表示」(既存 excluded＝どこからも消える・🗑削除した写真から復元可)。root(器)を外す時は最古の子を新rootに昇格して器を保つ。buildTimelinePhotos に後方互換の第5引数 opts(fullOpts) を足し写真モードからも削除導線。preview で検証。｜ v167：🗺️地図タイムラインの「🖼写真」タブに「⊡大きく/⊞小さく」トグル追加（実機FB＝写真を拡大して表示）＝思い出の場所/重ね撮りと同じ .atl-photobar/.atl-size を流用・状態は mapState.tlBig・buildTimelinePhotos の big 引数へ（.atl-grid.big=2列 ⇔ 4列）・絞り込み(pickDays/range)は timelineFilteredPhotos で従来どおり尊重・写真タップ→全画面拡大は既存のまま。preview green（地図→写真タブ→大きく=2列/小さく=4列・ボタン文言連動・console0）。｜ v166++：🎞️重ね撮り設定の再描画バグ修正（実機FB）＝⚙設定/題名✎の変更（位置トグル・基準写真枠・基準日・タイトル）が実機iOSでその場で反映されず「閉じて開くと反映」だった＝原因は全部 await dbPut(root) の後に再描画→iOS Safari は IDBから読んだ Blob(thumb) を含む写真レコードの再put で tx が hang しやすく再描画に到達しない（in-memory値は先に変わる）。→ 先に in-memory更新＋再描画し保存は裏で（rpPersist・失敗はlogErr）。基準写真ピッカーは選択後もピッカーに留まり枠を即移動。preview で dbPut を永久hangに差し替えても全4系統が即反映＝再現&修正確認／通常dbPutでDB永続も確認。｜ v166+：🎞️重ね撮りUI整理＝①基準日の設定を⚙設定の中へ移動（ログの基準日バー撤去・値による「N日前/N日後」offset表示は残す）②名前はチップ「✏名前」を撤去し題名の横の✎だけに（アクション行 [←一覧][⚙設定][🎞️撮り重ねる] の3つに）。preview green（⚙3行=基準写真/🎯基準日/位置トグル・⚙から基準日設定→ボタン更新＋offset「10日後/基準日/7日前」・✎でリネーム・console0）。｜ v166：🎞️重ね撮りを「フォルダー」化（想定外の使い方＝食事/コーデ/メイク/友達を続けて撮る）＝①位置の基準継承をフォルダーごとにON/OFF（rpInheritLoc・既定ON・⚙設定・場所が変わるフォルダーはOFF）②基準写真を変更可能（rpBasePhotoId・既定=最初の1枚・⚙設定の写真ピッカー・ゴースト兼位置継承元）③一覧「＋新しい重ね撮り」で拡大写真を介さず新規作成（ゴーストなしカメラ=newseries・最初の1枚がrpFolder root・カメラ実比率で保存）。rephotoAllSeries を rpFolder 対応（明示フォルダーは1枚でも一覧）。preview E2E green（新規→root rpFolder＋現在地/既定ONで基準位置継承/トグルOFFで継承せず/基準=Cゴースト＋子はroot Rにひも付く/設定モーダル）。console0。｜ v165+：🎞️重ね撮りで撮った写真に位置情報＝定点(同じ場所)なので地図/いまの場所/囲むに乗せる。優先=撮影時の現在地GPS(その場にいる=最も正確・openで先取りしてシャッターに間に合わせる)→取れなければ基準写真の位置を継承(同じ場所の良い近似)→両方無ければnull。位置はアプリ内レコードに持つだけ=端末内・書き出すJPEGには焼き込まない(Data Not Collected不変)・?shot等LOCATION_AVAILABLE=falseはGPS呼ばず基準継承のみ。preview 3経路green(現在地35.111取得/GPS拒否→基準34.7継承/両方null)。｜ v165：🎞️重ね撮り実機FB第4周＝①アイコン📐→🎞️（アプリ内の全UI表示・「重なるコマ」・コード識別子/コメントは不変）②「また撮る」→「撮り重ねる」（入口=この角度で撮り重ねる／英 Layer a shot (at this angle)）③カメラ全画面化＝ヘッダと黒帯コントロールを廃止し映像を画面いっぱいに・✕(右上)/⊟⊞⏱🔄(左上のアイコン円ボタン42px)/透明度スライダー+シャッター(下部グラデの浮きUI)を映像の上にオーバーレイ・上下分割中はスライダー自動非表示(visibility=場所は保つ)・⏱表示は3s/10s・撮影crop/fit/updateGuide/updateGridの数式は無改修 ④iOS：ホーム画面のアプリアイコン長押し（Quick Action）→🎞️重ね撮り一覧へ直行＝自前 app-shortcuts プラグイン新設(getPending drain+shortcutイベント=BgLocと同型)+AppDelegate performActionFor+Info.plist static shortcut(SF Symbol square.stack.3d.up・題名ja/en)・コールド起動は全件追い読み(restLoadPromise)完了を待って開く＝シリーズ欠けなし・web/Androidはプラグイン不在で全て無効＝不変・カメラ同様 native 1.5 ビルドから。｜ v164：📐重ね撮りカメラの実機FB4点＝①⏱セルフタイマー（オフ/3秒/10秒＋中央カウントダウン）②グリッド線を写真の実表示領域(contain box)にフィット＝写真外の黒帯にはみ出さない③基準側にもグリッド線（上=カメラ/下=基準の両方に同じ3×3）④ボタン増でコントロールを2段（ツール中央寄せ＋シャッター別段）。｜ v163：📐重ね撮りを一級化＋⊞グリッド線＋🍜食べ物だけに（実機FB3点）＝①カメラに3×3グリッド線トグル②重ね撮り=⚙メニューに一覧・タイトル(✏)・🎯基準日(N日前/N日後)・日ごとメモ・📖ログ/🖼写真切替＝思い出の場所と同じ手触り(メタはroot写真レコードのrpTitle/rpBaseDate/rpNotes=スキーマレス・DB移行なし)③意味レンズのUIを「🍜食べ物を振り返る」だけに(チップ/言葉/写真検索は撤去・機構は残置)。｜ v162：📐定点カメラの分割を上下＆全体表示に（実機FB「左右だと両方一部しか見えない」）＝上=📷いま/下=🖼基準・contain で両方まるごと（縮んでもOK）・分割はステージいっぱい・カメラ側に破線ガイド=保存される範囲（保存は基準と同額縁のまま＝シリーズ一貫・ぴったり合わせはゴーストが精密モード）・いま/基準タグ。｜ v161：📐定点＝同じ角度を時間を空けて重ね撮り。拡大表示「📐この角度でまた撮る」→アプリ内カメラ(getUserMedia)に基準写真を半透明で重ねるゴースト方式(透明度スライダー・左右分割切替・前面=両ミラー/保存非ミラー・基準と同アスペクトで中央crop)→撮った1枚はimportOneで通常写真として取り込み＋rephotoOfで基準にひも付け(スキーマレス=DB移行なし)→シリーズ=既存タイムライン(日ごと)＋⇆比べる＋また撮る。⚠️nativeはカメラ権限宣言が要る=1.5から・webは今日から。意味レンズ拡張は凍結(実機=食べ物だけ実用)。｜ v160：🔍意味レンズ＝食べ物レンズを汎用化。カテゴリ(食べ物/風景/人/ペット)＋フリーテキスト検索＋写真で探す(似た画像=reverse image search)を同じCLIP埋め込みで。⚙メニュー「🔍意味で探す」・レンズバー(チップ/言葉/写真)で切替・結果は既存タイムライン(月/日・比べる・大きく)。カテゴリ/テキスト=陽性vs対抗softmax・写真=コサイン上位N。lensProbOf 一般化・openLens/runCategoryLens/runTextLens/runImageLens。｜ v159：🍜食べ物レンズに「⇆比べる」と「大きく/小さく」＝思い出の場所と同じ .atl-photobar を再利用（比べる＝比較ビューを z4000 で上に重ね食べ物レンズは開いたまま・足跡地図は hideTripMap で隠す／大きく=2列 .atl-grid.big）。openCompareView に後方互換オプション(title/hideTripMap)追加・buildTimelinePhotos に big 引数。｜ v158：🍜食べ物レンズに月ごと/日ごと切替＝食べ物タイムラインの見出しを「月ごと(既定)」と「日ごと(曜日つき)」で切替(atl-modebar・buildTimelinePhotos に groupBy 追加・地図タイムラインは無改修)。｜ v157：🍜食べ物レンズ＝意味(CLIP)をテキスト検索に拡張。CLIPテキスト側エンコーダを追加し「食べ物」を512次元に起こして保存済み画像embeddingとコサイン比較＝ゼロショット分類→食べ物写真だけを日別・時系列(新→古)で全画面(⚙メニュー「🍜食べ物を時系列で」)。表示は buildTimelinePhotos 再利用・端末内完結。判定プロンプト/しきい値は実機で調整。｜ v156：地図バー2段目を1行に·位置情報) · 2026-07-12';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -769,6 +784,7 @@ function applyStaticI18n() {
   set('#btnAI', '🧠 AI: nearby by meaning (beta)');
   set('#btnRepho', '🎞️ Layered shots');
   set('#btnLens', '🍜 Food memories');
+  set('#btnPacks', '🤝 Shared memories');
   set('#btnLogger', '🛰️ Location logger');
   set('#btnTrash', '♻️ Restore deleted');
   set('#btnClear', '🗑 Delete all');
@@ -783,6 +799,7 @@ function applyStaticI18n() {
   setTitle('#btnAI', 'Try semantic nearby with AI (beta)');
   setTitle('#btnRepho', 'Layered shots: series of the same angle taken over time');
   setTitle('#btnLens', 'Look back on your food photos over time (uses AI meaning analysis)');
+  setTitle('#btnPacks', 'Import and manage memory packs shared by family and friends');
   setTitle('#btnLogger', 'Location logger: records your track only while open');
   setTitle('#btnTrash', 'Restore deleted (excluded) photos');
   setTitle('#btnClear', 'Delete all');
@@ -1016,7 +1033,7 @@ async function trackClearRange(startMs, endMs) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(TRACK_STORE, 'readwrite');
     const req = tx.objectStore(TRACK_STORE).index('t').openCursor(IDBKeyRange.bound(startMs, endMs));
-    req.onsuccess = () => { const c = req.result; if (c) { if (!isHandPt(c.value)) c.delete(); c.continue(); } };
+    req.onsuccess = () => { const c = req.result; if (c) { if (!isHandPt(c.value) && !isPeerPt(c.value)) c.delete(); c.continue(); } };   // v194: 相手の足あともロガー削除では消えない (パック削除で消す)
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -1030,6 +1047,51 @@ async function trackDelete(id) {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+}
+
+// ── 🤝 もらった思い出 (peer pack, v194) の track 側 ──────────────────
+// 相手の足あとは src:'peer' + pack(パックid) + name で track ストアに同居する (座標+時刻の精神は同じ)。
+// 自分のロガー/手書きと絶対に混ざらないよう、ロガーの統計/削除・自動確定・手書きの骨格からは
+// isPeerPt で除外する (消すのはパック削除だけ)。
+function isPeerPt(q) { return !!q && q.src === 'peer'; }
+async function trackPutMany(points) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(TRACK_STORE, 'readwrite');
+    const store = tx.objectStore(TRACK_STORE);
+    for (const p of points) store.put(p);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error('IDB transaction aborted'));
+    tx.onabort = () => reject(tx.error || new Error('IDB transaction aborted'));
+  });
+}
+// パックの点だけ削除 (パック削除/再取り込みの置き換え用)。全期間をカーソルで走査して pack 一致だけ消す。
+async function trackDeletePack(packId) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    let n = 0;
+    const tx = db.transaction(TRACK_STORE, 'readwrite');
+    const req = tx.objectStore(TRACK_STORE).openCursor();
+    req.onsuccess = () => { const c = req.result; if (c) { if (isPeerPt(c.value) && c.value.pack === packId) { c.delete(); n++; } c.continue(); } };
+    tx.oncomplete = () => resolve(n);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+// 写真レコードを id 指定でまとめて削除 (パック削除用)。dbDeleteDummies と同じ小分けトランザクション。
+async function dbDeleteIds(ids) {
+  const db = await openDB();
+  const CH = 500;
+  for (let i = 0; i < ids.length; i += CH) {
+    const slice = ids.slice(i, i + CH);
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      const store = tx.objectStore(STORE);
+      for (const k of slice) store.delete(k);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('IDB transaction aborted'));
+      tx.onabort = () => reject(tx.error || new Error('IDB transaction aborted'));
+    });
+  }
 }
 
 // ============================================================
@@ -2158,8 +2220,31 @@ function recomputeSealed() {
   const has = seals.length > 0;
   for (const p of allPhotos) p._sealed = has && seals.some(s => sealMatches(s, p));
 }
-// 表示/想起に出してよい写真か。除外(削除)でも封印でもない。プール・描画の各所で使う。
-function visible(p) { return !p.excluded && !p._sealed; }
+// ── 🤝 もらった思い出 (peer pack, v194) ─────────────────────────────
+// 相手の写真は p.peerPack(パックid)+p.peerName を持ち、既定の visible() からは常に外れる＝
+// トップ/ランダム/連想ウォーク/レンズ/重ね撮り/枚数には一切混ざらない (混ざり先は
+// 地図・地図タイムライン・囲む だけ＝ユーザー明示 2026-07-12)。地図系の収集点だけが
+// mapVisible() を使い、パックごとの「🖼写真を表示」トグル (localStorage) で ON/OFF できる。
+const PEER_PREFS_KEY = 'pms-peerPacks';
+function loadPeerPrefs() { try { return JSON.parse(localStorage.getItem(PEER_PREFS_KEY) || '{}') || {}; } catch { return {}; } }
+function savePeerPref(packId, patch) {
+  const all = loadPeerPrefs();
+  all[packId] = Object.assign({}, all[packId], patch);
+  try { localStorage.setItem(PEER_PREFS_KEY, JSON.stringify(all)); } catch {}
+}
+function peerPackPhotosShown(packId) { const c = loadPeerPrefs()[packId]; return !c || c.photos !== false; }
+// パックの線/マーカー色。packId から安定して同じ色 (パレットは自分の線 TRIP_COLORS と被りにくい系統)。
+const PEER_COLORS = ['#ff7eb6', '#c792ea', '#ffb86c', '#8be9fd', '#f1fa8c'];
+function peerColor(packId) {
+  let h = 0; const s = String(packId || '');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return PEER_COLORS[h % PEER_COLORS.length];
+}
+
+// 表示/想起に出してよい写真か。除外(削除)でも封印でもなく、相手(peer)の写真でもない。プール・描画の各所で使う。
+function visible(p) { return !p.excluded && !p._sealed && !p.peerPack; }
+// 地図・地図タイムライン・囲む だけで使う判定 (v194)。相手の写真はパックのトグルが ON なら出す。
+function mapVisible(p) { return !p.excluded && !p._sealed && (!p.peerPack || peerPackPhotosShown(p.peerPack)); }
 // ある封印条件に当てはまる (削除を除く) 写真の枚数。封印前のプレビュー・一覧の件数に使う。
 function countSealed(spec) {
   let n = 0;
@@ -2492,22 +2577,25 @@ function showFullImage(photo, opts = {}) {
     const hasGps = p.lat != null && p.lng != null;
     const showMapBtn = hasGps || !!p.datetime;
     const mapBtnLabel = hasGps ? tr('🗺 地図でこの場所を見る', '🗺 See this place on the map') : tr('🗺 この日の地図へ', '🗺 Map for this day');
+    const peerTag = p.peerPack ? ` <span class="peer-tag" style="color:${peerColor(p.peerPack)}">👤 ${annivEsc(p.peerName || '')}</span>` : '';   // v194: 誰の写真かを日付行に
     cap.innerHTML =
       (hasList ? `<div class="full-count">${winStart + i + 1} / ${listAll.length}</div>` : '') +   // v182: 窓化しても通し番号
-      `<div class="dt">📅 ${dtStr}${srcTagHtml(p)}${locBadgeHtml(p)}</div>` +
+      `<div class="dt">📅 ${dtStr}${p.peerPack ? '' : srcTagHtml(p) + locBadgeHtml(p)}${peerTag}</div>` +
       `<div class="full-actions">` +
         (annivCtx
           ? (annivCtx.list.length >= 2 ? `<button class="to-compare">${tr('⇆ 左右で比べる', '⇆ Compare')}</button>` : '') +
             `<button class="to-annivmap">${tr('🗺 足跡の地図', '🗺 Footprint map')}</button>` +
             (annivCtx.anniv ? `<button class="to-annivlog">${tr('📖 ログ', '📖 Log')}</button>` : '') +   // v126: 思い出の場所の日別ログ(写真+コメント+未来の予定)
             (annivCtx.canRegister ? `<button class="to-register">${tr('📍 思い出の場所に登録', '📍 Save as memory place')}</button>` : '')   // v124: 囲む後もこの deck 動線＝違いは登録ボタンだけ
+          : p.peerPack
+          ? (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '')   // v194: 🤝相手の写真は編集系 (重ね撮り/日付直す) を出さない＝地図で見るだけ
           : (onWalk ? `<button class="to-walk">${tr('🔮 連想ウォーク', '🔮 Wander')}</button>` : '') +   // v125: 名前統一（旧「ここから歩く」）
             (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '') +
             // v161: 📐 定点＝この写真を基準に同じ角度で重ね撮り。シリーズ(2枚以上)ができたら見る導線も
             `<button class="to-rephoto">${tr('🎞️ この角度で撮り重ねる', '🎞️ Layer a shot at this angle')}</button>` +
             (rephotoSeriesOf(p).length >= 2 ? `<button class="to-rephoto-series">${tr(`🎞️ 重ね撮り（${rephotoSeriesOf(p).length}枚）`, `🎞️ Layered shots (${rephotoSeriesOf(p).length})`)}</button>` : '') +
             (rephotoCtx ? `<button class="rp-del-btn">${tr('🗑 削除', '🗑 Delete')}</button>` : '')) +
-        `<button class="fix-date">${tr('📅 日付を直す', '📅 Fix the date')}</button>` +
+        (p.peerPack ? '' : `<button class="fix-date">${tr('📅 日付を直す', '📅 Fix the date')}</button>`) +
       `</div>` +
       // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
       ((!annivCtx && showMapBtn && !hasGps) ? `<div class="de-hint map-hint">${tr(tr('位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。', 'Even on days with no located photos, the timeline for that day still opens. Browsing the order — or picking a photo to fix its location — can spark a memory.'), 'Even on days with no located photos, that day\'s photo list (timeline) still opens. Browsing the order, or picking a photo to fix its place, can spark a memory too.')}</div>` : '') +
@@ -2526,9 +2614,11 @@ function showFullImage(photo, opts = {}) {
       const rb = cap.querySelector('.to-register');
       if (rb) rb.addEventListener('click', () => registerAnniversary(annivCtx.circleInfo, annivCtx.list, () => { annivCtx.canRegister = false; rb.textContent = tr(tr('✓ 思い出の場所に登録', '✓ Registered'), '✓ Saved as memory place'); rb.disabled = true; }));
     } else {
-      // v117: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)。
-      if (onWalk) cap.querySelector('.to-walk').addEventListener('click', () => { closeFullImage(); showExplore(p); });
-      if (showMapBtn) cap.querySelector('.to-map').addEventListener('click', () => { closeFullImage(); openMapView(p); });
+      // v117: 足跡からの拡大で「ここから連想ウォークを続ける」(辿り直しを両立)。v194: peer 写真はボタン自体が無い→null ガード。
+      const wk = cap.querySelector('.to-walk');
+      if (onWalk && wk) wk.addEventListener('click', () => { closeFullImage(); showExplore(p); });
+      const tm = cap.querySelector('.to-map');
+      if (showMapBtn && tm) tm.addEventListener('click', () => { closeFullImage(); openMapView(p); });
       // v161: 📐 定点＝この写真を基準にカメラを開く／シリーズを見る（onClose の再オープンより カメラ z2200・シリーズ z1900 が上/同格なので消してから）
       const rp = cap.querySelector('.to-rephoto');
       if (rp) rp.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openRephotoCamera(p); });
@@ -2537,9 +2627,10 @@ function showFullImage(photo, opts = {}) {
       const rpDel = cap.querySelector('.rp-del-btn');
       if (rpDel) rpDel.addEventListener('click', () => promptRephotoPhotoDelete(p, rephotoCtx.root));
     }
-    // 📅 日付を直す (v60): 直す行為自体が想起の入口。
+    // 📅 日付を直す (v60): 直す行為自体が想起の入口。v194: 🤝相手の写真にはボタンが無い (直すのは自分の記録だけ)。
     const editor = cap.querySelector('.date-editor');
-    cap.querySelector('.fix-date').addEventListener('click', () => {
+    const fixBtn = cap.querySelector('.fix-date');
+    if (fixBtn) fixBtn.addEventListener('click', () => {
       if (p.datetime) cap.querySelector('.de-input').value = toDatetimeLocalVal(p.datetime);
       editor.hidden = false;
     });
@@ -2991,7 +3082,7 @@ function openLoggerPanel() {
     daysBox.innerHTML = `<div class="logger-day-empty">${tr('読み込み中…', 'Loading…')}</div>`;
     let pts = [];
     try { pts = await trackGetRange(0, Date.now()); } catch {}
-    pts = pts.filter(p => !isHandPt(p));   // v187: ✏️手書きの点はロガーの記録ではない (数えない・ここからは消さない)
+    pts = pts.filter(p => !isHandPt(p) && !isPeerPt(p));   // v187: ✏️手書き / v194: 🤝相手の足あと はロガーの記録ではない (数えない・ここからは消さない)
     if (!document.getElementById('loggerPanel')) return;   // 集計中に閉じられた
     if (!pts.length) { daysBox.innerHTML = `<div class="logger-day-empty">${tr('記録がありません。', 'No records yet.')}</div>`; return; }
     const byDay = new Map();
@@ -3032,7 +3123,7 @@ function openLoggerPanel() {
     if (!loggerOn()) { line.textContent = tr('記録は停止中です。', 'Recording is stopped.'); return; }
     const now = new Date();
     const s = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    let n = 0; try { n = (await trackGetRange(s, s + 86400000 - 1)).length; } catch {}
+    let n = 0; try { n = (await trackGetRange(s, s + 86400000 - 1)).filter(q => !isPeerPt(q)).length; } catch {}   // v194: 相手の足あとは数えない
     if (!document.getElementById('loggerPanel')) return;   // 集計中に閉じられた
     const last = loggerLast ? new Date(loggerLast.t) : null;
     line.textContent = tr(`今日 ${n} 点を記録`, `${n} points today`) +
@@ -3069,6 +3160,16 @@ function buildMarkerPopup(p) {
   const el = document.createElement('div');
   el.className = 'marker-popup';
   const place = fmtPlace(p.lat, p.lng);
+  // v194: 🤝相手の写真は見るだけ (ウォーク/位置直す/削除は自分の写真の操作＝出さない)。誰のかを明示。
+  if (p.peerPack) {
+    el.innerHTML =
+      `<img class="mp-thumb" src="${thumbUrl(p)}">` +
+      `<div class="mp-date">${fmtDate(p.datetime)}</div>` +
+      (place ? `<div class="mp-place">${place}</div>` : '') +
+      `<div class="mp-place peer-tag" style="color:${peerColor(p.peerPack)}">👤 ${annivEsc(p.peerName || tr('もらった思い出', 'Shared memory'))}</div>`;
+    el.querySelector('.mp-thumb').addEventListener('click', () => showFullImage(p));   // 相手の写真はタイムライン順 deck に混ぜず単独で拡大
+    return el;
+  }
   el.innerHTML =
     `<img class="mp-thumb" src="${thumbUrl(p)}">` +
     `<div class="mp-date">${fmtDate(p.datetime)}${srcTagHtml(p)}</div>` +
@@ -3153,6 +3254,7 @@ async function autoConfirmTrackPass(windows) {
     if (ghosts.length > 1000) continue;   // v181: 全期間級の窓では走らせない (10万枚×全軌跡の総当たり回避。日/期間の窓で自然に確定していく)
     let pts = [];
     try { pts = await trackGetRange(s, e); } catch {}
+    pts = pts.filter(q => !isPeerPt(q));   // v194: 相手の足あとで自分の写真を確定しない (友達の散歩に自分の写真がピン留めされる事故防止)
     for (const ph of ghosts) {
       ph._autoTrackTried = true;                       // 成否によらず1回だけ (再描画で重複計算しない)
       if (!pts.length) continue;
@@ -3250,7 +3352,8 @@ async function openMapView(focusPhoto, opts) {
   { const vp = getViewPref('mapTl'); mapState.tlMode = (vp.mode === 'photos') ? 'photos' : 'list'; mapState.tlBig = !!vp.big; }
 
   // GPS 写真を撮影順に。除外・封印は出さない (初期表示の判定用。再描画は applyFilter が allPhotos から都度算出)。
-  const gps = allPhotos.filter(p => visible(p) && p.lat != null && p.lng != null)
+  // v194: 地図は mapVisible＝🤝もらった思い出の写真も (パックのトグン ON なら) 出す。
+  const gps = allPhotos.filter(p => mapVisible(p) && p.lat != null && p.lng != null)
                        .sort((a, b) => a.datetime - b.datetime);
 
   // クラスタとマーカー索引は「中身を入れ替えて」使う (日付/期間フィルタで張り替えても、
@@ -3282,13 +3385,14 @@ async function openMapView(focusPhoto, opts) {
     } else {
       pool = allPhotos.filter(p => inRange(p));
     }
-    return pool.filter(p => visible(p) && p.lat != null && p.lng != null)
+    return pool.filter(p => mapVisible(p) && p.lat != null && p.lng != null)   // v194: 🤝相手の写真も地図には出す (トグル ON 時)
                .sort((a, b) => a.datetime - b.datetime);
   }
   function makePhotoMarker(p) {
+    const peer = p.peerPack ? ` peer" style="border-color:${peerColor(p.peerPack)};` : '" style="';   // v194: 相手の写真はパック色の枠
     const icon = L.divIcon({
       className: 'photo-marker-wrap',
-      html: `<div class="photo-marker${locMarkerClass(p)}" style="background-image:url(${thumbUrl(p)})"></div>`,   // v140: 由来を隅ドットで
+      html: `<div class="photo-marker${locMarkerClass(p)}${peer}background-image:url(${thumbUrl(p)})"></div>`,   // v140: 由来を隅ドットで
       iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -22],
     });
     const mk = L.marker([p.lat, p.lng], { icon });
@@ -3393,9 +3497,34 @@ async function openMapView(focusPhoto, opts) {
   // 動線を描く。
   // ・pickDays モード = 選ばれた各日を独立した1本の軌跡に (色分け / 1本タップで他を暗く / 単一日は時刻→空の色)。
   // ・ブラウズ = 旅行(1日以上あいたら別線)を連続線で日ごと色替え (v58)。表示が単一日なら時刻→空の色 (v63)。
+  // v194: 🤝相手の足あとを「パック×日ごとの独立した線」で重ねる。自分の線 (写真+ロガー+手書きの
+  //   時刻順マージ) には混ぜない＝時間がズレていても地域で重なる「重ね歩き」。破線+パック色で自分と区別。
+  //   線頭に 👤名前 の小さなラベル (誰の道かをその場で示す)。tripLayers に積む＝drawTrips と一緒に貼り替え。
+  function drawPeerLines() {
+    const pm = mapState.peerMerge;
+    if (!pm || !pm.size) return;
+    if (pm.size > 60) return;   // 大量表示の暴発ガード (通常はパック数日ぶんしか無い)
+    for (const arr of pm.values()) {
+      if (!arr.length) continue;
+      const color = peerColor(arr[0].pack);
+      const pts = arr.slice().sort((a, b) => a.t - b.t);
+      if (pts.length >= 2) {
+        const latlngs = pts.map(q => [q.lat, q.lng]);
+        mapState.tripLayers.push(L.polyline(latlngs, { color: '#0a0a0a', weight: 7, opacity: 0.4, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(map));
+        mapState.tripLayers.push(L.polyline(latlngs, { color, weight: 4, opacity: 0.9, dashArray: '8 7', lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(map));
+      }
+      const name = arr[0].name || '';
+      if (name) {
+        const icon = L.divIcon({ className: 'peer-line-label-wrap', html: `<div class="peer-line-label" style="border-color:${color}">👤 ${annivEsc(name)}</div>`, iconSize: null, iconAnchor: [0, 24] });
+        mapState.tripLayers.push(L.marker([pts[0].lat, pts[0].lng], { icon, interactive: false, keyboard: false }).addTo(map));
+      }
+    }
+  }
+
   function drawTrips() {
     for (const l of mapState.tripLayers) map.removeLayer(l);
     mapState.tripLayers = [];
+    drawPeerLines();   // v194: 🤝相手の線は自分の線と独立に常に描く (以降の分岐の early return に影響されない)
     // v139: 写真の点＋位置ロガーの点を「時刻順に1本」へ。写真だけだと飛び飛びの区間を
     //   ロガーの軌跡が埋め、途切れない足取りになる（ユーザー要望）。trackMerge は refreshTrack が
     //   表示中の日/期間ぶんだけ日別に積むキャッシュ。軌跡トグル OFF なら従来どおり写真のみ。
@@ -3546,6 +3675,7 @@ async function openMapView(focusPhoto, opts) {
     mapState.trackLayers = []; mapState.estLayers = [];
     mapState.trackMerge = null;   // v139: 窓が変わった/OFF の古い合流キャッシュを捨てる
     mapState.handMerge = null;    // v187: ✏️手書きの点も同様に積み直す
+    mapState.peerMerge = null;    // v194: 🤝相手の足あとも積み直す (自分の線には混ぜず drawTrips が別の線で描く)
     const windows = [];                              // 表示中の時間窓を集める
     if (mapState.pickDays) {
       const folded = mapState.foldedDays;
@@ -3578,8 +3708,26 @@ async function openMapView(focusPhoto, opts) {
       if (!mapState || mapState.map !== myMap) return;   // 閉じられた/再オープン → 破棄
       if (!pts.length) continue;
       // v187: 手書き点はロガーと分けて handMerge に積む (線は drawTrips が両方を時刻順に混ぜる)。
-      const handPts = [], logPts = [];
-      for (const p of pts) (isHandPt(p) ? handPts : logPts).push(p);
+      // v194: 🤝相手の足あと (src:'peer') はさらに分けて peerMerge へ＝自分の線には絶対に混ぜない。
+      const handPts = [], logPts = [], peerPts = [];
+      for (const p of pts) (isPeerPt(p) ? peerPts : isHandPt(p) ? handPts : logPts).push(p);
+      if (peerPts.length) {
+        if (!mapState.peerMerge) mapState.peerMerge = new Map();
+        for (const p of peerPts) {
+          const d = new Date(p.t); const k = `${p.pack}|${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;   // パック×日ごとに1本
+          if (!mapState.peerMerge.has(k)) mapState.peerMerge.set(k, []);
+          mapState.peerMerge.get(k).push(p);
+          fitPts.push([p.lat, p.lng]);
+          if (p.stay) {   // 相手の☕滞在も出す (自分の手書き☕と同じ意匠・パック色)
+            const icon = L.divIcon({ className: 'hand-pt-wrap', html: `<div class="hand-pt stay stay-static peer" style="border-color:${peerColor(p.pack)}">☕</div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
+            mapState.trackLayers.push(L.marker([p.lat, p.lng], { icon, interactive: false, keyboard: false }).addTo(myMap));
+          } else if (trackDots < MAP_TRACK_DOT_MAX) {   // 記録点の小さなドット (パック色)
+            mapState.trackLayers.push(L.circleMarker([p.lat, p.lng],
+              { renderer: dotRenderer, radius: 3, color: peerColor(p.pack), weight: 1, opacity: 0.9, fillColor: peerColor(p.pack), fillOpacity: 0.9 }).addTo(myMap));
+            trackDots++;
+          }
+        }
+      }
       if (handPts.length) {
         if (!mapState.handMerge) mapState.handMerge = new Map();
         const editDk = mapState.handEdit && mapState.handEdit.dayKey;
@@ -3619,8 +3767,9 @@ async function openMapView(focusPhoto, opts) {
         if (ghosts.length > MAP_EST_MARKER_MAX) {          // v181: 全期間級の窓では推定マーカーを出さない (日/期間に絞ると出る)
           console.log(`[map] 推定配置 ${ghosts.length} 件 > ${MAP_EST_MARKER_MAX} → この窓ではスキップ`);
         } else {
+          const estPts = pts.filter(q => !isPeerPt(q));   // v194: 推定配置の基盤も自分の点だけ (相手の道に自分の写真を置かない)
           for (const ph of ghosts) {
-            const est = estimateFromTrack(ph.datetime.getTime(), pts);   // 記録のある時間帯のみ非null
+            const est = estimateFromTrack(ph.datetime.getTime(), estPts);   // 記録のある時間帯のみ非null
             if (!est) continue;
             const mk = makeEstimatedMarker(ph, est).addTo(myMap);
             mapState.estLayers.push(mk);
@@ -3654,6 +3803,7 @@ async function openMapView(focusPhoto, opts) {
     mapState.lineGps = fgAll;      // 線の色 index 用 (全日。畳んだ日の線は drawTrips でスキップ)
     mapState.trackMerge = null;    // v139: 窓が変わる＝前の窓のロガー点は混ぜない (refreshTrack が積み直す)
     mapState.handMerge = null;     // v187: 手書きの点も同様
+    mapState.peerMerge = null;     // v194: 🤝相手の足あとも同様
     cluster.clearLayers();
     markerById.clear();
     clearDotLayers();
@@ -3962,6 +4112,7 @@ async function openMapView(focusPhoto, opts) {
     `<button class="mc-menu-item" id="mmAnnivLog">${tr('📖 思い出の場所のログ', '📖 Memory place log')}</button>` +   // v128: 常時表示。思い出の場所由来の地図→そのログへ／通常地図→思い出の場所一覧へ
     // v155: 「🫧 囲んで思い出を見る」は地図バーの mcEncircle に昇格したので⋯メニューから削除。
     `<button class="mc-menu-item" id="mmRegister">${tr('📍 この辺りを思い出の場所に登録', '📍 Save this area as a memory place')}</button>` +   // v125: いま見ている地図の範囲を思い出の場所に
+    `<button class="mc-menu-item" id="mmShare">${tr('📤 この思い出を渡す', '📤 Hand over these memories')}</button>` +   // v194: 🤝 選択中の日々を日パックに書き出し (家族/友達へ手渡し)
     // 位置オフ build (iOS v1) では軌跡まわりのトグルを出さない (v104)。記録が無いので元々空動作。
     (LOCATION_AVAILABLE
       ? `<label class="mc-pop-check"><input type="checkbox" id="mmTrack"> ${tr('🛰️ 自分の軌跡（ロガー）', '🛰️ My track (logger)')}</label>` +
@@ -4017,6 +4168,33 @@ async function openMapView(focusPhoto, opts) {
     //   モーダルで選ぶと enterHandDrawMode({days}) で入り、パネル上部の日切替チップで他の日にも切り替えられる。
     if (days.length === 1) { enterHandDrawMode(days[0]); return; }
     openHandDayChooser(days);
+  });
+  // v194: 📤 この思い出を渡す — いま表示している日々 (pickDays / 期間絞り込み) を日パックに書き出す。
+  //   日の集め方は ✏️手書き (mmHand) と同じ2系統: pickDays があればそれ、無ければ range 内の
+  //   「中身のある日」(自分の写真がある日 + 自分の足あとがある日＝v190 の写真ゼロ手書き日も渡せる)。
+  const mmShare = popMore.querySelector('#mmShare');
+  if (mmShare) mmShare.addEventListener('click', async () => {
+    closePops();
+    const folded = mapState.foldedDays;
+    let days = (mapState.pickDays || []).filter(dk => {
+      if (!folded || !folded.size) return true;
+      const [yy, mm2, dd2] = dk.split('-').map(Number);
+      return !folded.has(new Date(yy, mm2, dd2).getTime());
+    });
+    if (!days.length && mapState.range && mapState.range.start != null) {
+      const rs = mapState.range.start, re = mapState.range.end != null ? mapState.range.end : mapState.range.start;
+      const set = new Set(dayKeysWithPhotos(rs, re));                     // 自分の写真がある日
+      let pts = [];
+      try { pts = await trackGetRange(rs, re); } catch {}
+      for (const q of pts) { if (isPeerPt(q)) continue; const d = new Date(q.t); set.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`); }   // 足あと/手書きだけの日も
+      days = [...set];
+    }
+    if (!days.length) { logInfo(tr('先に渡したい日を選んでください（🗺過去の今日・写真の🗺・🎲・📅・期間の絞り込み）', 'Pick the day(s) to hand over first (🗺 On This Day, a photo\'s 🗺, 🎲, 📅, or a period filter)')); return; }
+    if (days.length > PACK_MAX_DAYS) { logInfo(tr(`日が多すぎます（${days.length}日）。一度に渡せるのは ${PACK_MAX_DAYS} 日までです。📅や期間で絞ってください`, `Too many days (${days.length}). A pack holds up to ${PACK_MAX_DAYS} days — narrow it down first.`)); return; }
+    openShareDialog(days.slice().sort((a, b) => {
+      const pa = a.split('-').map(Number), pb = b.split('-').map(Number);
+      return new Date(pa[0], pa[1], pa[2]) - new Date(pb[0], pb[1], pb[2]);
+    }));
   });
   const mmAnnivLog = popMore.querySelector('#mmAnnivLog');   // v127: 思い出の場所由来の地図 → ログへ戻る
   if (mmAnnivLog) mmAnnivLog.addEventListener('click', () => { closePops(); if (mapState && mapState.anniv) openAnnivTimeline(mapState.anniv); else openAnnivList(); });   // v128: 思い出の場所由来→そのログ／通常地図→思い出の場所一覧
@@ -4360,7 +4538,7 @@ function buildTimelinePhotos(container, all, groupBy, big, opts) {
 }
 function buildTimeline(container, map, cluster, markerById, applyFilter) {
   container.innerHTML = '';
-  const all = allPhotos.filter(visible).slice().sort((a, b) => b.datetime - a.datetime);
+  const all = allPhotos.filter(mapVisible).slice().sort((a, b) => b.datetime - a.datetime);   // v194: 🤝相手の写真も地図のタイムラインには出す
   if (!all.length) { container.innerHTML = `<div class="tl-empty">${tr('写真がありません', 'No photos')}</div>`; return; }
   const isMobile = () => window.matchMedia('(max-width:719px)').matches;
   const dayStartOf = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -4473,19 +4651,26 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
     const hasGps = p.lat != null && p.lng != null;
     const item = document.createElement('div');
     item.className = 'tl-item' + (hasGps ? '' : ' tl-nogps');
+    // v194: 🤝相手の写真は見るだけ＝位置直す/🗑 を出さず、誰のものかをバッジで示す。
+    const badge = p.peerPack
+      ? `<span style="color:${peerColor(p.peerPack)}">👤 ${annivEsc(p.peerName || tr('もらった思い出', 'Shared'))}</span>${hasGps ? '' : tr('・位置情報なし', ' · no location')}`
+      : (hasGps ? tr('📍 地図で見る', '📍 See on map') : tr('位置情報なし', 'No location'));
     item.innerHTML =
       `<img src="${thumbUrl(p)}">` +
       `<div class="tl-meta"><div class="tl-time">${fmtShortDate(d)}</div>` +
-      `<div class="tl-badge">${hasGps ? tr('📍 地図で見る', '📍 See on map') : tr('位置情報なし', 'No location')}</div></div>` +
+      `<div class="tl-badge">${badge}</div></div>` +
+      (p.peerPack ? '' :
       `<div class="tl-actions">` +
         `<button class="tl-locedit" type="button">${hasGps ? tr('位置を直す', 'Fix location') : tr('📍 位置を設定', '📍 Set location')}</button>` +
         `<button class="tl-del" type="button" title="${tr('削除（♻️で戻せる）', 'Delete (restore from ♻️)')}">🗑</button>` +
-      `</div>`;
-    item.querySelector('.tl-locedit').addEventListener('click', (e) => {
+      `</div>`);
+    const locBtn = item.querySelector('.tl-locedit');
+    if (locBtn) locBtn.addEventListener('click', (e) => {
       e.stopPropagation();   // 項目本体のタップ (フォーカス/フル画像) と衝突させない
       if (mapState && mapState.startLocationEdit) mapState.startLocationEdit(p);
     });
-    item.querySelector('.tl-del').addEventListener('click', (e) => {
+    const delBtn = item.querySelector('.tl-del');
+    if (delBtn) delBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       excludePhoto(p);       // 除外 (♻️ で復元可)。refreshData でこの項目も消える
     });
@@ -4650,7 +4835,7 @@ window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mapState &
 // 円内(中心+半径m)の表示可能 GPS 写真を、昔→今の順で返す。
 function photosInCircle(lat, lng, radiusM) {
   return allPhotos
-    .filter(p => visible(p) && p.lat != null && p.lng != null && haversine(lat, lng, p.lat, p.lng) <= radiusM)
+    .filter(p => mapVisible(p) && p.lat != null && p.lng != null && haversine(lat, lng, p.lat, p.lng) <= radiusM)   // v194: 🫧囲むには🤝相手の写真も入る (同じ場所の時間ズレが並ぶ)
     .sort((a, b) => a.datetime - b.datetime);   // 昔→今 (pickToday と同じ並び)
 }
 
@@ -5188,7 +5373,7 @@ async function handDaySeq(dayKey) {
   }
   let pts = [];
   try { pts = await trackGetRange(s, e); } catch {}
-  for (const q of pts) seq.push({ t: q.t, lat: q.lat, lng: q.lng, rec: isHandPt(q) ? q : null });
+  for (const q of pts) { if (isPeerPt(q)) continue; seq.push({ t: q.t, lat: q.lat, lng: q.lng, rec: isHandPt(q) ? q : null }); }   // v194: 相手の足あとは手書きの骨格にしない
   seq.sort((a, b) => a.t - b.t);
   return seq;
 }
@@ -5482,6 +5667,361 @@ async function annivPhotoList(a) {
     list = ps;
   }
   return list;
+}
+
+// ============================================================
+// 🤝 もらった思い出 (peer pack, v194) — 家族/友達と「日パック」を渡し合う
+// ------------------------------------------------------------
+// コア: 共有するのは「過去の日＝思い出」であって「いまの位置」ではない。サーバーは建てない＝
+//   JSON ファイル (足あと点列 + 選んだ日の thumb) を AirDrop/LINE 等で手渡し → 相手が取り込む。
+//   データはこの書き出しファイル以外どこにも送られない (Data Not Collected 不変)。
+// 器: 写真は photos ストアに peerPack/peerName 付きで同居 (visible からは常に除外・地図系だけ mapVisible)。
+//   足あとは track ストアに src:'peer'+pack+name で同居 (ロガー統計/削除/自動確定/手書きから isPeerPt で除外)。
+//   ＝新ストアなし・DB移行なし。パック一覧はレコードの走査から導出 (メタの別持ちで不整合を作らない)。
+//   「🖼写真を表示」トグルだけ localStorage (pms-peerPacks)。
+// 転送の安全: 取り込みは JSON を検証し、画像は createThumbnail で再エンコード (素性の知れない
+//   画像を正規化)・名前はエスケープ・件数/サイズに上限。再取り込みは同じ pack id を置き換え。
+// ============================================================
+const PACK_MAX_DAYS = 31;        // 一度に渡せる日数 (旅行想定。超えたら期間を絞ってもらう)
+const PACK_MAX_PHOTOS = 3000;    // 取り込みの写真上限 (暴発ガード)
+const PACK_MAX_TRACK = 100000;   // 取り込みの足あと点上限
+
+function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(r.error || new Error('read failed'));
+    r.readAsDataURL(blob);
+  });
+}
+function dataURLToBlob(u) {
+  const m = /^data:([^;,]+);base64,(.*)$/s.exec(u);
+  if (!m) throw new Error('not a base64 dataURL');
+  const bin = atob(m[2]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: m[1] });
+}
+function packDayLabel(days) {   // 日集合 → 「2022/11/10〜11/12」風の短い期間ラベル
+  if (!days || !days.length) return '';
+  const ds = days.map(dk => { const [y, m, d] = dk.split('-').map(Number); return new Date(y, m, d); }).sort((a, b) => a - b);
+  const a = ds[0], b = ds[ds.length - 1];
+  const f = (d, y) => `${y ? d.getFullYear() + '/' : ''}${d.getMonth() + 1}/${d.getDate()}`;
+  if (a.getTime() === b.getTime()) return f(a, true);
+  return `${f(a, true)}〜${f(b, a.getFullYear() !== b.getFullYear())}`;
+}
+
+// 選択中の日々から書き出しパックを組み立てる (photos は withPhotos の時だけ thumb を base64 で同梱)。
+async function buildSharePack(days, withPhotos, fromName) {
+  const daySet = new Set(days);
+  const photos = allPhotos.filter(p => visible(p) && daySet.has(dayKeyOf(p))).sort((a, b) => a.datetime - b.datetime);   // visible=自分の写真だけ (もらった写真は渡さない＝又貸ししない)
+  const track = [];
+  for (const dk of days) {
+    const [y, m, d] = dk.split('-').map(Number);
+    const s = new Date(y, m, d).getTime();
+    let pts = [];
+    try { pts = await trackGetRange(s, s + 86400000 - 1); } catch {}
+    for (const q of pts) { if (isPeerPt(q)) continue; track.push({ t: q.t, lat: q.lat, lng: q.lng, ...(q.stay ? { stay: 1 } : {}) }); }   // 手書きもロガーも「自分の道」として一緒に渡す
+  }
+  const pack = { app: 'anohi', kind: 'daypack', v: 1,
+                 id: 'pk' + Date.now().toString(36) + Math.floor(Math.random() * 1e9).toString(36),
+                 from: fromName, created: new Date().toISOString(), days: days.slice(), track, photos: [] };
+  if (withPhotos) {
+    for (const p of photos) {
+      try { pack.photos.push({ dt: p.datetime.toISOString(), lat: p.lat, lng: p.lng, thumb: await blobToDataURL(p.thumb) }); } catch {}
+    }
+  }
+  return pack;
+}
+
+// パックをファイルとして渡す。iOS Safari = 共有シート (AirDrop/LINE)、無ければダウンロード。
+// ⚠️ native WKWebView は navigator.share が無い可能性＝その場合は正直に案内 (次版で Share プラグイン)。
+async function sharePackFile(pack) {
+  const json = JSON.stringify(pack);
+  const [y, m, d] = (pack.days[0] || '0-0-1').split('-').map(Number);
+  const fname = `anohi-${y}${String(m + 1).padStart(2, '0')}${String(d).padStart(2, '0')}.json`;
+  const blob = new Blob([json], { type: 'application/json' });
+  const file = new File([blob], fname, { type: 'application/json' });
+  if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+    try { await navigator.share({ files: [file] }); return 'shared'; }
+    catch (e) { if (e && (e.name === 'AbortError' || e.name === 'NotAllowedError')) return 'cancel'; }
+  }
+  if (IS_NATIVE) { logErr(tr('このビルドではまだファイル共有に対応していません（次の版で対応予定。web 版では渡せます）', 'This build cannot share files yet (coming in the next version — the web version can).')); return 'unsupported'; }
+  const a = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 30000);
+  return 'downloaded';
+}
+
+// 📤 書き出しダイアログ: 名前 + 「🖼写真も入れる」だけの最小フォーム。
+async function openShareDialog(days) {
+  const daySet = new Set(days);
+  const nPhotos = allPhotos.reduce((n, p) => n + ((visible(p) && daySet.has(dayKeyOf(p))) ? 1 : 0), 0);
+  const modal = document.createElement('div');
+  modal.className = 'ai-modal anniv-z';
+  const sizeMb = Math.max(0.1, nPhotos * 0.12).toFixed(1);
+  modal.innerHTML =
+    `<div class="ai-modal-card"><h2>${tr('📤 この思い出を渡す', '📤 Hand over these memories')}</h2>` +
+    `<div class="share-summary">${packDayLabel(days)}・${tr(`${days.length}日ぶん`, `${days.length} day(s)`)}<br>` +
+      `${tr(`写真 ${nPhotos}枚 ・ 足あと <span id="shareTrackN">…</span>点`, `${nPhotos} photos · <span id="shareTrackN">…</span> footprint points`)}</div>` +
+    `<div class="share-field"><label>${tr('あなたの名前（相手の地図にこの名前で出ます）', 'Your name (shown on their map)')}</label>` +
+      `<input type="text" id="shareName" maxlength="24" placeholder="${tr('例: ユウ', 'e.g. Yu')}"></div>` +
+    `<label class="share-check"><input type="checkbox" id="sharePhotos" checked> ${tr(`🖼 写真も入れる（${nPhotos}枚・約${sizeMb}MB）`, `🖼 Include photos (${nPhotos} · ~${sizeMb}MB)`)}</label>` +
+    `<div class="pack-note">${tr('外すと足あとだけの軽いパックになります（知り合ったばかりの人と道だけ比べる時に）。データはこのファイル以外どこにも送られません。', 'Uncheck for a light, footprints-only pack (for comparing routes with someone you just met). Nothing is sent anywhere except this file.')}</div>` +
+    `<div class="actions"><button id="shareCancel">${tr('キャンセル', 'Cancel')}</button><button class="primary" id="shareGo">${tr('📤 書き出す', '📤 Export')}</button></div></div>`;
+  document.body.appendChild(modal);
+  // 足あと点数は非同期で数えて差し込む (体感を止めない)
+  (async () => {
+    let n = 0;
+    for (const dk of days) {
+      const [y, m, d] = dk.split('-').map(Number);
+      const s = new Date(y, m, d).getTime();
+      try { n += (await trackGetRange(s, s + 86400000 - 1)).filter(q => !isPeerPt(q)).length; } catch {}
+    }
+    const el = modal.querySelector('#shareTrackN'); if (el) el.textContent = String(n);
+  })();
+  const nameIn = modal.querySelector('#shareName');
+  try { nameIn.value = localStorage.getItem('pms-shareName') || ''; } catch {}
+  const close = () => modal.remove();
+  modal.querySelector('#shareCancel').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  const go = modal.querySelector('#shareGo');
+  go.addEventListener('click', async () => {
+    const name = (nameIn.value || '').trim().slice(0, 24) || tr('わたし', 'Me');
+    try { localStorage.setItem('pms-shareName', name); } catch {}
+    go.disabled = true; go.textContent = tr('書き出し中…', 'Exporting…');
+    try {
+      const pack = await buildSharePack(days, modal.querySelector('#sharePhotos').checked, name);
+      const r = await sharePackFile(pack);
+      if (r === 'shared') logInfo(tr('📤 渡しました。相手は ⚙メニュー「🤝 もらった思い出」から取り込めます', '📤 Sent. They can import it from ⚙ menu “🤝 Shared memories”.'));
+      else if (r === 'downloaded') logInfo(tr('📤 ファイルに書き出しました。相手は ⚙メニュー「🤝 もらった思い出」から取り込めます', '📤 Exported to a file. They can import it from ⚙ menu “🤝 Shared memories”.'));
+      if (r !== 'cancel') close(); else { go.disabled = false; go.textContent = tr('📤 書き出す', '📤 Export'); }
+    } catch (e) {
+      logErr(tr(`書き出しに失敗: ${e?.message || e}`, `Export failed: ${e?.message || e}`));
+      go.disabled = false; go.textContent = tr('📤 書き出す', '📤 Export');
+    }
+  });
+}
+
+// 取り込み済みパックの一覧をレコードの走査から導出 (photos + track。メタを別に持たない＝不整合が起きない)。
+async function collectPeerPacks() {
+  const packs = new Map();
+  const touch = (id, name) => {
+    let e = packs.get(id);
+    if (!e) { e = { id, name: '', days: new Set(), photoN: 0, trackN: 0, maxT: 0, thumbOf: null }; packs.set(id, e); }
+    if (name && !e.name) e.name = name;
+    return e;
+  };
+  for (const p of allPhotos) {
+    if (!p.peerPack) continue;
+    const e = touch(p.peerPack, p.peerName);
+    e.photoN++; e.days.add(dayKeyOf(p));
+    const t = p.datetime.getTime(); if (t > e.maxT) e.maxT = t;
+    if (!e.thumbOf) e.thumbOf = p;
+  }
+  let pts = [];
+  try { pts = await trackGetRange(0, 8640000000000000); } catch {}   // 最大 Date ms＝全期間
+  for (const q of pts) {
+    if (!isPeerPt(q)) continue;
+    const e = touch(q.pack, q.name);
+    e.trackN++;
+    const d = new Date(q.t); e.days.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    if (q.t > e.maxT) e.maxT = q.t;
+  }
+  return [...packs.values()].map(e => ({ ...e, days: [...e.days].sort((a, b) => {
+    const pa = a.split('-').map(Number), pb = b.split('-').map(Number);
+    return new Date(pa[0], pa[1], pa[2]) - new Date(pb[0], pb[1], pb[2]);
+  }) })).sort((a, b) => b.maxT - a.maxT);
+}
+
+// パックを丸ごと削除 (写真レコード + 足あと点 + トグル設定 + thumb URL キャッシュ)。相手の端末には無関係。
+async function deletePeerPack(packId) {
+  const ids = allPhotos.filter(p => p.peerPack === packId).map(p => p.id);
+  try { if (ids.length) await dbDeleteIds(ids); } catch (e) { logErr(tr(`削除に失敗: ${e?.message || e}`, `Delete failed: ${e?.message || e}`)); return false; }
+  try { await trackDeletePack(packId); } catch {}
+  for (const id of ids) { const u = thumbUrls.get(id); if (u) { try { URL.revokeObjectURL(u); } catch {} thumbUrls.delete(id); } }
+  if (ids.length) resetPhotos(allPhotos.filter(p => p.peerPack !== packId));
+  try { const prefs = loadPeerPrefs(); delete prefs[packId]; localStorage.setItem(PEER_PREFS_KEY, JSON.stringify(prefs)); } catch {}
+  if (mapState && mapState.refreshData) mapState.refreshData();
+  render();
+  return true;
+}
+
+// 📥 パックファイルの取り込み。検証 → (同 id は置き換え) → track/photos を書き込み → in-memory 反映。
+async function importPeerPackFile(file) {
+  let pack = null;
+  try { pack = JSON.parse(await file.text()); } catch {}
+  if (!pack || pack.app !== 'anohi' || pack.kind !== 'daypack' || !pack.id) {
+    logErr(tr('「あの日」の思い出パック（.json）ではないようです', 'This doesn’t look like an “A Past Day” memory pack (.json).'));
+    return null;
+  }
+  const packId = String(pack.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || ('pk' + Date.now().toString(36));
+  const name = String(pack.from || '').replace(/\s+/g, ' ').trim().slice(0, 24) || tr('ともだち', 'Friend');
+  const photosIn = Array.isArray(pack.photos) ? pack.photos.slice(0, PACK_MAX_PHOTOS) : [];
+  const trackIn = Array.isArray(pack.track) ? pack.track.slice(0, PACK_MAX_TRACK) : [];
+  if (!photosIn.length && !trackIn.length) { logErr(tr('パックが空です', 'The pack is empty.')); return null; }
+  if (allPhotos.some(p => p.peerPack === packId)) {
+    if (!confirm(tr('同じパックを取り込み済みです。置き換えますか？', 'This pack is already imported. Replace it?'))) return null;
+    await deletePeerPack(packId);
+  } else {
+    try { await trackDeletePack(packId); } catch {}   // 写真ゼロパックの再取り込みでも点を二重にしない
+  }
+  const num = v => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+  // 足あと点 (座標+時刻のみ)
+  const tpts = [];
+  for (let i = 0; i < trackIn.length; i++) {
+    const q = trackIn[i]; if (!q) continue;
+    const t = num(q.t), lat = num(q.lat), lng = num(q.lng);
+    if (t == null || t <= 0 || t > 8640000000000000 || lat == null || lng == null || Math.abs(lat) > 90 || Math.abs(lng) > 180) continue;
+    tpts.push({ id: `peer_${packId}_t${i}`, t, lat, lng, src: 'peer', pack: packId, name, ...(q.stay ? { stay: 1 } : {}) });
+  }
+  for (let i = 0; i < tpts.length; i += 1000) { try { await trackPutMany(tpts.slice(i, i + 1000)); } catch (e) { logErr(`${e?.message || e}`); break; } }
+  // 写真 (thumb は createThumbnail で再エンコード＝正規化してから保存)
+  const recs = [];
+  for (let i = 0; i < photosIn.length; i++) {
+    const x = photosIn[i];
+    if (!x || typeof x.thumb !== 'string' || x.thumb.length > 6e6) continue;   // 1枚 ~4.5MB 超は捨てる
+    const dt = new Date(x.dt);
+    if (isNaN(dt.getTime())) continue;
+    let blob = null;
+    try { blob = dataURLToBlob(x.thumb); } catch { continue; }
+    if (!blob || !/^image\//.test(blob.type) || blob.size < 100) continue;
+    let thumb, color;
+    try { ({ thumb, color } = await createThumbnail(blob, THUMB_PX, 1)); } catch { continue; }
+    const lat = num(x.lat), lng = num(x.lng);
+    recs.push({ id: `peer_${packId}_${i}`, name: '', datetime: dt,
+                lat: (lat != null && Math.abs(lat) <= 90) ? lat : null,
+                lng: (lng != null && Math.abs(lng) <= 180) ? lng : null,
+                blob: null, thumb, color, dedup: `peer|${packId}|${i}`, dateSource: 'exif',
+                importedAt: new Date(), peerPack: packId, peerName: name });
+  }
+  for (let i = 0; i < recs.length; i += 200) { try { await dbPutMany(recs.slice(i, i + 200)); } catch (e) { logErr(`${e?.message || e}`); break; } }
+  addPhotos(recs);   // in-memory + 封印の自動適用
+  savePeerPref(packId, { photos: true });
+  render();
+  if (mapState && mapState.refreshData) mapState.refreshData();
+  logInfo(tr(`👤 ${name} さんの思い出を受け取りました（写真${recs.length}枚・足あと${tpts.length}点）`, `👤 Received memories from ${name} (${recs.length} photos · ${tpts.length} footprint points)`));
+  return { id: packId, name, photoN: recs.length, trackN: tpts.length };
+}
+
+// 取り込んだパックを地図で開く: パックの日々 ＋「同じ地域にある自分の日」(≤6日) を自動で重ねる
+// ＝時間がズレていても場所で重なる「重ね歩き」。多すぎる時は 📅＋追加の案内だけ。
+async function openPeerPackOnMap(packId) {
+  const packDays = new Set();
+  let s = Infinity, n = -Infinity, w = Infinity, e = -Infinity, hasGeo = false, packMaxT = 0, packName = '';
+  const seen = (la, ln) => { hasGeo = true; if (la < s) s = la; if (la > n) n = la; if (ln < w) w = ln; if (ln > e) e = ln; };
+  for (const p of allPhotos) {
+    if (p.peerPack !== packId) continue;
+    packDays.add(dayKeyOf(p));
+    if (!packName) packName = p.peerName || '';
+    const t = p.datetime.getTime(); if (t > packMaxT) packMaxT = t;
+    if (p.lat != null && p.lng != null) seen(p.lat, p.lng);
+  }
+  let pts = [];
+  try { pts = await trackGetRange(0, 8640000000000000); } catch {}
+  const ownPts = [];
+  for (const q of pts) {
+    if (isPeerPt(q)) {
+      if (q.pack !== packId) continue;
+      const d = new Date(q.t);
+      packDays.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+      if (!packName) packName = q.name || '';
+      if (q.t > packMaxT) packMaxT = q.t;
+      seen(q.lat, q.lng);
+    } else ownPts.push(q);
+  }
+  if (!packDays.size) { logInfo(tr('このパックには表示できる日がありません', 'Nothing to show in this pack.')); return; }
+  let addDays = [];
+  if (hasGeo) {
+    const pad = 0.02;   // ≒2km の余白
+    const inBox = (la, ln) => la >= s - pad && la <= n + pad && ln >= w - pad && ln <= e + pad;
+    const mine = new Set();
+    for (const p of allPhotos) { if (!p.peerPack && visible(p) && p.lat != null && p.lng != null && inBox(p.lat, p.lng)) mine.add(dayKeyOf(p)); }
+    for (const q of ownPts) { if (!inBox(q.lat, q.lng)) continue; const d = new Date(q.t); mine.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`); }
+    for (const dk of packDays) mine.delete(dk);
+    const arr = [...mine];
+    if (arr.length && arr.length <= 6) {
+      addDays = arr;
+      // 時間ズレを一言 (重ね撮りの「N年 apart」と同じ言い方＝重ね歩き)
+      let myNear = 0;
+      for (const dk of arr) { const [y2, m2, d2] = dk.split('-').map(Number); const t2 = new Date(y2, m2, d2).getTime(); if (Math.abs(t2 - packMaxT) < Math.abs(myNear - packMaxT) || !myNear) myNear = t2; }
+      const gap = Math.abs(packMaxT - myNear);
+      logInfo(tr(`👤 ${packName} さんの日と同じ地域に、あなたの ${arr.length}日 も見つかったので重ねました${gap > 86400000 ? `（${intervalLabel(gap)}ずれ）` : ''}`,
+                 `Found ${arr.length} of your day(s) in the same area as ${packName}’s — overlaid${gap > 86400000 ? ` (${intervalLabel(gap)} apart)` : ''}.`));
+    } else if (arr.length > 6) {
+      logInfo(tr(`この地域にはあなたの日が ${arr.length}日 あります（📅の「＋追加」で重ねられます）`, `You have ${arr.length} day(s) in this area — overlay them via 📅 “+ Add”.`));
+    }
+  }
+  const pick = [...packDays, ...addDays];
+  closePeerPacksModal();
+  showTripsMap(pick);
+}
+
+// 🤝 もらった思い出の一覧 (⚙メニューから)。取り込み・見る・🖼写真トグル・削除。
+let peerPacksModal = null;
+function closePeerPacksModal() { if (peerPacksModal) { peerPacksModal.remove(); peerPacksModal = null; } }
+async function openPeerPacksList() {
+  closePeerPacksModal();
+  const packs = await collectPeerPacks();
+  const modal = document.createElement('div');
+  modal.className = 'ai-modal anniv-z';
+  const rows = packs.map(pk => {
+    const c = peerColor(pk.id);
+    const t = pk.thumbOf ? `<img class="anniv-row-thumb" src="${thumbUrl(pk.thumbOf)}" style="border:2px solid ${c}">` : `<div class="anniv-row-thumb noimg" style="color:${c}">👤</div>`;
+    const photosOn = peerPackPhotosShown(pk.id);
+    return `<div class="anniv-row" data-id="${pk.id}">` +
+      `<div class="anniv-row-main">${t}` +
+        `<div class="anniv-row-info"><div class="anniv-row-name" style="color:${c}">👤 ${annivEsc(pk.name || tr('名前なし', 'No name'))}</div>` +
+        `<div class="pack-row-sub">${packDayLabel(pk.days)}・${tr(`${pk.days.length}日`, `${pk.days.length} day(s)`)}${pk.photoN ? tr(`・🖼 ${pk.photoN}枚`, ` · 🖼 ${pk.photoN}`) : ''}${pk.trackN ? tr(`・👣 ${pk.trackN}点`, ` · 👣 ${pk.trackN} pts`) : tr('・足あとなし', ' · no footprints')}</div>` +
+        `<div class="pack-row-actions">` +
+          `<button class="mc-pop-btn primary pk-view" data-id="${pk.id}" type="button">${tr('🗺 見る', '🗺 View')}</button>` +
+          (pk.photoN ? `<button class="mc-pop-btn pk-photos${photosOn ? ' primary' : ''}" data-id="${pk.id}" type="button">${photosOn ? tr('🖼 写真を表示中', '🖼 Photos shown') : tr('🖼 写真を隠し中', '🖼 Photos hidden')}</button>` : '') +
+          `<button class="mc-pop-btn pk-del" data-id="${pk.id}" type="button">🗑</button>` +
+        `</div></div>` +
+      `</div></div>`;
+  }).join('');
+  modal.innerHTML =
+    `<div class="ai-modal-card"><h2>${tr('🤝 もらった思い出', '🤝 Shared memories')}</h2>` +
+    `<div class="pack-import-row"><button class="mc-pop-btn primary" id="pkImport" type="button">${tr('📥 パックのファイルを取り込む', '📥 Import a pack file')}</button>` +
+    `<input type="file" id="pkFile" accept=".json,application/json" style="display:none"></div>` +
+    (packs.length ? `<div class="anniv-list">${rows}</div>`
+                  : `<p class="anniv-empty">${tr('まだありません。<br>相手が地図の ⋯表示「📤 この思い出を渡す」で書き出したファイル（.json）を、上のボタンで取り込みます。<br><small>写真は 地図・タイムライン・囲む にだけ出ます（トップやランダムには混ざりません）。</small>', 'Nothing yet.<br>Import a file (.json) exported from the map’s ⋯ menu “📤 Hand over these memories”.<br><small>Their photos appear only on the map, its timeline, and encircle — never in your top deck.</small>')}</p>`) +
+    `<div class="pack-note">${tr('取り込んだ思い出は、この端末の中だけに保存されます。🗑で相手の端末に影響なくいつでも消せます。', 'Imported memories stay on this device only. Delete anytime with 🗑 — it never affects their device.')}</div>` +
+    `<div class="actions"><button class="primary" id="pkClose">${tr('閉じる', 'Close')}</button></div></div>`;
+  document.body.appendChild(modal);
+  peerPacksModal = modal;
+  modal.querySelector('#pkClose').addEventListener('click', closePeerPacksModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closePeerPacksModal(); });
+  const fileIn = modal.querySelector('#pkFile');
+  const impBtn = modal.querySelector('#pkImport');
+  impBtn.addEventListener('click', () => fileIn.click());
+  fileIn.addEventListener('change', async () => {
+    const f = fileIn.files && fileIn.files[0];
+    if (!f) return;
+    impBtn.disabled = true; impBtn.textContent = tr('取り込み中…', 'Importing…');
+    let res = null;
+    try { res = await importPeerPackFile(f); } finally { fileIn.value = ''; }
+    if (res) { closePeerPacksModal(); openPeerPackOnMap(res.id); }   // 取り込めたら、そのまま地図で「重ね歩き」を開く
+    else { impBtn.disabled = false; impBtn.textContent = tr('📥 パックのファイルを取り込む', '📥 Import a pack file'); }
+  });
+  modal.querySelectorAll('.pk-view').forEach(b => b.addEventListener('click', () => openPeerPackOnMap(b.dataset.id)));
+  modal.querySelectorAll('.pk-photos').forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.id;
+    const next = !peerPackPhotosShown(id);
+    savePeerPref(id, { photos: next });
+    b.classList.toggle('primary', next);
+    b.textContent = next ? tr('🖼 写真を表示中', '🖼 Photos shown') : tr('🖼 写真を隠し中', '🖼 Photos hidden');
+    if (mapState && mapState.refreshData) mapState.refreshData();   // 地図が開いていれば即反映 (足あとの線は残る)
+  }));
+  modal.querySelectorAll('.pk-del').forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.id;
+    const pk = packs.find(x => x.id === id); if (!pk) return;
+    if (!confirm(tr(`👤 ${pk.name || ''} さんの思い出（写真${pk.photoN}枚・足あと${pk.trackN}点）を削除しますか？（相手の端末には影響しません）`,
+                    `Delete memories from ${pk.name || 'them'} (${pk.photoN} photos · ${pk.trackN} pts)? (Never affects their device.)`))) return;
+    if (await deletePeerPack(id)) openPeerPacksList();   // 一覧を作り直し
+  }));
 }
 
 // 訪問日(複数)を「動線」として地図に (1本タップでその日だけ明るく＋タイムライン連動, v122)。
@@ -8291,7 +8831,8 @@ document.getElementById('btnAdd').addEventListener('click', (e) => openImportMen
 document.getElementById('btnAnniv').addEventListener('click', openAnnivList);   // v121: 思い出の場所の一覧
 document.getElementById('btnAI').addEventListener('click', openAIModal);
 document.getElementById('btnLens').addEventListener('click', () => openLens('food'));   // v163: 🍜 食べ物を振り返る（意味レンズは食べ物だけに＝実機verdict）
-document.getElementById('btnRepho').addEventListener('click', openRephotoList);         // v163: 📐 重ね撮りの一覧
+document.getElementById('btnRepho').addEventListener('click', openRephotoList);
+document.getElementById('btnPacks').addEventListener('click', openPeerPacksList);   // v194: 🤝 もらった思い出 (日パック)         // v163: 📐 重ね撮りの一覧
 document.getElementById('btnInfo').addEventListener('click', openInfoModal);
 // v113: ⚙️ メニューのドロップダウン開閉。外クリック / 項目クリックで閉じる
 // (btnAdd だけは importMenu サブメニューを出すので閉じない＝anchor を残す)。
