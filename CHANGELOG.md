@@ -5,6 +5,37 @@
 
 ---
 
+## v208 — 🤖 Android が Google Play 内部テストで実機インストール成功（ロードマップ③ Android デビュー） (2026-07-13)
+
+**背景**
+- Play Developer 登録（$25＋本人確認）が 7/10 完了し「アプリを作成」が解錠、Pixel 7a も入手済み。残タスクは「アップロード鍵→署名付きAAB→内部テスト」だけだった（ビルド設定 codemagic.yaml/build.gradle は前セッションで完成済み）。
+
+**やったこと**
+- **アップロード鍵を生成**（keytool・`C:\Users\yutsu\Documents\madeleine-signing\madeleine-upload.jks`＝**リポ外**・自己署名・2053年まで有効・SHA-256 記録）。Play App Signing の「アップロード鍵」。
+- **Codemagic を使わず手元 Windows で署名付き AAB をビルド**（JDK21/SDK36）＝`sync:web → cap sync android → gradlew bundleRelease`。env で `CM_KEYSTORE_*` を渡し build.gradle の signingConfig を発火。成果物 `app-release.aab` 3.94MB・versionCode 1/versionName 1.0・プラグイン2つ（background-location / photo-library）確認。
+- Play Console で内部テスト版リリース作成→AABアップロード（警告2件＝テスター未指定・R8 mapping なし＝どちらも無害）→メーリングリスト（内部テスター・自分のGmail）→オプトインURL→**Pixel 7a にインストール成功**。
+
+**ハマったところ**
+- Codemagic の Android keystore 登録UIで詰まる → **手元ビルドに切替**（Android Studio 導入済みで Codemagic 不要と判明）。
+- `gradlew.bat` はカレントディレクトリをプロジェクトとして見る → リポ直下実行だと「Run gradlew init」で失敗。cmd も cwd の .bat を PATH で拾わず「not recognized」→ **フルパス指定＋cwd=android** で解決。
+- `versionCode (System.getenv("BUILD_NUMBER") ?: "1").toInteger()` が **ローカル（BUILD_NUMBER 未設定）で「Value is null」**。Groovy の Elvis とメソッド呼び出しの結合順で `versionCode(null)` になり得た → `def _buildNum = System.getenv("BUILD_NUMBER"); versionCode _buildNum ? _buildNum.toInteger() : 1` に修正（CI は数値・ローカルは1の両対応・**CI 挙動は不変**）。
+
+**結果 / 観察**
+- ユーザー「アプリはインストールできました！！！」＝Android 実機に Play 経由で初導入。「小さな修正はありそう」＝実機FBの入口。
+- 手元ビルドが本番トラックで受理＝**Android は Windows で完結可能**（Codemagic 依存を切れる）。
+
+**教訓**
+- Android リリースビルドは Windows 手元で完結できる（Codemagic は iOS 専用でよい）。鍵はリポ外に置き env で注入＝public リポでも安全。
+- Capacitor の build.gradle にある `?: "1"` 系ワンライナーは BUILD_NUMBER 前提＝**ローカルビルドで初めて露呈するパース罠**。
+
+**残課題 / 次の方向**
+- **実機FBの「小さな修正」**（ユーザーが触って気づいた点・次セッションで具体化）。
+- 「アプリのコンテンツ」入力（プライバシーポリシー / データセーフティ / コンテンツレーティング / 対象年齢）＝内部テストは通ったが**製品版公開には必須**。
+- ストア掲載文（日英）＋スクショ（café ヒーロー版を Android サイズに流用）。
+- 次回以降の AAB は **versionCode を増やす**（Codemagic は BUILD_NUMBER 自動・手元なら env 指定 or 手で採番）。
+
+---
+
 ## v207 — ✏️ 手書き点に「🕒時刻の手入力＝アンカー」「✥モーダルから移動」 (2026-07-13)
 
 **背景（v206 実機FB）**

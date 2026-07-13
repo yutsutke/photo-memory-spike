@@ -9,7 +9,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // versionCode は CI（Codemagic）の連番 BUILD_NUMBER を採番＝Play へのアップロードは単調増加。
         // ローカル（env 無し）は 1 に落ちる＝手元 debug/emulator は従来どおり（Play には出さない）。
-        versionCode (System.getenv("BUILD_NUMBER") ?: "1").toInteger()
+        def _buildNum = System.getenv("BUILD_NUMBER")
+        versionCode _buildNum ? _buildNum.toInteger() : 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
