@@ -14,7 +14,7 @@ import java.util.UUID
 object BgLocationStore {
     private const val PREFS = "pms_bgloc"
     private const val KEY_BUF = "buffer"    // JSON array 文字列
-    private const val KEY_MODE = "mode"     // "off" | "important" | "frequent"
+    private const val KEY_MODE = "mode"     // "off" | "50"/"150"/"500"（旧 important/frequent も互換）
     private const val MAX_POINTS = 5000     // 暴走防止の上限 (iOS と同じ)
     private val lock = Any()
 

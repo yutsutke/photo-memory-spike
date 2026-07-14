@@ -14,7 +14,7 @@ final class BackgroundLocationManager: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     private let defaults = UserDefaults.standard
     private let bufKey = "pms_bgloc_buffer"   // 記録点のバッファ（[[String:Any]]）
-    private let modeKey = "pms_bgloc_mode"     // "off" | "important" | "frequent"
+    private let modeKey = "pms_bgloc_mode"     // "off" | "50"/"150"/"500"（旧 important/frequent も互換）
     private var wantsAlways = false
 
     private override init() {
@@ -65,20 +65,23 @@ final class BackgroundLocationManager: NSObject, CLLocationManagerDelegate {
 
     private func resumeFromSavedMode() {
         let mode = defaults.string(forKey: modeKey) ?? "off"
-        if mode == "important" || mode == "frequent" { applyMode(mode) }
+        if mode != "off" { applyMode(mode) }   // v211: 距離値/旧値どちらも applyMode が解釈
     }
 
     private func applyMode(_ mode: String) {
         manager.stopMonitoringSignificantLocationChanges()
         manager.stopUpdatingLocation()
-        if mode == "important" {
+        // v211: 距離モード（"50"/"150"/"500"）。旧値 important→500 / frequent→50 を互換で受ける。
+        let m = (mode == "important") ? "500" : (mode == "frequent") ? "50" : mode
+        if m == "500" {
+            // 約500m・SLC＝基地局ベースで電池にやさしい・アプリ完全終了でも復帰
             manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
             if CLLocationManager.significantLocationChangeMonitoringAvailable() {
                 manager.startMonitoringSignificantLocationChanges()
             }
-        } else if mode == "frequent" {
+        } else if let dist = Double(m) {   // "50" / "150"
             manager.desiredAccuracy = kCLLocationAccuracyBest
-            manager.distanceFilter = 25
+            manager.distanceFilter = dist   // その距離動いたら1点＝静止中は間引かれる
             manager.startUpdatingLocation()
             if CLLocationManager.significantLocationChangeMonitoringAvailable() {
                 manager.startMonitoringSignificantLocationChanges()   // 完全終了からの復帰の保険
@@ -112,7 +115,7 @@ final class BackgroundLocationManager: NSObject, CLLocationManagerDelegate {
             manager.requestAlwaysAuthorization()   // WhenInUse が下りたら Always に昇格要求
         }
         let mode = defaults.string(forKey: modeKey) ?? "off"
-        if mode == "important" || mode == "frequent" { applyMode(mode) }
+        if mode != "off" { applyMode(mode) }   // v211: 距離値/旧値どちらも applyMode が解釈
     }
 
     private static func string(_ s: CLAuthorizationStatus) -> String {
@@ -151,7 +154,7 @@ public class BackgroundLocationPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func start(_ call: CAPPluginCall) {
-        let mode = call.getString("mode") ?? "important"
+        let mode = call.getString("mode") ?? "500"
         DispatchQueue.main.async { BackgroundLocationManager.shared.start(mode) }
         call.resolve(["ok": true, "status": BackgroundLocationManager.shared.statusString()])
     }

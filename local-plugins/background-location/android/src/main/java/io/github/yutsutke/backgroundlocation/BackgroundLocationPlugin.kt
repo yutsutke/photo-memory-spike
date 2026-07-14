@@ -16,7 +16,7 @@ import com.getcapacitor.annotation.PermissionCallback
  * Capacitor ブリッジ (薄い窓口)。本体は BgLocationService + BgLocationStore。
  * iOS (BackgroundLocationPlugin.swift) と同じ契約:
  *   requestAlways() -> { status }        // 位置権限 (+33+ は通知権限) を要求
- *   start({mode})   -> { ok, status }    // mode: "important" | "frequent"
+ *   start({mode})   -> { ok, status }    // mode: "50"/"150"/"500"（旧 important/frequent も互換）
  *   stop()          -> { ok }
  *   drain()         -> { points: [{id, t, lat, lng, acc}] }
  *   status()        -> { status }        // always|whenInUse|denied|restricted|notDetermined
@@ -40,7 +40,7 @@ class BackgroundLocationPlugin : Plugin() {
     /** 起動時 (プロセス再生成を含む): モードが ON のままなら再アーム (iOS の resumeFromSavedMode と同じ)。 */
     override fun load() {
         val mode = BgLocationStore.mode(context)
-        if ((mode == "important" || mode == "frequent") && BgLocationService.hasLocationPermission(context)) {
+        if (mode != "off" && BgLocationService.hasLocationPermission(context)) {   // v211: off 以外はオン
             BgLocationService.start(context, mode)
         }
     }
@@ -66,14 +66,14 @@ class BackgroundLocationPlugin : Plugin() {
     private fun permsCallback(call: PluginCall) {
         if (BgLocationService.hasLocationPermission(context)) {
             val mode = BgLocationStore.mode(context)
-            if (mode == "important" || mode == "frequent") BgLocationService.start(context, mode)
+            if (mode != "off") BgLocationService.start(context, mode)
         }
         call.resolve(JSObject().put("status", statusString()))
     }
 
     @PluginMethod
     fun start(call: PluginCall) {
-        val mode = call.getString("mode") ?: "important"
+        val mode = call.getString("mode") ?: "500"
         BgLocationStore.setMode(context, mode)
         if (BgLocationService.hasLocationPermission(context)) {
             BgLocationService.start(context, mode)

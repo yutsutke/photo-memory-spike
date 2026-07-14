@@ -71,7 +71,7 @@ class BgLocationService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // STICKY 再起動 (intent=null) は保存モードから復元 = OS の kill から「閉じても記録」を守る
         val mode = intent?.getStringExtra(EXTRA_MODE) ?: BgLocationStore.mode(this)
-        if ((mode != "important" && mode != "frequent") || !hasLocationPermission(this)) {
+        if (mode == "off" || !hasLocationPermission(this)) {   // v211: off 以外(距離値/旧値)はオン
             stopSelf()
             return START_NOT_STICKY
         }
@@ -100,17 +100,20 @@ class BgLocationService : Service() {
     private fun requestUpdates(mode: String) {
         removeUpdates()
         val client = fused ?: LocationServices.getFusedLocationProviderClient(this).also { fused = it }
-        val req = if (mode == "important") {
+        // v211: 距離モード（"50"/"150"/"500"）。旧値 important→500 / frequent→50 を互換で受ける。
+        val m = when (mode) { "important" -> "500"; "frequent" -> "50"; else -> mode }
+        val req = if (m == "500") {
             // iOS SLC 相当: 基地局/Wi-Fi 精度・500m 動いたら1点・電池ほぼ無コスト
             LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 180_000L)
                 .setMinUpdateIntervalMillis(60_000L)
                 .setMinUpdateDistanceMeters(500f)
                 .build()
         } else {
-            // iOS distanceFilter=25 相当: 高精度・25m 動いたら1点
+            // "50" / "150": 高精度・その距離動いたら1点＝静止中は間引かれる
+            val dist = m.toFloatOrNull() ?: 50f
             LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 20_000L)
                 .setMinUpdateIntervalMillis(10_000L)
-                .setMinUpdateDistanceMeters(25f)
+                .setMinUpdateDistanceMeters(dist)
                 .build()
         }
         val cb = object : LocationCallback() {
@@ -125,7 +128,7 @@ class BgLocationService : Service() {
             client.requestLocationUpdates(req, cb, Looper.getMainLooper())
             // 開始直後の1点 (web の「開いた瞬間の1点」/ iOS の即時 fix と同じ手触り。静止中のデスクテストでも点が出る)
             client.getCurrentLocation(
-                if (mode == "frequent") Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                if (m == "500") Priority.PRIORITY_BALANCED_POWER_ACCURACY else Priority.PRIORITY_HIGH_ACCURACY,
                 null
             ).addOnSuccessListener { loc ->
                 if (loc != null) BgLocationStore.append(this, loc.latitude, loc.longitude, loc.accuracy, loc.time)
@@ -154,11 +157,13 @@ class BgLocationService : Service() {
             nm.createNotificationChannel(ch)
         }
         val title = if (ja) "位置を記録中" else "Logging location"
-        val text = if (mode == "frequent") {
-            if (ja) "🛰️ こまめに（端末内だけ・外部送信なし）" else "🛰️ Frequent (on-device only, nothing sent out)"
-        } else {
-            if (ja) "🚶 重要な移動のみ（端末内だけ・外部送信なし）" else "🚶 Major moves only (on-device only, nothing sent out)"
+        val m = when (mode) { "important" -> "500"; "frequent" -> "50"; else -> mode }
+        val label = when (m) {
+            "500" -> if (ja) "🚶 ざっくり（約500m）" else "🚶 Coarse (~500m)"
+            "150" -> if (ja) "🚶 ふつう（150m）" else "🚶 Medium (150m)"
+            else  -> if (ja) "🛰️ こまかく（50m）" else "🛰️ Fine (50m)"
         }
+        val text = if (ja) "$label ・端末内だけ・外部送信なし" else "$label · on-device only, nothing sent out"
         val builder = if (Build.VERSION.SDK_INT >= 26) {
             Notification.Builder(this, CHANNEL_ID)
         } else {
