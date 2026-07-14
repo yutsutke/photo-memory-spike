@@ -319,6 +319,11 @@
   .rp-row .rp-name { color: #fff; font-size: 15px; font-weight: 700; }
   .rp-row .rp-meta { color: #8a8a8a; font-size: 12px; margin-top: 3px; }
   .repho-err { color: #f88; font-size: 13px; text-align: center; padding: 24px 18px; line-height: 1.7; }
+  /* v215: カメラ失敗の案内＝stage を壊さず重ねる（🔄で復帰できる）。Android は権限回復導線つき */
+  .repho-errbox { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; }
+  .repho-err-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; padding: 0 18px; }
+  .repho-err-btn { background: rgba(40,40,44,0.95); color: #eee; border: 1px solid rgba(255,255,255,0.25); border-radius: 18px; padding: 10px 18px; font-size: 13px; line-height: 1; cursor: pointer; }
+  .repho-err-btn:active { background: rgba(60,60,66,0.95); }
   /* v165: 閉じる＝右上の円ボタン（旧ヘッダの代わり） */
   .repho-x { position: absolute; top: calc(10px + var(--sat)); right: 12px; z-index: 7; width: 42px; height: 42px; border-radius: 50%; background: rgba(20,20,20,0.55); color: #fff; border: 1px solid rgba(255,255,255,0.25); font-size: 16px; line-height: 1; cursor: pointer; }
   /* v165: 下部＝グラデの浮き UI（スライダー＋シャッター）。映像の上に重なる＝黒帯なし */
@@ -807,7 +812,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.165 (v214：⚙使い方・情報を主要機能に更新（🛰️位置ロガー/✏️手書き/📍思い出の場所/🎞️重ね撮り/🍜食べ物/🤝もらった思い出を追記）＋バージョン履歴を5版に刈り込み｜v213：📍思い出の場所を地図で開くと囲んだ範囲を円で表示｜v212：🛰️位置ロガーのモード説明を距離特性だけに統一｜v211：🛰️位置ロガーを距離モード50/150/500m（静止中は間引き）に｜v210：📤共有ファイル名を一言＋日時でかぶり解消) · 2026-07-14';
+const BUILD = 'phase3.166 (v215：🎞️Androidのカメラ権限を確実に＝開く前にアプリ自身がリクエスト＋拒否時は「設定を開く/もう一度」で回復｜v214：⚙使い方・情報を主要機能に更新＋バージョン履歴を5版に刈り込み｜v213：📍思い出の場所を地図で開くと囲んだ範囲を円で表示｜v212：🛰️位置ロガーのモード説明を距離特性だけに統一｜v211：🛰️位置ロガーを距離モード50/150/500m（静止中は間引き）に) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -8567,23 +8572,60 @@ function closeRephotoCamera() {
   rephoState = null;
 }
 
+// v215: カメラ失敗の案内。stage の中身 (video/ghost) を壊さず errbox を重ねる＝🔄もう一度 で復帰できる。
+//   Android native は「アプリの権限」の文言＋⚙設定を開く（恒久 deny からの回復導線＝v208/vc2 実機FB
+//   「カメラ許可を確認して」のまま先に進めない）。設定で権限を変えると OS がアプリを再起動する→
+//   次回起動はプリリクエストが granted で即通る。
+function rephoCamError(detail) {
+  if (!rephoState) return;
+  const stage = rephoState.overlay.querySelector('.repho-stage');
+  const old = stage.querySelector('.repho-errbox'); if (old) old.remove();
+  const canSettings = (NATIVE_PLATFORM === 'android' && PhotoLib);
+  const msg = IS_NATIVE
+    ? tr('カメラを使えませんでした。このアプリのカメラ権限を許可してください。', 'Could not access the camera. Please allow the camera permission for this app.')
+    : tr('カメラを使えませんでした。ブラウザのカメラ許可を確認してください。', 'Could not access the camera. Please check the browser camera permission.');
+  const box = document.createElement('div');
+  box.className = 'repho-errbox';
+  box.innerHTML =
+    `<div class="repho-err">${msg}` + (detail ? `<br><span style="color:#888;font-size:11px;">${detail}</span>` : '') + `</div>` +
+    `<div class="repho-err-actions">` +
+      (canSettings ? `<button type="button" class="repho-err-btn" data-act="settings">⚙ ${tr('設定を開く', 'Open settings')}</button>` : '') +
+      `<button type="button" class="repho-err-btn" data-act="retry">🔄 ${tr('もう一度', 'Try again')}</button>` +
+    `</div>`;
+  box.addEventListener('click', (e) => {
+    const act = e.target && e.target.dataset ? e.target.dataset.act : null;
+    if (act === 'settings') { try { PhotoLib.openAppSettings(); } catch {} }
+    else if (act === 'retry') { box.remove(); startRephotoStream(); }
+  });
+  stage.appendChild(box);
+}
+
 async function startRephotoStream() {
   if (!rephoState) return;
   try { (rephoState.stream ? rephoState.stream.getTracks() : []).forEach(t => t.stop()); } catch {}
   rephoState.stream = null;
   const video = rephoState.overlay.querySelector('video');
+  // v215: Android は getUserMedia の前にアプリ自身でカメラ権限を確保する。Capacitor の
+  //   WebChromeClient 自動フロー任せだと、拒否が残った端末ではダイアログなしで Permission denied
+  //   になり回復できない (v208/vc2 実機FB)。授与済みなら即 granted＝ダイアログは出ない。
+  if (NATIVE_PLATFORM === 'android' && PhotoLib) {
+    let camst = null;
+    try { camst = (await PhotoLib.requestCameraAccess() || {}).status; } catch {}   // 旧バイナリ (メソッド未搭載) は従来フローに任せる
+    if (!rephoState) return;
+    if (camst && camst !== 'granted') { rephoCamError(tr('権限が拒否されています', 'Permission is denied')); return; }
+  }
   let stream = null;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: rephoState.facing }, audio: false });
   } catch (e1) {
     try { stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); } catch (e2) {
       if (!rephoState) return;
-      const st = rephoState.overlay.querySelector('.repho-stage');
-      st.innerHTML = `<div class="repho-err">${tr('カメラを使えませんでした。ブラウザのカメラ許可を確認してください。', 'Could not access the camera. Please check the browser camera permission.')}<br><span style="color:#888;font-size:11px;">${e2?.message || e2}</span></div>`;
+      rephoCamError(e2?.message || e2);
       return;
     }
   }
   if (!rephoState) { try { stream.getTracks().forEach(t => t.stop()); } catch {} return; }   // 待ち中に閉じられた
+  const ebox = rephoState.overlay.querySelector('.repho-stage .repho-errbox'); if (ebox) ebox.remove();   // 復帰成功＝案内を消す
   rephoState.stream = stream;
   video.srcObject = stream;
   video.muted = true;

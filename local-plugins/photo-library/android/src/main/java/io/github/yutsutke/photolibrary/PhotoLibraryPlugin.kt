@@ -3,12 +3,14 @@ package io.github.yutsutke.photolibrary
 import android.Manifest
 import android.content.ContentUris
 import android.content.ContentValues
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Base64
 import android.util.Size
 import androidx.exifinterface.media.ExifInterface
@@ -59,7 +61,8 @@ import java.util.concurrent.Executors
                 "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
             ]
         ),
-        Permission(alias = "mediaLocation", strings = ["android.permission.ACCESS_MEDIA_LOCATION"])
+        Permission(alias = "mediaLocation", strings = ["android.permission.ACCESS_MEDIA_LOCATION"]),
+        Permission(alias = "camera", strings = [Manifest.permission.CAMERA])
     ]
 )
 class PhotoLibraryPlugin : Plugin() {
@@ -95,6 +98,44 @@ class PhotoLibraryPlugin : Plugin() {
         val st = currentStatus()
         // リクエスト直後の非許可は denied 扱い (iOS の requestAuthorization 後と同じ語彙)
         call.resolve(JSObject().put("status", if (st == "notDetermined") "denied" else st))
+    }
+
+    // ---------------- requestCameraAccess / openAppSettings (v215) ----------------
+    // 🎞️ 重ね撮り (getUserMedia) 用。Capacitor 8 の BridgeWebChromeClient は CAMERA が
+    // manifest 宣言済みならランタイム権限→grant を自動処理するはずだが、実機 (v208/vc2 FB) で
+    // ダイアログが出ず Permission denied になるケースが出た＝一度拒否が残ると回復導線がない。
+    // → getUserMedia の前にアプリ自身が権限を確保する (授与済みなら即 granted・ダイアログなし)。
+
+    @PluginMethod
+    fun requestCameraAccess(call: PluginCall) {
+        if (hasPerm(Manifest.permission.CAMERA)) {
+            call.resolve(JSObject().put("status", "granted"))
+            return
+        }
+        requestPermissionForAlias("camera", call, "cameraCallback")
+    }
+
+    @PermissionCallback
+    private fun cameraCallback(call: PluginCall) {
+        call.resolve(
+            JSObject().put("status", if (hasPerm(Manifest.permission.CAMERA)) "granted" else "denied")
+        )
+    }
+
+    /** 恒久 deny (「今後表示しない」/2回拒否) からの回復用＝OS のアプリ情報画面を開く。 */
+    @PluginMethod
+    fun openAppSettings(call: PluginCall) {
+        try {
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", context.packageName, null)
+            )
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject("open settings failed: ${e.message}")
+        }
     }
 
     private fun primaryAlias(): String = when {

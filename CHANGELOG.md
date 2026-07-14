@@ -5,6 +5,32 @@
 
 ---
 
+## v215 — 🎞️ Android カメラ権限を確実に＝開く前にアプリ自身がリクエスト＋「設定を開く」回復導線 (2026-07-15)
+
+**背景（実機FB）**
+- v209 で AndroidManifest に CAMERA を宣言し vc2 に載せたが、**実機で依然「カメラを使えませんでした（Permission denied）」**のスクショが届いた。
+- 調査: **vc2 AAB のバイナリ検証で CAMERA 宣言は入っていた**（vc1=無し/vc2=有りを AAB 内 manifest の文字列で確認）＝コードは正しく、失敗は ①vc1 のままテストした か ②OS 権限ダイアログで拒否→以後ダイアログなしで即 deny（Android 11+ は2回拒否で恒久 deny）のどちらか。**どちらにせよ「拒否が残った端末に回復導線がない」ことが構造問題**。
+
+**設計判断**
+- **Capacitor の WebChromeClient 自動フロー任せをやめ、getUserMedia の前にアプリ自身が権限を確保する**: photo-library プラグインに `requestCameraAccess()`（授与済みなら即 granted・ダイアログなし）と `openAppSettings()`（OS のアプリ情報画面へ＝恒久 deny からの回復）を追加。alias "camera" を @CapacitorPlugin permissions に追加、既存の requestPermissionForAlias/@PermissionCallback 流儀を踏襲。
+- **JS**: `startRephotoStream()` の頭で Android native のみプリリクエスト。拒否なら `rephoCamError()`＝**stage を壊さず errbox を重ねる**（旧実装は st.innerHTML 上書きで video ごと破壊＝復帰不能だった）→「⚙ 設定を開く」「🔄 もう一度」ボタンつき。native の文言は「このアプリのカメラ権限」（旧「ブラウザの」は native で誤誘導）。メソッド未搭載の旧バイナリは try/catch で従来フローへ（安全策）。
+- 設定で権限を変えると OS がアプリを再起動する＝戻ったら閉じているが、次回開けばプリリクエストが granted で即通る。
+
+**結果 / 観察**
+- preview（web パス）: errbox 表示・🔄で再試行（getUserMedia 再要求を確認）・重複なし・video 温存・閉じて後始末、console 0。web は挙動不変（プリリクエストは Android native のみ）。
+- Kotlin は `:photo-library:compileDebugKotlin` 単体で EXIT=0（署名不要で検証）。
+- **native の実機確認は vc3 待ち**（AAB 署名ビルド→Play 内部テスト）。
+
+**教訓**
+- 「manifest 宣言＋フレームワーク自動フロー」は**一度拒否が残ると復元不能な袋小路**になりうる。権限は (1)自前で事前リクエスト (2)拒否時の設定導線 までワンセットで設計する（iOS 位置ロガーで学んだ「権限2段」の Android カメラ版）。
+- 配布バイナリの検証は**AAB の中身を直接見る**のが確実（`base/manifest/AndroidManifest.xml` は protobuf だが権限文字列は ASCII で探せる）＝「リポは直っている/ビルドに入ったか不明」を一発で切り分けられる。
+
+**残課題 / 次の方向**
+- vc3（BUILD_NUMBER=3）を署名ビルド→Play 内部テスト→実機でカメラ起動を確認（初回に OS ダイアログ→許可）。**署名 env の読み込みは資格情報保護のため Claude が直接実行できない**＝ユーザーのターミナルで CREDENTIALS.txt の env 設定→gradlew 実行（手順は TODO）。
+- 実機が「設定を開く」経由になった場合＝恒久 deny だった証拠（vc2 で一度拒否した可能性大）。
+
+---
+
 ## v214 — ⚙ 使い方・情報を主要機能に更新＋バージョン履歴を5版に刈り込み (2026-07-14)
 
 **背景（実機要望）**
