@@ -13,7 +13,8 @@
 
 ---
 
-> **🔧 セッション37（2026-07-14）＝Android 実機FB2点を native で修正（v209・phase3.160）。**
+> **🔧 セッション37（2026-07-14）＝Android 実機FB2点を native で修正（v209）＋📤共有ファイル名を「一言＋日時（秒まで）」に＝かぶり解消（v210）。phase3.161。**
+> - **＋ web v210**: 📤もらった思い出の書き出しファイル名を「一言＋日時（秒まで）」に（実機FB「1日に何度も渡すとファイルがかぶる」）＝旧は対象日 YYYYMMDD だけで衝突→書き出しダイアログに「📁 ファイル名の一言（任意）」欄を新設・`anohi-<一言>-<YYYYMMDD-HHmmss>.json`（sanitize・秒まででかぶらない・一言なしなら日時だけ）。preview 検証済（console 0・fname ユニット・入力欄DOM）。**web は GitHub Pages で即確認可**（iPhone Safari のダウンロード/共有）・native は次AAB（vc3）に乗る。詳細 CHANGELOG v210。
 > - **背景**: v208 の Play 内部テスト実機（2端末）で3点FB＝①上部の時計/電池と⚙/✕が重なり押せない（2端末中1つだけ＝新しい Android 端末で発現）②重ね撮りカメラ不可「カメラ許可を確認して」③古い端末で取り込みが遅い（Pixel は爆速）。
 > - **修正（native の①②・原因を裏取り済み）**: ①**カメラ**＝AndroidManifest は権限が INTERNET のみ＝CAMERA 未宣言が原因（Capacitor 8 の BridgeWebChromeClient は宣言があれば権限ダイアログ〜grant を自動処理・未宣言だと即 deny）→`CAMERA`＋`uses-feature(camera required=false)` を1行追加（MainActivity 改造不要）。②**ステータスバー重なり**＝targetSdk36 で Capacitor 8 は edge-to-edge 既定・Android WebView<140 で `env(safe-area-inset-*)` が 0 になる→Capacitor の SystemBars が注入する `var(--safe-area-inset-*)` を `:root` の `--sat/--sab/--sar = max(env(...), var(...))` でフォールバック併用（env 使用16箇所を var 化・iOS は env が勝ち無影響・**CSS のみ**）。preview で `--sat=max(0px,0px)` 解決・トップ描画・console 0 を確認。cap copy 済（www/native アセット反映）。
 > - **▶ 次の一手**: 1) **AAB を versionCode を増やして作り直す**（手元 Windows＝env `BUILD_NUMBER=2` 等を渡して `gradlew bundleRelease`／Play は単調増加必須）→Play 内部テスト更新→**実機で①②を確認**（カメラ許可ダイアログ→撮影できるか・上部の重なり解消）。2) ③**取り込み速度**（古い端末）＝web の残課題（進捗の見せ方/チャンクをこまめに/メモリ解放。既に 50枚バッチ＋停止/差分再開はある）。3) 「アプリのコンテンツ」入力（プライバシー/データセーフティ/レーティング/対象年齢＝製品版公開の必須）。
