@@ -13,10 +13,11 @@
 
 ---
 
-> **🔧 セッション38（2026-07-15）＝🎞️ Android カメラ権限を確実に（v215）。phase3.166。**
+> **🔧 セッション38（2026-07-15）＝🎞️ Android カメラ権限を確実に（v215）＋🤖 ステータスバー重なりの真因解消（v216）。phase3.167。**
+> - **v216（ステータスバー重なり・実機FB「Pixel 7a だけ重なる」）**: 真因＝Capacitor 8 SystemBars は **WebView≥140＋viewport-fit=cover でパススルーモード**（WebView がバー裏まで描画）、古い WebView は padded モード（native が padding）＝**端末で挙動が割れる理由**。v209 はオーバーレイ 16 箇所を直したが**トップ画面の `header`・地図の ←/📅/ポップ/Leaflet/囲むバナー**が漏れていた。→ `<head>` で Android native だけ `html.cap-android` を立て、CSS 6ルールを Android 限定で --sat 化。**iOS（contentInset=always が flow を押し下げ済み＝足すと二重）/web は 1px も不変**。preview 検証済（シミュレートで全シフト・復元で完全一致・console 0）。
 > - **実機FB**: vc2 相当でもカメラが「Permission denied」のスクショ。調査＝**vc2 AAB には CAMERA 宣言が入っていた**（AAB バイナリ検証で vc1=無/vc2=有）→ 失敗は「vc1 のままテスト」or「OS ダイアログで拒否→恒久 deny」＝どちらでも**拒否が残ると回復導線がない**のが構造問題。
 > - **v215**: photo-library プラグインに `requestCameraAccess()`＋`openAppSettings()` を追加し、**getUserMedia の前にアプリ自身が権限をリクエスト**（授与済みなら即 granted）。拒否時は errbox（stage 非破壊）に「⚙ 設定を開く」「🔄 もう一度」＝恒久 deny からも設定経由で復帰できる。preview 検証済（console 0・web 挙動不変）・Kotlin 単体コンパイル EXIT=0・cap sync 済。
-> - **▶ 次の一手＝vc3 を署名ビルド→Play 内部テスト→実機でカメラ確認**。署名 env の読み込み（CREDENTIALS.txt）は資格情報保護のため Claude が直接実行できない → **ユーザーのターミナルで**: CREDENTIALS.txt の env 設定を実行 → `cd android` → `$env:BUILD_NUMBER="3"` → `.\gradlew.bat bundleRelease` → `app\build\outputs\bundle\release\app-release.aab` を Play Console 内部テストへ（控え: `madeleine-signing\madeleine-1.0-vc3.aab`）。実機は ⚙情報モーダル末尾が **phase3.166** になっていれば vc3。カメラ初回は OS ダイアログ→「許可」。もし「設定を開く」が出たら恒久 deny だった証拠＝設定でカメラを許可→開き直し。
+> - **▶ 次の一手＝vc3 を署名ビルド→Play 内部テスト→実機で①カメラ②ステータスバー確認**。署名 env の読み込み（CREDENTIALS.txt）は資格情報保護のため Claude が直接実行できない → **ユーザーのターミナルで**: CREDENTIALS.txt の env 設定を実行 → `cd android` → `$env:BUILD_NUMBER="3"` → `.\gradlew.bat bundleRelease` → `app\build\outputs\bundle\release\app-release.aab` を Play Console 内部テストへ（控え: `madeleine-signing\madeleine-1.0-vc3.aab`）。実機は ⚙情報モーダル末尾が **phase3.167** になっていれば vc3。①カメラ初回は OS ダイアログ→「許可」（「設定を開く」が出たら恒久 deny だった証拠＝設定でカメラ許可→開き直し）②Pixel 7a のトップ header と地図 ←/📅 がバー下に来るか。
 >
 > **🔧 セッション37（2026-07-14）＝Android 実機FB2点を native で修正（v209）＋📤共有ファイル名を一言＋日時に（v210）＋🛰️位置ロガーを距離モード（オフ/50/150/500m）に（v211）＋モード説明を距離特性だけに統一（v212）＋📍思い出の場所に「囲んだ範囲」の円（v213）＋⚙使い方・情報を主要機能に更新＋BUILDを5版化（v214）。phase3.165。**
 > - **＋ web v210**: 📤もらった思い出の書き出しファイル名を「一言＋日時（秒まで）」に（実機FB「1日に何度も渡すとファイルがかぶる」）＝旧は対象日 YYYYMMDD だけで衝突→書き出しダイアログに「📁 ファイル名の一言（任意）」欄を新設・`anohi-<一言>-<YYYYMMDD-HHmmss>.json`（sanitize・秒まででかぶらない・一言なしなら日時だけ）。preview 検証済（console 0・fname ユニット・入力欄DOM）。**web は GitHub Pages で即確認可**（iPhone Safari のダウンロード/共有）・native は次AAB（vc3）に乗る。詳細 CHANGELOG v210。

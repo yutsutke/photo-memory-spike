@@ -8,6 +8,11 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>あの日 — 写真と足跡から蘇る</title>
+<script>
+/* v216: Android native の印。Capacitor の bridge JS は document-start 注入なので head で判定できる。
+   下の CSS の html.cap-android 群（ステータスバー重なり対策）だけが参照する。web/iOS は何もしない。 */
+try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() === 'android') document.documentElement.classList.add('cap-android'); } catch (e) {}
+</script>
 <style>
   :root {
     font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", sans-serif;
@@ -22,6 +27,18 @@
     --sar: max(env(safe-area-inset-right), var(--safe-area-inset-right, 0px));
   }
   * { box-sizing: border-box; }
+  /* v216: Android native (edge-to-edge パススルー＝WebView≥140 かつ viewport-fit=cover) では
+     flow コンテンツもステータスバー裏まで届く。iOS は contentInset=always が flow を押し下げるので
+     header に --sat を足すと二重になる＝html.cap-android（上の head スクリプト）で Android だけに当てる。
+     地図の ←/コントロール/Leaflet/囲むバナーは fixed オーバーレイの子＝v209 の 16 箇所の漏れ分。
+     web と「Capacitor が native 側 padding するモード」（WebView<140 等）は --sat=0 なので実質無変化。 */
+  html.cap-android header { padding-top: calc(10px + var(--sat)); }
+  html.cap-android .map-close { top: calc(10px + var(--sat)); }
+  html.cap-android .map-ctrlbar { top: calc(10px + var(--sat)); }
+  html.cap-android .mc-pop { top: calc(86px + var(--sat)); }
+  html.cap-android .encircle-banner { top: calc(10px + var(--sat)); }
+  html.cap-android .leaflet-top { top: var(--sat); }
+  @media (max-width: 719px) { html.cap-android .encircle-banner { top: calc(52px + var(--sat)); } }
   body { margin: 0; padding: 0; background: #111; color: #eee; min-height: 100vh; }
   header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #111; z-index: 10; }
   header h1 { font-size: 15px; margin: 0; flex: 1; min-width: 0; }
@@ -812,7 +829,7 @@
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.166 (v215：🎞️Androidのカメラ権限を確実に＝開く前にアプリ自身がリクエスト＋拒否時は「設定を開く/もう一度」で回復｜v214：⚙使い方・情報を主要機能に更新＋バージョン履歴を5版に刈り込み｜v213：📍思い出の場所を地図で開くと囲んだ範囲を円で表示｜v212：🛰️位置ロガーのモード説明を距離特性だけに統一｜v211：🛰️位置ロガーを距離モード50/150/500m（静止中は間引き）に) · 2026-07-15';
+const BUILD = 'phase3.167 (v216：🤖Androidのステータスバー重なりを解消＝トップのヘッダ/地図の←・コントロールを端末のバーぶん下げる（Pixel等の新WebViewだけで起きていた）｜v215：🎞️Androidのカメラ権限を確実に＝開く前にアプリ自身がリクエスト＋拒否時は「設定を開く/もう一度」で回復｜v214：⚙使い方・情報を主要機能に更新＋バージョン履歴を5版に刈り込み｜v213：📍思い出の場所を地図で開くと囲んだ範囲を円で表示｜v212：🛰️位置ロガーのモード説明を距離特性だけに統一) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。

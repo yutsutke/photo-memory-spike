@@ -5,6 +5,36 @@
 
 ---
 
+## v216 — 🤖 Android ステータスバー重なりの真因解消＝header と地図上部 UI に cap-android ゲートで --sat (2026-07-15)
+
+**背景（実機FB）**
+- 「画面が端まで開き、アプリのトップボタンが時計やバッテリーに重なり押せない。**2台のうち Pixel 7a だけ重なる**」。v209 で 16 箇所を --sat 化したのに直っていなかった。
+
+**真因（Capacitor 8 SystemBars.java を精読して確定）**
+- SystemBars は **WebView≥140 かつ viewport-fit=cover**（本アプリは該当）で「**パススルーモード**」＝native 側 padding を 0 にして WebView をステータスバー裏まで描画し、env()/var() 両方に実値を流す。**WebView<140 や cover 無しは「padded モード」＝native が padding**（重ならない・変数は 0）。
+- **端末で挙動が割れる理由そのもの**: Pixel 7a（新 WebView）＝パススルー＝裏まで描画、もう1台（古い WebView）＝padded＝重ならない。
+- v209 の漏れ: オーバーレイ 16 箇所は直したが、**トップ画面の `header` 自体**（および地図の `.map-close` / `.map-ctrlbar` / `.mc-pop` / `.encircle-banner` / Leaflet コントロール）に --sat が無かった。
+- **iOS で header に --sat を足せない理由**: iOS は `contentInset: always` が flow コンテンツを native に押し下げ済み＝env() も実値を返すので足すと**二重インセット**になる。fixed オーバーレイは contentInset の影響外だから 16 箇所は env() が必要だった＝flow と fixed で必要性が割れるのが本質。
+
+**設計判断**
+- `<head>` 先頭の1行スクリプトで **Android native のときだけ `html.cap-android` クラス**を立て（Capacitor bridge は document-start 注入なので head で判定可能）、CSS は `html.cap-android header { padding-top: calc(10px + var(--sat)) }` 等**6ルールを Android 限定**で当てる。**iOS/web は 1px も変わらない**（iOS 1.6 審査トレイン中に blast radius を最小化）。
+- padded モードの Android でも --sat=0 なので実質無変化＝全分岐で正しい。
+
+**結果 / 観察（preview・console 0）**
+- 素の web: header 10px / map-close 10px / leaflet 0px（完全無変化）。
+- cap-android＋`--safe-area-inset-top:30px` 注入シミュレート: header 40px / map-close 40px / ctrlbar 40px / leaflet 30px＝全シフト。クラス除去で完全復元。
+- **実機（Pixel 7a）は vc3 待ち**。
+
+**教訓**
+- 「同じビルドなのに端末で挙動が割れる」時は**フレームワークの分岐条件を原典（SystemBars.java）で読む**のが最短。WebView バージョン×viewport-fit で3モードに分かれるのは、ドキュメントより実装が正確。
+- safe-area は「fixed オーバーレイ＝env() 必要」「flow コンテンツ＝プラットフォームごとに native 処理の有無が違う」の2階建て。**iOS で動くから Android も、は通用しない**（contentInset は iOS にしかない）。
+
+**残課題 / 次の方向**
+- vc3 実機で確認: トップの header がバー下に来るか・地図の ←/📅 が押せるか。
+- Android の下端（ジェスチャバー）と flow コンテンツの重なりは未報告＝様子見。
+
+---
+
 ## v215 — 🎞️ Android カメラ権限を確実に＝開く前にアプリ自身がリクエスト＋「設定を開く」回復導線 (2026-07-15)
 
 **背景（実機FB）**
