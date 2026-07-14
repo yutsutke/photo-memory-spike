@@ -5,6 +5,38 @@
 
 ---
 
+## v209 — 🤖 Android 実機FB2点を native で修正（🎞️カメラ権限 / ステータスバー重なり） (2026-07-14)
+
+**背景（Android 実機FB・2端末）**
+- v208 で Play 内部テスト実機インストール成功→ユーザーが2端末で試用。3点のFB:
+  1. **2端末中1つで画面上部の時計/電池と⚙/✕が重なり押せない**（もう1つは無事）。
+  2. **重ね撮りカメラが使えない**（「カメラ許可を確認して」と出る）。
+  3. **古い端末で取り込みが遅い**（Pixel は爆速）。
+- native の①②をこのセッションで修正。③は web の残課題として持ち越し。
+
+**設計判断**
+- **②カメラ（原因＝権限未宣言）**: `getUserMedia` の失敗は AndroidManifest に CAMERA 権限が無かったため。Capacitor 8 の `BridgeWebChromeClient.onPermissionRequest` は「Manifest に宣言があればランタイム権限ダイアログを出して `request.grant()`」まで自動でやる（未宣言だと即 deny）＝**Manifest に `CAMERA`＋`uses-feature(camera required=false)` を足すだけ**で通る（MainActivity のカスタム WebChromeClient は不要）。required=false でカメラ非搭載端末も配信対象に残す。iOS は WKWebView が Info.plist で自動処理していたので今まで露見しなかった＝**iOS/Android の権限仲介の非対称**。
+- **①ステータスバー（原因＝edge-to-edge × env の欠落）**: targetSdk36 で Capacitor 8 は edge-to-edge が既定＝WebView が上下バーの裏まで描画。ところが **Android WebView<140 のバグで `env(safe-area-inset-*)` が 0** になり上部 UI がステータスバーに潜る（新しい Android 端末で発現・古い端末は従来レイアウトで無事＝「2端末中1つだけ」の正体）。Capacitor 本体の `SystemBars` プラグイン（無条件で登録・`insetsHandling` 既定 css）が `var(--safe-area-inset-*)` を注入しているので、**`:root` に `--sat/--sab/--sar = max(env(...), var(--safe-area-inset-*, 0px))` を定義し、`env(safe-area-inset-*)` 使用16箇所を `var(--sa*)` に置換**。iOS は env が正値で勝ち無影響、Android は Capacitor 注入値が効く。プラグイン追加も MainActivity 改造も不要＝**CSS のみ**（公式ドキュメントも「注入する var をフォールバックに使え」と明記）。
+
+**ハマったところ**
+- **置換順序の罠**: `env→var` の全置換を先にやり、`:root` の `max(env(...))` 定義を後に足す。逆だと :root 内の `env()` まで置換され `--sat: max(var(--sat)…)` の自己参照ループになる。
+- BUILD 文字列末尾の中黒が `·`(U+00B7) で Edit 不一致 → 末尾 `2026-07-12';` で一意置換した。
+
+**結果 / 観察**
+- preview（デスクトップ）で `--sat` が `max(0px, 0px)` に解決・`var(--sat)` 参照も 0px・トップ描画正常・console 0＝**CSS 構文健全・web/iOS 回帰なし**（デスクトップは env も var も 0 で従来と同値）。
+- 実機 Android では Capacitor が var に実値を注入 → `max(0px, 実値)` で余白確保する理論。**実機の重なり解消とカメラ動作はユーザー確認待ち**（preview は Capacitor 注入も edge-to-edge も再現しない）。
+
+**教訓**
+- **Capacitor は Android で `env(safe-area-inset-*)` を保証しない**（WebView<140 のバグ）。iOS だけ env で safe-area を組むと edge-to-edge の新しい Android 端末で上部 UI が崩れる → 本体 `SystemBars` 注入の `var(--safe-area-inset-*)` を `max()` でフォールバック併用するのが公式解。`max(env, var)` なら iOS 無影響で両対応。
+- WebView の `getUserMedia` は **Manifest 宣言だけで Capacitor が権限を仲介**（プラグイン不要）。iOS=Info.plist 自動 / Android=Manifest 宣言必須、の非対称を覚えておく。
+
+**残課題 / 次の方向**
+- **次AABは versionCode を増やす**（手元は env `BUILD_NUMBER=2` 等を渡して `gradlew bundleRelease`／Play は単調増加必須）→内部テスト更新→実機で①②を確認。
+- ③取り込み速度（古い端末）＝web の残課題。既に 50枚バッチ＋停止/差分再開はある→「進捗の見せ方・チャンクをこまめに・メモリ解放」を実機の手触りで詰める。
+- 「アプリのコンテンツ」入力（プライバシー/データセーフティ/レーティング/対象年齢＝製品版公開の必須）は未着手のまま。
+
+---
+
 ## v208 — 🤖 Android が Google Play 内部テストで実機インストール成功（ロードマップ③ Android デビュー） (2026-07-13)
 
 **背景**

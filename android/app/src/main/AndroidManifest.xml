@@ -38,4 +38,11 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 🎞️ 重ね撮り (getUserMedia)。Capacitor 8 の BridgeWebChromeClient は
+         この宣言を前提に、onPermissionRequest でランタイム権限ダイアログ→request.grant()
+         を自動処理する（未宣言だと即 deny＝web の「カメラ許可を確認して」エラー）。
+         required=false でカメラ非搭載端末も配信対象に残す（重ね撮りは付加機能）。 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 </manifest>
