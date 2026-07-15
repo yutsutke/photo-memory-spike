@@ -38,6 +38,9 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
   html.cap-android .mc-pop { top: calc(86px + var(--sat)); }
   html.cap-android .encircle-banner { top: calc(10px + var(--sat)); }
   html.cap-android .leaflet-top { top: var(--sat); }
+  /* v220: 拡大表示（全画面フル画像）は Android のエッジtrue描画でステータスバー裏まで伸び、写真がバッテリー/時計と重なる。
+     deck の上端を --sat 下げて写真をステータスバー直下から表示（上帯は overlay の黒＝電池が黒地に乗って読める）。iOS/web は無影響。 */
+  html.cap-android .full-deck { top: var(--sat); }
   @media (max-width: 719px) { html.cap-android .encircle-banner { top: calc(52px + var(--sat)); } }
   body { margin: 0; padding: 0; background: #111; color: #eee; min-height: 100vh; }
   header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #111; z-index: 10; }
@@ -697,9 +700,11 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 
   /* タイムライン シート (モバイル=下部から引き出す / PC=右サイドバー) */
   /* 折りたたみ時はハンドルだけ覗かせる。iOS の下端帯(ホームインジケータ)に隠れて掴めないのを防ぐため safe-area 分持ち上げる (v88) */
-  /* v217: 開いたシートの高さ。旧 78vh は ①Safari で vh がアドレスバーを畳んだ高さ基準＝実可視より高く算出され上部コントロールと重なる ②native では上に余白を残しすぎ「途中までしか上がらない」の二重問題だった。
-     → dvh(可視領域基準)で「上部コントロール(モバイル2段=top52px+高71px≒123px)＋余白」の固定 135px だけ空けて最大化。dvh 非対応の古い WebView は 80vh にフォールバック。 */
-  .timeline-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; background: #161616; border-top: 1px solid #333; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; max-height: 80vh; max-height: calc(100dvh - 135px); transform: translateY(calc(100% - 54px - var(--sab))); transition: transform 0.25s ease; }
+  /* v217→v220: 開いたシートの高さ。dvh(可視領域基準)で最大化。旧 vh は Safari でアドレスバー分ズレて上部コントロールと重なった。
+     v217 は上部コントロールぶん 135px 空けたが、実機FBで「できるだけ大きく・ステータスバー直下まで上げたい」→ v220 で
+     ステータスバー(--sat)＋8px だけ空けて最大化（開いた時は地図コントロールを覆う＝ハンドルをタップで畳めば戻る）。
+     --sat＝Android status bar / iOS notch / web 0。時計・電池には重ねない。dvh 非対応の古い WebView は 80vh にフォールバック。 */
+  .timeline-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; background: #161616; border-top: 1px solid #333; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; max-height: 80vh; max-height: calc(100dvh - var(--sat) - 8px); transform: translateY(calc(100% - 54px - var(--sab))); transition: transform 0.25s ease; }
   .timeline-sheet.open { transform: translateY(0); }
   /* v148: タイムラインの 一覧/写真 切替＋比べる */
   .tl-modebar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #262626; position: sticky; top: 0; background: #161616; z-index: 2; }
@@ -832,7 +837,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.170 (v219：🫧囲んで見るを「地図タップで中心→スライダーで半径」に（実機でドラッグが難しかったFB・📍いまの場所と同じUI）｜v218：ℹ️使い方の「連想の歩き方」を現行のスワイプUIに更新（3枚引く→1枚ずつ横スワイプ）｜v217：🗺️タイムラインのシートを可視領域基準(dvh)で最大化｜v216：🤖Androidのステータスバー重なりを解消｜v215：🎞️Androidのカメラ権限を確実に＝開く前にアプリ自身がリクエスト＋拒否時は回復導線) · 2026-07-15';
+const BUILD = 'phase3.171 (v220：🤖Android実機FB＝拡大表示をステータスバー直下から表示（電池と重ならない）＋タイムラインをステータスバー直下まで最大化｜v219：🫧囲んで見るを「地図タップで中心→スライダーで半径」に｜v218：ℹ️使い方の「連想の歩き方」を現行のスワイプUIに更新｜v217：🗺️タイムラインのシートを可視領域基準(dvh)で最大化｜v216：🤖Androidのステータスバー重なりを解消) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
