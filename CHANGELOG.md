@@ -5,6 +5,22 @@
 
 ---
 
+## v229 — 📊 自動差分取り込みでも区間計測を回す（v226 の入れ忘れ） (2026-07-15)
+
+**背景（エミュレータ実 E2E で発見）**
+- v226 の `impTimeReset()` を importFiles / importNativeLibrary には入れたが、**3つ目の入口＝runAutoImport（起動時/前面復帰の自動差分取り込み）に入れ忘れ**。エミュで 40枚が自動取り込みされたのに ⚙情報に 📊 が出ず発覚。日常運用では自動差分が主経路＝ここが計測されないと「古い端末の📊回収」が機能しない。
+
+**設計判断**
+- `runAutoImport` の importStats リセット直後に `impTimeReset()` を1行追加（他経路と同型）。
+
+**結果 / 観察（エミュレータ実機 E2E）**
+- 25枚追加→自動取り込み→バッチ [16,9]→**📊「25 photos, avg 47ms/photo（サムネ取得61・色18・保存17・変換7・重複4）」がアプリ内ログと ⚙情報に出た**。
+
+**教訓**
+- 「同時にリセットすべき状態」が増えたら入口の数だけ漏れの機会がある。importStats を触る場所＝3箇所（importFiles/importNativeLibrary/runAutoImport）に検索で総当たりすべきだった。**preview のモック E2E では2経路しか踏んでおらず、実機の「いつもの使い方」（自動差分）が3つ目を踏んで発見**＝経路網羅は入口列挙から。
+
+---
+
 ## v228 — 🚀 nativeサムネ取得をバッチ16枚×並列デコード＋パイプラインに (2026-07-15)
 
 **背景（実機FB③「古い端末で取り込みが遅い」の本丸）**
@@ -19,7 +35,7 @@
 **結果 / 観察**
 - Kotlin コンパイル EXIT=0。web ロード・console 0。
 - **preview で「iframe に `window.Capacitor` モックを注入してから index.html を document.write」＝IS_NATIVE=true で本物の importNativeLibrary を E2E**：45枚→fast-track 6枚が 2019〜2025 に分散（v227 も同時検証）・残り39をバッチ **[16,16,7]** で消化・**バッチ間ギャップ 0ms＝プリフェッチが効いている**・バッチ経路でも EXIF 格上げ（saved→exif/2018）と GPS 同乗（lat 35.68）✅・📊 native 経路「サムネ取得18・色3・保存1・変換1」✅・**バッチ故障→単発30回で全量フォールバック** ✅。
-- Android エミュレータ E2E は boot 不調（offline 張り付き）で保留＝Kotlin 実機は vc4 で確認。
+- **🎉 Android エミュレータ（Pixel_7/API36.1）実 E2E も完走**（v229 と合わせて）: debug APK を手元ビルド→40枚 push→自動差分取り込みが logcat で `PhotoLibrary.thumbnails` **[16,16,8]** のバッチ3連（単発なし）→アプリ「✓ 40 new / 48 photos」。さらに25枚追加で **📊「25 photos, avg 47ms/photo（サムネ取得61・色18・保存17・変換7・重複4）」が実機画面に点灯**＝**壁時間47 < 区間合計107ms/枚＝パイプラインの重なりを実測で確認**。emulator boot が offline 張り付き→スナップショット破損が原因＝`-no-snapshot` コールドブートで復旧（ハマりどころ）。
 
 **教訓**
 - 「遅い」の正体が**並列度ゼロ**のことがある — プロファイルの前にスレッドモデルを見る。ブリッジ越しの安いモック（Capacitor は `window.Capacitor` を差すだけ）で、native 専用コードパスも preview で E2E できる＝iOS にも乗る JS の検証を Mac なしで済ませられる。
