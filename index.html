@@ -847,7 +847,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.175 (v224：🤝受け取りに開封の進捗（「○○さんの思い出を開いています… n/N」＋毎枚息継ぎで固まらない）｜v223：✏️手書き🎯を「起点/通過/滞在/終点」をチップで選んで置く方式に（点種を明示選択・置くと自動で次へ送り・√線を引く/×やめる）｜v222：✏️手書き🎯で「任意の場所」も端点にできる（空き地タップ＝自動時刻の点）｜v221：🗺️タイムラインを開いたら地図コントロールを隠す｜v220：🤖拡大表示をステータスバー直下＋タイムライン最大化) · 2026-07-15';
+const BUILD = 'phase3.176 (v225：🌀背景取り込みの息継ぎを処理時間比例に（速い端末≈5倍速・遅い端末は自動で呼吸を確保）｜v224：🤝受け取りに開封の進捗（「○○さんの思い出を開いています… n/N」＋毎枚息継ぎで固まらない）｜v223：✏️手書き🎯を「起点/通過/滞在/終点」をチップで選んで置く方式に（点種を明示選択・置くと自動で次へ送り・√線を引く/×やめる）｜v222：✏️手書き🎯で「任意の場所」も端点にできる（空き地タップ＝自動時刻の点）｜v221：🗺️タイムラインを開いたら地図コントロールを隠す) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -7909,7 +7909,12 @@ function render() {
 //   フェーズB = 残りをバックグラウンドキューで低優先処理 (ユーザーは裏で遊べる)
 // 大量投入でも「数枚処理したら遊べる」状態に最速で入る。
 const FAST_TRACK_COUNT = 6;     // ランダム3枚 + 予備。これだけ処理したら遊べる
-const BG_IMPORT_DELAY  = 220;   // バックグラウンド1枚ごとの間 (ms)。v36: 古い端末の GC 余裕のため少し広げた
+// v225: 背景取り込みの息継ぎを固定220ms→「直近1枚の処理時間に比例」に＝読込速度を測って端末に合わせる。
+//   速い端末: 1枚30ms→休み16ms (従来は一律220ms＝待ちが本体だった) ≈ 5倍速。
+//   遅い端末: 1枚400ms→休み140ms＝メインスレッド/GC に呼吸を残しつつ従来(220ms)より速い。
+//   上限250msは v36 の「古い端末の GC 余裕」を継承 (メモリ解放自体は v183 の thumb relief が担う)。
+const BG_REST_RATIO = 0.35, BG_REST_MIN = 16, BG_REST_MAX = 250;
+function bgRestMs(workMs) { return Math.min(BG_REST_MAX, Math.max(BG_REST_MIN, workMs * BG_REST_RATIO)); }
 
 // render() 後に1フレーム描画させてから重い処理に入る (進捗画面が見えるように)。
 // rAF が発火しない環境 (背景タブ等) でハングしないよう setTimeout の保険を併設。
@@ -8015,6 +8020,7 @@ async function runBackgroundImport() {
   while (bgQueue.length) {
     if (importStopReq) { bgQueue.length = 0; break; }   // v180: ⏹ 停止 (キューを捨てる。選び直せば取り込み済みスキップで続きから)
     const { file, fallbackMtime } = bgQueue.shift();
+    const workT0 = performance.now();   // v225: この1枚の処理時間を測る (息継ぎを比例で決める)
     try {
       const r = await withTimeout(importOne(file, fallbackMtime ? { fallbackMtime: true } : undefined), IMPORT_TIMEOUT_MS, file.name);
       tallyImport(r);
@@ -8033,7 +8039,7 @@ async function runBackgroundImport() {
     processed++;
     importStatus = { done: processed, total: processed + bgQueue.length };
     updateBgStatus();
-    await new Promise(r => setTimeout(r, BG_IMPORT_DELAY));
+    await new Promise(r => setTimeout(r, bgRestMs(performance.now() - workT0)));   // v225: 処理時間比例の息継ぎ
   }
 
   bgRunning = false;
