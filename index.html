@@ -847,7 +847,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.174 (v223：✏️手書き🎯を「起点/通過/滞在/終点」をチップで選んで置く方式に（点種を明示選択・置くと自動で次へ送り・√線を引く/×やめる）｜v222：✏️手書き🎯で「任意の場所」も端点にできる（空き地タップ＝自動時刻の点）｜v221：🗺️タイムラインを開いたら地図コントロールを隠す｜v220：🤖拡大表示をステータスバー直下＋タイムライン最大化｜v219：🫧囲んで見るを地図タップで中心→スライダー) · 2026-07-15';
+const BUILD = 'phase3.175 (v224：🤝受け取りに開封の進捗（「○○さんの思い出を開いています… n/N」＋毎枚息継ぎで固まらない）｜v223：✏️手書き🎯を「起点/通過/滞在/終点」をチップで選んで置く方式に（点種を明示選択・置くと自動で次へ送り・√線を引く/×やめる）｜v222：✏️手書き🎯で「任意の場所」も端点にできる（空き地タップ＝自動時刻の点）｜v221：🗺️タイムラインを開いたら地図コントロールを隠す｜v220：🤖拡大表示をステータスバー直下＋タイムライン最大化) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -6609,7 +6609,14 @@ async function deletePeerPack(packId) {
 }
 
 // 📥 パックファイルの取り込み。検証 → (同 id は置き換え) → track/photos を書き込み → in-memory 反映。
-async function importPeerPackFile(file) {
+// v224: タイマー節流を受けずにイベントループへ1回返す yield。setTimeout(0) は背景タブで
+//   1秒に clamp される (受け取り中にアプリを離れると取り込みが這う) — MessageChannel の
+//   message タスクは節流されず、描画・タッチも合間に通る。
+function yieldFrame() { return new Promise(r => { const mc = new MessageChannel(); mc.port1.onmessage = r; mc.port2.postMessage(0); }); }
+
+// v224: onProgress(done, total, name) — 写真1枚ごとに呼ぶ (受け取りは前面でユーザーが見ている＝
+//   「開いている」進捗そのものが開封の手触り)。呼び出し側でボタン文言などに反映する。
+async function importPeerPackFile(file, onProgress) {
   let pack = null;
   try { pack = JSON.parse(await file.text()); } catch {}
   if (!pack || pack.app !== 'anohi' || pack.kind !== 'daypack' || !pack.id) {
@@ -6640,6 +6647,10 @@ async function importPeerPackFile(file) {
   // 写真 (thumb は createThumbnail で再エンコード＝正規化してから保存)
   const recs = [];
   for (let i = 0; i < photosIn.length; i++) {
+    // v224: 進捗を伝えて1フレーム返す (createThumbnail の連続デコードは古い端末でカクつく＝
+    //   毎枚 yield して描画とタッチを通す。yieldFrame は節流なしなので体感の追加コストはない)
+    if (onProgress) { try { onProgress(i, photosIn.length, name); } catch {} }
+    await yieldFrame();
     const x = photosIn[i];
     if (!x || typeof x.thumb !== 'string' || x.thumb.length > 6e6) continue;   // 1枚 ~4.5MB 超は捨てる
     const dt = new Date(x.dt);
@@ -6859,7 +6870,12 @@ async function openPeerPacksList() {
     if (!f) return;
     impBtn.disabled = true; impBtn.textContent = tr('取り込み中…', 'Importing…');
     let res = null;
-    try { res = await importPeerPackFile(f); } finally { fileIn.value = ''; }
+    // v224: 開封の進捗をボタンに (「○○さんの思い出を開いています… 12/40」＝待ち時間を開封演出に)
+    const onProg = (done, total, name) => {
+      impBtn.textContent = tr(`🤝 ${name} さんの思い出を開いています… ${done + 1}/${total}`,
+                              `🤝 Opening ${name}’s memories… ${done + 1}/${total}`);
+    };
+    try { res = await importPeerPackFile(f, onProg); } finally { fileIn.value = ''; }
     if (res) {
       closePeerPacksModal();
       if (res.note) showPeerLetter(res);   // v195: ✉️付きはまず手紙を読む＝贈り物を開ける瞬間
