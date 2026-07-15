@@ -13,7 +13,9 @@
 
 ---
 
-> **🔧 セッション39（2026-07-15 午後）＝v224〜v228。phase3.179。📤 iOS 1.6(50) を審査提出（審査メモ英日を作成）→「古い端末で取り込みが遅い」FB③に、遅い端末なしで打てる5手をまとめて実装。web は即反映済み・native（v228 Kotlin/Swift）は vc4/iOS 次ビルドで乗る。**
+> **🔧 セッション39（2026-07-15 午後）＝v224〜v229。phase3.180。📤 iOS 1.6(50) を審査提出（審査メモ英日を作成）→「古い端末で取り込みが遅い」FB③に、遅い端末なしで打てる5手をまとめて実装＋Androidエミュ実E2E完走。web は即反映済み・native（v228/v229 Kotlin/Swift）は vc4/iOS 次ビルドで乗る。**
+>
+> **▶▶ 次回はここから＝vc4 の AAB 作成**（v220-229 全部入りの署名付きAABを手元Windowsで作る）。手順は [[android-local-signing-build]]（`$env:BUILD_NUMBER="4"`→`npm run sync:web; npx cap sync android; cd android; .\gradlew.bat bundleRelease`。JAVA_HOME 恒久化済み・署名 env は CREDENTIALS.txt・**未署名で弾かれた前科あり**＝CM_* 4変数を `Get-Content|Invoke-Expression`＋`--no-daemon`）→Play 内部テストへ上げて Pixel 7a 実機確認（⚙情報末尾=phase3.180 が目印・📚取り込みの体感と📊行・地図上部コントロール崩れの watch）。iOS も vc4 相当を Codemagic で（1.6 審査結果次第で 1.7 train）。
 > - **📤 iOS 1.6 審査提出（2026-07-15 午後）**: build 50。前回審査版 1.5(46) との差分（v187-223＝✏️手書きの足あと・🤝日パック手渡し・改善多数）を整理し、審査メモ（英語主・日本語併記）を作成→ユーザーが ASC で提出。要点＝**新権限ゼロ**（写真/カメラ/位置は 1.5 までに宣言済み）・🤝共有は「サーバーなし・OS共有シート経由のファイル手渡し＝SNSではない」を明記・年齢レーティングは 1.5 と同じ回答を維持（アプリ内に投稿/公開の場なし）。
 > - **🚀 取り込み速度パック（v224-228）＝「読込速度を理解して、それに合わせる」**。設計3正面＝(a)速くする(v225/v228) (b)測る(v226) (c)順番を変えて遅さを無関係にする(v227)。＋受け取りにも同じ思想(v224)。
 >   - **v224 🤝受け取りに開封の進捗**: `importPeerPackFile(file, onProgress)`＋ボタン文言「🤝 ○○さんの思い出を開いています… n/N」＋毎枚 `yieldFrame()`（MessageChannel＝背景タブでも節流されない）。preview E2E ✅（40枚パックで毎枚更新・完走・console 0）。
