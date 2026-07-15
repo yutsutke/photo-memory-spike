@@ -607,6 +607,11 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
   /* ✏️ 手書きの移動線 (v187): パネルは here-panel を土台に、点タイプのチップと取り消しだけ足す */
   .hand-panel .hand-chips { display: flex; gap: 6px; margin-bottom: 8px; }
   .hand-panel .hand-chips .mc-pop-btn { flex: 1 1 0; min-width: 0; padding: 7px 4px; font-size: 12px; white-space: nowrap; text-align: center; }
+  /* v223: 🎯の点種セレクタ (起点/通過/滞在/終点)＝内容幅＋横スクロール (4つが潰れない)。値は現在の時刻/個数を淡色表示 */
+  .hand-panel .hand-seg-types { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  .hand-panel .hand-seg-types::-webkit-scrollbar { display: none; }
+  .hand-panel .hand-seg-types .mc-pop-btn { flex: 0 0 auto; padding: 7px 11px; }
+  .hand-panel .hand-segtype .st-val { opacity: 0.72; font-variant-numeric: tabular-nums; margin-left: 3px; font-weight: 400; }
   .hand-hint { font-size: 11px; color: #9ab0ac; line-height: 1.5; }
   .hand-days { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow-y: auto; }
   /* v191: 複数日を選択中の「直す日」切替チップ (横スクロール) */
@@ -842,7 +847,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.173 (v222：✏️手書き🎯起点→終点で「任意の場所」も端点にできる＝空き地タップで自動時刻の点を作って端点に（既存点はスナップのまま・通過点は間で按分・🕒で後から時刻を直せる）｜v221：🗺️タイムラインを開いたら地図コントロール（過去の今日/🎲/⋯/⛶）を隠す｜v220：🤖拡大表示をステータスバー直下＋タイムラインを最大化｜v219：🫧囲んで見るを地図タップで中心→スライダー｜v218：ℹ️使い方「連想の歩き方」を現行スワイプUIに更新) · 2026-07-15';
+const BUILD = 'phase3.174 (v223：✏️手書き🎯を「起点/通過/滞在/終点」をチップで選んで置く方式に（点種を明示選択・置くと自動で次へ送り・√線を引く/×やめる）｜v222：✏️手書き🎯で「任意の場所」も端点にできる（空き地タップ＝自動時刻の点）｜v221：🗺️タイムラインを開いたら地図コントロールを隠す｜v220：🤖拡大表示をステータスバー直下＋タイムライン最大化｜v219：🫧囲んで見るを地図タップで中心→スライダー) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -5604,19 +5609,27 @@ async function enterHandDrawMode(dayKey, opts) {
       `<button class="mc-pop-btn hand-mode primary" data-mode="near" type="button">${tr('✚ 近くに打つ', '✚ Near a point')}</button>` +
       `<button class="mc-pop-btn hand-mode" data-mode="seg" type="button">${tr('🎯 起点→終点', '🎯 Start → End')}</button>` +
     `</div>` +
-    `<div class="hand-chips">` +
+    `<div class="hand-chips hand-type-row">` +   // ✚モード用の点種 (通過/滞在)。🎯モードでは下の点種セレクタに置き換わるので隠す
       `<button class="mc-pop-btn hand-type primary" data-type="pass" type="button">${tr('🚶 通過', '🚶 Passed')}</button>` +
       `<button class="mc-pop-btn hand-type" data-type="stay" type="button">${tr('☕ 滞在', '☕ Stayed')}</button>` +
     `</div>` +
-    // v188: 挿入の向き=「いちばん近い点」の前/後。入り組んだ道でも時系列を狙える (既定=後)。
+    // v188: 挿入の向き=「いちばん近い点」の前/後。入り組んだ道でも時系列を狙える (既定=後)。↩は両モード共通。
     `<div class="hand-chips">` +
       `<button class="mc-pop-btn hand-dir" data-dir="before" type="button">${tr('◀ 近くの点の前', '◀ Before nearest')}</button>` +
       `<button class="mc-pop-btn hand-dir primary" data-dir="after" type="button">${tr('近くの点の後 ▶', 'After nearest ▶')}</button>` +
       `<button class="mc-pop-btn hand-undo" type="button" disabled>${tr('↩ 取り消し', '↩ Undo')}</button>` +
     `</div>` +
-    // v206: 🎯起点→終点モードの確定ボタン (下書きの通過点を按分時刻で焼き込む)。モード中だけ表示。
+    // v223: 🎯モードの点種セレクタ — 起点/通過/滞在/終点を選んで置く (実機FB「選べたほうが便利」)。値は現在の状態を表示。
+    `<div class="hand-chips hand-seg-types" style="display:none">` +
+      `<button class="mc-pop-btn hand-segtype primary" data-seg="A" type="button">🏁 ${tr('起点', 'Start')} <span class="st-val">--:--</span></button>` +
+      `<button class="mc-pop-btn hand-segtype" data-seg="pass" type="button">🚶 ${tr('通過', 'Pass')} <span class="st-val">0</span></button>` +
+      `<button class="mc-pop-btn hand-segtype" data-seg="stay" type="button">☕ ${tr('滞在', 'Stay')} <span class="st-val">0</span></button>` +
+      `<button class="mc-pop-btn hand-segtype" data-seg="B" type="button">🏁 ${tr('終点', 'End')} <span class="st-val">--:--</span></button>` +
+    `</div>` +
+    // v206/v223: 🎯モードの確定/やめる (下書きの通過点を按分時刻で焼き込む/下書きを捨てる)。モード中だけ表示。
     `<div class="hand-chips hand-seg-row" style="display:none">` +
-      `<button class="mc-pop-btn hand-seg-ok" type="button" disabled>${tr('🎯 この区間を確定', '🎯 Confirm this section')}</button>` +
+      `<button class="mc-pop-btn hand-seg-ok" type="button" disabled>√ ${tr('線を引く', 'Draw the line')}</button>` +
+      `<button class="mc-pop-btn hand-seg-cancel" type="button">× ${tr('やめる', 'Clear')}</button>` +
     `</div>` +
     `<div class="hand-hint">${freehand
       ? tr('通った順に場所をタップ → その順に道がつながります。入り組んだ所は「前／後」で調整・点はドラッグで移動できます', 'Tap places in the order you went — the route follows that order. Use before/after for tricky spots; drag a point to move it.')
@@ -5647,7 +5660,7 @@ async function enterHandDrawMode(dayKey, opts) {
         logInfo(tr('起点→終点には、その日に点が2つ以上必要です（写真・記録・手書きの点）。まず「✚ 近くに打つ」で点を打ってください', 'Start→End needs at least two points on this day (photos, logged or hand points). Add some with “✚ Near a point” first.'));
         return;
       }
-      he2.seg = { A: null, B: null, wps: [], layers: [], line: null };
+      he2.seg = { A: null, B: null, wps: [], layers: [], line: null, segType: 'A' };
     } else {
       await finalizeSegDraft();
       const he3 = mapState && mapState.handEdit; if (!he3) return;
@@ -5659,6 +5672,21 @@ async function enterHandDrawMode(dayKey, opts) {
   }));
   const segOk = panel.querySelector('.hand-seg-ok');
   if (segOk) segOk.addEventListener('click', () => { finalizeSegDraft(); });   // v206: 下書きを確定 (按分時刻で焼き込み→次の起点選びへ)
+  // v223: 🎯の点種セレクタ (起点/通過/滞在/終点)。次にタップする点の種類を選ぶ。
+  panel.querySelectorAll('.hand-segtype').forEach(b => b.addEventListener('click', () => {
+    const he2 = mapState && mapState.handEdit; if (!he2 || !he2.seg) return;
+    he2.seg.segType = b.dataset.seg;
+    handSegUiSync();
+  }));
+  // v223: 🎯の「× やめる」＝いま描きかけの下書きを捨てる (置いた点はそのまま・線は時刻順で自然につながる)。
+  const segCancel = panel.querySelector('.hand-seg-cancel');
+  if (segCancel) segCancel.addEventListener('click', () => {
+    const he2 = mapState && mapState.handEdit; if (!he2 || !he2.seg) return;
+    const sg = he2.seg;
+    if (mapState.map) { for (const l of sg.layers) { try { mapState.map.removeLayer(l); } catch {} } if (sg.line) { try { mapState.map.removeLayer(sg.line); } catch {} } }
+    he2.seg = { A: null, B: null, wps: [], layers: [], line: null, segType: 'A' };
+    redrawSegDraft();
+  });
   const dirs = panel.querySelectorAll('.hand-dir');   // v188: 前/後トグル
   dirs.forEach(b => b.addEventListener('click', () => {
     he.dir = b.dataset.dir;
@@ -5843,24 +5871,38 @@ function handSegUiSync() {
   const sg = he.seg;
   const hint = he.panel.querySelector('.hand-hint');
   const segRow = he.panel.querySelector('.hand-seg-row');
+  const segTypesRow = he.panel.querySelector('.hand-seg-types');
+  const typeRow = he.panel.querySelector('.hand-type-row');
   const okBtn = he.panel.querySelector('.hand-seg-ok');
-  he.panel.querySelectorAll('.hand-dir').forEach(b => { b.disabled = !!sg; });   // 前/後は✚モード専用
+  // v223: モード別の行の出し分け。🎯＝点種セレクタ(起点/通過/滞在/終点)＋確定/やめる。✚＝通過/滞在＋前/後。↩は共通で残す。
+  he.panel.querySelectorAll('.hand-dir').forEach(b => { b.style.display = sg ? 'none' : ''; });
+  if (typeRow) typeRow.style.display = sg ? 'none' : '';
+  if (segTypesRow) segTypesRow.style.display = sg ? '' : 'none';
   if (segRow) segRow.style.display = sg ? '' : 'none';
   if (!sg) {
     if (hint) hint.textContent = he.hintNear;
   } else {
+    const st = sg.segType || 'A';
+    // v223: 点種チップの現在値 (起点/終点=時刻・通過/滞在=個数) とアクティブ強調
+    he.panel.querySelectorAll('.hand-segtype').forEach(b => {
+      b.classList.toggle('primary', b.dataset.seg === st);
+      const v = b.querySelector('.st-val'); if (!v) return;
+      const k = b.dataset.seg;
+      if (k === 'A') v.textContent = sg.A ? handHHMM(sg.A.t) : '--:--';
+      else if (k === 'B') v.textContent = sg.B ? handHHMM(sg.B.t) : '--:--';
+      else if (k === 'pass') v.textContent = String(sg.wps.filter(w => !w.stay).length);
+      else if (k === 'stay') v.textContent = String(sg.wps.filter(w => w.stay).length);
+    });
+    const ready = !!(sg.A && sg.B && sg.A.t < sg.B.t);   // 按分には 起点 < 終点 が要る
     if (okBtn) {
-      okBtn.disabled = !(sg.A && sg.B && sg.wps.length);
-      okBtn.textContent = sg.wps.length
-        ? tr(`🎯 この区間を確定（${sg.wps.length}点）`, `🎯 Confirm this section (${sg.wps.length})`)
-        : tr('🎯 この区間を確定', '🎯 Confirm this section');
+      okBtn.disabled = !ready;
+      okBtn.textContent = sg.wps.length ? tr(`√ 線を引く（${sg.wps.length}点）`, `√ Draw the line (${sg.wps.length})`) : tr('√ 線を引く', '√ Draw the line');
     }
     if (hint) {
-      hint.textContent = !sg.A
-        ? tr('🎯 まず「起点」をタップ（点の近く＝その点／空き地＝任意の場所に置く）', '🎯 Tap the START (near a point to snap, or empty space to place freely)')
-        : !sg.B
-        ? tr(`起点 ${handHHMM(sg.A.t)} ✓ — 次に「終点」をタップ（点 or 空き地）`, `Start ${handHHMM(sg.A.t)} ✓ — now tap the END (a point or empty space)`)
-        : tr(`起点 ${handHHMM(sg.A.t)} → 終点 ${handHHMM(sg.B.t)}。通った順にタップ → 🎯で確定（時刻はこの間に入ります）`, `Start ${handHHMM(sg.A.t)} → End ${handHHMM(sg.B.t)}. Tap along your route in order, then 🎯 to confirm.`);
+      hint.textContent = (st === 'A') ? tr('🏁 起点をタップ（点の近く＝その点／空き地＝任意の場所）', '🏁 Tap the START (near a point to snap, or empty space)')
+        : (st === 'B') ? tr('🏁 終点をタップ（点 or 空き地）', '🏁 Tap the END (a point or empty space)')
+        : (st === 'stay') ? tr('☕ 滞在した場所をタップ（いくつでも）', '☕ Tap where you stayed (any number)')
+        : tr('🚶 通った場所を順にタップ（起点→終点の間に按分）', '🚶 Tap where you passed, in order (spread between start and end)');
     }
   }
   const undoBtn = he.panel.querySelector('.hand-undo');
@@ -5923,8 +5965,8 @@ async function finalizeSegDraft() {
     for (const l of sg.layers) { try { mapState.map.removeLayer(l); } catch {} }
     if (sg.line) { try { mapState.map.removeLayer(sg.line); } catch {} }
   }
-  he.seg = { A: null, B: null, wps: [], layers: [], line: null };
-  if (sg.A && sg.B && sg.wps.length) {
+  he.seg = { A: null, B: null, wps: [], layers: [], line: null, segType: 'A' };
+  if (sg.A && sg.B && sg.A.t < sg.B.t && sg.wps.length) {   // v223: 起点<終点 の時だけ按分焼き込み (逆順/同時は下書きごと破棄＝壊れた時刻を作らない)
     const ids = await bakeSegPoints(sg);
     const he2 = mapState && mapState.handEdit;
     if (he2) he2.undo.push(...ids);
@@ -5934,54 +5976,50 @@ async function finalizeSegDraft() {
   handSegUiSync();
 }
 
-// 🎯モードのタップ。A/B が未定なら「既にある点」への選択 (最寄り48px以内へスナップ・逆順は自動入替)。
-//   両方決まったら以後のタップ＝通過点 (タップ順＝道順・下書きに積むだけ)。
+// v223: 🎯モードのタップ＝選択中の点種 (sg.segType: 起点A/終点B/通過pass/滞在stay) をその場所に置く。
+//   起点/終点＝近くの点にスナップ or 空き地なら自動時刻の実点 (v222)。通過/滞在＝下書きの通過点 (🎯確定で按分)。
+//   点種は 起点/通過/滞在/終点 チップで切替 (実機FB「選べたほうが便利」)。起点/終点を置くと自動で反対の端→通過へ送る。
 async function handSegTap(ll) {
   const he = mapState && mapState.handEdit;
   if (!he || !he.seg) return;
   const sg = he.seg, map = mapState.map;
-  if (!sg.A || !sg.B) {
-    const seq = await handDaySeq(he.dayKey);
-    if (!mapState || mapState.handEdit !== he || he.seg !== sg) return;
-    const P = map.latLngToLayerPoint(ll);
-    let ni = -1, nd = Infinity;
-    for (let i = 0; i < seq.length; i++) {
-      const d = P.distanceTo(map.latLngToLayerPoint([seq[i].lat, seq[i].lng]));
-      if (d < nd) { nd = d; ni = i; }
-    }
-    let pick;
-    if (ni >= 0 && nd <= 48) {
-      const q = seq[ni];                                    // 近くに点がある＝その点にスナップ（従来）
-      pick = { t: q.t, lat: q.lat, lng: q.lng, recId: q.rec ? q.rec.id : null };
-    } else {
-      // v222: 近くに点が無い＝任意の端点。✚と同じ自動時刻で実点を作り端点に使う（🕒であとで直せる）。
-      //   端点も実点として track に置く＝線が時刻順マージでその点を通る（recId で下書きに紐づく）。
-      const t = handAutoTime(seq, ll, he, map);
-      const rec = { id: crypto.randomUUID(), t, lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6), acc: 0, src: 'hand' };
-      try { await trackPut(rec); }
-      catch (err) { logErr(tr(`点の保存に失敗: ${err?.message || err}`, `Failed to save the point: ${err?.message || err}`)); return; }
-      if (!mapState || mapState.handEdit !== he || he.seg !== sg) return;   // await 後の再入ガード
-      he.undo.push(rec.id);
-      if (mapState.refreshTrack) mapState.refreshTrack();
-      await redrawHandMarkers();
-      if (!mapState || mapState.handEdit !== he || he.seg !== sg) return;
-      pick = { t: rec.t, lat: rec.lat, lng: rec.lng, recId: rec.id };
-    }
-    if (!sg.A) sg.A = pick;
-    else {
-      if (pick.recId && sg.A.recId === pick.recId) { logInfo(tr('起点と同じ点です。別の場所をタップしてください', 'Same as the start — tap a different spot.')); return; }
-      sg.B = pick;
-      if (sg.B.t < sg.A.t) { const tmp = sg.A; sg.A = sg.B; sg.B = tmp; }   // 早い方が起点＝どちらから選んでも自然に
-      if (sg.B.t <= sg.A.t) { sg.B = null; logInfo(tr('起点と終点の時刻が同じです。別の場所/点を選ぶか、🕒で時刻をずらしてください', 'Start and end share the same time — pick a different spot/point, or shift with 🕒.')); redrawSegDraft(); return; }
-      if (sg.A.recId && sg.B.recId) {                       // 既存点どうしの時だけ「間に点」を案内
-        const mid = seq.filter(x => x.t > sg.A.t && x.t < sg.B.t).length;
-        if (mid > 0) logInfo(tr(`起点と終点の間に別の点が${mid}個あります。線は時刻順につながるので、なるべく隣り合う2点を選ぶのがおすすめです`, `${mid} other point(s) sit between start and end — the line follows time order, so adjacent points work best.`));
-      }
-    }
+  const st = sg.segType || 'A';
+  // v223: 通過/滞在＝下書きの通過点へ (置いた順＝道順・🎯確定で按分)。
+  if (st === 'pass' || st === 'stay') {
+    sg.wps.push({ lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6), ...(st === 'stay' ? { stay: 1 } : {}) });
     redrawSegDraft();
     return;
   }
-  sg.wps.push({ lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6), ...(he.type === 'stay' ? { stay: 1 } : {}) });
+  // v223: 起点(A)/終点(B)＝近くに点があればスナップ、無ければ✚と同じ自動時刻で実点を作る (v222)。
+  const seq = await handDaySeq(he.dayKey);
+  if (!mapState || mapState.handEdit !== he || he.seg !== sg) return;
+  const P = map.latLngToLayerPoint(ll);
+  let ni = -1, nd = Infinity;
+  for (let i = 0; i < seq.length; i++) {
+    const d = P.distanceTo(map.latLngToLayerPoint([seq[i].lat, seq[i].lng]));
+    if (d < nd) { nd = d; ni = i; }
+  }
+  let pick;
+  if (ni >= 0 && nd <= 48) {
+    const q = seq[ni];                                      // 近くに点がある＝その点にスナップ
+    pick = { t: q.t, lat: q.lat, lng: q.lng, recId: q.rec ? q.rec.id : null };
+  } else {
+    const t = handAutoTime(seq, ll, he, map);               // 任意端点＝実点として置く（線が時刻順でその点を通る・🕒で直せる）
+    const rec = { id: crypto.randomUUID(), t, lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6), acc: 0, src: 'hand' };
+    try { await trackPut(rec); }
+    catch (err) { logErr(tr(`点の保存に失敗: ${err?.message || err}`, `Failed to save the point: ${err?.message || err}`)); return; }
+    if (!mapState || mapState.handEdit !== he || he.seg !== sg) return;   // await 後の再入ガード
+    he.undo.push(rec.id);
+    if (mapState.refreshTrack) mapState.refreshTrack();
+    await redrawHandMarkers();
+    if (!mapState || mapState.handEdit !== he || he.seg !== sg) return;
+    pick = { t: rec.t, lat: rec.lat, lng: rec.lng, recId: rec.id };
+  }
+  const other = (st === 'A') ? sg.B : sg.A;
+  if (pick.recId && other && other.recId === pick.recId) { logInfo(tr('起点と終点は別の場所にしてください', 'Start and end must be different spots.')); return; }
+  if (st === 'A') sg.A = pick; else sg.B = pick;
+  sg.segType = !sg.A ? 'A' : !sg.B ? 'B' : 'pass';          // 自動送り: 反対の端が未定ならそこへ / 両端そろえば通過へ（手動で戻せる）
+  if (sg.A && sg.B && sg.B.t <= sg.A.t) logInfo(tr('終点の時刻が起点と同じか前です。🕒で直すか、別の場所を選んでください', 'End time is at or before the start — fix it with 🕒 or pick another spot.'));
   redrawSegDraft();
 }
 
