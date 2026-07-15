@@ -847,7 +847,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.178 (v227：🌅ライブラリ取り込みの最初の6枚を「全期間から」サンプリング（数秒で昔↔今に灯りが点く＝遅い端末でも体験が先に成立）｜v226：📊取り込みの区間計測（終了時に平均ms/枚と内訳を表示・直近を⚙情報に保存＝遅い端末の診断を数字で）｜v225：🌀背景取り込みの息継ぎを処理時間比例に（速い端末≈5倍速・遅い端末は自動で呼吸を確保）｜v224：🤝受け取りに開封の進捗（「○○さんの思い出を開いています… n/N」＋毎枚息継ぎで固まらない）｜v223：✏️手書き🎯を「起点/通過/滞在/終点」をチップで選んで置く方式に) · 2026-07-15';
+const BUILD = 'phase3.179 (v228：🚀nativeサムネ取得をバッチ16枚×並列デコード＋パイプラインに（古い端末の直列ボトルネックをコア数ぶん短縮・失敗時は1枚ずつへ自動フォールバック）｜v227：🌅ライブラリ取り込みの最初の6枚を「全期間から」サンプリング（数秒で昔↔今に灯りが点く＝遅い端末でも体験が先に成立）｜v226：📊取り込みの区間計測（終了時に平均ms/枚と内訳を表示・直近を⚙情報に保存＝遅い端末の診断を数字で）｜v225：🌀背景取り込みの息継ぎを処理時間比例に（速い端末≈5倍速・遅い端末は自動で呼吸を確保）｜v224：🤝受け取りに開封の進捗（「○○さんの思い出を開いています… n/N」）) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -1591,6 +1591,22 @@ async function importNativeAsset(meta, thumbBlob) {
   return { ok: true, record };
 }
 
+// thumbnail/thumbnails が同乗させてくる EXIF を meta にマージ (v228 で共通化):
+// - Android: GPS は enumerate では取れない (MediaStore は API29+ で EXIF 位置を隠す) ため、
+//   サムネ取得がファイルを開くついでに EXIF から読んで {lat,lng} を同乗させてくる。
+//   iOS は enumerate が GPS を持つ (meta.lat あり) ので no-op。
+// - Android: MediaStore の DATE_TAKEN が無い写真 (dateSource='saved') は、同じ EXIF 読みで
+//   DateTimeOriginal が取れたら撮影日に格上げ (日時純度 EXIF>保存日 の流儀)。iOS は no-op。
+function mergeNativeExif(meta, r) {
+  if (r && typeof r.lat === 'number' && typeof r.lng === 'number' && typeof meta.lat !== 'number') {
+    meta = Object.assign({}, meta, { lat: r.lat, lng: r.lng });
+  }
+  if (r && r.exifDate && meta.dateSource === 'saved') {
+    meta = Object.assign({}, meta, { date: r.exifDate, dateSource: 'exif' });
+  }
+  return meta;
+}
+
 // 1件分: サムネをオンデマンド取得 → record 化。
 async function importOneNative(meta) {
   const _t0 = performance.now();   // v226: 区間計測 (橋=ネイティブdecode+base64往復 が本命の容疑者)
@@ -1598,35 +1614,93 @@ async function importOneNative(meta) {
   impTimeAdd('bridge', performance.now() - _t0);
   const dataUrl = r && r.dataUrl;
   if (!dataUrl) return { skipped: 'no-thumb' };
-  // Android: GPS は enumerate では取れない (MediaStore は API29+ で EXIF 位置を隠す) ため、
-  // thumbnail がファイルを開くついでに EXIF から読んで {lat,lng} を同乗させてくる → ここでマージ。
-  // iOS は enumerate が GPS を持つ (meta.lat あり) ので no-op。
-  if (typeof r.lat === 'number' && typeof r.lng === 'number' && typeof meta.lat !== 'number') {
-    meta = Object.assign({}, meta, { lat: r.lat, lng: r.lng });
-  }
-  // Android: MediaStore の DATE_TAKEN が無い写真 (dateSource='saved') は、同じ EXIF 読みで
-  // DateTimeOriginal が取れたら撮影日に格上げ (日時純度 EXIF>保存日 の流儀)。iOS は no-op。
-  if (r.exifDate && meta.dateSource === 'saved') {
-    meta = Object.assign({}, meta, { date: r.exifDate, dateSource: 'exif' });
-  }
+  const meta2 = mergeNativeExif(meta, r);
   const _t1 = performance.now();
   const blob = await dataUrlToBlob(dataUrl);
   impTimeAdd('blob', performance.now() - _t1);
-  const res = await importNativeAsset(meta, blob);
+  const res = await importNativeAsset(meta2, blob);
   if (res && res.ok) impTimeDone(performance.now() - _t0);   // v226: 完了した1枚だけ数える
   return res;
 }
 
+// v228: バッチ1回分のサムネを取ってくる。返り値は id→item の Map、バッチ経路ごと失敗なら null
+// (呼び出し側が1枚ずつへフォールバック)。タイムアウトはバッチ全体で 60s (iCloud 取得も想定)。
+const NATIVE_BATCH = 16;
+async function fetchThumbBatch(metasSlice) {
+  try {
+    const r = await withTimeout(
+      PhotoLib.thumbnails({ ids: metasSlice.map(m => m.id), size: THUMB_PX }),
+      IMPORT_TIMEOUT_MS * 2, `batch×${metasSlice.length}`);
+    const items = (r && r.items) || [];
+    return new Map(items.map(it => [String(it.id), it]));
+  } catch (e) {
+    console.warn(`[native-import] batch fail → 1枚ずつに切替: ${e?.message || e}`);
+    return null;
+  }
+}
+
 // 残り (fast-track 以降) を背景で低優先消化。web の runBackgroundImport と同じ役割。
+// v228: thumbnails バッチ (16枚/往復・ネイティブ側で並列デコード) ＋パイプライン
+//   (次のバッチを先に投げてから今のバッチを JS 処理＝ネイティブと JS が重なって走る)。
+//   プラグインに thumbnails が無い build やバッチ失敗時は従来の1枚ずつへフォールバック。
 async function processNativeRest(metas, doneBase, total) {
   bgNativeRunning = true;
   let done = doneBase;
   // v180: 大量ライブラリ (数万〜10万) は数十分かかる → 停止できることを最初に一度だけ知らせる。
   if (metas.length > 2000) logInfo(tr(`🌀 残り ${metas.length} 枚を裏で取り込み中。ヘッダの 🌀 タップでいつでも停止できます`, `🌀 Importing ${metas.length} photos in the background. Tap 🌀 in the header to stop anytime`));
-  for (const meta of metas) {
+  let useBatch = !!(PhotoLib && PhotoLib.thumbnails);
+  let i = 0;
+  // パイプライン: 先読み中のバッチ {slice, p(=Map|null の Promise), t0}
+  let pending = null;
+  const fire = (from) => {
+    const s = metas.slice(from, from + NATIVE_BATCH);
+    return s.length ? { slice: s, p: fetchThumbBatch(s), t0: performance.now() } : null;
+  };
+  if (useBatch) pending = fire(0);
+  while (i < metas.length) {
     if (importStopReq) break;   // v180: ⏹ 停止要求 → 区切りで安全に止まる (続きは差分同期で再開)
+    if (useBatch && pending) {
+      const { slice, p, t0 } = pending;
+      const byId = await p;
+      impTimeAdd('bridge', performance.now() - t0);   // v226: バッチの壁時間 (÷枚数が平均に出る)
+      if (!byId) { useBatch = false; pending = null; continue; }   // バッチ経路が死んだ → 以後1枚ずつ (i は不変)
+      pending = fire(i + slice.length);               // ← 先に次を投げてから、今の分を JS 処理
+      const added = [];
+      for (const meta of slice) {
+        if (importStopReq) break;
+        const it = byId.get(String(meta.id));
+        try {
+          let r;
+          if (it && it.dataUrl) {
+            const tB = performance.now();
+            const blob = await dataUrlToBlob(it.dataUrl);
+            impTimeAdd('blob', performance.now() - tB);
+            r = await importNativeAsset(mergeNativeExif(meta, it), blob);
+            if (r && r.ok) impTimeDone(performance.now() - tB);
+          } else {
+            r = { skipped: 'no-thumb' };
+            if (it && it.error) console.warn(`[native-import] ${meta.id}: ${it.error}`);
+          }
+          tallyImport(r);
+          if (r.ok && r.record) { added.push(r.record); queueThumbRelief(r.record.id); }   // v183
+        } catch (e) {
+          if (importStats) importStats.failed++;
+          console.warn(`[native-import] ${meta.id}: ${e?.message || e}`);
+        }
+        done++;
+        await yieldFrame();   // 1枚ぶんの JS 処理ごとに描画/タッチを通す (節流なし)
+      }
+      if (added.length) { addPhotos(added); if (state === 'empty') await drawRandom(); }
+      i += slice.length;
+      importStatus = { done, total };
+      updateBgStatus();
+      await new Promise(r => setTimeout(r, NATIVE_IMPORT_DELAY));
+      continue;
+    }
+    // 従来経路: 1枚ずつ (thumbnails が無い build / バッチ失敗後)
+    const meta = metas[i];
     try {
-      const r = await importOneNative(meta);
+      const r = await withTimeout(importOneNative(meta), IMPORT_TIMEOUT_MS, meta.id);
       tallyImport(r);
       if (r.ok && r.record) {
         addPhotos([r.record]);
@@ -1637,7 +1711,7 @@ async function processNativeRest(metas, doneBase, total) {
       if (importStats) importStats.failed++;
       console.warn(`[native-import] ${meta.id}: ${e?.message || e}`);
     }
-    done++;
+    done++; i++;
     importStatus = { done, total };
     updateBgStatus();
     await new Promise(r => setTimeout(r, NATIVE_IMPORT_DELAY));

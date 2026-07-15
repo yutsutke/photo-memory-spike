@@ -15,6 +15,7 @@ public class PhotoLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "requestAccess", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "enumerate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "thumbnail", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "thumbnails", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "savePhoto", returnType: CAPPluginReturnPromise)
     ]
 
@@ -104,6 +105,60 @@ public class PhotoLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject("thumbnail failed: \(error.localizedDescription)")
             }
             // image==nil かつ error 無しの中間コールバックは無視し、最終結果を待つ
+        }
+    }
+
+    /// v228: バッチ版 thumbnail。N枚を1往復で返す (Android と同契約)。
+    /// PHImageManager へ一斉に要求＝内部で並列デコード。ブリッジ往復は 1/N に。
+    /// items は ids と同順・失敗した枚だけ {id, error} (バッチ全体は落とさない)。
+    @objc func thumbnails(_ call: CAPPluginCall) {
+        guard let idsAny = call.getArray("ids"), let ids = idsAny as? [String], !ids.isEmpty else {
+            call.reject("ids required")
+            return
+        }
+        let size = call.getInt("size") ?? 200
+        DispatchQueue.global(qos: .userInitiated).async {
+            let fetch = PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
+            var byId: [String: PHAsset] = [:]
+            fetch.enumerateObjects { asset, _, _ in byId[asset.localIdentifier] = asset }
+            let opts = PHImageRequestOptions()
+            opts.deliveryMode = .highQualityFormat
+            opts.resizeMode = .fast
+            opts.isNetworkAccessAllowed = true   // iCloud 上の写真も取得（必要分だけ）
+            opts.isSynchronous = false
+            let target = CGSize(width: size, height: size)
+            let group = DispatchGroup()
+            let lock = NSLock()
+            var results: [String: [String: Any]] = [:]
+            for id in ids {
+                guard let asset = byId[id] else {
+                    lock.lock(); results[id] = ["id": id, "error": "asset not found"]; lock.unlock()
+                    continue
+                }
+                group.enter()
+                var done = false
+                PHImageManager.default().requestImage(
+                    for: asset,
+                    targetSize: target,
+                    contentMode: .aspectFill,
+                    options: opts
+                ) { image, info in
+                    if done { return }
+                    if let image = image, let data = image.jpegData(compressionQuality: 0.7) {
+                        done = true
+                        lock.lock(); results[id] = ["id": id, "dataUrl": "data:image/jpeg;base64," + data.base64EncodedString()]; lock.unlock()
+                        group.leave()
+                    } else if let error = info?[PHImageErrorKey] as? Error {
+                        done = true
+                        lock.lock(); results[id] = ["id": id, "error": error.localizedDescription]; lock.unlock()
+                        group.leave()
+                    }
+                    // image==nil かつ error 無しの中間コールバックは無視し、最終結果を待つ (thumbnail と同じ)
+                }
+            }
+            group.wait()
+            let items: [[String: Any]] = ids.map { results[$0] ?? ["id": $0, "error": "no result"] }
+            call.resolve(["items": items])
         }
     }
 

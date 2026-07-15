@@ -28,6 +28,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 
 /**
@@ -70,8 +71,16 @@ class PhotoLibraryPlugin : Plugin() {
     // サムネ生成/列挙は I/O なので専用シングルスレッドで (JS 側は直列に 8ms 間隔で呼ぶ)
     private val executor = Executors.newSingleThreadExecutor()
 
+    // v228: バッチ (thumbnails) 用の並列デコードプール。古い端末＝遅い CPU でもコアは複数ある
+    // ことが多く、直列デコードはコアを1つしか使えていなかった。コア数-1 (2..4) で並列に。
+    // 調整(バッチの受付と順序)は従来の executor が担い、デコードだけをこのプールへ farm out する。
+    private val thumbPool = Executors.newFixedThreadPool(
+        maxOf(2, minOf(4, Runtime.getRuntime().availableProcessors() - 1))
+    )
+
     override fun handleOnDestroy() {
         executor.shutdown()
+        thumbPool.shutdown()
     }
 
     // ---------------- requestAccess ----------------
@@ -243,6 +252,37 @@ class PhotoLibraryPlugin : Plugin() {
 
     // ---------------- thumbnail ----------------
 
+    /** 1枚分のサムネ+EXIF同乗 JSObject を作る (thumbnail / thumbnails の共通部・任意スレッドから安全)。
+     *  GPS に加え DateTimeOriginal も返す: Android は MediaStore.DATE_TAKEN が欠ける写真が多い
+     *  (スキャナ癖/アプリ保存) ため、JS 側で「保存日 → EXIF 撮影日」に格上げする (日時純度 EXIF>保存日)。 */
+    private fun thumbResult(idStr: String, size: Int): JSObject {
+        val id = idStr.toLong()
+        val uri = ContentUris.withAppendedId(imagesUri(), id)
+        val bmp: Bitmap = if (Build.VERSION.SDK_INT >= 29) {
+            // loadThumbnail は EXIF 向き補正済み・アスペクト維持で size に収める
+            context.contentResolver.loadThumbnail(uri, Size(size, size), null)
+        } else {
+            legacyThumbnail(id)
+        }
+        val out = ByteArrayOutputStream()
+        bmp.compress(Bitmap.CompressFormat.JPEG, 80, out)
+        val b64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+        val res = JSObject()
+        res.put("dataUrl", "data:image/jpeg;base64,$b64")
+        readExif(uri)?.let { ex ->
+            if (ex.lat != null && ex.lng != null) {
+                res.put("lat", ex.lat)
+                res.put("lng", ex.lng)
+            }
+            if (ex.dateMs != null) {
+                val fmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+                    .apply { timeZone = TimeZone.getTimeZone("UTC") }
+                res.put("exifDate", fmt.format(Date(ex.dateMs)))
+            }
+        }
+        return res
+    }
+
     @PluginMethod
     fun thumbnail(call: PluginCall) {
         val idStr = call.getString("id")
@@ -253,36 +293,49 @@ class PhotoLibraryPlugin : Plugin() {
         val size = call.getInt("size") ?: 200
         executor.execute {
             try {
-                val id = idStr.toLong()
-                val uri = ContentUris.withAppendedId(imagesUri(), id)
-                val bmp: Bitmap = if (Build.VERSION.SDK_INT >= 29) {
-                    // loadThumbnail は EXIF 向き補正済み・アスペクト維持で size に収める
-                    context.contentResolver.loadThumbnail(uri, Size(size, size), null)
-                } else {
-                    legacyThumbnail(id)
-                }
-                val out = ByteArrayOutputStream()
-                bmp.compress(Bitmap.CompressFormat.JPEG, 80, out)
-                val b64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
-                val res = JSObject()
-                res.put("dataUrl", "data:image/jpeg;base64,$b64")
-                // ついで EXIF (クラス冒頭コメント参照)。GPS に加え DateTimeOriginal も返す:
-                // Android は MediaStore.DATE_TAKEN が欠ける写真が多い (スキャナ癖/アプリ保存) ため、
-                // JS 側で「保存日 → EXIF 撮影日」に格上げする (日時純度 EXIF>保存日 の流儀)。
-                readExif(uri)?.let { ex ->
-                    if (ex.lat != null && ex.lng != null) {
-                        res.put("lat", ex.lat)
-                        res.put("lng", ex.lng)
-                    }
-                    if (ex.dateMs != null) {
-                        val fmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-                            .apply { timeZone = TimeZone.getTimeZone("UTC") }
-                        res.put("exifDate", fmt.format(Date(ex.dateMs)))
-                    }
-                }
-                call.resolve(res)
+                call.resolve(thumbResult(idStr, size))
             } catch (e: Exception) {
                 call.reject("thumbnail failed: ${e.message}")
+            }
+        }
+    }
+
+    // ---------------- thumbnails (v228: バッチ+並列) ----------------
+
+    /** N枚のサムネを1往復で返す。デコードは thumbPool (コア数に応じ 2..4) で並列＝
+     *  古い端末の直列ボトルネックをコア数ぶん短縮。items は ids と同順で、
+     *  失敗した枚だけ {id, error} (バッチ全体は落とさない＝JS 側で個別 skip)。 */
+    @PluginMethod
+    fun thumbnails(call: PluginCall) {
+        val idsArr = call.getArray("ids")
+        if (idsArr == null || idsArr.length() == 0) {
+            call.reject("ids required")
+            return
+        }
+        val size = call.getInt("size") ?: 200
+        val ids = ArrayList<String>(idsArr.length())
+        try {
+            for (i in 0 until idsArr.length()) ids.add(idsArr.getString(i))
+        } catch (e: Exception) {
+            call.reject("bad ids: ${e.message}")
+            return
+        }
+        executor.execute {   // 受付は従来 executor＝バッチ同士は直列 (プールの取り合いを防ぐ)
+            try {
+                val futures = ids.map { idStr ->
+                    thumbPool.submit(Callable {
+                        try {
+                            thumbResult(idStr, size).put("id", idStr)
+                        } catch (e: Exception) {
+                            JSObject().put("id", idStr).put("error", e.message ?: "failed")
+                        }
+                    })
+                }
+                val items = JSArray()
+                for (f in futures) items.put(f.get())
+                call.resolve(JSObject().put("items", items))
+            } catch (e: Exception) {
+                call.reject("thumbnails failed: ${e.message}")
             }
         }
     }
