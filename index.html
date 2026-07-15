@@ -842,7 +842,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.172 (v221：🗺️タイムラインを開いたら地図コントロール（過去の今日/🎲/⋯表示/⛶）を隠す＝上まで来た時に被って見づらいのを解消（✕は残す・畳めば戻る）｜v220：🤖拡大表示をステータスバー直下＋タイムラインを最大化｜v219：🫧囲んで見るを地図タップで中心→スライダー｜v218：ℹ️使い方「連想の歩き方」を現行スワイプUIに更新｜v217：🗺️タイムラインのシートをdvhで最大化) · 2026-07-15';
+const BUILD = 'phase3.173 (v222：✏️手書き🎯起点→終点で「任意の場所」も端点にできる＝空き地タップで自動時刻の点を作って端点に（既存点はスナップのまま・通過点は間で按分・🕒で後から時刻を直せる）｜v221：🗺️タイムラインを開いたら地図コントロール（過去の今日/🎲/⋯/⛶）を隠す｜v220：🤖拡大表示をステータスバー直下＋タイムラインを最大化｜v219：🫧囲んで見るを地図タップで中心→スライダー｜v218：ℹ️使い方「連想の歩き方」を現行スワイプUIに更新) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -5857,9 +5857,9 @@ function handSegUiSync() {
     }
     if (hint) {
       hint.textContent = !sg.A
-        ? tr('🎯 まず「起点」＝すでにある点の近くをタップして選びます', '🎯 First tap near an existing point to pick the START')
+        ? tr('🎯 まず「起点」をタップ（点の近く＝その点／空き地＝任意の場所に置く）', '🎯 Tap the START (near a point to snap, or empty space to place freely)')
         : !sg.B
-        ? tr(`起点 ${handHHMM(sg.A.t)} ✓ — 次に「終点」の点をタップ`, `Start ${handHHMM(sg.A.t)} ✓ — now tap the END point`)
+        ? tr(`起点 ${handHHMM(sg.A.t)} ✓ — 次に「終点」をタップ（点 or 空き地）`, `Start ${handHHMM(sg.A.t)} ✓ — now tap the END (a point or empty space)`)
         : tr(`起点 ${handHHMM(sg.A.t)} → 終点 ${handHHMM(sg.B.t)}。通った順にタップ → 🎯で確定（時刻はこの間に入ります）`, `Start ${handHHMM(sg.A.t)} → End ${handHHMM(sg.B.t)}. Tap along your route in order, then 🎯 to confirm.`);
     }
   }
@@ -5949,16 +5949,34 @@ async function handSegTap(ll) {
       const d = P.distanceTo(map.latLngToLayerPoint([seq[i].lat, seq[i].lng]));
       if (d < nd) { nd = d; ni = i; }
     }
-    if (ni < 0 || nd > 48) { logInfo(tr('起点・終点は「すでにある点」から選びます — 点の近くをタップしてください', 'Start/End snap to existing points — tap closer to one.')); return; }
-    const q = seq[ni];
-    const pick = { t: q.t, lat: q.lat, lng: q.lng, recId: q.rec ? q.rec.id : null };
+    let pick;
+    if (ni >= 0 && nd <= 48) {
+      const q = seq[ni];                                    // 近くに点がある＝その点にスナップ（従来）
+      pick = { t: q.t, lat: q.lat, lng: q.lng, recId: q.rec ? q.rec.id : null };
+    } else {
+      // v222: 近くに点が無い＝任意の端点。✚と同じ自動時刻で実点を作り端点に使う（🕒であとで直せる）。
+      //   端点も実点として track に置く＝線が時刻順マージでその点を通る（recId で下書きに紐づく）。
+      const t = handAutoTime(seq, ll, he, map);
+      const rec = { id: crypto.randomUUID(), t, lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6), acc: 0, src: 'hand' };
+      try { await trackPut(rec); }
+      catch (err) { logErr(tr(`点の保存に失敗: ${err?.message || err}`, `Failed to save the point: ${err?.message || err}`)); return; }
+      if (!mapState || mapState.handEdit !== he || he.seg !== sg) return;   // await 後の再入ガード
+      he.undo.push(rec.id);
+      if (mapState.refreshTrack) mapState.refreshTrack();
+      await redrawHandMarkers();
+      if (!mapState || mapState.handEdit !== he || he.seg !== sg) return;
+      pick = { t: rec.t, lat: rec.lat, lng: rec.lng, recId: rec.id };
+    }
     if (!sg.A) sg.A = pick;
     else {
-      if (q.t === sg.A.t && q.lat === sg.A.lat && q.lng === sg.A.lng) { logInfo(tr('起点と同じ点です。別の点をタップしてください', 'Same as the start — tap a different point.')); return; }
+      if (pick.recId && sg.A.recId === pick.recId) { logInfo(tr('起点と同じ点です。別の場所をタップしてください', 'Same as the start — tap a different spot.')); return; }
       sg.B = pick;
       if (sg.B.t < sg.A.t) { const tmp = sg.A; sg.A = sg.B; sg.B = tmp; }   // 早い方が起点＝どちらから選んでも自然に
-      const mid = seq.filter(x => x.t > sg.A.t && x.t < sg.B.t).length;
-      if (mid > 0) logInfo(tr(`起点と終点の間に別の点が${mid}個あります。線は時刻順につながるので、なるべく隣り合う2点を選ぶのがおすすめです`, `${mid} other point(s) sit between start and end — the line follows time order, so adjacent points work best.`));
+      if (sg.B.t <= sg.A.t) { sg.B = null; logInfo(tr('起点と終点の時刻が同じです。別の場所/点を選ぶか、🕒で時刻をずらしてください', 'Start and end share the same time — pick a different spot/point, or shift with 🕒.')); redrawSegDraft(); return; }
+      if (sg.A.recId && sg.B.recId) {                       // 既存点どうしの時だけ「間に点」を案内
+        const mid = seq.filter(x => x.t > sg.A.t && x.t < sg.B.t).length;
+        if (mid > 0) logInfo(tr(`起点と終点の間に別の点が${mid}個あります。線は時刻順につながるので、なるべく隣り合う2点を選ぶのがおすすめです`, `${mid} other point(s) sit between start and end — the line follows time order, so adjacent points work best.`));
+      }
     }
     redrawSegDraft();
     return;
@@ -5992,25 +6010,16 @@ function handFreehandTime(seq, ll, dir, dayKey, map) {
 // 地図タップ→点を打つ。確定点 (写真/ロガー) が2つ以上ある日は、いちばん近い確定/手書き点を基準に
 //   パネルで選んだ向き (前/後) の隣接区間へ挿入し、区間内の距離按分で時刻を与える (v188)。最寄り「線分」
 //   だと道が折り返す/交差するところで意図と違う区間に入る→最寄り「点」＋前/後トグルにして時系列を狙える。
-//   v190: 確定点が2つ未満の日はフリーハンド (タップ順＝道順・端の外側も許す＝写真の無い日を描ける)。
-async function handDrawTap(ll) {
-  const he = mapState && mapState.handEdit;
-  if (!he) return;
-  if (he.movingRec) { await moveHandPtTo(ll); return; }   // v207: 移動待ち＝タップした所へ点を移す (最優先)
-  if (he.seg) { await handSegTap(ll); return; }   // v206: 🎯起点→終点モードは下書きへ (即保存しない)
-  const seq = await handDaySeq(he.dayKey);
-  if (!mapState || mapState.handEdit !== he) return;
-  const map = mapState.map;
-  // v190→v207: 骨格＝写真/ロガー + 「手で時刻を打った手書き点」(tFixed)。確定点の無い日でも、手動アンカーが2つあれば区間按分が効く。
-  const realN = seq.filter(x => !x.rec || x.rec.tFixed).length;
-  let t;
+// v222: タップ位置の自動時刻（✚近くに打つ / 🎯任意端点 で共通）。
+//   骨格 (写真/ロガー/tFixed手書き) が2点以上なら、いちばん近い点の前/後の区間へ投影して按分。
+//   1点以下ならフリーハンド (タップ順で最寄り点の前/後へ・端の外側も許す＝写真の無い日を描ける)。
+function handAutoTime(seq, ll, he, map) {
+  const realN = seq.filter(x => !x.rec || x.rec.tFixed).length;   // 骨格＝写真/ロガー + 手で時刻を打った点(tFixed)
   if (realN >= 2) {
-    // 従来 (v188): いちばん近い「点」の前/後の区間へ投影して時刻按分。端は内側へフォールバック。
     const P = map.latLngToLayerPoint(ll);
     let ni = 0, nd = Infinity;                              // タップ位置にいちばん近い「点」の index
     for (let i = 0; i < seq.length; i++) {
-      const q = map.latLngToLayerPoint([seq[i].lat, seq[i].lng]);
-      const d = P.distanceTo(q);
+      const d = P.distanceTo(map.latLngToLayerPoint([seq[i].lat, seq[i].lng]));
       if (d < nd) { nd = d; ni = i; }
     }
     let ai, bi;                                             // 基準点の前 or 後の区間 (端は内側へ)
@@ -6022,13 +6031,24 @@ async function handDrawTap(ll) {
     const cp = L.LineUtil.closestPointOnSegment(P, pa, pb);   // A-B 線分にタップ位置を投影して時刻按分
     const ab = pa.distanceTo(pb);
     const f = Math.min(0.98, Math.max(0.02, ab > 0 ? pa.distanceTo(cp) / ab : 0.5));
-    t = Math.round(A.t + (B.t - A.t) * f);
+    let t = Math.round(A.t + (B.t - A.t) * f);
     if (t <= A.t) t = A.t + 1;
     if (t >= B.t) t = Math.max(A.t + 1, B.t - 1);
-  } else {
-    // v190: 確定点≤1＝フリーハンド。タップ順で最寄り点の前/後へ (端の外側も許す)。
-    t = handFreehandTime(seq, ll, he.dir, he.dayKey, map);
+    return t;
   }
+  return handFreehandTime(seq, ll, he.dir, he.dayKey, map);
+}
+
+//   v190: 確定点が2つ未満の日はフリーハンド (タップ順＝道順・端の外側も許す＝写真の無い日を描ける)。
+async function handDrawTap(ll) {
+  const he = mapState && mapState.handEdit;
+  if (!he) return;
+  if (he.movingRec) { await moveHandPtTo(ll); return; }   // v207: 移動待ち＝タップした所へ点を移す (最優先)
+  if (he.seg) { await handSegTap(ll); return; }   // v206: 🎯起点→終点モードは下書きへ (即保存しない)
+  const seq = await handDaySeq(he.dayKey);
+  if (!mapState || mapState.handEdit !== he) return;
+  const map = mapState.map;
+  const t = handAutoTime(seq, ll, he, map);   // v222: 自動時刻（≥2点=区間按分 / ≤1点=フリーハンド）を共通ヘルパへ
   const rec = { id: crypto.randomUUID(), t, lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6), acc: 0, src: 'hand' };
   if (he.type === 'stay') rec.stay = 1;
   try { await trackPut(rec); }
