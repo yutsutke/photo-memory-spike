@@ -600,6 +600,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
   .here-panel .here-cancel { background: #2f3438; color: #fff; border: none; border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
   .here-radius { width: 100%; accent-color: #33c1b0; margin: 4px 0 8px; }
   .here-panel-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #bbb; margin-bottom: 10px; }
+  .enc-movehint { font-size: 11px; color: #8a8a8a; margin: 0 0 8px; }   /* v219: 囲む＝中心をタップで置き直せる案内 */
   /* ✏️ 手書きの移動線 (v187): パネルは here-panel を土台に、点タイプのチップと取り消しだけ足す */
   .hand-panel .hand-chips { display: flex; gap: 6px; margin-bottom: 8px; }
   .hand-panel .hand-chips .mc-pop-btn { flex: 1 1 0; min-width: 0; padding: 7px 4px; font-size: 12px; white-space: nowrap; text-align: center; }
@@ -831,7 +832,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.169 (v218：ℹ️使い方の「連想の歩き方」を現行のスワイプUIに更新（3枚引く→1枚ずつ横スワイプ）｜v217：🗺️タイムラインのシートを可視領域基準(dvh)で最大化＝Webでコントロールと重ならず/iOSでも上まで開く｜v216：🤖Androidのステータスバー重なりを解消＝トップのヘッダ/地図のコントロールを端末のバーぶん下げる｜v215：🎞️Androidのカメラ権限を確実に＝開く前にアプリ自身がリクエスト＋拒否時は回復導線｜v214：⚙使い方・情報を主要機能に更新＋バージョン履歴を5版に刈り込み) · 2026-07-15';
+const BUILD = 'phase3.170 (v219：🫧囲んで見るを「地図タップで中心→スライダーで半径」に（実機でドラッグが難しかったFB・📍いまの場所と同じUI）｜v218：ℹ️使い方の「連想の歩き方」を現行のスワイプUIに更新（3枚引く→1枚ずつ横スワイプ）｜v217：🗺️タイムラインのシートを可視領域基準(dvh)で最大化｜v216：🤖Androidのステータスバー重なりを解消｜v215：🎞️Androidのカメラ権限を確実に＝開く前にアプリ自身がリクエスト＋拒否時は回復導線) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -4963,80 +4964,103 @@ function photosInCircle(lat, lng, radiusM) {
     .sort((a, b) => a.datetime - b.datetime);   // 昔→今 (pickToday と同じ並び)
 }
 
-// 地図に円を描くモードに入る。中心を押して外へドラッグ=半径。離すと円内の写真で比較ビュー。
+// 囲んで見るモード。v219: 旧「押して外へドラッグ=半径」から「地図をタップして中心→スライダーで半径」に変更
+//   （実機でドラッグが難しい・ユーザーFB）。📍いまの場所(enterHereRadiusMode)と同じ .here-panel スライダー UI／
+//   同じ半径ヘルパ(hereSliderToRadius)を流用＝一貫性。中心は地図タップで何度でも置き直せる（円は interactive:false で
+//   タップを透過）。地図のパン/ズームは有効のまま（スポットを探して置ける）＝Leaflet の 'click' はドラッグでは発火しない。
 function startEncircleMode() {
   if (!mapState || mapState.encircle) return;
-  if (mapState.handEdit) endHandDrawMode(true);   // v187: ✏️手書きとは排他
+  if (mapState.handEdit) endHandDrawMode(true);      // v187: ✏️手書きとは排他
+  if (mapState.hereMode) endHereRadiusMode();        // 📍いまの場所とも排他
   const { map, overlay } = mapState;
-  const mapEl = overlay.querySelector('#mapEl');
   try { map.closePopup(); } catch {}
   if (mapState.closePops) mapState.closePops();
-  // 描画ジェスチャと衝突しないよう地図のパン/ズームを一時停止 (endEncircleMode で必ず戻す)。
-  try { map.dragging.disable(); map.doubleClickZoom.disable(); map.boxZoom.disable(); if (map.tap) map.tap.disable(); } catch {}
 
-  const layer  = document.createElement('div'); layer.className  = 'encircle-layer';
   const banner = document.createElement('div'); banner.className = 'encircle-banner';
-  banner.innerHTML = `<span>${tr('見たい場所を押して、外へ広げて囲む', 'Press a spot and drag outward to encircle it')}</span><button class="enc-cancel" type="button">${tr('やめる', 'Cancel')}</button>`;
-  const liveCount = document.createElement('div'); liveCount.className = 'encircle-count'; liveCount.hidden = true;
-  overlay.appendChild(layer); overlay.appendChild(banner); overlay.appendChild(liveCount);
+  banner.innerHTML = `<span>${tr('地図をタップして中心を決める', 'Tap the map to set the center')}</span><button class="enc-cancel" type="button">${tr('やめる', 'Cancel')}</button>`;
+  overlay.appendChild(banner);
 
-  let circle = null, centerLL = null, drawing = false, moveRaf = null;
-  const ptToLatLng = (clientX, clientY) => {
-    const rect = mapEl.getBoundingClientRect();
-    return map.containerPointToLatLng(L.point(clientX - rect.left, clientY - rect.top));
-  };
-  const onDown = (e) => {
-    if (drawing) return;                         // 2本目のタッチ(ピンチ等)は無視
-    if (e.button != null && e.button > 0) return;
-    drawing = true;
-    try { layer.setPointerCapture(e.pointerId); } catch {}
-    centerLL = ptToLatLng(e.clientX, e.clientY);
-    if (circle) map.removeLayer(circle);
-    circle = L.circle(centerLL, { radius: 1, color: '#33c1b0', weight: 2, fillColor: '#33c1b0', fillOpacity: 0.12 }).addTo(map);
-    liveCount.hidden = false; liveCount.textContent = tr('0枚', '0 photos');
-    e.preventDefault();
-  };
-  const onMove = (e) => {
-    if (!drawing || !centerLL || !circle) return;
-    e.preventDefault();
-    const cur = ptToLatLng(e.clientX, e.clientY);
-    circle.setRadius(map.distance(centerLL, cur));
-    if (moveRaf) return;                          // 件数計算は rAF で間引き (大量写真でも軽く)
-    moveRaf = requestAnimationFrame(() => {
-      moveRaf = null;
-      if (!centerLL || !circle) return;
-      const n = photosInCircle(centerLL.lat, centerLL.lng, circle.getRadius()).length;
-      liveCount.textContent = tr(`${n}枚`, `${n} photos`);
-    });
-  };
-  const onUp = (e) => {
-    if (!drawing) return;
-    drawing = false;
-    e.preventDefault();
-    const r = circle ? circle.getRadius() : 0;
-    const list = (centerLL && r > 0) ? photosInCircle(centerLL.lat, centerLL.lng, r) : [];
-    if (list.length >= 2) {
-      const ci = { lat: centerLL.lat, lng: centerLL.lng, radius: r };   // v121: 思い出の場所登録用に円を渡す
-      const target = attachTargetAnniv; attachTargetAnniv = null;   // v143: 詳細の「別の場所」経由なら直接 attach
-      endEncircleMode();
-      if (target) attachLocationDirect(target, ci, list);
-      else openEncircleTimeline(list, ci);   // v151: 囲む後は deck(1枚) ではなく ログ(タイムライン) で見る（未登録＝「📍登録」で残す）
-      return;
+  let centerLL = null, circle = null, panel = null;
+
+  const fmtR = (r) => (r >= 1000)
+    ? tr(`半径 ${(r / 1000).toFixed(r % 1000 === 0 ? 0 : 1)}km`, `${(r / 1000).toFixed(r % 1000 === 0 ? 0 : 1)} km radius`)
+    : tr(`半径 ${r}m`, `${r} m radius`);
+
+  function refresh() {
+    if (!circle || !panel || !centerLL) return;
+    const r = hereSliderToRadius(+panel.querySelector('.here-radius').value);
+    circle.setRadius(r);
+    const n = photosInCircle(centerLL.lat, centerLL.lng, r).length;
+    panel.querySelector('.here-rlabel').textContent = fmtR(r);
+    panel.querySelector('.here-count').textContent = tr(`${n}枚`, `${n} photos`);
+    const ok = n >= 2;
+    panel.querySelector('.here-go').disabled = !ok;
+    panel.querySelector('.here-hint').textContent = ok ? ''
+      : (n === 1 ? tr('この範囲には写真が1枚だけ。中心をタップし直すか、スライダーを右に。', 'Only 1 photo here. Tap a new center or slide right.')
+                 : tr('この範囲には写真がありません。中心をタップし直すか、スライダーを右に。', 'No photos here. Tap a new center or slide right.'));
+  }
+
+  function showPanel(initR) {
+    banner.remove();   // 中心が決まったらパネルに主導権を渡す（上部の混雑を避ける）
+    const titleHtml = attachTargetAnniv
+      ? '📍 ' + annivEsc(attachTargetAnniv.name) + tr('（別の場所を足す）', ' (add a place)')
+      : '🫧 ' + tr('囲んだ場所', 'Encircled area');
+    panel = document.createElement('div');
+    panel.className = 'here-panel enc-panel';
+    panel.innerHTML =
+      `<div class="here-panel-top"><span class="here-panel-title">${titleHtml}</span><button class="here-cancel" type="button">${tr('やめる', 'Cancel')}</button></div>` +
+      `<div class="enc-movehint">${tr('地図をタップで中心を移動', 'Tap the map to move the center')}</div>` +
+      `<input type="range" class="here-radius" min="0" max="100" step="1" aria-label="${tr('半径', 'Radius')}">` +
+      `<div class="here-panel-row"><span class="here-rlabel"></span><span class="here-count"></span></div>` +
+      `<button class="here-go" type="button">${tr('この範囲で見る', 'See this range')}</button>` +
+      `<div class="here-hint"></div>`;
+    overlay.appendChild(panel);
+    if (mapState.encircle) mapState.encircle.panel = panel;
+    const slider = panel.querySelector('.here-radius');
+    slider.value = hereRadiusToSlider(initR);
+    slider.addEventListener('input', refresh);
+    slider.addEventListener('change', () => { try { if (circle) map.fitBounds(circle.getBounds(), { padding: [60, 60], maxZoom: 16, animate: true }); } catch {} });
+    panel.querySelector('.here-go').addEventListener('click', onGo);
+    panel.querySelector('.here-cancel').addEventListener('click', endEncircleMode);
+    refresh();
+    try { map.fitBounds(circle.getBounds(), { padding: [60, 60], maxZoom: 16, animate: true }); } catch {}
+  }
+
+  function onMapClick(e) {
+    centerLL = e.latlng;
+    if (!circle) {
+      let initR = 500;   // 初期半径＝2枚以上入る最小（無ければ 500m から「広げてみて」）
+      for (const r of [150, 300, 600, 1200, 2500, 5000]) {
+        if (photosInCircle(centerLL.lat, centerLL.lng, r).length >= 2) { initR = r; break; }
+      }
+      circle = L.circle(centerLL, { radius: initR, color: '#33c1b0', weight: 2, fillColor: '#33c1b0', fillOpacity: 0.12, interactive: false }).addTo(map);
+      showPanel(initR);
+    } else {
+      circle.setLatLng(centerLL);   // 2回目以降のタップ＝中心の置き直し
+      refresh();
     }
-    // 足りない → 円を消してやり直し (モードは継続)。
-    liveCount.hidden = false;
-    liveCount.textContent = (list.length === 1) ? tr('1枚 — もう少し広く囲んで', '1 photo — encircle a bit wider') : tr('この辺りに写真がありません', 'No photos around here');
-    if (circle) { map.removeLayer(circle); circle = null; }
-    centerLL = null;
-    setTimeout(() => { if (mapState && mapState.encircle) mapState.encircle.liveCount.hidden = true; }, 1500);
-  };
-  layer.addEventListener('pointerdown', onDown);
-  layer.addEventListener('pointermove', onMove);
-  layer.addEventListener('pointerup', onUp);
-  layer.addEventListener('pointercancel', onUp);
+  }
+
+  function onGo() {
+    if (!centerLL || !circle) return;
+    const r = circle.getRadius();
+    const list = photosInCircle(centerLL.lat, centerLL.lng, r);
+    if (list.length < 2) return;
+    const ci = { lat: centerLL.lat, lng: centerLL.lng, radius: r };   // v121: 思い出の場所登録用に円を渡す
+    const target = attachTargetAnniv; attachTargetAnniv = null;       // v143: 詳細の「別の場所」経由なら直接 attach
+    endEncircleMode();
+    if (target) attachLocationDirect(target, ci, list);
+    else openEncircleTimeline(list, ci);   // v151: 囲む後は ログ(タイムライン) で見る（未登録＝「📍登録」で残す）
+  }
+
+  map.on('click', onMapClick);
   banner.querySelector('.enc-cancel').addEventListener('click', () => endEncircleMode());
 
-  mapState.encircle = { layer, banner, liveCount, clear: () => { if (circle) { map.removeLayer(circle); circle = null; } } };
+  mapState.encircle = {
+    banner, panel: null,
+    _onMapClick: onMapClick,
+    clear: () => { if (circle) { try { map.removeLayer(circle); } catch {} circle = null; } }
+  };
 }
 
 function endEncircleMode() {
@@ -5044,9 +5068,10 @@ function endEncircleMode() {
   if (!mapState || !mapState.encircle) return;
   const { map } = mapState;
   const enc = mapState.encircle;
+  try { map.off('click', enc._onMapClick); } catch {}   // v219: タップ中心方式＝click リスナを外す
   try { enc.clear(); } catch {}
-  enc.layer.remove(); enc.banner.remove(); enc.liveCount.remove();
-  try { map.dragging.enable(); map.doubleClickZoom.enable(); map.boxZoom.enable(); if (map.tap) map.tap.enable(); } catch {}
+  if (enc.banner) enc.banner.remove();
+  if (enc.panel) enc.panel.remove();
   mapState.encircle = null;
 }
 

@@ -13,7 +13,9 @@
 
 ---
 
-> **🔧 セッション38（2026-07-15）＝🎞️カメラ権限（v215）＋🤖ステータスバー重なり真因解消（v216）＋🗺️タイムラインシートを dvh で最大化（v217）。phase3.168。vc3（署名付き・v215+v216）Play 内部テスト公開済み。**
+> **🔧 セッション38（2026-07-15）＝🎞️カメラ権限（v215）＋🤖ステータスバー重なり真因解消（v216）＋🗺️タイムラインシートを dvh で最大化（v217）＋ℹ️使い方「連想の歩き方」更新（v218）＋🫧囲んで見るをタップ中心+スライダーに（v219）。phase3.170。vc3（署名付き・v215+v216）Play 内部テスト公開済み。**
+> - **v218**: ⚙情報「🎲 連想の歩き方」が旧「3枚引く」のまま→v111 スワイプ化に合わせ「1枚ずつ横スワイプ」に更新（ユーザー「過去の話」）。web 即反映。
+> - **v219（囲んで見る・実機FBでドラッグが難しい→ユーザーがスライダー選択）**: 「地図タップで中心→スライダーで半径」に作り替え。📍いまの場所と同じ `.here-panel` UI／`hereSliderToRadius` を流用（出荷済み here コードは不変）。円 interactive:false でタップ透過＝中心を置き直せる・地図パン/ズーム有効のまま（Leaflet click はドラッグで非発火）。attach 経路（別の場所）保持。preview 検証済（タップ→円+パネル+スライダー・501m→4km・中心移動・やめるで清掃・console 0）。go≥2枚経路は openEncircleTimeline 不変ゆえロジックのみ→実機で最終確認。**web 即反映**。
 > - **v217（タイムラインシート・実機FB「Webで重なる／iOSで途中止まり」）**: 開＝`max-height:78vh` 固定が原因＝vh はモバイルでアドレスバー畳んだ高さ基準→Safari で実可視より高く算出しコントロール（モバイル top52px＋2段=下端123px）と重なる／native は上に 22vh 余らせ途中止まり。→ **`calc(100dvh - 135px)`**（80vh フォールバック前置）＝可視領域基準で重なり解消＋固定135pxだけ空け最大化（native +44px 高い）。preview mobile 検証済（677px 解決・上端135>コントロール123・console 0）。**web は GitHub Pages 即反映＝Safari で確認可**／iOS/Android native は次ビルド。
 > - **⚠️ vc3 実機確認時の watch**: v216 の `html.cap-android .map-ctrlbar`（specificity 0,2,1）はモバイル `@media .map-ctrlbar{top:52px}`（0,1,0）に勝つ＝Android モバイルで地図コントロールが 52px でなく 10+sat に来る可能性＋⛶(map-fs-toggle) は v216 で --sat 未対応。地図の上部コントロール（✕/⛶/日付）が崩れていないか実機で見る→崩れていれば vc4 で cap-android をメディアクエリ内に入れて修正。
 > - **v216（ステータスバー重なり・実機FB「Pixel 7a だけ重なる」）**: 真因＝Capacitor 8 SystemBars は **WebView≥140＋viewport-fit=cover でパススルーモード**（WebView がバー裏まで描画）、古い WebView は padded モード（native が padding）＝**端末で挙動が割れる理由**。v209 はオーバーレイ 16 箇所を直したが**トップ画面の `header`・地図の ←/📅/ポップ/Leaflet/囲むバナー**が漏れていた。→ `<head>` で Android native だけ `html.cap-android` を立て、CSS 6ルールを Android 限定で --sat 化。**iOS（contentInset=always が flow を押し下げ済み＝足すと二重）/web は 1px も不変**。preview 検証済（シミュレートで全シフト・復元で完全一致・console 0）。
