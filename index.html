@@ -696,7 +696,9 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 
   /* タイムライン シート (モバイル=下部から引き出す / PC=右サイドバー) */
   /* 折りたたみ時はハンドルだけ覗かせる。iOS の下端帯(ホームインジケータ)に隠れて掴めないのを防ぐため safe-area 分持ち上げる (v88) */
-  .timeline-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; background: #161616; border-top: 1px solid #333; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; max-height: 78vh; transform: translateY(calc(100% - 54px - var(--sab))); transition: transform 0.25s ease; }
+  /* v217: 開いたシートの高さ。旧 78vh は ①Safari で vh がアドレスバーを畳んだ高さ基準＝実可視より高く算出され上部コントロールと重なる ②native では上に余白を残しすぎ「途中までしか上がらない」の二重問題だった。
+     → dvh(可視領域基準)で「上部コントロール(モバイル2段=top52px+高71px≒123px)＋余白」の固定 135px だけ空けて最大化。dvh 非対応の古い WebView は 80vh にフォールバック。 */
+  .timeline-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; background: #161616; border-top: 1px solid #333; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; max-height: 80vh; max-height: calc(100dvh - 135px); transform: translateY(calc(100% - 54px - var(--sab))); transition: transform 0.25s ease; }
   .timeline-sheet.open { transform: translateY(0); }
   /* v148: タイムラインの 一覧/写真 切替＋比べる */
   .tl-modebar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #262626; position: sticky; top: 0; background: #161616; z-index: 2; }
@@ -829,7 +831,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.167 (v216：🤖Androidのステータスバー重なりを解消＝トップのヘッダ/地図の←・コントロールを端末のバーぶん下げる（Pixel等の新WebViewだけで起きていた）｜v215：🎞️Androidのカメラ権限を確実に＝開く前にアプリ自身がリクエスト＋拒否時は「設定を開く/もう一度」で回復｜v214：⚙使い方・情報を主要機能に更新＋バージョン履歴を5版に刈り込み｜v213：📍思い出の場所を地図で開くと囲んだ範囲を円で表示｜v212：🛰️位置ロガーのモード説明を距離特性だけに統一) · 2026-07-15';
+const BUILD = 'phase3.168 (v217：🗺️タイムラインのシートを可視領域基準(dvh)で最大化＝Webでコントロールと重ならず/iOSでも上まで開く｜v216：🤖Androidのステータスバー重なりを解消＝トップのヘッダ/地図の←・コントロールを端末のバーぶん下げる｜v215：🎞️Androidのカメラ権限を確実に＝開く前にアプリ自身がリクエスト＋拒否時は「設定を開く/もう一度」で回復｜v214：⚙使い方・情報を主要機能に更新＋バージョン履歴を5版に刈り込み｜v213：📍思い出の場所を地図で開くと囲んだ範囲を円で表示) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
