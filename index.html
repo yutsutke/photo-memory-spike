@@ -847,7 +847,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.177 (v226：📊取り込みの区間計測（終了時に平均ms/枚と内訳を表示・直近を⚙情報に保存＝遅い端末の診断を数字で）｜v225：🌀背景取り込みの息継ぎを処理時間比例に（速い端末≈5倍速・遅い端末は自動で呼吸を確保）｜v224：🤝受け取りに開封の進捗（「○○さんの思い出を開いています… n/N」＋毎枚息継ぎで固まらない）｜v223：✏️手書き🎯を「起点/通過/滞在/終点」をチップで選んで置く方式に（点種を明示選択・置くと自動で次へ送り・√線を引く/×やめる）｜v222：✏️手書き🎯で「任意の場所」も端点にできる（空き地タップ＝自動時刻の点）) · 2026-07-15';
+const BUILD = 'phase3.178 (v227：🌅ライブラリ取り込みの最初の6枚を「全期間から」サンプリング（数秒で昔↔今に灯りが点く＝遅い端末でも体験が先に成立）｜v226：📊取り込みの区間計測（終了時に平均ms/枚と内訳を表示・直近を⚙情報に保存＝遅い端末の診断を数字で）｜v225：🌀背景取り込みの息継ぎを処理時間比例に（速い端末≈5倍速・遅い端末は自動で呼吸を確保）｜v224：🤝受け取りに開封の進捗（「○○さんの思い出を開いています… n/N」＋毎枚息継ぎで固まらない）｜v223：✏️手書き🎯を「起点/通過/滞在/終点」をチップで選んで置く方式に) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -1490,6 +1490,15 @@ async function drainAppShortcut() {
 if (AppSC) { try { AppSC.addListener('shortcut', d => handleAppShortcut(d && d.type)); } catch {} }
 
 const NATIVE_IMPORT_DELAY = 8;   // ネイティブ1枚ごとの間 (ms)。web の HEIC デコードより遥かに軽いので短い
+
+// v227: n 個から count 個を等間隔に選ぶ (両端含む)。fast-track の全期間サンプリング用。
+// n >= count なら添字は必ず distinct (step >= 1)。n < count は全添字。
+function spreadIndices(n, count) {
+  const c = Math.min(count, n);
+  const idx = new Set();
+  for (let k = 0; k < c; k++) idx.add(c > 1 ? Math.round(k * (n - 1) / (c - 1)) : 0);
+  return idx;
+}
 let nativeImportRunning = false; // 許可〜fast-track の多重起動ガード
 let bgNativeRunning = false;     // ネイティブ背景取り込みループ稼働中
 
@@ -1705,16 +1714,21 @@ async function importNativeLibrary() {
     importStatus = { done: 0, total: fresh.length };
     updateBgStatus();
 
-    const FAST = Math.min(FAST_TRACK_COUNT, fresh.length);
+    // v227: fast-track を「最新N枚」→「全期間からN枚」の等間隔サンプリングに。
+    //   最初の数秒でタイムライン全体に灯りが点く＝遅い端末でも取り込み完了を待たずに
+    //   「昔↔今」の体験が成立する (偶然/久しぶりのコアと同じ向き)。
+    //   rest は従来どおり新しい順 (v180: 途中停止しても最近ぶんが手元に残る)。
+    const fastIdx = spreadIndices(fresh.length, FAST_TRACK_COUNT);
+    const fastMetas = [...fastIdx].map(i => fresh[i]);
     const fastAdded = [];
-    for (let i = 0; i < FAST; i++) {
+    for (let i = 0; i < fastMetas.length; i++) {
       try {
-        const r = await importOneNative(fresh[i]);
+        const r = await importOneNative(fastMetas[i]);
         tallyImport(r);
         if (r.ok && r.record) fastAdded.push(r.record);
       } catch (e) {
         if (importStats) importStats.failed++;
-        console.warn(`[native-import] ${fresh[i].id}: ${e?.message || e}`);
+        console.warn(`[native-import] ${fastMetas[i].id}: ${e?.message || e}`);
       }
       importStatus = { done: i + 1, total: fresh.length };
       if ($text) $text.textContent = `${tr('読み込み中…', 'Loading…')} ${i + 1} / ${fresh.length}`;
@@ -1726,9 +1740,9 @@ async function importNativeLibrary() {
     else await drawRandom();
 
     // 5. 残りは背景へ (await しない = ユーザーに制御を返す)
-    const rest = fresh.slice(FAST);
+    const rest = fresh.filter((_, i) => !fastIdx.has(i));
     if (rest.length) {
-      processNativeRest(rest, FAST, fresh.length);
+      processNativeRest(rest, fastMetas.length, fresh.length);
     } else {
       flushThumbRelief();   // v183
       importStatus = null; updateBgStatus();
