@@ -706,6 +706,11 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
      --sat＝Android status bar / iOS notch / web 0。時計・電池には重ねない。dvh 非対応の古い WebView は 80vh にフォールバック。 */
   .timeline-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; background: #161616; border-top: 1px solid #333; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; max-height: 80vh; max-height: calc(100dvh - var(--sat) - 8px); transform: translateY(calc(100% - 54px - var(--sab))); transition: transform 0.25s ease; }
   .timeline-sheet.open { transform: translateY(0); }
+  /* v221: タイムラインを開いたら地図コントロール(過去の今日/🎲/⋯表示 等)と全画面⛶を隠す＝シートが上まで来た時に上に被って見づらいFB。
+     ✕(地図を閉じる)は常に残す（ハンドルで畳めばコントロールは戻る）。 */
+  .map-overlay.sheet-open .map-ctrlbar,
+  .map-overlay.sheet-open .mc-pop,
+  .map-overlay.sheet-open .map-fs-toggle { display: none; }
   /* v148: タイムラインの 一覧/写真 切替＋比べる */
   .tl-modebar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #262626; position: sticky; top: 0; background: #161616; z-index: 2; }
   .tl-tabs { display: flex; gap: 6px; }
@@ -837,7 +842,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.171 (v220：🤖Android実機FB＝拡大表示をステータスバー直下から表示（電池と重ならない）＋タイムラインをステータスバー直下まで最大化｜v219：🫧囲んで見るを「地図タップで中心→スライダーで半径」に｜v218：ℹ️使い方の「連想の歩き方」を現行のスワイプUIに更新｜v217：🗺️タイムラインのシートを可視領域基準(dvh)で最大化｜v216：🤖Androidのステータスバー重なりを解消) · 2026-07-15';
+const BUILD = 'phase3.172 (v221：🗺️タイムラインを開いたら地図コントロール（過去の今日/🎲/⋯表示/⛶）を隠す＝上まで来た時に被って見づらいのを解消（✕は残す・畳めば戻る）｜v220：🤖拡大表示をステータスバー直下＋タイムラインを最大化｜v219：🫧囲んで見るを地図タップで中心→スライダー｜v218：ℹ️使い方「連想の歩き方」を現行スワイプUIに更新｜v217：🗺️タイムラインのシートをdvhで最大化) · 2026-07-15';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -4511,6 +4516,7 @@ async function openMapView(focusPhoto, opts) {
     const sheet = overlay.querySelector('.timeline-sheet');             // モバイルはシートを畳んで地図を見せる
     if (sheet && sheet.classList.contains('open') && window.matchMedia('(max-width:719px)').matches) {
       sheet.classList.remove('open');
+      overlay.classList.remove('sheet-open');   // v221: 畳んだら地図コントロールを戻す
       setTimeout(() => map.invalidateSize(), 260);
     }
     // 初期位置: 推定/指定座標(seed=軌跡からの推定など) → 既存GPS → 時間的に近いGPS写真(3日以内) → 地図中心
@@ -4596,6 +4602,7 @@ async function openMapView(focusPhoto, opts) {
   const sheet = overlay.querySelector('.timeline-sheet');
   overlay.querySelector('.sheet-handle').addEventListener('click', () => {
     sheet.classList.toggle('open');
+    overlay.classList.toggle('sheet-open', sheet.classList.contains('open'));   // v221: 開いたら地図コントロールを隠す
     setTimeout(() => map.invalidateSize(), 260);   // シート開閉でコンテナ高が変わる → Leaflet に反映
   });
 
@@ -4809,6 +4816,7 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
         const sheet = container.closest('.timeline-sheet');   // モバイルはシートを畳んで地図を見せる
         if (sheet && sheet.classList.contains('open') && isMobile()) {
           sheet.classList.remove('open');
+          const ov = sheet.closest('.map-overlay'); if (ov) ov.classList.remove('sheet-open');   // v221: 畳んだら地図コントロールを戻す
           setTimeout(() => map.invalidateSize(), 260);
         }
       };
