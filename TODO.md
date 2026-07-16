@@ -13,9 +13,15 @@
 
 ---
 
-> **🔧 セッション39（2026-07-15 午後）＝v224〜v229。phase3.180。📤 iOS 1.6(50) を審査提出（審査メモ英日を作成）→「古い端末で取り込みが遅い」FB③に、遅い端末なしで打てる5手をまとめて実装＋Androidエミュ実E2E完走。web は即反映済み・native（v228/v229 Kotlin/Swift）は vc4/iOS 次ビルドで乗る。**
+> **🔧 セッション40（2026-07-17 朝）＝コード変更なし＝出荷の回。🎉 iOS 1.6 が承認→自動リリースで公開済み（7/16 00:15 JST）。🤖 vc4（versionCode 4・phase3.180＝v220-229 全部入り）を手元 Windows でビルド→Play 内部テストに公開（7/17 8:20）。**
 >
-> **▶▶ 次回はここから＝vc4 の AAB 作成**（v220-229 全部入りの署名付きAABを手元Windowsで作る）。手順は [[android-local-signing-build]]（`$env:BUILD_NUMBER="4"`→`npm run sync:web; npx cap sync android; cd android; .\gradlew.bat bundleRelease`。JAVA_HOME 恒久化済み・署名 env は CREDENTIALS.txt・**未署名で弾かれた前科あり**＝CM_* 4変数を `Get-Content|Invoke-Expression`＋`--no-daemon`）→Play 内部テストへ上げて Pixel 7a 実機確認（⚙情報末尾=phase3.180 が目印・📚取り込みの体感と📊行・地図上部コントロール崩れの watch）。iOS も vc4 相当を Codemagic で（1.6 審査結果次第で 1.7 train）。
+> **▶▶ 次回はここから＝vc4 を Pixel 7a 実機で確認**（内部テストから更新）。見るのは3つ＝① **📚取り込みの体感**と ⚙情報末尾の **📊行**（`avg ○ms/photo` と内訳。エミュは平均47ms/枚＝v228 バッチ×並列の答え合わせ。bridge 支配が続くならバッチ16→24-32 も試す）② **地図の上部コントロール**（✕/⛶/日付）が崩れていないか（v216 の `html.cap-android` がモバイル `@media .map-ctrlbar{top:52px}` に specificity で勝つ懸念＝未検証・⛶は --sat 未対応。崩れていれば cap-android をメディアクエリ内へ）③ ⚙情報末尾が **phase3.180**（vc4 が乗った目印）。**iOS は 1.7 train**＝1.6 が公開済みなので新 train に分離する定石（1.1→1.2 / 1.5→1.6 と同じ）。**バージョン変更を入れてから Codemagic でビルドする**（ユーザー方針 2026-07-17）。
+> - **🎉 iOS 1.6 公開（2026-07-16 00:15 JST）**: 7/15 午後に提出した build 50 が承認→**自動リリース**（App Store の配信版が 1.6 になっているのを iTunes lookup で確認・リリースノート＝「手書きの足あと」）。v187-223（✏️手書きの足あと・🤝日パック手渡し・改善多数）が世に出た。
+> - **🤖 vc4 ＝ 手元署名 AAB（2026-07-17・一発50秒）**: `npm run sync:web`→`npx cap sync android`→`gradlew -p android clean bundleRelease --no-daemon`。**アップロード前の検証3点 ✅**＝署名済み（`META-INF/MADELEIN.SF`/`.RSA`・`:app:signReleaseBundle` 実行）／versionCode 4・versionName 1.0／バンドル内 `base/assets/public/index.html` が **phase3.180**（web が本当に載った証拠）。控え＝`Documents/madeleine-signing/madeleine-1.0-vc4.aab`。ユーザーが Play Console → 内部テストへアップロード→「内部テスターに公開」（未審査・一時アプリ名 `io.github.yutsutke.madeleine (unreviewed)`）。
+> - **📝 ビルド手順書の誤りを訂正（[[android-local-signing-build]]）**: `CREDENTIALS.txt` は **PowerShell スクリプトではなく「人が読む鍵の控え」**（`Store password: …` のラベル行＋日本語ヘッダ）＝旧手順の `Get-Content|Invoke-Expression` は**ヘッダ行を実行しようとして落ちる**（2026-07-13 に再生成された形式。旧メモは vc3 当時の記憶のまま）。→ **ラベルをパースして env に入れる**（パスワードがコマンド文にも出力にも残らない＝Claude が代行してよい）。＋**PowerShell ツールは env を呼び出しまたぎで保持しない**＝資格情報と gradle は**同じ1コール**に入れる。
+> - **📬 Google Play からの連絡（対応不要）**: 本人確認完了（7/10・登録料 $25 決済済み）／「Android デベロッパー確認要件のための Google Play アプリの自動登録が完了」（7/16）。メール中の「2026年9月までに登録しないと認定済み端末にインストール不可」は **Play 以外で配信するアプリ**の話＝Play 配信のみの今は該当しない。
+>
+> **🔧 セッション39（2026-07-15 午後）＝v224〜v229。phase3.180。📤 iOS 1.6(50) を審査提出（審査メモ英日を作成）→「古い端末で取り込みが遅い」FB③に、遅い端末なしで打てる5手をまとめて実装＋Androidエミュ実E2E完走。web は即反映済み・native（v228/v229 Kotlin/Swift）は vc4/iOS 次ビルドで乗る。**
 > - **📤 iOS 1.6 審査提出（2026-07-15 午後）**: build 50。前回審査版 1.5(46) との差分（v187-223＝✏️手書きの足あと・🤝日パック手渡し・改善多数）を整理し、審査メモ（英語主・日本語併記）を作成→ユーザーが ASC で提出。要点＝**新権限ゼロ**（写真/カメラ/位置は 1.5 までに宣言済み）・🤝共有は「サーバーなし・OS共有シート経由のファイル手渡し＝SNSではない」を明記・年齢レーティングは 1.5 と同じ回答を維持（アプリ内に投稿/公開の場なし）。
 > - **🚀 取り込み速度パック（v224-228）＝「読込速度を理解して、それに合わせる」**。設計3正面＝(a)速くする(v225/v228) (b)測る(v226) (c)順番を変えて遅さを無関係にする(v227)。＋受け取りにも同じ思想(v224)。
 >   - **v224 🤝受け取りに開封の進捗**: `importPeerPackFile(file, onProgress)`＋ボタン文言「🤝 ○○さんの思い出を開いています… n/N」＋毎枚 `yieldFrame()`（MessageChannel＝背景タブでも節流されない）。preview E2E ✅（40枚パックで毎枚更新・完走・console 0）。
