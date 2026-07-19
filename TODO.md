@@ -13,13 +13,14 @@
 
 ---
 
-> **🔧 セッション41（2026-07-19 夜）＝拡大表示の実機FB2件を反映（v230/v231）＋iOS を 1.7 train へ。phase3.181。web は即反映・iOS は 1.7 でビルド・Android は次 vc で乗せる。**
+> **🔧 セッション41（2026-07-19 夜）＝拡大表示の実機FB3件を反映（v230/v231/v232）＋iOS を 1.7 train へ。phase3.182。web は即反映・iOS は 1.7 でビルド・Android は次 vc で乗せる。**
 >
-> **📱 前提**: Pixel 7a で vc4 実機確認済み＝「特に大きな問題なし」（watch②の地図上部コントロール崩れも実機で問題なし＝OK）。
+> **📱 前提**: Pixel 7a で vc4 実機確認済み＝「特に大きな問題なし」（watch②の地図上部コントロール崩れも実機で問題なし＝OK）。実機 web（GitHub Pages・iOS Safari）で v230/v231 を確認→🗑削除ボタン確認 OK・**追加FB「下の操作ボタンが写真にかぶる／日本語ラベルをやめてアイコンだけにしたい」→ v232**。
 > - **v230 🖼 拡大表示の写真上端に時計/電池が重なるのを iOS でも解消**: Android は v220 で `html.cap-android .full-deck{top:var(--sat)}` 済みだったが iOS は未対応だった。`.full-overlay`（position:fixed inset:0）は iOS の `contentInset:always`（flow を押し下げる）を無視してステータスバー裏まで届くため、全画面写真の上端に時計/電池が重なる。→ head で `html.cap-ios` の印を付け、`.full-deck` だけに `top:var(--sat)` を適用（header/map 系は iOS では contentInset 済み＝当てると二重なので触らない）。iOS は env(safe-area-inset-top) が非0ゆえ効く。web は --sat=0 で無影響。preview で CSS ルール反映を確認（実機の見た目は native ビルド後）。
 > - **v231 🗑 拡大表示に削除ボタン（通常写真も）**: これまで「🗑 削除」は重ね撮りシリーズから開いた時（rephotoCtx）だけだった。通常写真の拡大表示に `.full-del-btn` を追加＝`excludePhoto(p)`（非表示＝どこからも消える・5秒Undoトースト・「♻️ 削除した写真を戻す」で後からでも復元可＝ハード削除しない既存モデル）＋`closeFullImage()`。preview E2E で描画/クリック（除外→オーバーレイ閉じ→トースト→Undoで復元）を確認・console 0。
+> - **v232 🖼 拡大表示の操作ボタンをアイコンのみに（実機FB「下のボタンが写真にかぶる」）**: `.full-actions` の全ボタン（🔮ウォーク/🗺地図/🎞️撮り重ね/🎞️N重ね撮り/🗑削除/📅日付を直す/⇆比べる/📖ログ/📍登録）から日本語ラベルを撤去しアイコンのみに。説明は `title`/`aria-label` に移設（クラスは不変＝配線そのまま）。ヘルパー `ib(cls,icon,label)`。CSS＝`.full-cap .full-actions button` を丸いアイコンボタンに統一（min-width46/height44・font20）、🔮=緑・🗑=赤は詳細度を上げた個別ルールで維持。**効果＝3〜4行→1行に畳んで写真へのかぶりを最小化**。preview E2E で確認（4アイコン🗺🎞️🗑📅が同一行 top=660・onWalk時は🔮追加5個・削除クリックで除外/閉じ/トースト・🗑色#f0a0a0・console 0）。**web 即反映**（実機 iOS Safari で確認可）。
 > - **🔢 iOS MARKETING_VERSION 1.6→1.7**（project.pbxproj 2箇所）: **Codemagic が自動採番するのはビルド番号（`agvtool new-version` → CURRENT_PROJECT_VERSION）だけ＝バージョン文字列は pbxproj 固定**。1.6 は公開済みゆえ新ビルドを足せない→1.7 に上げないと ASC で弾かれる。上げたので **次に Codemagic を回すと 1.7 で出る**。
-> - **▶ 次の一手**: ① **iOS 1.7 を Codemagic（ios-testflight）でビルド→TestFlight→審査提出**（新権限なし＝v230/v231 は UI 微修正のみ・審査メモは 1.6 から差分小）② **Android は次の vcN（vc5）で v230/v231 を反映**（web は GitHub Pages 即反映済み＝Safari/Chrome で先に触れる。native は cap-ios は無関係＝v230 は Android 既存の cap-android で対応済み・v231 の削除ボタンだけ vc5 で乗る）③ 実機で v230 の重なり解消を目視確認（TestFlight 1.7）。
+> - **▶ 次の一手**: ① **iOS 1.7 を Codemagic（ios-testflight）でビルド→TestFlight→審査提出**（新権限なし＝v230/v231/v232 は UI 微修正のみ・審査メモは 1.6 から差分小）② **Android は次の vcN（vc5）で v231/v232 を反映**（web は GitHub Pages 即反映済み＝Safari/Chrome で先に触れる。v230 の iOS 重なり対策は Android には無関係＝Android は v220 の cap-android で対応済み）③ 実機で v230 の重なり解消と v232 のアイコン化を目視確認（TestFlight 1.7 / web はもう可）。
 >
 > **🔧 セッション40（2026-07-17 朝）＝コード変更なし＝出荷の回。🎉 iOS 1.6 が承認→自動リリースで公開済み（7/16 00:15 JST）。🤖 vc4（versionCode 4・phase3.180＝v220-229 全部入り）を手元 Windows でビルド→Play 内部テストに公開（7/17 8:20）。**
 >

@@ -423,7 +423,7 @@ try { if (window.Capacitor && Capacitor.getPlatform) { var __cp = Capacitor.getP
   .rp-del-choices .rp-del-hide, .rp-del-choices .rp-fdel-hide { border-color: #7a3b3b; color: #f0b8b8; }
   .rp-delfolder { background: none; border: 0; color: #d98a8a; font-size: 13px; cursor: pointer; padding: 8px 4px; text-align: left; }
   .rp-delfolder:active { color: #f0b0b0; }
-  .full-actions .rp-del-btn, .full-actions .full-del-btn { color: #f0a0a0; }
+  .full-cap .full-actions button.full-del-btn, .full-cap .full-actions button.rp-del-btn { color: #f0a0a0; border-color: #6a4141; }
   .rp-pick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 52vh; overflow: auto; margin: 6px 0 4px; }
   .rp-pick-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid transparent; background: #000; }
   .rp-pick-grid img.sel { border-color: #33c1b0; }
@@ -433,8 +433,9 @@ try { if (window.Capacitor && Capacitor.getPlatform) { var __cp = Capacitor.getP
   .full-cap .dt { color: #fff; font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
   .full-cap .full-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .full-cap .full-count { color: #cfe2ff; font-size: 13px; font-variant-numeric: tabular-nums; opacity: 0.85; }
-  .full-cap .to-walk { background: #1e6b5e; color: #fff; border: 1px solid #1e6b5e; border-radius: 999px; padding: 9px 20px; font-size: 14px; cursor: pointer; font-weight: 600; }
-  .full-cap .fix-date { background: #2a2a2a; color: #e0e0e0; border: 1px solid #4a4a4a; border-radius: 999px; padding: 9px 20px; font-size: 14px; cursor: pointer; }
+  /* v232: 拡大表示の操作ボタンをアイコンのみに（日本語ラベル撤去＝写真へのかぶりを最小化）。丸いアイコンボタンに統一・説明は title/aria-label。 */
+  .full-cap .full-actions button { display: inline-flex; align-items: center; justify-content: center; min-width: 46px; height: 44px; padding: 0 12px; border-radius: 999px; font-size: 20px; line-height: 1; background: rgba(32,32,32,0.82); color: #fff; border: 1px solid #4a4a4a; cursor: pointer; }
+  .full-cap .full-actions button.to-walk { background: #1e6b5e; border-color: #2c8676; }
   .full-cap .date-editor { display: flex; flex-direction: column; align-items: center; gap: 8px; background: rgba(18,18,18,0.96); border: 1px solid #2a6; border-radius: 12px; padding: 12px 14px; }
   .full-cap .date-editor[hidden] { display: none; }
   .full-cap .de-input { background: #111; color: #fff; border: 1px solid #555; border-radius: 8px; padding: 8px 10px; font-size: 15px; }
@@ -853,7 +854,7 @@ try { if (window.Capacitor && Capacitor.getPlatform) { var __cp = Capacitor.getP
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.181 (v231：🗑拡大表示に削除ボタン（通常写真も・非表示＝5秒Undo／♻️削除した写真を戻すで復元可）｜v230：🖼拡大表示の写真上端に時計/電池が重なるのを iOS でも解消（Android v220 の全画面オーバーレイ対策を iOS にも適用）｜v229：📊自動差分取り込みでも区間計測を回す（v226の入れ忘れ・エミュ実機E2Eで発見）｜v228：🚀nativeサムネ取得をバッチ16枚×並列デコード＋パイプラインに（古い端末の直列ボトルネックをコア数ぶん短縮・失敗時は1枚ずつへ自動フォールバック）｜v227：🌅ライブラリ取り込みの最初の6枚を「全期間から」サンプリング（数秒で昔↔今に灯りが点く）) · 2026-07-19';
+const BUILD = 'phase3.182 (v232：🖼拡大表示の操作ボタンをアイコンのみに（日本語ラベル撤去＝写真へのかぶりを最小化・title/aria-labelに説明）｜v231：🗑拡大表示に削除ボタン（通常写真も・非表示＝5秒Undo／♻️削除した写真を戻すで復元可）｜v230：🖼拡大表示の写真上端に時計/電池が重なるのを iOS でも解消（Android v220 の全画面オーバーレイ対策を iOS にも適用）｜v229：📊自動差分取り込みでも区間計測を回す（v226の入れ忘れ・エミュ実機E2Eで発見）｜v228：🚀nativeサムネ取得をバッチ16枚×並列デコード＋パイプラインに（古い端末の直列ボトルネックをコア数ぶん短縮・失敗時は1枚ずつへ自動フォールバック）) · 2026-07-19';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -2810,7 +2811,9 @@ function showFullImage(photo, opts = {}) {
     const dtStr = d ? fmtDate(d) : tr('日時不明', 'Unknown date');
     const hasGps = p.lat != null && p.lng != null;
     const showMapBtn = hasGps || !!p.datetime;
-    const mapBtnLabel = hasGps ? tr('🗺 地図でこの場所を見る', '🗺 See this place on the map') : tr('🗺 この日の地図へ', '🗺 Map for this day');
+    const mapBtnTitle = hasGps ? tr('地図でこの場所を見る', 'See this place on the map') : tr('この日の地図へ', 'Map for this day');
+    // v232: 拡大表示の操作ボタンはアイコンのみ（日本語ラベル撤去＝写真へのかぶり最小化）。説明は title/aria-label へ持たせる。
+    const ib = (cls, icon, label) => `<button class="${cls}" title="${label}" aria-label="${label}">${icon}</button>`;
     const peerTag = p.peerPack ? ` <span class="peer-tag" style="color:${peerColor(p.peerPack)}">👤 ${annivEsc(p.peerName || '')}</span>` : '';   // v194: 誰の写真かを日付行に
     cap.innerHTML =
       (hasList ? `<div class="full-count">${winStart + i + 1} / ${listAll.length}</div>` : '') +   // v182: 窓化しても通し番号
@@ -2818,19 +2821,19 @@ function showFullImage(photo, opts = {}) {
       (p.peerPack && p.peerComment ? `<div class="peer-cmt-full">💬 ${annivEsc(p.peerComment)}</div>` : '') +   // v195: 写真の裏書き
       `<div class="full-actions">` +
         (annivCtx
-          ? (annivCtx.list.length >= 2 ? `<button class="to-compare">${tr('⇆ 左右で比べる', '⇆ Compare')}</button>` : '') +
-            `<button class="to-annivmap">${tr('🗺 足跡の地図', '🗺 Footprint map')}</button>` +
-            (annivCtx.anniv ? `<button class="to-annivlog">${tr('📖 ログ', '📖 Log')}</button>` : '') +   // v126: 思い出の場所の日別ログ(写真+コメント+未来の予定)
-            (annivCtx.canRegister ? `<button class="to-register">${tr('📍 思い出の場所に登録', '📍 Save as memory place')}</button>` : '')   // v124: 囲む後もこの deck 動線＝違いは登録ボタンだけ
+          ? (annivCtx.list.length >= 2 ? ib('to-compare', '⇆', tr('左右で比べる', 'Compare')) : '') +
+            ib('to-annivmap', '🗺', tr('足跡の地図', 'Footprint map')) +
+            (annivCtx.anniv ? ib('to-annivlog', '📖', tr('ログ', 'Log')) : '') +   // v126: 思い出の場所の日別ログ(写真+コメント+未来の予定)
+            (annivCtx.canRegister ? ib('to-register', '📍', tr('思い出の場所に登録', 'Save as memory place')) : '')   // v124: 囲む後もこの deck 動線＝違いは登録ボタンだけ
           : p.peerPack
-          ? (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '')   // v194: 🤝相手の写真は編集系 (重ね撮り/日付直す) を出さない＝地図で見るだけ
-          : (onWalk ? `<button class="to-walk">${tr('🔮 連想ウォーク', '🔮 Wander')}</button>` : '') +   // v125: 名前統一（旧「ここから歩く」）
-            (showMapBtn ? `<button class="to-map">${mapBtnLabel}</button>` : '') +
-            // v161: 📐 定点＝この写真を基準に同じ角度で重ね撮り。シリーズ(2枚以上)ができたら見る導線も
-            `<button class="to-rephoto">${tr('🎞️ この角度で撮り重ねる', '🎞️ Layer a shot at this angle')}</button>` +
-            (rephotoSeriesOf(p).length >= 2 ? `<button class="to-rephoto-series">${tr(`🎞️ 重ね撮り（${rephotoSeriesOf(p).length}枚）`, `🎞️ Layered shots (${rephotoSeriesOf(p).length})`)}</button>` : '') +
-            (rephotoCtx ? `<button class="rp-del-btn">${tr('🗑 削除', '🗑 Delete')}</button>` : `<button class="full-del-btn">${tr('🗑 削除', '🗑 Delete')}</button>`)) +
-        (p.peerPack ? '' : `<button class="fix-date">${tr('📅 日付を直す', '📅 Fix the date')}</button>`) +
+          ? (showMapBtn ? ib('to-map', '🗺', mapBtnTitle) : '')   // v194: 🤝相手の写真は編集系 (重ね撮り/日付直す) を出さない＝地図で見るだけ
+          : (onWalk ? ib('to-walk', '🔮', tr('連想ウォーク', 'Wander')) : '') +   // v125: 名前統一（旧「ここから歩く」）
+            (showMapBtn ? ib('to-map', '🗺', mapBtnTitle) : '') +
+            // v161: 📐 定点＝この写真を基準に同じ角度で重ね撮り。シリーズ(2枚以上)は見る導線も（🎞️＋枚数）
+            ib('to-rephoto', '🎞️', tr('この角度で撮り重ねる', 'Layer a shot at this angle')) +
+            (rephotoSeriesOf(p).length >= 2 ? `<button class="to-rephoto-series" title="${tr('重ね撮りを見る', 'View layered shots')}" aria-label="${tr('重ね撮りを見る', 'View layered shots')}">🎞️${rephotoSeriesOf(p).length}</button>` : '') +
+            (rephotoCtx ? ib('rp-del-btn', '🗑', tr('削除', 'Delete')) : ib('full-del-btn', '🗑', tr('削除', 'Delete')))) +
+        (p.peerPack ? '' : ib('fix-date', '📅', tr('日付を直す', 'Fix the date'))) +
       `</div>` +
       // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
       ((!annivCtx && showMapBtn && !hasGps) ? `<div class="de-hint map-hint">${tr(tr('位置のある写真が無い日でも、その日の写真一覧（タイムライン）が開きます。並びを眺めたり、写真を選んで位置を直すのも想起のきっかけに。', 'Even on days with no located photos, the timeline for that day still opens. Browsing the order — or picking a photo to fix its location — can spark a memory.'), 'Even on days with no located photos, that day\'s photo list (timeline) still opens. Browsing the order, or picking a photo to fix its place, can spark a memory too.')}</div>` : '') +
