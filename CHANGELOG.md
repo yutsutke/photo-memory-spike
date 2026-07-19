@@ -5,6 +5,46 @@
 
 ---
 
+## v231 — 🗑 拡大表示に削除ボタン（通常写真も） (2026-07-19)
+
+**背景（実機FB）**
+- 拡大表示（全画面フル画像）に削除の入口が無かった。厳密には「🗑 削除」は**重ね撮りシリーズから開いた時（rephotoCtx）だけ**表示され、通常の写真（トップ/連想ウォーク/タイムライン/足跡から開いた拡大）には出ていなかった。ユーザーが実機で「削除ボタンもほしい」。
+
+**設計判断**
+- `.full-actions` の非 peer・非 annivCtx 分岐で、`rephotoCtx` が無いとき `.full-del-btn`（「🗑 削除」）を出す。ハンドラは既存の `excludePhoto(p)` ＋ `closeFullImage()`。
+- **ハード削除しない**＝このアプリの削除モデル（`excludePhoto`＝`excluded=true` で「どこからも消える」＋5秒 Undo トースト＋「♻️ 削除した写真を戻す」で後からでも復元可）にそのまま乗せた。安全側（可逆）＋既存 UX と一貫。確認モーダルは付けない（Undo トーストが安全網＝既存の除外操作と同じ手触り）。
+- 見た目は既存の rephoto 用「🗑 削除」（`.rp-del-btn`）と同一に（`.full-actions .rp-del-btn, .full-actions .full-del-btn { color:#f0a0a0 }`）。副次ボタン群（🗺/🎞️）は既定ボタン＋色のみのスタイルなので揃う。
+
+**結果 / 観察**
+- preview E2E: テスト写真1枚を注入→拡大表示に `.full-del-btn` が描画（🗺/🎞️/🗑/📅 の並び）。クリック→**除外→オーバーレイ閉じ→トースト「1枚を除外しました／取り消す」→Undo で復元**を確認。console 0。
+- **peer 写真（🤝もらった思い出）と annivCtx（思い出の場所 deck）には出さない**＝自分の記録だけを削除対象に（peer は相手の手渡し・anniv は場所ビュー）。
+
+**残課題 / 次の方向**
+- iOS/Android native ビルド（iOS 1.7 / Android 次 vc）で実機の手触り確認。リスト（タイムライン/足跡）から開いた拡大で削除→今は overlay を閉じる仕様＝連続削除したい要望が出たら「次の1枚へ送る」を検討。
+
+---
+
+## v230 — 🖼 拡大表示の写真上端に時計/電池が重なるのを iOS でも解消 (2026-07-19)
+
+**背景（実機FB「拡大表示で写真にアイコンがかぶる」）**
+- v220 で Android は `html.cap-android .full-deck{top:var(--sat)}` により「全画面写真がステータスバー（電池/時計）裏まで伸びて重なる」を解消済みだったが、**iOS は未対応**だった（当時「iOS/web は無影響」と判断＝実際は同症状）。
+
+**設計判断**
+- `.full-overlay` は `position:fixed; inset:0`＝iOS の `contentInset:always`（通常フローを押し下げる設定）を**無視して**ステータスバー裏まで届く。だから header/map 系（フロー or webview padding 済み）は iOS で触ると二重になる一方、**全画面オーバーレイだけは iOS でも下げる必要がある**。
+- head スクリプトで iOS にも印（`html.cap-ios`）を付け、`.full-deck` の1ルールだけに `top:var(--sat)` を追加（`html.cap-android .full-deck, html.cap-ios .full-deck`）。header/map の `cap-android` ルール群は**触らない**（iOS に広げると二重）。
+- iOS は `env(safe-area-inset-top)` が正しく効く（notch 端末で非0）ゆえ `--sat>0` で下がる。web は `--sat=0` で無影響。上帯は overlay の黒＝電池が黒地に乗って読める（Android と同じ見え）。
+
+**ハマりどころ / 判断の肝**
+- 「なぜ v220 は Android だけだったか」を疑い、`--sat` の定義と `contentInset:always` の効き方（フロー vs fixed オーバーレイ）を追って、**fixed inset:0 だけが padding を貫通する**ことを特定。全 `cap-android` ルールを iOS に広げる誤りを避け、`.full-deck` 1点に限定した。
+
+**結果 / 観察**
+- preview で CSS ルールが `html.cap-android .full-deck, html.cap-ios .full-deck { top: var(--sat); }` に更新されたのを確認。**実機の見た目確認は native ビルド後**（web は --sat=0 ゆえ preview では見えない＝機構は Android v220 実績と同型）。
+
+**教訓**
+- プラットフォーム別の safe-area 対処は「フローか fixed オーバーレイか」で要否が分かれる。過去の「片側だけ対処」は、当時見えていなかっただけで**もう片側にも同症状が潜む**ことがある＝FB が来たら対称性を疑う。
+
+---
+
 ## v229 — 📊 自動差分取り込みでも区間計測を回す（v226 の入れ忘れ） (2026-07-15)
 
 **背景（エミュレータ実 E2E で発見）**

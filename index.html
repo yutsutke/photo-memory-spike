@@ -10,8 +10,12 @@
 <title>あの日 — 写真と足跡から蘇る</title>
 <script>
 /* v216: Android native の印。Capacitor の bridge JS は document-start 注入なので head で判定できる。
-   下の CSS の html.cap-android 群（ステータスバー重なり対策）だけが参照する。web/iOS は何もしない。 */
-try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() === 'android') document.documentElement.classList.add('cap-android'); } catch (e) {}
+   下の CSS の html.cap-android 群（ステータスバー重なり対策）が参照する。
+   v230: iOS にも印を付ける（html.cap-ios）。ただし参照するのは拡大表示の .full-deck だけ＝
+   .full-overlay は position:fixed inset:0 で contentInset=always（flow を押し下げる）を無視して
+   ステータスバー裏まで届くため。header/map 系は iOS では contentInset が押し下げ済み＝cap-ios を
+   当てない（当てると二重）。web は何もしない。 */
+try { if (window.Capacitor && Capacitor.getPlatform) { var __cp = Capacitor.getPlatform(); if (__cp === 'android') document.documentElement.classList.add('cap-android'); else if (__cp === 'ios') document.documentElement.classList.add('cap-ios'); } } catch (e) {}
 </script>
 <style>
   :root {
@@ -39,8 +43,10 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
   html.cap-android .encircle-banner { top: calc(10px + var(--sat)); }
   html.cap-android .leaflet-top { top: var(--sat); }
   /* v220: 拡大表示（全画面フル画像）は Android のエッジtrue描画でステータスバー裏まで伸び、写真がバッテリー/時計と重なる。
-     deck の上端を --sat 下げて写真をステータスバー直下から表示（上帯は overlay の黒＝電池が黒地に乗って読める）。iOS/web は無影響。 */
-  html.cap-android .full-deck { top: var(--sat); }
+     deck の上端を --sat 下げて写真をステータスバー直下から表示（上帯は overlay の黒＝電池が黒地に乗って読める）。
+     v230: iOS も同症状。.full-overlay は position:fixed inset:0 ＝ contentInset=always を無視してステータスバー裏まで
+     届くため、写真上端に時計/電池が重なる。iOS(env)/Android(注入値)とも --sat>0 で下げれば解消。web は --sat=0 で無影響。 */
+  html.cap-android .full-deck, html.cap-ios .full-deck { top: var(--sat); }
   @media (max-width: 719px) { html.cap-android .encircle-banner { top: calc(52px + var(--sat)); } }
   body { margin: 0; padding: 0; background: #111; color: #eee; min-height: 100vh; }
   header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #111; z-index: 10; }
@@ -417,7 +423,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
   .rp-del-choices .rp-del-hide, .rp-del-choices .rp-fdel-hide { border-color: #7a3b3b; color: #f0b8b8; }
   .rp-delfolder { background: none; border: 0; color: #d98a8a; font-size: 13px; cursor: pointer; padding: 8px 4px; text-align: left; }
   .rp-delfolder:active { color: #f0b0b0; }
-  .full-actions .rp-del-btn { color: #f0a0a0; }
+  .full-actions .rp-del-btn, .full-actions .full-del-btn { color: #f0a0a0; }
   .rp-pick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 52vh; overflow: auto; margin: 6px 0 4px; }
   .rp-pick-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid transparent; background: #000; }
   .rp-pick-grid img.sel { border-color: #33c1b0; }
@@ -847,7 +853,7 @@ try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() =
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.180 (v229：📊自動差分取り込みでも区間計測を回す（v226の入れ忘れ・エミュ実機E2Eで発見）｜v228：🚀nativeサムネ取得をバッチ16枚×並列デコード＋パイプラインに（古い端末の直列ボトルネックをコア数ぶん短縮・失敗時は1枚ずつへ自動フォールバック）｜v227：🌅ライブラリ取り込みの最初の6枚を「全期間から」サンプリング（数秒で昔↔今に灯りが点く＝遅い端末でも体験が先に成立）｜v226：📊取り込みの区間計測（終了時に平均ms/枚と内訳を表示・直近を⚙情報に保存＝遅い端末の診断を数字で）｜v225：🌀背景取り込みの息継ぎを処理時間比例に（速い端末≈5倍速・遅い端末は自動で呼吸を確保）) · 2026-07-15';
+const BUILD = 'phase3.181 (v231：🗑拡大表示に削除ボタン（通常写真も・非表示＝5秒Undo／♻️削除した写真を戻すで復元可）｜v230：🖼拡大表示の写真上端に時計/電池が重なるのを iOS でも解消（Android v220 の全画面オーバーレイ対策を iOS にも適用）｜v229：📊自動差分取り込みでも区間計測を回す（v226の入れ忘れ・エミュ実機E2Eで発見）｜v228：🚀nativeサムネ取得をバッチ16枚×並列デコード＋パイプラインに（古い端末の直列ボトルネックをコア数ぶん短縮・失敗時は1枚ずつへ自動フォールバック）｜v227：🌅ライブラリ取り込みの最初の6枚を「全期間から」サンプリング（数秒で昔↔今に灯りが点く）) · 2026-07-19';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -2823,7 +2829,7 @@ function showFullImage(photo, opts = {}) {
             // v161: 📐 定点＝この写真を基準に同じ角度で重ね撮り。シリーズ(2枚以上)ができたら見る導線も
             `<button class="to-rephoto">${tr('🎞️ この角度で撮り重ねる', '🎞️ Layer a shot at this angle')}</button>` +
             (rephotoSeriesOf(p).length >= 2 ? `<button class="to-rephoto-series">${tr(`🎞️ 重ね撮り（${rephotoSeriesOf(p).length}枚）`, `🎞️ Layered shots (${rephotoSeriesOf(p).length})`)}</button>` : '') +
-            (rephotoCtx ? `<button class="rp-del-btn">${tr('🗑 削除', '🗑 Delete')}</button>` : '')) +
+            (rephotoCtx ? `<button class="rp-del-btn">${tr('🗑 削除', '🗑 Delete')}</button>` : `<button class="full-del-btn">${tr('🗑 削除', '🗑 Delete')}</button>`)) +
         (p.peerPack ? '' : `<button class="fix-date">${tr('📅 日付を直す', '📅 Fix the date')}</button>`) +
       `</div>` +
       // 位置情報なしの「この日の地図へ」は飛び先に軌跡が無いことがある → 何が出るか一言添える (v81)。
@@ -2865,6 +2871,10 @@ function showFullImage(photo, opts = {}) {
       if (rs) rs.addEventListener('click', () => { fullImageState.onClose = null; closeFullImage(); openRephotoSeries(photoById(rephotoRootOf(p)) || p); });
       const rpDel = cap.querySelector('.rp-del-btn');
       if (rpDel) rpDel.addEventListener('click', () => promptRephotoPhotoDelete(p, rephotoCtx.root));
+      // v231: 通常写真の拡大表示に🗑削除。excludePhoto＝非表示（どこからも消える）＋5秒Undoトースト、
+      //   「♻️ 削除した写真を戻す」で後からでも復元可＝ハード削除しない（このアプリの削除モデル）。
+      const fDel = cap.querySelector('.full-del-btn');
+      if (fDel) fDel.addEventListener('click', () => { excludePhoto(p); closeFullImage(); });
     }
     // 📅 日付を直す (v60): 直す行為自体が想起の入口。v194: 🤝相手の写真にはボタンが無い (直すのは自分の記録だけ)。
     const editor = cap.querySelector('.date-editor');
