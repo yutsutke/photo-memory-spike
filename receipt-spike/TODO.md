@@ -32,7 +32,14 @@ GitHub Pages 配下では あの日 web と同一オリジン＝IndexedDB / loca
 **結論: spike期間は A を維持**。根拠＝(1) Anthropicキーは失効・支出上限で被害を金銭の上限内に限定できる（MAP_SECRET を新オリジンへ広げるより漏洩時の質が軽い）(2) B は画像がサーバ経由＝「ローカル完結・ストア配布できる形」という spike の検証目的が消える (3) 最終形は native の Keychain で確定しており、暫定に投資しない。
 **⚠ 別件の重要制約（Aの弱点というより web spike 全体の弱点）**: iOS Safari は**7日間未訪問でサイトデータ（localStorage・IndexedDB＝キーもレシートも）を消し得る**（ITP）。**ホーム画面に追加**すると対象外になる → ⚙に案内表示（r3）・実機確認の最初にホーム画面追加を推奨。
 
-## 現在地 — r13 (2026-08-11 朝) ＝ 📊 統計 ＋ 💴 支出マップ を実機（Pixel 7a）に入れた
+## 現在地 — r14 (2026-08-11) ＝ 🍎 iPhone 版の足場ができた（あとは Apple 側の手作業2つ → Codemagic を回すだけ）
+
+- [x] **r14**: 🍎 **iOS の足場＋TestFlight パイプライン**（web は無改修）。`npx cap add ios` は **Windows で通る**（Capacitor 8 は SPM＝pod 不要・Mac が要るのはビルドの瞬間だけ）。あの日と**同じ Apple チーム・同じ署名の仕組み**を使い回すので、新しく要るのは **App Store Connect のアプリレコードだけ**。あの日で踏んだ罠（共有スキーム／apple-generic versioning／輸出コンプライアンス）は足場の時点で潰した。手順＝ **[BUILD-ios.md](BUILD-ios.md)**
+  - [ ] ▶ **本人がブラウザで2つ**: ①Developer portal でバンドルID `io.github.yutsutke.receipt` を登録 ②App Store Connect で新規App作成（⚠ **App Store の名前は世界で一意**＝「レシート」単体は取られている可能性大・ホーム画面の表示名とは別物）
+  - [ ] ▶ そのあと Codemagic で **「レシート iOS → TestFlight」** を Start build → TestFlight 内部テスト（**審査なし**）で iPhone へ
+  - [ ] 実機 iPhone で **📷 `<input capture>` からカメラが開くか**（あの日と違う経路＝初回ビルドで初めて分かる）
+
+## 前の現在地 — r13 (2026-08-11 朝) ＝ 📊 統計 ＋ 💴 支出マップ を実機（Pixel 7a）に入れた
 
 **実機4点のうち①②③がクリア（残る④＝数日後にデータが残るかは時間待ち）。r11-r13 で「撮る・出す」だけでなく「アプリの中で振り返る」ができるようになり、Android 実機に versionCode 3 で入っている。**
 

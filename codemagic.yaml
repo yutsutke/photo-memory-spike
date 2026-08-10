@@ -81,6 +81,77 @@ workflows:
         submit_to_testflight: true
 
   # ────────────────────────────────────────────────────────────────────────────
+  # 🧾 レシート（別アプリ）iOS → TestFlight
+  #
+  # あの日と同じ「Mac なし・自動署名」の道をそのまま使う。違うのは3つだけ:
+  #   ① 作業場所が receipt-spike/（あの日はリポのルート）
+  #   ② BUNDLE_ID が io.github.yutsutke.receipt（別アプリ＝別の App Store Connect レコード）
+  #   ③ プラグインは @capacitor/share と @capacitor/filesystem だけ（位置・写真の自前プラグインなし）
+  #
+  # 前提（Codemagic の Web UI・一度だけ。あの日の設定を使い回せる）:
+  #   - App Store Connect 統合（同じ Apple チームなので同じ名前の統合でよい）
+  #   - 環境変数グループ signing の CERTIFICATE_PRIVATE_KEY（配布証明書の秘密鍵）
+  #   ⚠ App Store Connect 側に「レシート」のアプリレコードを先に作っておくこと
+  #     （バンドルIDは fetch-signing-files --create が作るが、アプリレコードは手作業）。
+  #     無いと TestFlight へのアップロードで弾かれる。
+  # ────────────────────────────────────────────────────────────────────────────
+  receipt-ios-testflight:
+    name: レシート iOS → TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: MadeleineASC
+    environment:
+      groups:
+        - signing
+      vars:
+        BUNDLE_ID: "io.github.yutsutke.receipt"
+      node: 22
+      xcode: latest
+    scripts:
+      - name: npm 依存をインストール
+        script: cd receipt-spike && npm install
+
+      - name: web を www/ へ同期し Capacitor iOS を sync
+        script: |
+          cd receipt-spike
+          npm run sync:web
+          npx cap sync ios
+
+      - name: 署名ファイルを取得/作成し Xcode に適用
+        script: |
+          cd receipt-spike
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+
+      - name: ビルド番号を採番（Codemagic の連番を使う）
+        script: |
+          cd receipt-spike/ios/App
+          agvtool new-version -all "$BUILD_NUMBER"
+
+      - name: IPA をビルド（App Store 配布用）
+        script: |
+          cd receipt-spike
+          xcode-project build-ipa \
+            --project "ios/App/App.xcodeproj" \
+            --scheme "App"
+
+    artifacts:
+      - receipt-spike/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        # TestFlight まで（審査提出はしない）。内部テスターへは審査なしで配れる
+        submit_to_testflight: true
+
+  # ────────────────────────────────────────────────────────────────────────────
   # Android — クリーン版（位置なし・広告なし）のデバッグAPK を生成する de-risk 用。
   #
   # 狙い: iOS のクリーン起動成功パターンを Android で踏襲。まず「web ラッパーが

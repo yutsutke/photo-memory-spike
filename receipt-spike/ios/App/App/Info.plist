@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CAPACITOR_DEBUG</key>
+	<string>$(CAPACITOR_DEBUG)</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+        <string>レシート</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+    <false/>
+    <key>UISceneConfigurations</key>
+    <dict>
+      <key>UIWindowSceneSessionRoleApplication</key>
+      <array>
+        <dict>
+            <key>UISceneConfigurationName</key>
+            <string>Default Configuration</string>
+            <key>UISceneDelegateClassName</key>
+            <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+            <key>UISceneStoryboardFile</key>
+            <string>Main</string>
+        </dict>
+      </array>
+    </dict>
+	</dict>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+	<!-- 輸出コンプライアンス: 独自の暗号は使わない（HTTPS のみ）＝アップロードのたびに聞かれる質問を消す -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- 📷 レシートを撮る。web の <input type="file" capture> から OS のカメラを開くために要る。
+	     撮った画像は端末内に保存し、分析の時だけ「本人が登録した APIキー」で選んだ AI の API に直接送る。 -->
+	<key>NSCameraUsageDescription</key>
+	<string>レシートを撮影して読み取るためにカメラを使います。撮影した画像は端末内に保存され、分析するときだけ、あなたが登録したAPIキーで選んだAIに直接送信されます。</string>
+	<!-- 🖼 写真から選ぶ（すでに撮ってあるレシート） -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>すでに撮ってあるレシートの写真を選ぶために、写真ライブラリを読み込みます。選んだ写真だけを端末内で扱います。</string>
+</dict>
+</plist>

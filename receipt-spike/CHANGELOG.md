@@ -2,6 +2,23 @@
 
 > あの日（リポ直下）の CHANGELOG とは独立。こちらは r1, r2, … で進む。
 
+## r14 — 🍎 iPhone 版の足場（Capacitor iOS ＋ Codemagic → TestFlight・Mac なし） (2026-08-11)
+
+**背景**
+- ユーザー「**アップル用にもつくりたいんだけど、どうすればいい？ まずはテストフライト**」。iPhone のブラウザ版は Safari の ITP（7日でサイトデータ削除）でキーもレシートも消えうる＝Android で先に解決した問題を iPhone でも解決する。web は無改修。
+
+**設計判断**
+- **あの日で通した道をそのまま使う**（Mac なし＝Codemagic の macOS マシンでビルド → 自動署名 → TestFlight）。違いは3つだけ＝①作業場所が `receipt-spike/` ②バンドルID `io.github.yutsutke.receipt` ③プラグインは share と filesystem だけ。**同じ Apple チームなので App Store Connect 統合と配布証明書の秘密鍵（`CERTIFICATE_PRIVATE_KEY`）は使い回せる**＝新しく用意するものは「App Store Connect のアプリレコード」だけ。
+- **`npx cap add ios` は Windows で通る**（Capacitor 8 は CocoaPods ではなく SPM ＝ `pod install` が要らない）。Mac が要るのは**ビルドの瞬間だけ**。
+- あの日で踏んだ罠を**足場を作る時点で先に潰した**＝ ①**共有スキーム**（`xcshareddata/xcschemes/App.xcscheme`。無いと CI の `xcodebuild -scheme App` が見つけられない）②**`VERSIONING_SYSTEM = apple-generic`**（無いと `agvtool` でビルド番号を採番できない）③**`ITSAppUsesNonExemptEncryption=false`**（毎回の輸出コンプライアンス質問を消す）。
+- 権限の用途文言は**カメラと写真だけ**（位置は使わない）。文言に「端末内に保存し、分析の時だけ本人のキーで選んだAIに直接送る」と明記＝このアプリの約束をそのまま書く。
+- **TestFlight の内部テストは審査なし**。外部テスター（知人）に配る時だけ Beta App Review。手順は [BUILD-ios.md](BUILD-ios.md) に。
+
+**残課題 / 次の方向**
+- Apple 側の手作業（バンドルID 登録・**App Store Connect のアプリレコード作成**）は本人がブラウザで。⚠ **App Store 上の名前は世界で一意**なので「レシート」単体は取られている可能性が高い（ホーム画面の表示名とは別物・審査前なら変更自由）。
+- 将来「公開」する時の論点＝**BYOK はキーが無いと動かない**ので、審査メモにデモ用のキーか、キー無しで中身が見える手順が要る（Guideline 2.1）。TestFlight（内部）では不要。
+- 実機 iPhone で **📷 `<input capture>` からカメラが開くか**は、あの日と違い getUserMedia を使わない経路なので**初回ビルドで初めて分かる**。
+
 ## r13 — 🗺 地図の種類を選べる ＋ 期間に「今日／今週／期間を選ぶ」 (2026-08-11)
 
 **背景**
