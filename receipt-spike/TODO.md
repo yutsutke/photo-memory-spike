@@ -35,8 +35,10 @@ GitHub Pages 配下では あの日 web と同一オリジン＝IndexedDB / loca
 ## 現在地 — r14 (2026-08-11) ＝ 🍎 iPhone 版の足場ができた（あとは Apple 側の手作業2つ → Codemagic を回すだけ）
 
 - [x] **r14**: 🍎 **iOS の足場＋TestFlight パイプライン**（web は無改修）。`npx cap add ios` は **Windows で通る**（Capacitor 8 は SPM＝pod 不要・Mac が要るのはビルドの瞬間だけ）。あの日と**同じ Apple チーム・同じ署名の仕組み**を使い回すので、新しく要るのは **App Store Connect のアプリレコードだけ**。あの日で踏んだ罠（共有スキーム／apple-generic versioning／輸出コンプライアンス）は足場の時点で潰した。手順＝ **[BUILD-ios.md](BUILD-ios.md)**
-  - [ ] ▶ **本人がブラウザで2つ**: ①Developer portal でバンドルID `io.github.yutsutke.receipt` を登録 ②App Store Connect で新規App作成（⚠ **App Store の名前は世界で一意**＝「レシート」単体は取られている可能性大・ホーム画面の表示名とは別物）
-  - [ ] ▶ そのあと Codemagic で **「レシート iOS → TestFlight」** を Start build → TestFlight 内部テスト（**審査なし**）で iPhone へ
+  - [x] **Apple 側の手作業ずみ（2026-08-11 朝）**: バンドルID `io.github.yutsutke.receipt` 登録／App Store Connect でアプリ作成＝**名前「レシート — 撮ってAIで読む」**（iOS のみ・主言語 日本語）
+  - [x] **Codemagic で「レシート iOS → TestFlight」のビルドを開始**（2026-08-11 08:15 ごろ）。⚠ **結果は未確認のまま中断**＝次セッションの一手目は**ビルドログの確認**
+  - [ ] ▶ **成功していたら**: App Store Connect →「レシート — 撮ってAIで読む」→ TestFlight → **内部テスト**にグループを作り自分を追加（**審査なし**で配信）→ iPhone の TestFlight アプリで入れる
+  - [ ] ▶ **落ちていたら**: よくある3つ＝①`exit 65`＝`CERTIFICATE_PRIVATE_KEY`（グループ `signing`）が効いていない ②`No matching profiles`＝バンドルID未登録 or `--create` 不発 ③アップロード時に弾かれる＝ASC のアプリレコード/バンドルID不一致。⚠ **ASC 統合名は yaml で `MadeleineASC` を参照**しているので、Codemagic 側の登録名が違うとここで落ちる（詳細は [BUILD-ios.md](BUILD-ios.md)）
   - [ ] 実機 iPhone で **📷 `<input capture>` からカメラが開くか**（あの日と違う経路＝初回ビルドで初めて分かる）
 
 ## 前の現在地 — r13 (2026-08-11 朝) ＝ 📊 統計 ＋ 💴 支出マップ を実機（Pixel 7a）に入れた
