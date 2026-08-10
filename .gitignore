@@ -30,6 +30,9 @@ android/capacitor-cordova-android-plugins/
 # local plugin の Android ビルド生成物 (included project の build 出力は plugin 配下に出る)
 local-plugins/*/android/build/
 
+# receipt-spike（別プロダクト）の native 生成物は receipt-spike/android/.gitignore（Capacitor 生成）が担う。
+# あの日の www/ と node_modules/ は上のパターンが全階層に効くので receipt-spike/ 側も自動で無視される。
+
 # リリース署名鍵は絶対にコミットしない（公開リポ＝鍵とパスワードは Codemagic の Secure のみ）
 *.jks
 *.keystore

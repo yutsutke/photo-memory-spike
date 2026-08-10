@@ -81,7 +81,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
   <button class="btn" id="btnTest">🔌 接続テスト（無料・課金されません）</button>
   <div class="note">キーは<b>この端末のブラウザ内にのみ</b>保存されます（このアプリにサーバーはありません）。レシート画像は分析のときだけ、<b>あなたのキーで Anthropic API に直接</b>送信されます。それ以外に外部へ送るものはありません。</div>
   <div class="note">🔐 おすすめ運用: このアプリ<b>専用のAPIキー</b>を発行し、Console 側で<b>支出上限</b>を低く設定しておく（万一漏れても被害がその上限で止まる・いつでも失効できる）。</div>
-  <div class="note">⚠ iPhone の Safari は<b>7日間サイトを開かないと、そのサイトのデータ（キーとレシート）を消す</b>ことがあります。<b>ホーム画面に追加</b>して使うと防げます。</div>
+  <div class="note" id="noteStore"></div>
   <div class="note" id="buildLine"></div>
 </div></div>
 
@@ -97,6 +97,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
   <div class="dual">
     <button class="btn" id="btnJson">📄 JSON<br><small>AI向け</small></button>
     <button class="btn" id="btnCsv">📊 CSV<br><small>表計算向け</small></button>
+    <button class="btn" id="btnCopy">📋 コピー<br><small>貼り付け</small></button>
   </div>
   <div class="note">JSON は AI にそのまま渡せる形式（バージョン付き）。リンク共有したい場合は、共有シートから自分の Drive / iCloud に保存し、そのリンクを AI に渡してください（このアプリはリンクをホストしません）。</div>
 </div></div>
@@ -116,7 +117,11 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r3 🧾 OCRルールをライフログから移植（和暦・明細全行・住所の厳密ルール）＋⚙専用キー運用とホーム画面追加の案内｜r2 複数レシート・印字住所・収入・高解像度・カテゴリ統一｜r1 撮る→自動AI分析→一覧→期間書き出し · 2026-08-10';
+const BUILD = 'r4 📱 Android native 化（Capacitor・iOS Safariの7日削除を回避）＋📋コピー書き出し｜r3 OCRルールをライフログから移植＋専用キー運用の案内｜r2 複数レシート・印字住所・収入・高解像度・カテゴリ統一｜r1 撮る→自動AI分析→一覧→期間書き出し · 2026-08-10';
+
+// native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
+// 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
+const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 console.log('BUILD:', BUILD);
 
 /* ---------- 設定（localStorage は あの日 web と同一オリジン共有 → rcpt. 接頭辞で分離） ---------- */
@@ -412,6 +417,14 @@ document.getElementById('btnCsv').onclick = async () => {
   const { from, to, rows } = await exportTargets();
   download(expName(from, to, 'csv'), exportCsv(rows), 'text/csv');
 };
+// 📋 コピー＝共有シートもダウンロードも使えない環境（WebView 等）でも必ずデータを外に出せる逃げ道
+document.getElementById('btnCopy').onclick = async () => {
+  const { from, to, rows } = await exportTargets();
+  try {
+    await navigator.clipboard.writeText(exportJson(rows, from, to));
+    toast('📋 コピーしました（AIアプリやメモに貼り付けできます）');
+  } catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
+};
 document.getElementById('btnShare').onclick = async () => {
   const { from, to, rows } = await exportTargets();
   const file = new File([exportJson(rows, from, to)], expName(from, to, 'json'), { type: 'application/json' });
@@ -448,6 +461,9 @@ document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e
 document.getElementById('btnSettings').onclick = () => {
   document.getElementById('inKey').value = getKey();
   document.getElementById('inModel').value = getModel();
+  document.getElementById('noteStore').innerHTML = IS_NATIVE
+    ? '📱 <b>アプリ版</b>で動作中＝データは端末のアプリ領域に保存され、ブラウザの自動削除の対象外です（消えるのはアプリを削除した時）。'
+    : '⚠ <b>ブラウザ版</b>です。iPhone の Safari は<b>7日間サイトを開かないとデータ（キーとレシート）を消す</b>ことがあります。<b>ホーム画面に追加</b>するか、アプリ版を使ってください。';
   document.getElementById('buildLine').textContent = 'BUILD: ' + BUILD;
   show('ovSettings');
 };

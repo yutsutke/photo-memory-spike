@@ -1,0 +1,9 @@
+{
+  "appId": "io.github.yutsutke.receipt",
+  "appName": "レシート",
+  "webDir": "www",
+  "backgroundColor": "#111111",
+  "android": {
+    "backgroundColor": "#111111"
+  }
+}

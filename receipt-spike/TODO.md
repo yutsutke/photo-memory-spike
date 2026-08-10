@@ -32,14 +32,23 @@ GitHub Pages 配下では あの日 web と同一オリジン＝IndexedDB / loca
 **結論: spike期間は A を維持**。根拠＝(1) Anthropicキーは失効・支出上限で被害を金銭の上限内に限定できる（MAP_SECRET を新オリジンへ広げるより漏洩時の質が軽い）(2) B は画像がサーバ経由＝「ローカル完結・ストア配布できる形」という spike の検証目的が消える (3) 最終形は native の Keychain で確定しており、暫定に投資しない。
 **⚠ 別件の重要制約（Aの弱点というより web spike 全体の弱点）**: iOS Safari は**7日間未訪問でサイトデータ（localStorage・IndexedDB＝キーもレシートも）を消し得る**（ITP）。**ホーム画面に追加**すると対象外になる → ⚙に案内表示（r3）・実機確認の最初にホーム画面追加を推奨。
 
-## 現在地 — r3 (2026-08-10)
+## 現在地 — r4 (2026-08-10) ＝ 📱 Android native 化（ITP対応）
 
+- [x] **r4**: **Capacitor で Android アプリ化**＝ iOS Safari の ITP（7日でサイトデータ削除）を根本回避。アプリ版のデータは「サイトデータ」ではなくアプリ領域＝自動削除の対象外。**ログイン方式は採らない**（データをサーバーに置くことになるため）。appId `io.github.yutsutke.receipt`（あの日と別）・アプリ名「レシート」・**権限は INTERNET のみ**。ビルドと配布は [BUILD-android.md](BUILD-android.md)
+  - **CAMERA を宣言しない**のが正解と判明（Capacitor `BridgeWebChromeClient.isMediaCaptureSupported()` ＝「宣言していなければ許可不要」でOSのカメラを intent 起動。宣言すると実行時許可が必須になり、こちらは要求コードを持たないので撮影が壊れる）
+  - ⚙ の保存先メッセージを native/ブラウザで出し分け（`IS_NATIVE`＝Capacitor が自動注入する native-bridge で判定）
+  - **📋 コピー書き出しを追加**＝共有シートもダウンロードも効かない環境（WebView）でも必ずデータを外に出せる最後の逃げ道
 - [x] **r3**: ライフログ receipt 関数の **OCR_SYSTEM ルールを移植**（和暦→西暦・明細は全行/割引・お釣り行は除外・住所は印字のまま推測禁止/電話番号だけはnull/複数住所は店舗の方・チェーン名/支店分離・支払方法）＋⚙に「専用キー＋支出上限」「ホーム画面追加」の運用案内
 - 継続項目↓
 
 - [x] **r1**: 📷 撮る（`<input capture>` → img+canvas 縮小 → IndexedDB）→ 🤖 自動分析（structured outputs・失敗時🔁・中断分は起動時再開）→ ⚙ キー登録（接続テスト=count_tokens無料）→ 📋 一覧（日付降順・月グループ＋月合計）→ 📤 期間書き出し（JSON/CSV/共有シート）
 - [x] **r2**: ライフログ実装の教訓を反映＝ ① 1枚に**複数レシート**（receipts配列・一覧は写真×レシートに展開・「📷内 1/2」表示） ② **印字住所**をOCRで拾う（送信・保存を1568→**2576px**に＝high-res上限） ③ **収入(income)** 対応（緑・+表示・月合計は支出のみ） ④ **カテゴリをライフログと同一セット**に（食費/外食/日用品/交通/医療/衣類/娯楽/その他）・currency廃止＝円整数 ⑤ store/branch 分離 ⑥ 書き出し **version 2**（フラット・photo_id 紐付け・支店/住所/種別列）
-- [ ] ▶ **次の一手: 実機（iPhone Safari）で 撮影→分析→書き出し を一周通す**（main への反映が必要＝claude ブランチから merge）
+- [ ] ▶ **次の一手: Android 実機で APK を一周通す**（`cd receipt-spike && npm install && npm run build:debug` → `app-debug.apk` を端末へ）。**見るのは4つ**:
+  1. 📷 **撮影が動くか**（CAMERA 未宣言でカメラが開くか＝設計の当たり外れがここで出る）
+  2. 🤖 分析が通るか（⚙でキー登録→🔌接続テスト→撮る）
+  3. 📤 **書き出しの3手段のどれが効くか**（共有シート／ダウンロード／📋コピー。**WebView は DownloadListener 未実装だと `<a download>` が無反応**＝その時は📋コピーが命綱。全滅なら Capacitor の Share/Filesystem プラグイン導入を r5 で）
+  4. アプリを閉じて数日後に開いてもデータが残るか（ITP対応の答え合わせ）
+- [ ] iOS は当面ブラウザ版＋**ホーム画面に追加**で回避（PWA は ITP の7日削除の対象外）。native iOS は配布が重い（審査/TestFlight）ので後回し
 
 ## 📚 ライフログ（owntracks-supabase-notion）から移植した教訓（出典: 同リポ CLAUDE.md・receipt関数。実運用228枚・収支248行の実測）
 
