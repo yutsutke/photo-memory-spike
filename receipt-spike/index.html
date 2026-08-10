@@ -44,6 +44,12 @@ main{padding:10px 14px;}
 .row label{display:block; font-size:13px; color:var(--dim); margin-bottom:4px;}
 .row input,.row select{width:100%; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:10px; padding:10px; font-size:16px;}
 .btn{display:block; width:100%; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:12px; padding:12px; font-size:16px; margin-bottom:8px; text-align:center;}
+.seg{display:flex; gap:8px;}
+.seg button{flex:1; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:12px; padding:10px; font-size:15.5px; line-height:1.3;}
+.seg button.on{background:var(--acc); color:#04121f; font-weight:700; border-color:var(--acc);}
+.seg small{display:block; font-size:11.5px; opacity:.75; font-weight:400;}
+details.adv{border-top:1px solid var(--line); margin-top:12px; padding-top:10px;}
+details.adv summary{color:var(--dim); font-size:13.5px; margin-bottom:10px; cursor:pointer;}
 .btn.pri{background:var(--acc); color:#04121f; font-weight:700; border:none;}
 .note{font-size:12.5px; color:var(--dim); margin-top:10px;}
 .note a{color:var(--acc);}
@@ -76,15 +82,24 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 <!-- ⚙ 設定 -->
 <div class="overlay" id="ovSettings"><div class="sheet">
   <button class="x" data-close>✕</button><h2>⚙ 設定</h2>
-  <div class="row"><label>Anthropic APIキー（<a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a> で発行）</label>
-    <input type="password" id="inKey" placeholder="sk-ant-..." autocomplete="off"></div>
-  <div class="row"><label>分析モデル</label><select id="inModel">
-    <option value="claude-opus-5">Claude Opus 5（既定・最高精度 / 約5円/枚）</option>
-    <option value="claude-sonnet-5">Claude Sonnet 5（速い / 約3円/枚）</option>
-    <option value="claude-haiku-4-5">Claude Haiku 4.5（最安 / 1円未満・住所は読めないことあり）</option>
-  </select></div>
+  <div class="row"><label>分析に使うAI</label>
+    <div class="seg" id="provSeg">
+      <button type="button" data-prov="anthropic">Claude<small>Anthropic</small></button>
+      <button type="button" data-prov="openai">ChatGPT<small>OpenAI</small></button>
+    </div></div>
+  <div class="row"><label id="keyLabel"></label>
+    <input type="password" id="inKey" autocomplete="off"></div>
+  <div class="row"><label>分析モデル</label><select id="inModel"></select></div>
   <button class="btn" id="btnTest">🔌 接続テスト（無料・課金されません）</button>
-  <div class="note">キーは<b>この端末のブラウザ内にのみ</b>保存されます（このアプリにサーバーはありません）。レシート画像は分析のときだけ、<b>あなたのキーで Anthropic API に直接</b>送信されます。それ以外に外部へ送るものはありません。</div>
+  <details class="adv" id="advBox"><summary>🛠 詳細設定（一覧に無いモデル・ほかのサービスを使う）</summary>
+    <button class="btn" id="btnFetchModels">🔄 使えるモデルの一覧を取得</button>
+    <div class="row"><label>モデルIDを直接入力（新しいモデルもここで使えます）</label>
+      <input id="inModelCustom" placeholder="例: claude-opus-5 / gpt-5-mini" autocomplete="off"></div>
+    <div class="row"><label>APIのURL（OpenAI互換の別サービスを使う時だけ変える）</label>
+      <input id="inBase" autocomplete="off"></div>
+    <div class="note">キーとモデルは <b>AI ごとに別々に保存</b>されます（両方登録しておけば、上のボタンで切り替えるだけ）。</div>
+  </details>
+  <div class="note">キーは<b>この端末のアプリ内にのみ</b>保存されます（このアプリにサーバーはありません）。レシート画像は分析のときだけ、<b>あなたのキーで、選んだAIのAPIに直接</b>送信されます。それ以外に外部へ送るものはありません。</div>
   <div class="note">🔐 おすすめ運用: このアプリ<b>専用のAPIキー</b>を発行し、Console 側で<b>支出上限</b>を低く設定しておく（万一漏れても被害がその上限で止まる・いつでも失効できる）。</div>
   <div class="note" id="noteStore"></div>
   <div class="note" id="buildLine"></div>
@@ -123,17 +138,34 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r8 🤖AIに渡す＝文字で共有（Claudeはtext/*しか受け取らずJSONファイルでは共有先に出ない・端末に問い合わせて確認）｜r7 📤書き出しをアプリ版でも通す＝Capacitor Share/Filesystem 経由（WebViewは<a download>もWeb Share APIも無反応）｜r6 📷カメラ起動を <queries> 宣言で解禁（Android11+の可視性・権限は増えない）｜r5 📷撮る（capture）と🖼選ぶ（multiple）を2入口に分離｜r4 📱 Android native 化（Capacitor・iOS Safariの7日削除を回避）＋📋コピー書き出し · 2026-08-10';
+const BUILD = 'r9 🧠分析に使うAIを選べる＝Claude/ChatGPTの2択＋詳細設定（モデルID直接入力・一覧取得・OpenAI互換のURL）｜r8 🤖AIに渡す＝文字で共有（Claudeはtext/*しか受け取らずJSONファイルでは共有先に出ない・端末に問い合わせて確認）｜r7 📤書き出しをアプリ版でも通す＝Capacitor Share/Filesystem 経由（WebViewは<a download>もWeb Share APIも無反応）｜r6 📷カメラ起動を <queries> 宣言で解禁（Android11+の可視性・権限は増えない）｜r5 📷撮る（capture）と🖼選ぶ（multiple）を2入口に分離 · 2026-08-10';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
 const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 console.log('BUILD:', BUILD);
 
-/* ---------- 設定（localStorage は あの日 web と同一オリジン共有 → rcpt. 接頭辞で分離） ---------- */
-const LS_KEY = 'rcpt.apiKey', LS_MODEL = 'rcpt.model';
-const getKey   = () => localStorage.getItem(LS_KEY) || '';
-const getModel = () => localStorage.getItem(LS_MODEL) || 'claude-opus-5';
+/* ---------- 設定（localStorage は あの日 web と同一オリジン共有 → rcpt. 接頭辞で分離） ----------
+   キー・モデル・APIのURL は「AIごと」に持つ＝両方登録しておいて切り替えられる（r9）。 */
+const LS = {
+  prov:  'rcpt.provider',
+  key:   p => `rcpt.key.${p}`,
+  model: p => `rcpt.model.${p}`,
+  base:  p => `rcpt.base.${p}`,
+  list:  p => `rcpt.models.${p}`, // API から取ってきたモデル一覧のキャッシュ
+};
+// r8 以前は Anthropic 決め打ち（rcpt.apiKey / rcpt.model）だった → 一度だけ引っ越す
+(function migrateSettings(){
+  const k = localStorage.getItem('rcpt.apiKey'), m = localStorage.getItem('rcpt.model');
+  if (k != null) { if (!localStorage.getItem(LS.key('anthropic'))) localStorage.setItem(LS.key('anthropic'), k); localStorage.removeItem('rcpt.apiKey'); }
+  if (m != null) { if (!localStorage.getItem(LS.model('anthropic'))) localStorage.setItem(LS.model('anthropic'), m); localStorage.removeItem('rcpt.model'); }
+})();
+const getProv  = () => localStorage.getItem(LS.prov) || 'anthropic';
+const P        = () => PROVIDERS[getProv()] || PROVIDERS.anthropic;
+const getKey   = () => localStorage.getItem(LS.key(getProv())) || '';
+const getModel = () => localStorage.getItem(LS.model(getProv())) || P().defaultModel || '';
+const getBase  = () => (localStorage.getItem(LS.base(getProv())) || P().base).replace(/\/+$/, '');
+const getList  = p => { try { return JSON.parse(localStorage.getItem(LS.list(p)) || '[]'); } catch (_) { return []; } };
 
 /* ---------- IndexedDB（あの日と同一オリジン共有 → DB名で分離） ---------- */
 const DB_NAME = 'receipt-spike', STORE = 'receipts';
@@ -181,21 +213,22 @@ const blobToB64 = blob => new Promise((ok, ng) => {
   r.readAsDataURL(blob);
 });
 
-/* ---------- Claude API（BYOキー・端末→APIへ直接。CORSは公式オプトインヘッダで許可される） ---------- */
-const API = 'https://api.anthropic.com/v1';
-function apiHeaders(){ return {
-  'content-type': 'application/json',
-  'x-api-key': getKey(),
-  'anthropic-version': '2023-06-01',
-  'anthropic-dangerous-direct-browser-access': 'true',
-}; }
-async function apiPost(path, body){
+/* ---------- AIへの窓口（BYOキー・端末→APIへ直接。サーバーは無い） ----------
+   選んだ AI の「入口（URL・ヘッダ）」だけ差し替える共通の呼び出し。中身の違いは PROVIDERS が吸収する。 */
+async function apiFetch(path, { method = 'GET', body = null } = {}){
   if (!getKey()) throw new Error('APIキーが未設定です（⚙ から登録）');
-  const res = await fetch(API + path, { method: 'POST', headers: apiHeaders(), body: JSON.stringify(body) });
+  let res;
+  try {
+    res = await fetch(getBase() + path, { method, headers: P().headers(), body: body ? JSON.stringify(body) : undefined });
+  } catch (_) {
+    // fetch 自体が失敗＝回線が無いか、そのサービスが端末からの直接呼び出しを許していない（CORS）
+    throw new Error('APIに届きませんでした（通信状況か、APIのURLを確認してください）');
+  }
   if (!res.ok) {
     let msg = 'HTTP ' + res.status;
     try { msg = (await res.json()).error?.message || msg; } catch (_) {}
     if (res.status === 401) msg = 'APIキーが無効です（⚙ で確認を）';
+    if (res.status === 404) msg = 'モデルかURLが見つかりません（⚙ の詳細設定で確認を）: ' + msg;
     if (res.status === 429) msg = 'レート制限中。少し待って 🔁 再分析を';
     throw new Error(msg);
   }
@@ -247,20 +280,80 @@ const OCR_RULES = `あなたはレシート読み取りの専門家。写真に�
   推測で補わない（知識から市区町村を足す等をしない）。読めた文字だけを返す。
   複数の住所が印字されている場合（本社と店舗など）は、その買い物をした店舗の方を選ぶ。`;
 
+/* ---------- どのAIを使うか（r9） ----------
+   増やす時はここに1つ足すだけ。analyze は「モデルと画像を渡すと、JSON文字列と使用量を返す」約束。
+   一覧に無いモデルは詳細設定で直接入力でき、モデル一覧は API から取ってくる＝新しいモデルが出ても待たずに使える。 */
+const PROVIDERS = {
+  anthropic: {
+    label: 'Claude', vendor: 'Anthropic',
+    base: 'https://api.anthropic.com/v1',
+    keyPage: 'https://console.anthropic.com/', keyHint: 'sk-ant-...',
+    defaultModel: 'claude-opus-5',
+    presets: [
+      ['claude-opus-5',   'Claude Opus 5（既定・最高精度 / 約5円/枚）'],
+      ['claude-sonnet-5', 'Claude Sonnet 5（速い / 約3円/枚）'],
+      ['claude-haiku-4-5','Claude Haiku 4.5（最安 / 1円未満・住所は読めないことあり）'],
+    ],
+    // CORS は公式のオプトインヘッダで許可される
+    headers: () => ({ 'content-type': 'application/json', 'x-api-key': getKey(),
+                      'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }),
+    async analyze(model, b64){
+      const output_config = { format: { type: 'json_schema', schema: RECEIPT_SCHEMA } };
+      if (model !== 'claude-haiku-4-5') output_config.effort = 'low'; // effort は Haiku 4.5 非対応
+      const res = await apiFetch('/messages', { method: 'POST', body: {
+        model, max_tokens: 6000, output_config, system: OCR_RULES,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
+          { type: 'text', text: 'このレシート写真から情報を抽出して。' },
+        ] }],
+      }});
+      if (res.stop_reason === 'refusal') throw new Error('AI が分析を拒否しました（画像を確認してください）');
+      return { text: (res.content || []).filter(b => b.type === 'text').map(b => b.text).join(''),
+               model: res.model, in: res.usage?.input_tokens, out: res.usage?.output_tokens };
+    },
+    test: () => apiFetch('/messages/count_tokens', { method: 'POST',
+                  body: { model: getModel(), messages: [{ role: 'user', content: 'test' }] } }), // 無料
+    listModels: async () => ((await apiFetch('/models?limit=100')).data || []).map(m => [m.id, m.display_name || m.id]),
+  },
+  openai: {
+    label: 'ChatGPT', vendor: 'OpenAI',
+    base: 'https://api.openai.com/v1',
+    keyPage: 'https://platform.openai.com/api-keys', keyHint: 'sk-...',
+    defaultModel: '', // 決め打ちしない＝「🔄 使えるモデルの一覧を取得」で本人のアカウントの正解を入れる
+    presets: [],
+    headers: () => ({ 'content-type': 'application/json', authorization: 'Bearer ' + getKey() }),
+    async analyze(model, b64){
+      const res = await apiFetch('/chat/completions', { method: 'POST', body: {
+        model, max_completion_tokens: 6000,
+        response_format: { type: 'json_schema', json_schema: { name: 'receipts', strict: true, schema: RECEIPT_SCHEMA } },
+        messages: [
+          { role: 'system', content: OCR_RULES },
+          { role: 'user', content: [
+            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64, detail: 'high' } },
+            { type: 'text', text: 'このレシート写真から情報を抽出して。' },
+          ] },
+        ],
+      }});
+      const msg = res.choices?.[0]?.message || {};
+      if (msg.refusal) throw new Error('AI が分析を拒否しました: ' + msg.refusal);
+      return { text: msg.content || '', model: res.model, in: res.usage?.prompt_tokens, out: res.usage?.completion_tokens };
+    },
+    test: () => apiFetch('/models'), // 無料（キーが有効かだけ見る）
+    listModels: async () => {
+      // 画像を読めない用途のモデル（音声・埋め込み・画像生成など）は選んでも失敗するので落とす
+      const NG = /embedding|tts|whisper|audio|realtime|moderation|dall-e|sora|image|transcribe|search|rerank/i;
+      return ((await apiFetch('/models')).data || []).map(m => m.id).filter(id => !NG.test(id))
+               .sort().map(id => [id, id]);
+    },
+  },
+};
+
 async function analyzeReceipt(rec){
   const model = getModel();
-  const output_config = { format: { type: 'json_schema', schema: RECEIPT_SCHEMA } };
-  if (model !== 'claude-haiku-4-5') output_config.effort = 'low'; // effort は Haiku 4.5 非対応
-  const res = await apiPost('/messages', {
-    model, max_tokens: 6000, output_config, system: OCR_RULES,
-    messages: [{ role: 'user', content: [
-      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await blobToB64(rec.img) } },
-      { type: 'text', text: 'このレシート写真から情報を抽出して。' },
-    ] }],
-  });
-  if (res.stop_reason === 'refusal') throw new Error('AI が分析を拒否しました（画像を確認してください）');
-  const text = (res.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-  return { data: JSON.parse(text), meta: { model: res.model, in: res.usage?.input_tokens, out: res.usage?.output_tokens, at: Date.now() } };
+  if (!model) throw new Error('分析モデルが未選択です（⚙ の詳細設定から選んでください）');
+  const r = await P().analyze(model, await blobToB64(rec.img));
+  return { data: JSON.parse(r.text),
+           meta: { provider: getProv(), model: r.model || model, in: r.in, out: r.out, at: Date.now() } };
 }
 
 /* ---------- 取り込み → 自動分析 ---------- */
@@ -484,14 +577,60 @@ async function refreshExpCount(){
 document.getElementById('expFrom').onchange = refreshExpCount;
 document.getElementById('expTo').onchange = refreshExpCount;
 
-/* ---------- 設定 ---------- */
-document.getElementById('inKey').onchange = e => { localStorage.setItem(LS_KEY, e.target.value.trim()); };
-document.getElementById('inModel').onchange = e => { localStorage.setItem(LS_MODEL, e.target.value); };
+/* ---------- 設定（AIの選択・キー・モデル） ---------- */
+// 選べるモデル＝ 決め打ちの候補 ＋ APIから取ってきた一覧 ＋ いま選ばれているもの（重複は除く）
+function modelChoices(prov){
+  const seen = new Set(), out = [];
+  const add = ([id, label]) => { if (id && !seen.has(id)) { seen.add(id); out.push([id, label || id]); } };
+  PROVIDERS[prov].presets.forEach(add);
+  getList(prov).forEach(add);
+  const cur = localStorage.getItem(LS.model(prov)); if (cur) add([cur, cur]);
+  return out;
+}
+function renderSettings(){
+  const prov = getProv(), p = P();
+  document.querySelectorAll('#provSeg button').forEach(b => b.classList.toggle('on', b.dataset.prov === prov));
+  document.getElementById('keyLabel').innerHTML =
+    `${p.vendor} の APIキー（<a href="${p.keyPage}" target="_blank" rel="noopener">発行ページを開く</a>）`;
+  const k = document.getElementById('inKey'); k.value = getKey(); k.placeholder = p.keyHint;
+  const sel = document.getElementById('inModel'), choices = modelChoices(prov), cur = getModel();
+  sel.innerHTML = choices.length
+    ? choices.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')
+    : '<option value="">（下の「🔄 使えるモデルの一覧を取得」を押してください）</option>';
+  sel.value = cur;
+  document.getElementById('inModelCustom').value = '';
+  const base = document.getElementById('inBase');
+  base.value = localStorage.getItem(LS.base(prov)) || ''; base.placeholder = p.base;
+}
+document.querySelectorAll('#provSeg button').forEach(b => b.onclick = () => {
+  localStorage.setItem(LS.prov, b.dataset.prov); renderSettings();
+});
+document.getElementById('inKey').onchange    = e => localStorage.setItem(LS.key(getProv()), e.target.value.trim());
+document.getElementById('inModel').onchange  = e => localStorage.setItem(LS.model(getProv()), e.target.value);
+// 直接入力はそのまま「選ばれているモデル」になる（設定の置き場を2つに増やさない）
+document.getElementById('inModelCustom').onchange = e => {
+  const id = e.target.value.trim(); if (!id) return;
+  localStorage.setItem(LS.model(getProv()), id); renderSettings(); toast('モデルを ' + id + ' にしました');
+};
+document.getElementById('inBase').onchange = e => {
+  const v = e.target.value.trim();
+  if (v) localStorage.setItem(LS.base(getProv()), v); else localStorage.removeItem(LS.base(getProv()));
+};
+document.getElementById('btnFetchModels').onclick = async e => {
+  const b = e.target, prov = getProv(); b.textContent = '🔄 取得中…';
+  try {
+    const list = await P().listModels();
+    localStorage.setItem(LS.list(prov), JSON.stringify(list));
+    if (!localStorage.getItem(LS.model(prov)) && list[0]) localStorage.setItem(LS.model(prov), list[0][0]);
+    renderSettings();
+    b.textContent = `✅ ${list.length}件`;
+  } catch (err) { b.textContent = '❌ ' + err.message; }
+  setTimeout(() => { b.textContent = '🔄 使えるモデルの一覧を取得'; }, 5000);
+};
 document.getElementById('btnTest').onclick = async e => {
   const b = e.target; b.textContent = '🔌 確認中…';
   try {
-    // count_tokens は無料エンドポイント＝キーの有効性確認に課金されない
-    await apiPost('/messages/count_tokens', { model: getModel(), messages: [{ role: 'user', content: 'test' }] });
+    await P().test(); // 無料のエンドポイントだけ叩く＝キー確認で課金されない
     b.textContent = '✅ 接続OK（キー有効）';
   } catch (err) { b.textContent = '❌ ' + err.message; }
   setTimeout(() => { b.textContent = '🔌 接続テスト（無料・課金されません）'; }, 4000);
@@ -503,8 +642,7 @@ function hideAll(){ document.querySelectorAll('.overlay').forEach(o => o.classLi
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = hideAll);
 document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) hideAll(); }));
 document.getElementById('btnSettings').onclick = () => {
-  document.getElementById('inKey').value = getKey();
-  document.getElementById('inModel').value = getModel();
+  renderSettings();
   document.getElementById('noteStore').innerHTML = IS_NATIVE
     ? '📱 <b>アプリ版</b>で動作中＝データは端末のアプリ領域に保存され、ブラウザの自動削除の対象外です（消えるのはアプリを削除した時）。'
     : '⚠ <b>ブラウザ版</b>です。iPhone の Safari は<b>7日間サイトを開かないとデータ（キーとレシート）を消す</b>ことがあります。<b>ホーム画面に追加</b>するか、アプリ版を使ってください。';

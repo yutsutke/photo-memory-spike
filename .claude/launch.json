@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "5273"],
       "port": 5273
+    },
+    {
+      "name": "receipt-spike",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5274", "--directory", "receipt-spike"],
+      "port": 5274
     }
   ]
 }
