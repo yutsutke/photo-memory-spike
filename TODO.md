@@ -14,6 +14,8 @@
 ---
 
 > **🔧 セッション42（2026-08-10）＝🧾 レシート分析の設計相談 → 「別アプリ」と決定し `receipt-spike/` を新設（r1: 撮る→BYOKで自動AI分析→一覧→期間書き出し）。あの日本体（index.html・BUILD・審査train）は無改修。判断の全記録は CHANGELOG v233・レシート側の運用は `receipt-spike/TODO.md`（独立別冊）。**
+>
+> **▶▶ 次回はここから＝🧾 レシート r4 の APK を手元 Windows でビルド→Android 実機にインストール→一周確認**（手順と確認4点は `receipt-spike/BUILD-android.md` / `receipt-spike/TODO.md` 現在地。⚠ コードは `claude/start-ncjb6i` ブランチ＝**main 未マージ**。iPhone で web 版を触るにも main への merge が必要）。あの日側の次の一手（iOS 1.7 Codemagic→審査 / Android vc5 / 実機確認）は下記セッション41から変わらず。
 > - **▶ あの日側の次の一手は変わらず下記セッション41の3つ**（iOS 1.7 Codemagic ビルド→審査 / Android vc5 / 実機確認）。プリフライト点検済み＝新権限ゼロ確認・sync:web OK・CDN残留ゼロ。⚠️ vc5 手元ビルド時は資格情報と同一コールで `BUILD_NUMBER=5` を渡すこと（忘れると versionCode=1 に落ちて Play に弾かれる）。
 > - レシート起点で将来 あの日 に入り得るもの（今は作らない）: レシート専用アルバムの取り込み除外 / 「手がかりとしてのレシート」（拡大表示に店名・金額がそっと寄り添う）＝レシートアプリが当たってから。
 > - **（同日追記2）receipt-spike を r4＝📱Android native 化**（iOS Safari の ITP で7日後にデータが消える問題への対応。ログイン方式＝サーバー保存は却下）。**あの日の Capacitor 基盤を踏襲しつつ appId・android プロジェクトは完全別**（`io.github.yutsutke.receipt`）＝あの日の審査 train には一切影響なし。配布は debug APK の直接インストール。ビルド手順は `receipt-spike/BUILD-android.md`。

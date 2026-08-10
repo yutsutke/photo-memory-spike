@@ -10,17 +10,36 @@
 
 ---
 
-## 手元でビルド（Windows / Mac 共通・Android Studio 不要）
+## 手元でビルド（Android Studio 不要）
 
-前提: Node 22+ と JDK 21（Capacitor 8 の capacitor-android は Java 21 ソースレベル）、Android SDK（`ANDROID_HOME`）。
+前提: Node 22+ と JDK 21（Capacitor 8 の capacitor-android は Java 21 ソースレベル）、Android SDK（`ANDROID_HOME`）＝**vc4 を作った環境がそのまま使える**。
+
+### Windows（PowerShell・vc4 と同じ流儀）
+
+```powershell
+git fetch origin claude/start-ncjb6i        # ← receipt-spike は 2026-08-10 時点 main 未マージ＝このブランチにある
+git checkout claude/start-ncjb6i            #    （merge 済みなら main のままでよい）
+cd receipt-spike
+npm install                                  # 初回のみ
+npm run sync:web
+npx cap sync android
+.\android\gradlew.bat -p android assembleDebug --no-daemon
+```
+
+出力: `receipt-spike\android\app\build\outputs\apk\debug\app-debug.apk`
+
+### Mac / Linux
 
 ```bash
 cd receipt-spike
 npm install            # 初回のみ
-npm run build:debug    # sync:web → cap sync android → gradlew assembleDebug
+npm run build:debug    # sync:web → cap sync android → ./gradlew assembleDebug（⚠ Unix専用スクリプト）
 ```
 
-出力: `receipt-spike/android/app/build/outputs/apk/debug/app-debug.apk`
+### 端末へ入れる
+
+- **adb があるなら**: `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`（`-r`=上書き更新）
+- **無ければ**: APK を Drive/メール等で端末に送り、タップ →「提供元不明のアプリ」を許可 → インストール
 
 **デバッグ APK で配って構わない**（サイドロードに署名の種類は関係ない）。手間が最小で、リリース鍵の管理も要らない。
 
