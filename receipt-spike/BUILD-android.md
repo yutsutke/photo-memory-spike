@@ -48,10 +48,13 @@ npm run build:debug    # sync:web → cap sync android → ./gradlew assembleDeb
 PC と端末が**同じ Wi-Fi** にいること。端末: 開発者向けオプション → **ワイヤレス デバッグ** を ON。
 
 ```powershell
-adb pair 192.168.x.x:<ペア用ポート> <6桁コード>   # 「専用コードによるデバイスのペア設定」に出る番号
-adb connect 192.168.x.x:<接続用ポート>            # ワイヤレスデバッグの最初の画面に出る別番号
+adb mdns services                                  # ★まずこれ。ペア済みなら接続用ポートごと見つかる
+adb connect 192.168.x.x:<接続用ポート>             # 例: _adb-tls-connect._tcp 192.168.10.15:37825
+adb pair 192.168.x.x:<ペア用ポート> <6桁コード>    # 未ペアの時だけ（画面の「専用コードによるペア設定」）
 adb -s 192.168.x.x:<接続用ポート> install -r ...
 ```
+
+> ⚠ **`adb pair` が `protocol fault (couldn't read status message)` で落ちたら、たいてい「もうペア済み」**（2026-08-11）。`adb mdns services` を先に見れば、ペア用ポートと接続用ポートを取り違える罠ごと消える。
 
 - ポート番号は**ペア用と接続用で別物**（ここでよく間違える）
 - 端末が Windows のデバイス一覧にすら出ない時は、ケーブルが充電専用＝USBデバッグの設定を疑う前にケーブルを疑う

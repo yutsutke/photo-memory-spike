@@ -47,6 +47,7 @@ main{padding:10px 14px;}
 .seg{display:flex; gap:8px;}
 .seg button{flex:1; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:12px; padding:10px; font-size:15.5px; line-height:1.3;}
 .seg button.on{background:var(--acc); color:#04121f; font-weight:700; border-color:var(--acc);}
+.seg.wrap{flex-wrap:wrap;} .seg.wrap button{flex:1 1 28%; padding:9px 4px; font-size:14.5px;}
 .seg small{display:block; font-size:11.5px; opacity:.75; font-weight:400;}
 details.adv{border-top:1px solid var(--line); margin-top:12px; padding-top:10px;}
 details.adv summary{color:var(--dim); font-size:13.5px; margin-bottom:10px; cursor:pointer;}
@@ -94,6 +95,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 .smLegend{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 4px;}
 .smLegend button{display:flex; align-items:center; gap:5px; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:999px; padding:4px 10px; font-size:12.5px;}
 .smLegend button.off{opacity:.35;}
+.smLegend button.sel{background:var(--acc); color:#04121f; font-weight:700; border-color:var(--acc);}
 .smLegend .dot{width:9px; height:9px; border-radius:50%;}
 .smPop{font-size:13px;}
 .smPop b{font-size:14px;}
@@ -103,7 +105,8 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 .leaflet-popup-tip{background:#1c1c1e;}
 .leaflet-popup-close-button{color:var(--dim) !important;}
 .leaflet-container{background:#0c0c0e; font:13px -apple-system,"Hiragino Sans",sans-serif;}
-.leaflet-control-attribution{background:rgba(0,0,0,.5) !important; color:#888 !important;}
+/* 出典表記は消せない（タイルの利用条件）が、2行に折り返すと地図を隠すので小さく1行に収める */
+.leaflet-control-attribution{background:rgba(0,0,0,.5) !important; color:#888 !important; font-size:9px !important; line-height:1.4; padding:0 4px !important;}
 .leaflet-control-attribution a{color:#aaa !important;}
 </style>
 </head>
@@ -177,18 +180,26 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <button type="button" data-tab="stats">📊 統計</button>
     <button type="button" data-tab="map">💴 支出マップ</button>
   </div>
-  <div class="seg" id="stPeriodSeg">
+  <div class="seg wrap" id="stPeriodSeg">
+    <button type="button" data-pm="day">今日</button>
+    <button type="button" data-pm="week">今週</button>
     <button type="button" data-pm="month">月</button>
     <button type="button" data-pm="year">年</button>
     <button type="button" data-pm="all">全期間</button>
+    <button type="button" data-pm="range">期間を選ぶ</button>
   </div>
   <div class="stnav" id="stNav"><button id="stPrev">◀</button><b id="stLabel"></b><button id="stNext">▶</button></div>
+  <div class="dual" id="stRangeRow" style="display:none">
+    <div class="row" style="flex:1"><label>から</label><input type="date" id="stFrom"></div>
+    <div class="row" style="flex:1"><label>まで</label><input type="date" id="stTo"></div>
+  </div>
   <div id="stBody"></div>
   <div id="mapPane" hidden>
     <div class="seg" id="smMetricSeg" style="margin:8px 0">
       <button type="button" data-mt="yen">金額</button>
       <button type="button" data-mt="count">回数</button>
     </div>
+    <div class="smLegend" id="smBase"></div>
     <div id="rmap"></div>
     <div id="smLegend" class="smLegend"></div>
     <div id="smBody"></div>
@@ -224,7 +235,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ（住所から探す/地図をタップ）｜r11 📊統計（期間＝月/年/全期間・分類・お店2段・推移）＝レシートだけで完結・収入は混ぜない｜r10 🌏OpenRouterを3択目に追加＋JSONの頼み方を3段構えに（型指定に非対応なサービスでも通る）｜r9 🧠分析に使うAIを選べる＝Claude/ChatGPTの2択＋詳細設定（モデルID直接入力・一覧取得・OpenAI互換のURL）｜r8 🤖AIに渡す＝文字で共有（Claudeはtext/*しか受け取らずJSONファイルでは共有先に出ない・端末に問い合わせて確認） · 2026-08-11';
+const BUILD = 'r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい・地理院は世界の下地つき）＋期間に 今日/今週/期間を選ぶ を追加（統計・マップ共通）｜r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ（住所から探す/地図をタップ）｜r11 📊統計（期間＝月/年/全期間・分類・お店2段・推移）＝レシートだけで完結・収入は混ぜない｜r10 🌏OpenRouterを3択目に追加＋JSONの頼み方を3段構えに（型指定に非対応なサービスでも通る）｜r9 🧠分析に使うAIを選べる＝Claude/ChatGPTの2択＋詳細設定（モデルID直接入力・一覧取得・OpenAI互換のURL） · 2026-08-11';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -859,20 +870,40 @@ function groupStores(rows){
   return out;
 }
 
-/* --- 期間（月／年／全期間）--- */
+/* --- 期間（今日／今週／月／年／全期間／期間を選ぶ）--- r13 でユーザー要望の3つを追加 */
 let stMode = 'month', stY = 0, stM = 0;   // 表示中の年・月
+let stDay = '';                            // 表示中の日（今日／今週の起点）
+let stFrom = '', stTo = '';                // 「期間を選ぶ」の開始・終了
 let stSort = 'yen';                        // お店の並び: yen=金額 / count=回数
 let stOpen = new Set();                    // 開いている内訳（分類名 / 店名）
 const pad2 = n => String(n).padStart(2, '0');
 // 今日（端末の日付）。⚠ toISOString は UTC なので日本時間の夜に前日へずれる＝使わない
 const todayStr = () => { const n = new Date(); return `${n.getFullYear()}-${pad2(n.getMonth() + 1)}-${pad2(n.getDate())}`; };
+const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+const dowOf = d => DOW[new Date(d + 'T00:00:00').getDay()];
+function addDays(d, n){
+  const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() + n);
+  return `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+}
+const weekStart = d => addDays(d, -((new Date(d + 'T00:00:00').getDay() + 6) % 7)); // 週は月曜はじまり
+const md = d => `${+d.slice(5, 7)}/${+d.slice(8)}`;
 function statsPeriod(){
   if (stMode === 'all') return { from: '', to: '', label: '全期間' };
+  if (stMode === 'range') {
+    // ⚠ 逆さま（開始 > 終了）でも黙って入れ替えない＝打ち間違いを親切に直すと「なぜこの数字？」が追えなくなる
+    if (!stFrom || !stTo) return { bad: '開始と終了の両方を選んでください', label: '期間を選ぶ' };
+    if (stFrom > stTo) return { bad: '開始が終了より後になっています', label: `${md(stFrom)} 〜 ${md(stTo)}` };
+    return { from: stFrom, to: stTo, label: `${md(stFrom)} 〜 ${md(stTo)}` };
+  }
+  if (stMode === 'day') { const d = stDay || todayStr(); return { from: d, to: d, label: `${+d.slice(5, 7)}月${+d.slice(8)}日(${dowOf(d)})` }; }
+  if (stMode === 'week') { const s = weekStart(stDay || todayStr()), e = addDays(s, 6); return { from: s, to: e, label: `${md(s)} 〜 ${md(e)}（週）` }; }
   if (stMode === 'year') return { from: `${stY}-01-01`, to: `${stY}-12-31`, label: `${stY}年` };
   const last = new Date(stY, stM, 0).getDate();
   return { from: `${stY}-${pad2(stM)}-01`, to: `${stY}-${pad2(stM)}-${pad2(last)}`, label: `${stY}年${stM}月` };
 }
 function statsShift(d){
+  if (stMode === 'day')  { stDay = addDays(stDay || todayStr(), d); return; }
+  if (stMode === 'week') { stDay = addDays(weekStart(stDay || todayStr()), d * 7); return; }
   if (stMode === 'year') { stY += d; return; }
   if (stMode === 'month') { const t = stY * 12 + (stM - 1) + d; stY = Math.floor(t / 12); stM = (t % 12) + 1; }
 }
@@ -893,6 +924,7 @@ function itemsHtml(rows){
 
 async function renderStats(){
   const per = statsPeriod();
+  if (per.bad) { document.getElementById('stBody').innerHTML = `<div class="stEmpty">${per.bad}</div>`; return; }
   const all = (await listRows()).filter(x => x.rc);
   const rows = all.filter(x => (!per.from || x.date >= per.from) && (!per.to || x.date <= per.to));
   const body = document.getElementById('stBody');
@@ -920,7 +952,7 @@ async function renderStats(){
 
   let html = `<div class="stSec" style="border-top:none;margin-top:10px;padding-top:6px">
     <div class="stBig">${yen(total)}</div>
-    <div class="stSub">支出 ${exp.length}件 ・ 記録のある日 ${days.length}日 ・ 1日あたり ${yen(Math.round(total / spanDays))}</div>
+    <div class="stSub">支出 ${exp.length}件 ・ 記録のある日 ${days.length}日${spanDays > 1 ? ` ・ 1日あたり ${yen(Math.round(total / spanDays))}` : ''}</div>
     ${incTotal ? `<div class="stSub">収入 ${inc.length}件 <span style="color:var(--ok)">+${yen(incTotal)}</span> ／ 差引 ${yen(incTotal - total)}</div>` : ''}
   </div>`;
 
@@ -949,7 +981,9 @@ async function renderStats(){
   html += `</div>`;
 
   // 推移＝月モードは日別・年/全期間は月別（記録のある区切りだけ出す）
-  const grain = stMode === 'month' ? 'day' : 'month';
+  // 推移の粒度＝短い期間は日別・長い期間は月別（「期間を選ぶ」は長さで決める＝62日までは日別）
+  const spanAll = (per.from && per.to) ? Math.round((new Date(per.to) - new Date(per.from)) / 86400000) : 9999;
+  const grain = (stMode === 'day' || stMode === 'week' || stMode === 'month' || (stMode === 'range' && spanAll <= 62)) ? 'day' : 'month';
   const byKey = {};
   exp.forEach(x => { const k = grain === 'day' ? x.date : x.date.slice(0, 7); (byKey[k] = byKey[k] || []).push(x); });
   const keys = Object.keys(byKey).sort();
@@ -978,9 +1012,13 @@ document.getElementById('stBody').addEventListener('click', e => {
 function syncPeriodUI(){
   const per = statsPeriod();
   document.querySelectorAll('#stPeriodSeg button').forEach(b => b.classList.toggle('on', b.dataset.pm === stMode));
-  document.getElementById('stNav').style.display = stMode === 'all' ? 'none' : 'flex';
+  document.getElementById('stNav').style.display = (stMode === 'all' || stMode === 'range') ? 'none' : 'flex';
+  document.getElementById('stRangeRow').style.display = stMode === 'range' ? 'flex' : 'none';
+  if (stMode === 'range') { document.getElementById('stFrom').value = stFrom; document.getElementById('stTo').value = stTo; }
   document.getElementById('stLabel').textContent = per.label;
 }
+document.getElementById('stFrom').onchange = e => { stFrom = e.target.value; renderTab(); };
+document.getElementById('stTo').onchange   = e => { stTo   = e.target.value; renderTab(); };
 let stTab = 'stats';
 function renderTab(){ syncPeriodUI(); return stTab === 'map' ? renderSpendMap() : renderStats(); }
 function setTab(t){
@@ -992,7 +1030,14 @@ function setTab(t){
   renderTab();
 }
 document.querySelectorAll('#stTabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
-document.querySelectorAll('#stPeriodSeg button').forEach(b => b.onclick = () => { stMode = b.dataset.pm; stOpen.clear(); renderTab(); });
+document.querySelectorAll('#stPeriodSeg button').forEach(b => b.onclick = () => {
+  const prev = statsPeriod();   // 「期間を選ぶ」の初期値＝いま見ていた期間（別の日へ飛ばさない）
+  stMode = b.dataset.pm;
+  // ⚠「今日」「今週」は押したら必ず今日に戻す＝ボタンの名前と中身を一致させる（◀▶で過去へ動かせる）
+  if (stMode === 'day' || stMode === 'week') stDay = todayStr();
+  if (stMode === 'range' && (!stFrom || !stTo)) { stFrom = prev.from || todayStr(); stTo = prev.to || todayStr(); }
+  stOpen.clear(); renderTab();
+});
 document.getElementById('stPrev').onclick = () => { statsShift(-1); stOpen.clear(); renderTab(); };
 document.getElementById('stNext').onclick = () => { statsShift(1); stOpen.clear(); renderTab(); };
 document.getElementById('btnStats').onclick = async () => {
@@ -1000,7 +1045,7 @@ document.getElementById('btnStats').onclick = async () => {
   if (!stY) {
     const rows = (await listRows()).filter(x => x.rc);
     const d = rows.length ? rows[0].date : todayStr();
-    stY = +d.slice(0, 4); stM = +d.slice(5, 7);
+    stY = +d.slice(0, 4); stM = +d.slice(5, 7); stDay = d;
   }
   show('ovStats'); setTab(stTab);
 };
@@ -1032,9 +1077,41 @@ function loadLeaflet(){
   })();
   return _leafletLoading;
 }
-const TILE = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
-const TILE_ATTR = '&copy; OpenStreetMap &copy; CARTO';
-const baseTiles = () => L.tileLayer(TILE, { maxZoom: 19, attribution: TILE_ATTR });
+/* --- 地図の種類（下地のタイル）--- r13: 実機の声「真っ暗な地図だけ。別のUIの地図もほしい」
+   ⚠ 地理院タイル（標準/淡色）は**日本の外だと真っ白**になるので、選んだ時だけ世界の下地（CARTO の
+      明るい地図）を最背面に敷く（あの日と同じ手）。選んだ種類は端末に覚える。 */
+const CARTO_ATTR = "&copy; <a href='https://www.openstreetmap.org/copyright'>OSM</a> &copy; <a href='https://carto.com/attributions'>CARTO</a>";
+const GSI_ATTR = "<a href='https://www.gsi.go.jp/'>地理院タイル</a>";
+const WORLD_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
+const BASE_TILES = [
+  { key: 'dark',  name: '🌑 ダーク', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', max: 19, attr: CARTO_ATTR },
+  { key: 'std',   name: '🗺 標準',   url: 'https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',   max: 18, attr: GSI_ATTR, jp: true },
+  { key: 'pale',  name: '🌤 淡色',   url: 'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',  max: 18, attr: GSI_ATTR, jp: true },
+  { key: 'light', name: '☀️ 明るい', url: WORLD_LIGHT, max: 19, attr: CARTO_ATTR },
+];
+let baseKey = localStorage.getItem('rcpt.tile') || 'dark';
+const baseDef = () => BASE_TILES.find(b => b.key === baseKey) || BASE_TILES[0];
+const _bases = new Map(); // 地図 → いま敷いているレイヤ（張り替え用）
+function applyBase(map){
+  const cur = _bases.get(map);
+  if (cur) { if (cur.under) map.removeLayer(cur.under); map.removeLayer(cur.tile); }
+  const d = baseDef();
+  const under = d.jp ? L.tileLayer(WORLD_LIGHT, { maxZoom: 19, attribution: CARTO_ATTR }).addTo(map) : null;
+  const tile = L.tileLayer(d.url, { maxZoom: d.max, attribution: d.attr }).addTo(map);
+  tile.bringToBack(); if (under) under.bringToBack();  // ピンより下に（張り替えても重なり順を保つ）
+  _bases.set(map, { under, tile });
+}
+function renderBaseChips(){
+  document.getElementById('smBase').innerHTML = BASE_TILES.map(b =>
+    `<button data-base="${b.key}" class="${b.key === baseKey ? 'sel' : ''}">${b.name}</button>`).join('');
+}
+document.getElementById('smBase').addEventListener('click', e => {
+  const b = e.target.closest('[data-base]'); if (!b) return;
+  baseKey = b.dataset.base; localStorage.setItem('rcpt.tile', baseKey);
+  renderBaseChips();
+  if (smMap) applyBase(smMap);
+  if (pMap) applyBase(pMap);   // 位置を決める画面も同じ下地にする
+});
 
 /* --- 住所 → 座標（Nominatim・1秒に1回まで・結果は端末に保存）--- */
 const GEO_CACHE = 'rcpt.geocache';
@@ -1096,6 +1173,8 @@ async function loadPlaces(){
 
 async function renderSpendMap(){
   const per = statsPeriod();
+  renderBaseChips();
+  if (per.bad) { document.getElementById('smBody').innerHTML = `<div class="stEmpty">${per.bad}</div>`; return; }
   await loadPlaces();
   const rows = (await listRows()).filter(x => x.rc && x.rc.kind !== 'income' && x.rc.total != null
                                            && (!per.from || x.date >= per.from) && (!per.to || x.date <= per.to));
@@ -1111,7 +1190,7 @@ async function renderSpendMap(){
   await loadLeaflet();
   if (!smMap) {
     smMap = L.map('rmap', { zoomControl: true, attributionControl: true }).setView([35.68, 139.4], 11);
-    baseTiles().addTo(smMap);
+    applyBase(smMap);
   }
   smMap.invalidateSize(); // 隠れていた場所に作られるとサイズが0のままになる
   if (smLayer) { smMap.removeLayer(smLayer); smLayer = null; }
@@ -1196,7 +1275,7 @@ async function openPlace(key){
   await loadLeaflet();
   if (!pMap) {
     pMap = L.map('pmap').setView([35.68, 139.4], 11);
-    baseTiles().addTo(pMap);
+    applyBase(pMap);
     pMap.on('click', ev => setPin(ev.latlng));
   }
   setTimeout(() => {
