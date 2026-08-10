@@ -80,6 +80,8 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
   </select></div>
   <button class="btn" id="btnTest">🔌 接続テスト（無料・課金されません）</button>
   <div class="note">キーは<b>この端末のブラウザ内にのみ</b>保存されます（このアプリにサーバーはありません）。レシート画像は分析のときだけ、<b>あなたのキーで Anthropic API に直接</b>送信されます。それ以外に外部へ送るものはありません。</div>
+  <div class="note">🔐 おすすめ運用: このアプリ<b>専用のAPIキー</b>を発行し、Console 側で<b>支出上限</b>を低く設定しておく（万一漏れても被害がその上限で止まる・いつでも失効できる）。</div>
+  <div class="note">⚠ iPhone の Safari は<b>7日間サイトを開かないと、そのサイトのデータ（キーとレシート）を消す</b>ことがあります。<b>ホーム画面に追加</b>して使うと防げます。</div>
   <div class="note" id="buildLine"></div>
 </div></div>
 
@@ -114,7 +116,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r2 🧾 ライフログ実装の教訓を反映（1枚に複数レシート・印字住所・収入・高解像度OCR・カテゴリ統一）｜r1 撮る→自動AI分析→一覧→期間書き出し · 2026-08-10';
+const BUILD = 'r3 🧾 OCRルールをライフログから移植（和暦・明細全行・住所の厳密ルール）＋⚙専用キー運用とホーム画面追加の案内｜r2 複数レシート・印字住所・収入・高解像度・カテゴリ統一｜r1 撮る→自動AI分析→一覧→期間書き出し · 2026-08-10';
 console.log('BUILD:', BUILD);
 
 /* ---------- 設定（localStorage は あの日 web と同一オリジン共有 → rcpt. 接頭辞で分離） ---------- */
@@ -218,15 +220,31 @@ const RECEIPT_SCHEMA = {
   required: ['receipts'],
 };
 
+// OCRルール＝ライフログ(receipt関数のOCR_SYSTEM)の実運用で磨かれた規則を移植（布石フィールド分は除く）
+const OCR_RULES = `あなたはレシート読み取りの専門家。写真に写っているレシートから情報を抽出する。
+
+ルール:
+- 写真には1枚または複数のレシートが写っていることがある。写っているレシートを全部、別々の要素として抽出する。レシートが写っていなければ空配列。
+- total は合計（税込・支払額）。ポイント払い等があっても請求合計を使う。日本円の整数。
+- 日付・時刻はレシートの印字から読む。和暦や「R6」表記は西暦に直す（date=YYYY-MM-DD・time=HH:MM 24時間）。読めなければ null。
+- items にはレシートの明細を一行ずつ全部入れる（後から品目で検索するため）。割引・小計・合計・お預り・お釣り・ポイント等の行は含めない（実際に買った商品だけ）。価格が読めない品目は price を null。数量が印字されていれば qty に（無ければ null）。
+- 店名はチェーン名（例: セブン-イレブン）、支店名は branch に分ける。
+- category は内容から最も近いものを選ぶ。返金・受け取りなら kind を income に。
+- payment は支払方法（現金/クレジット/電子マネー/QR/その他）。複数あれば主たるもの。読めなければ null。
+- address: その店舗の住所を印字のまま（都道府県から番地まで。改行は空白1つに畳む）。
+  印字が無ければ必ず null。電話番号・郵便番号だけ、店名だけ、といったものは住所ではないので null。
+  推測で補わない（知識から市区町村を足す等をしない）。読めた文字だけを返す。
+  複数の住所が印字されている場合（本社と店舗など）は、その買い物をした店舗の方を選ぶ。`;
+
 async function analyzeReceipt(rec){
   const model = getModel();
   const output_config = { format: { type: 'json_schema', schema: RECEIPT_SCHEMA } };
   if (model !== 'claude-haiku-4-5') output_config.effort = 'low'; // effort は Haiku 4.5 非対応
   const res = await apiPost('/messages', {
-    model, max_tokens: 6000, output_config,
+    model, max_tokens: 6000, output_config, system: OCR_RULES,
     messages: [{ role: 'user', content: [
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await blobToB64(rec.img) } },
-      { type: 'text', text: 'これはレシートの写真です。写っているレシートをすべて読み取り、スキーマに従って構造化してください（1枚に複数のレシートが写っていることがあります）。読み取れない・存在しない項目は null。store はチェーン名・支店名は branch へ。address は印字されている店舗住所をそのまま（推測しない）。total は税込の支払総額（円の整数）。date は YYYY-MM-DD、time は HH:MM（24時間）。返金・受け取りなら kind を income に。品目は上から順にすべて。' },
+      { type: 'text', text: 'このレシート写真から情報を抽出して。' },
     ] }],
   });
   if (res.stop_reason === 'refusal') throw new Error('AI が分析を拒否しました（画像を確認してください）');
