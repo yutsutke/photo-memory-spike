@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(dirname(fileURLToPath(import.meta.url))); // receipt-spike/
 const out = join(root, 'www');
 
-const ASSETS = ['index.html'];
+// vendor/ = 地図（Leaflet）を同梱。⚠ あの日の vendor/ を参照しない＝ここへコピーを置く
+//    （sync-web は receipt-spike/ 配下しか見ないので、`../vendor` 参照だとアプリ版で地図が消える）
+const ASSETS = ['index.html', 'vendor'];
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });

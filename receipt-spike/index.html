@@ -88,6 +88,23 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 .stItem .a{color:var(--fg); white-space:nowrap;}
 .stShop{margin-left:18px; font-size:13.5px;}
 .stEmpty{color:var(--dim); font-size:13.5px; padding:10px 0;}
+/* 💴 支出マップ */
+#rmap{height:46vh; min-height:240px; border-radius:12px; background:#0c0c0e; border:1px solid var(--line);}
+#pmap{height:38vh; min-height:200px; border-radius:12px; background:#0c0c0e; border:1px solid var(--line); margin:8px 0;}
+.smLegend{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 4px;}
+.smLegend button{display:flex; align-items:center; gap:5px; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:999px; padding:4px 10px; font-size:12.5px;}
+.smLegend button.off{opacity:.35;}
+.smLegend .dot{width:9px; height:9px; border-radius:50%;}
+.smPop{font-size:13px;}
+.smPop b{font-size:14px;}
+.smPop .sub{color:#9a9a9e; font-size:12px; margin-top:2px;}
+.smPop button{margin-top:8px; background:#2c2c2e; border:1px solid #444; color:#eee; border-radius:8px; padding:5px 10px; font-size:12.5px;}
+.leaflet-popup-content-wrapper{background:#1c1c1e; color:var(--fg); border-radius:10px;}
+.leaflet-popup-tip{background:#1c1c1e;}
+.leaflet-popup-close-button{color:var(--dim) !important;}
+.leaflet-container{background:#0c0c0e; font:13px -apple-system,"Hiragino Sans",sans-serif;}
+.leaflet-control-attribution{background:rgba(0,0,0,.5) !important; color:#888 !important;}
+.leaflet-control-attribution a{color:#aaa !important;}
 </style>
 </head>
 <body>
@@ -155,7 +172,11 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <!-- 📊 統計 -->
 <div class="overlay" id="ovStats"><div class="sheet tall">
-  <button class="x" data-close>✕</button><h2>📊 統計</h2>
+  <button class="x" data-close>✕</button><h2 id="stHead">📊 統計</h2>
+  <div class="seg" id="stTabs" style="margin-bottom:8px">
+    <button type="button" data-tab="stats">📊 統計</button>
+    <button type="button" data-tab="map">💴 支出マップ</button>
+  </div>
   <div class="seg" id="stPeriodSeg">
     <button type="button" data-pm="month">月</button>
     <button type="button" data-pm="year">年</button>
@@ -163,6 +184,29 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
   </div>
   <div class="stnav" id="stNav"><button id="stPrev">◀</button><b id="stLabel"></b><button id="stNext">▶</button></div>
   <div id="stBody"></div>
+  <div id="mapPane" hidden>
+    <div class="seg" id="smMetricSeg" style="margin:8px 0">
+      <button type="button" data-mt="yen">金額</button>
+      <button type="button" data-mt="count">回数</button>
+    </div>
+    <div id="rmap"></div>
+    <div id="smLegend" class="smLegend"></div>
+    <div id="smBody"></div>
+  </div>
+</div></div>
+
+<!-- 📍 店の場所を決める -->
+<div class="overlay" id="ovPlace"><div class="sheet">
+  <button class="x" data-close>✕</button><h2 id="pTitle">📍 場所を決める</h2>
+  <div class="note" id="pAddr" style="margin:0 0 8px"></div>
+  <button class="btn" id="btnGeocode">🔎 この住所から探す</button>
+  <div id="pmap"></div>
+  <div class="note">地図を<b>タップ</b>すると、その場所に置けます（住所が無い店・住所で見つからない店はこちら）。</div>
+  <div class="dual" style="margin-top:10px">
+    <button class="btn pri" id="btnPlaceSave">この場所にする</button>
+    <button class="btn" id="btnPlaceClear">位置を消す</button>
+  </div>
+  <div class="note">🌏 「住所から探す」は <b>OpenStreetMap（外部サービス）</b>に<b>住所の文字だけ</b>を送って座標を返してもらいます（写真・金額・品目は送りません）。決めた位置は<b>この端末の中だけ</b>に保存され、同じ店の次のレシートにも自動で効きます。</div>
 </div></div>
 
 <!-- 詳細 -->
@@ -180,7 +224,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r11 📊統計（期間＝月/年/全期間・分類・お店2段・推移）＝レシートだけで完結・収入は混ぜない｜r10 🌏OpenRouterを3択目に追加＋JSONの頼み方を3段構えに（型指定に非対応なサービスでも通る）｜r9 🧠分析に使うAIを選べる＝Claude/ChatGPTの2択＋詳細設定（モデルID直接入力・一覧取得・OpenAI互換のURL）｜r8 🤖AIに渡す＝文字で共有（Claudeはtext/*しか受け取らずJSONファイルでは共有先に出ない・端末に問い合わせて確認）｜r7 📤書き出しをアプリ版でも通す＝Capacitor Share/Filesystem 経由（WebViewは<a download>もWeb Share APIも無反応） · 2026-08-11';
+const BUILD = 'r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ（住所から探す/地図をタップ）｜r11 📊統計（期間＝月/年/全期間・分類・お店2段・推移）＝レシートだけで完結・収入は混ぜない｜r10 🌏OpenRouterを3択目に追加＋JSONの頼み方を3段構えに（型指定に非対応なサービスでも通る）｜r9 🧠分析に使うAIを選べる＝Claude/ChatGPTの2択＋詳細設定（モデルID直接入力・一覧取得・OpenAI互換のURL）｜r8 🤖AIに渡す＝文字で共有（Claudeはtext/*しか受け取らずJSONファイルでは共有先に出ない・端末に問い合わせて確認） · 2026-08-11';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -211,23 +255,31 @@ const getBase  = () => (localStorage.getItem(LS.base(getProv())) || P().base).re
 const getList  = p => { try { return JSON.parse(localStorage.getItem(LS.list(p)) || '[]'); } catch (_) { return []; } };
 
 /* ---------- IndexedDB（あの日と同一オリジン共有 → DB名で分離） ---------- */
-const DB_NAME = 'receipt-spike', STORE = 'receipts';
+// v2（r12）で PLACES＝店舗マスタ（店ごとの位置を1回決めて覚える）を追加。既存の receipts はそのまま
+const DB_NAME = 'receipt-spike', STORE = 'receipts', PLACES = 'places';
 let _db = null;
 function db(){ return _db ? Promise.resolve(_db) : new Promise((ok, ng) => {
-  const rq = indexedDB.open(DB_NAME, 1);
-  rq.onupgradeneeded = () => rq.result.createObjectStore(STORE, { keyPath: 'id' });
+  const rq = indexedDB.open(DB_NAME, 2);
+  rq.onupgradeneeded = () => {
+    const d = rq.result;
+    if (!d.objectStoreNames.contains(STORE))  d.createObjectStore(STORE,  { keyPath: 'id' });
+    if (!d.objectStoreNames.contains(PLACES)) d.createObjectStore(PLACES, { keyPath: 'key' });
+  };
   rq.onsuccess = () => { _db = rq.result; ok(_db); };
   rq.onerror = () => ng(rq.error);
 }); }
-const tx = (mode, fn) => db().then(d => new Promise((ok, ng) => {
-  const t = d.transaction(STORE, mode); const r = fn(t.objectStore(STORE));
+const tx = (store, mode, fn) => db().then(d => new Promise((ok, ng) => {
+  const t = d.transaction(store, mode); const r = fn(t.objectStore(store));
   t.oncomplete = () => ok(r && 'result' in r ? r.result : undefined);
   t.onerror = () => ng(t.error);
 }));
-const dbPut = rec => tx('readwrite', s => s.put(rec));
-const dbDel = id  => tx('readwrite', s => s.delete(id));
-const dbGet = id  => tx('readonly',  s => s.get(id));
-const dbAll = ()  => tx('readonly',  s => s.getAll());
+const dbPut = rec => tx(STORE, 'readwrite', s => s.put(rec));
+const dbDel = id  => tx(STORE, 'readwrite', s => s.delete(id));
+const dbGet = id  => tx(STORE, 'readonly',  s => s.get(id));
+const dbAll = ()  => tx(STORE, 'readonly',  s => s.getAll());
+const plPut = p   => tx(PLACES, 'readwrite', s => s.put(p));
+const plDel = k   => tx(PLACES, 'readwrite', s => s.delete(k));
+const plAll = ()  => tx(PLACES, 'readonly',  s => s.getAll());
 
 /* ---------- 画像（iOS の教訓: createImageBitmap でなく <img>+<canvas>、URL は必ず revoke） ---------- */
 function loadImage(blob){ return new Promise((ok, ng) => {
@@ -843,10 +895,6 @@ async function renderStats(){
   const per = statsPeriod();
   const all = (await listRows()).filter(x => x.rc);
   const rows = all.filter(x => (!per.from || x.date >= per.from) && (!per.to || x.date <= per.to));
-  document.querySelectorAll('#stPeriodSeg button').forEach(b => b.classList.toggle('on', b.dataset.pm === stMode));
-  document.getElementById('stNav').style.display = stMode === 'all' ? 'none' : 'flex';
-  document.getElementById('stLabel').textContent = per.label;
-
   const body = document.getElementById('stBody');
   if (!rows.length) {
     body.innerHTML = `<div class="stEmpty">${all.length ? 'この期間にレシートはありません。' : 'まだ読み取れたレシートがありません。📷 で撮ると集計に入ります。'}</div>`;
@@ -926,18 +974,287 @@ document.getElementById('stBody').addEventListener('click', e => {
   stOpen.has(k) ? stOpen.delete(k) : stOpen.add(k);
   renderStats();
 });
-document.querySelectorAll('#stPeriodSeg button').forEach(b => b.onclick = () => { stMode = b.dataset.pm; stOpen.clear(); renderStats(); });
-document.getElementById('stPrev').onclick = () => { statsShift(-1); stOpen.clear(); renderStats(); };
-document.getElementById('stNext').onclick = () => { statsShift(1); stOpen.clear(); renderStats(); };
+// 期間の見出し・◀▶は 📊統計 と 💴支出マップ で共有する（同じ期間を見たまま行き来できる）
+function syncPeriodUI(){
+  const per = statsPeriod();
+  document.querySelectorAll('#stPeriodSeg button').forEach(b => b.classList.toggle('on', b.dataset.pm === stMode));
+  document.getElementById('stNav').style.display = stMode === 'all' ? 'none' : 'flex';
+  document.getElementById('stLabel').textContent = per.label;
+}
+let stTab = 'stats';
+function renderTab(){ syncPeriodUI(); return stTab === 'map' ? renderSpendMap() : renderStats(); }
+function setTab(t){
+  stTab = t;
+  document.querySelectorAll('#stTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  document.getElementById('stHead').textContent = t === 'map' ? '💴 支出マップ' : '📊 統計';
+  document.getElementById('stBody').hidden = t !== 'stats';
+  document.getElementById('mapPane').hidden = t !== 'map';
+  renderTab();
+}
+document.querySelectorAll('#stTabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
+document.querySelectorAll('#stPeriodSeg button').forEach(b => b.onclick = () => { stMode = b.dataset.pm; stOpen.clear(); renderTab(); });
+document.getElementById('stPrev').onclick = () => { statsShift(-1); stOpen.clear(); renderTab(); };
+document.getElementById('stNext').onclick = () => { statsShift(1); stOpen.clear(); renderTab(); };
 document.getElementById('btnStats').onclick = async () => {
   // 初回に開く月＝いちばん新しいレシートの月（データが疎な spike で「空の今月」を見せない）
   if (!stY) {
     const rows = (await listRows()).filter(x => x.rc);
-    const d = rows.length ? rows[0].date : new Date().toISOString().slice(0, 10);
+    const d = rows.length ? rows[0].date : todayStr();
     stY = +d.slice(0, 4); stM = +d.slice(5, 7);
   }
-  show('ovStats'); renderStats();
+  show('ovStats'); setTab(stTab);
 };
+
+/* ---------- 💴 支出マップ（統計 × 地図） ----------
+   ★ このアプリには位置ログが無い（あの日の軌跡を「日パック」で受ける案は将来）。
+     ライフログでは座標は「買ったときに自分がいた場所（GPS動線）」から来ていたが、ここには無い。
+     → **店ごとに1回だけ位置を決めて覚える**（店舗マスタ）。決め方は2つ:
+        ① 🔎 印字住所から探す（OpenStreetMap の Nominatim・押した時だけ・1秒に1回まで・結果は端末に保存）
+        ② 地図をタップして手で置く（住所が無い／住所では見つからない店）
+   ⚠ **黙って自動でジオコーディングしない**＝住所は「ヒント」であって座標ではない（レシートの
+      印字が本社住所のこともある）。外部に住所の文字を送るのも、本人が押した時だけにする。
+   ⚠ 大きさ＝量（金額／回数）・色＝分類。分類は量ではないので大きさに使わない（ライフログの教訓）。
+   ⚠ 収入は地図に混ぜない。 */
+let _leafletLoading = null;
+function loadAsset(tag, props){
+  return new Promise((ok, ng) => {
+    const el = Object.assign(document.createElement(tag), props);
+    el.onload = ok; el.onerror = () => ng(new Error('地図の部品を読み込めません: ' + (props.src || props.href)));
+    document.head.appendChild(el);
+  });
+}
+function loadLeaflet(){
+  if (window.L) return Promise.resolve();
+  if (_leafletLoading) return _leafletLoading;
+  _leafletLoading = (async () => {
+    await loadAsset('link', { rel: 'stylesheet', href: 'vendor/leaflet/leaflet.css' });
+    await loadAsset('script', { src: 'vendor/leaflet/leaflet.js' });
+  })();
+  return _leafletLoading;
+}
+const TILE = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+const TILE_ATTR = '&copy; OpenStreetMap &copy; CARTO';
+const baseTiles = () => L.tileLayer(TILE, { maxZoom: 19, attribution: TILE_ATTR });
+
+/* --- 住所 → 座標（Nominatim・1秒に1回まで・結果は端末に保存）--- */
+const GEO_CACHE = 'rcpt.geocache';
+let geoCache = (() => { try { return JSON.parse(localStorage.getItem(GEO_CACHE) || '{}'); } catch (_) { return {}; } })();
+let geoQueue = Promise.resolve();
+function forwardGeocode(q){
+  if (geoCache[q]) return Promise.resolve(geoCache[q]);
+  const run = geoQueue.then(async () => {
+    if (geoCache[q]) return geoCache[q];
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=ja&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('住所の検索に失敗しました（' + res.status + '）');
+    const d = await res.json();
+    const r = (d && d[0]) ? { lat: parseFloat(d[0].lat), lon: parseFloat(d[0].lon) } : null;
+    if (r) { geoCache[q] = r; try { localStorage.setItem(GEO_CACHE, JSON.stringify(geoCache)); } catch (_) {} }
+    return r;
+  });
+  // ⚠ 次の1回は1.1秒後（Nominatim の利用規約＝1秒に1回まで）。成功でも失敗でも待つ
+  geoQueue = run.then(() => new Promise(r => setTimeout(r, 1100)), () => new Promise(r => setTimeout(r, 1100)));
+  return run;
+}
+
+/* --- 店舗（店名×支店）ごとに1つにまとめる ---
+   ⚠ **名寄せの規則は統計と共有する**（`groupStores`）＝同じ店が統計で1軒・地図で2ピンに
+      割れるのを防ぐ（実データ「クリエイト 宇津木台店 / 宇津大台店」＝OCRの読み違いで実際に割れた）。
+   ⚠ **マスタの鍵は書き方ごとに1本ずつ持つ**（`keys`）。畳んだ代表名を鍵にすると、あとから
+      別の書き方のレシートが増えた時に代表名が変わって**覚えた位置が迷子になる**（ライフログが
+      店舗マスタで踏んだ罠）。位置を決めたら**その店の全部の書き方に同じ座標を書く**。 */
+const placeKeyOf = rc => `${storeNorm(rc.store, STORE_NONE)}｜${storeNorm(rc.branch, BRANCH_NONE)}`;
+function shopAggregate(rows, places){
+  const out = [];
+  groupStores(rows).forEach(g => g.shops.forEach(s => {
+    const keys = [...new Set(s.rows.map(x => placeKeyOf(x.rc)))];
+    const by = {}; let addr = '';
+    s.rows.forEach(x => {
+      const c = x.rc.category || 'その他'; by[c] = (by[c] || 0) + (x.rc.total || 0);
+      if (!addr && x.rc.address) addr = x.rc.address; // 位置決めのヒントに使う印字住所
+    });
+    const p = keys.map(k => places[k]).find(Boolean);
+    out.push({ key: keys[0], keys, name: s.name === BRANCH_NONE ? g.name : `${g.name} ${s.name}`,
+               yen: s.yen, n: s.n, rows: s.rows, addr, by,
+               cat: Object.entries(by).sort((a, b) => b[1] - a[1])[0][0], // 色＝その店でいちばん使っている分類
+               lat: p ? p.lat : null, lon: p ? p.lon : null, src: p ? p.src : null });
+  }));
+  return out.sort((a, b) => b.yen - a.yen);
+}
+
+let smMetric = 'yen', smCatOff = new Set(), smSel = null;
+let smMap = null, smLayer = null, smPlaces = {}, smFitKey = '';
+const smVal = s => smMetric === 'yen' ? s.yen : s.n;
+const smFmt = v => smMetric === 'yen' ? yen(v) : `${v}回`;
+const SM_R_MIN = 7, SM_R_MAX = 24;
+
+async function loadPlaces(){
+  smPlaces = {};
+  (await plAll()).forEach(p => { smPlaces[p.key] = p; });
+  return smPlaces;
+}
+
+async function renderSpendMap(){
+  const per = statsPeriod();
+  await loadPlaces();
+  const rows = (await listRows()).filter(x => x.rc && x.rc.kind !== 'income' && x.rc.total != null
+                                           && (!per.from || x.date >= per.from) && (!per.to || x.date <= per.to));
+  // 凡例は「絞り込む前の分類」から作る（消した分類が凡例からも消えると戻せなくなる）
+  const catsAll = [...new Set(rows.map(x => x.rc.category || 'その他'))];
+  document.getElementById('smLegend').innerHTML = catsAll.map(c =>
+    `<button data-lg="${esc(c)}" class="${smCatOff.has(c) ? 'off' : ''}"><span class="dot" style="background:${catColor(c)}"></span>${esc(c)}</button>`).join('');
+  document.querySelectorAll('#smMetricSeg button').forEach(b => b.classList.toggle('on', b.dataset.mt === smMetric));
+
+  const shops = shopAggregate(rows.filter(x => !smCatOff.has(x.rc.category || 'その他')), smPlaces);
+  const pinned = shops.filter(s => s.lat != null), unset = shops.filter(s => s.lat == null);
+
+  await loadLeaflet();
+  if (!smMap) {
+    smMap = L.map('rmap', { zoomControl: true, attributionControl: true }).setView([35.68, 139.4], 11);
+    baseTiles().addTo(smMap);
+  }
+  smMap.invalidateSize(); // 隠れていた場所に作られるとサイズが0のままになる
+  if (smLayer) { smMap.removeLayer(smLayer); smLayer = null; }
+  if (pinned.length) {
+    const max = Math.max(...pinned.map(smVal)) || 1;
+    smLayer = L.layerGroup(pinned.map(s => {
+      const t = Math.sqrt(smVal(s) / max); // 面積∝量（半径をそのまま量にすると大きい方が誇張される）
+      const mk = L.circleMarker([s.lat, s.lon], {
+        radius: SM_R_MIN + (SM_R_MAX - SM_R_MIN) * t, fillColor: catColor(s.cat),
+        fillOpacity: smSel === s.key ? .95 : .7, color: smSel === s.key ? '#fff' : '#0f1219', weight: smSel === s.key ? 2 : 1,
+      });
+      mk.bindPopup(`<div class="smPop"><b>${esc(s.name)}</b>
+        <div class="sub"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${catColor(s.cat)};margin-right:5px"></span>${esc(s.cat)} ・ ${yen(s.yen)} ・ ${s.n}回</div>
+        <div class="sub">位置＝${s.src === 'geocode' ? '印字住所から探した場所' : '手で置いた場所'}</div>
+        <button data-fix="${esc(s.key)}">📍 位置を直す</button></div>`, { minWidth: 190 });
+      mk.on('click', () => { smSel = s.key; });
+      return mk;
+    })).addTo(smMap);
+    // ⚠ 全体が入るように動かすのは「ピンの顔ぶれが変わった時だけ」＝凡例や金額/回数を切り替える
+    //    たびに勝手に動くと、自分で拡大した場所に戻れない。
+    // ⚠ animate:false ＝アニメーションは requestAnimationFrame 頼みで、環境によっては最後まで
+    //    走らずに位置が決まらない（preview で実際に地図が動かなかった）。移動は一発で確定させる。
+    const fitKey = pinned.map(s => s.key).sort().join('|');
+    if (fitKey !== smFitKey) {
+      smFitKey = fitKey;
+      smMap.fitBounds(L.latLngBounds(pinned.map(s => [s.lat, s.lon])).pad(0.25), { maxZoom: 16, animate: false });
+    }
+  }
+
+  // 場所が未設定の店＝地図に出せない分を「別にまとめて」出す（ライフログの「📍場所なし」と同じ約束）
+  const unsetYen = unset.reduce((a, s) => a + s.yen, 0);
+  const withAddr = unset.filter(s => s.addr).length;
+  let html = '';
+  if (!shops.length) html = `<div class="stEmpty">この期間に支出のレシートがありません。</div>`;
+  else if (unset.length) {
+    html = `<div class="stSec"><div class="stTitle">📍 場所が未設定（${unset.length}軒 ・ ${yen(unsetYen)}）</div>
+      <div class="stEmpty" style="padding:0 0 8px">1軒ずつ<b>1回だけ</b>決めれば、その店の次のレシートにも自動で効きます。</div>
+      ${withAddr ? `<button class="btn" id="btnGeoAll">🔎 住所のある ${withAddr}軒 をまとめて探す</button>` : ''}`;
+    unset.forEach(s => {
+      html += `<div class="stRow" data-fix="${esc(s.key)}"><span class="dot" style="background:${catColor(s.cat)}"></span>
+        <span class="nm">${esc(s.name)}${s.addr ? '' : ' <small style="color:var(--dim)">住所なし</small>'}</span>
+        <span class="pct">${s.n}回</span><span class="val">${yen(s.yen)}</span></div>`;
+    });
+    html += `</div>`;
+  } else html = `<div class="stEmpty">すべての店に場所が入っています（${pinned.length}軒）。</div>`;
+  document.getElementById('smBody').innerHTML = html;
+}
+document.querySelectorAll('#smMetricSeg button').forEach(b => b.onclick = () => { smMetric = b.dataset.mt; renderSpendMap(); });
+document.getElementById('smLegend').addEventListener('click', e => {
+  const b = e.target.closest('[data-lg]'); if (!b) return;
+  const c = b.dataset.lg; smCatOff.has(c) ? smCatOff.delete(c) : smCatOff.add(c);
+  renderSpendMap();
+});
+// 「位置を直す」＝未設定リストからも、地図のポップアップからも同じ画面へ
+// （Leaflet のポップアップは地図の中に描かれるので、この1つの受け口で両方拾える）
+document.getElementById('mapPane').addEventListener('click', e => {
+  const fix = e.target.closest('[data-fix]');
+  if (fix) { openPlace(fix.dataset.fix); return; }
+  if (e.target.id === 'btnGeoAll') geocodeAll();
+});
+
+/* --- 📍 場所を決める画面 --- */
+let pKey = null, pMap = null, pMarker = null, pLatLng = null, pShops = [];
+async function shopsNow(){
+  const per = statsPeriod();
+  await loadPlaces();
+  const rows = (await listRows()).filter(x => x.rc && x.rc.kind !== 'income'
+                                           && (!per.from || x.date >= per.from) && (!per.to || x.date <= per.to));
+  return shopAggregate(rows, smPlaces);
+}
+async function openPlace(key){
+  pShops = await shopsNow();
+  const s = pShops.find(x => x.keys.includes(key)); if (!s) return; // 書き方のゆれ（別の鍵）からでも同じ店に辿り着く
+  pKey = key; pLatLng = (s.lat != null) ? { lat: s.lat, lng: s.lon } : null;
+  document.getElementById('pTitle').textContent = '📍 ' + s.name;
+  document.getElementById('pAddr').innerHTML = s.addr
+    ? `レシートの印字住所: <b>${esc(s.addr)}</b>`
+    : '<b>住所がレシートに無い店です</b>＝地図をタップして置いてください。';
+  document.getElementById('btnGeocode').style.display = s.addr ? 'block' : 'none';
+  document.getElementById('btnGeocode').dataset.addr = s.addr || '';
+  show('ovPlace');
+  await loadLeaflet();
+  if (!pMap) {
+    pMap = L.map('pmap').setView([35.68, 139.4], 11);
+    baseTiles().addTo(pMap);
+    pMap.on('click', ev => setPin(ev.latlng));
+  }
+  setTimeout(() => {
+    pMap.invalidateSize();
+    if (pLatLng) { setPin(pLatLng); pMap.setView(pLatLng, 16, { animate: false }); }
+    else if (pMarker) { pMap.removeLayer(pMarker); pMarker = null; }
+  }, 60);
+}
+function setPin(ll){
+  pLatLng = ll;
+  if (pMarker) pMarker.setLatLng(ll);
+  else pMarker = L.circleMarker(ll, { radius: 11, fillColor: '#7ad', fillOpacity: .85, color: '#fff', weight: 2 }).addTo(pMap);
+}
+document.getElementById('btnGeocode').onclick = async e => {
+  const b = e.target, q = b.dataset.addr; if (!q) return;
+  b.textContent = '🔎 探しています…';
+  try {
+    const r = await forwardGeocode(q);
+    if (!r) { b.textContent = '❌ この住所では見つかりませんでした（地図をタップして置いてください）'; }
+    else { setPin({ lat: r.lat, lng: r.lon }); pMap.setView([r.lat, r.lon], 16, { animate: false }); b.textContent = '✅ 見つかりました（ずれていたら地図をタップして直せます）'; }
+  } catch (err) { b.textContent = '❌ ' + (err.message || err); }
+  setTimeout(() => { b.textContent = '🔎 この住所から探す'; }, 6000);
+};
+// 保存/削除は「その店の全部の書き方」に対して行う（上の⚠＝鍵の迷子を作らない）
+async function savePlace(shop, lat, lon, src){
+  await Promise.all(shop.keys.map(k => plPut({ key: k, name: shop.name, lat, lon, src, address: shop.addr || '', at: Date.now() })));
+}
+document.getElementById('btnPlaceSave').onclick = async () => {
+  if (!pLatLng) { toast('地図をタップして場所を選んでください'); return; }
+  const s = pShops.find(x => x.keys.includes(pKey)); if (!s) return;
+  await savePlace(s, pLatLng.lat, pLatLng.lng, 'manual');
+  hide('ovPlace'); toast('📍 場所を覚えました');
+  if (isOpen('ovStats')) renderSpendMap();
+};
+document.getElementById('btnPlaceClear').onclick = async () => {
+  const s = pShops.find(x => x.keys.includes(pKey));
+  await Promise.all((s ? s.keys : [pKey]).map(k => plDel(k)));
+  hide('ovPlace'); toast('位置を消しました');
+  if (isOpen('ovStats')) renderSpendMap();
+};
+// 住所のある店をまとめて探す。⚠ 1秒に1回まで（Nominatim の規約）＝件数と待ち時間を先に見せて確認する
+async function geocodeAll(){
+  const targets = (await shopsNow()).filter(s => s.lat == null && s.addr);
+  if (!targets.length) return;
+  if (!confirm(`${targets.length}軒の印字住所を OpenStreetMap に送って座標を探します（住所の文字だけ・約${Math.ceil(targets.length * 1.2)}秒）。よろしいですか？`)) return;
+  const btn = document.getElementById('btnGeoAll');
+  let ok = 0, ng = 0;
+  for (const s of targets) {
+    if (btn) btn.textContent = `🔎 探しています… ${ok + ng + 1}/${targets.length}`;
+    try {
+      const r = await forwardGeocode(s.addr);
+      if (r) { await savePlace(s, r.lat, r.lon, 'geocode'); ok++; }
+      else ng++;
+    } catch (_) { ng++; }
+  }
+  toast(`🔎 ${ok}軒に場所が入りました${ng ? `（${ng}軒は見つからず＝地図をタップして置いてください）` : ''}`);
+  renderSpendMap();
+}
 
 /* ---------- モーダル・toast ---------- */
 function show(id){ document.getElementById(id).classList.add('on'); }
