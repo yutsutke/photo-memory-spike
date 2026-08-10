@@ -2,6 +2,29 @@
 
 > あの日（リポ直下）の CHANGELOG とは独立。こちらは r1, r2, … で進む。
 
+## r5・r6 — 📷 実機でカメラが開かない（写真ピッカーに落ちる）を2段で解消 (2026-08-10)
+
+**背景**
+- r4 の宿題「実機で4点確認」の①。Pixel 7a に debug APK を入れて「📷 レシートを撮る」を押したら、**カメラではなく Google フォトの写真ピッカーが開いた**。r4 で「CAMERA を宣言しないのが正解」と読み切ったつもりだったが、実機は別の所で外れていた。
+
+**原因は2つ重なっていた（順に潰した）**
+1. **`capture` と `multiple` は同居できない**（r5）。入力欄が `<input type="file" accept="image/*" capture="environment" multiple>` で、**`multiple` があると Chromium が `capture` を無視する**（「複数選ぶ」と「その場で撮る」は両立しない）。結果 `FileChooserParams.isCaptureEnabled()` が false → Capacitor はカメラ分岐にすら入らずピッカーへ（`BridgeWebChromeClient.onShowFileChooser` の 282-287 行）。→ **入口を2つに分離**＝📷 撮る（capture・1枚）と 🖼 選ぶ（multiple・複数可）。処理関数は共通。
+2. **Android 11+ のパッケージ可視性**（r6）。r5 でカメラ分岐には入ったが、今度はログに `Capacitor/FileChooser: Media capture intent could not be launched. Falling back to default file picker.`。Capacitor は `resolveActivity(ACTION_IMAGE_CAPTURE)` が null なら諦める作りで、**マニフェストに `<queries>` が無いとカメラアプリが「存在しない」ように見える**。→ `<queries><intent><action android:name="android.media.action.IMAGE_CAPTURE"/></intent></queries>` を追加。**これは可視性の宣言であって権限ではない＝INTERNET のみのまま**。
+
+**結果 / 観察**
+- r6 適用後、📷 タップで前面が `com.google.android.GoogleCamera/…CaptureActivity` に切り替わるのを実機で確認＝**カメラが開く・権限ダイアログも出ない**（r4 の「CAMERA を宣言しない」判断自体は正しかった）。
+- ついでに **ボタン2つで「レシートを撮る」が2行に折り返す**のを修正。`#shoot` が `left:50%+translateX(-50%)` だと**使える幅が画面の半分**しかない（fixed の shrink-to-fit）。`left:0; right:0; justify-content:center` に変え、帯がタップを吸わないよう `pointer-events:none`（ボタンだけ `auto`）。
+- ステータスバーの重なりは**起きていない**（あの日で苦労した所。ヘッダは時計/電池の下に収まっている）。起動時に `Error injecting safe area CSS` の警告は出るが実害なし。
+
+**教訓**
+- **フレームワークの実装を読むだけでは足りない**。r4 は Capacitor の `isMediaCaptureSupported()` を正しく読んだが、**その手前（Chromium が capture を落とす）と、その先（intent が解決できない）**で二重に外れていた。web の属性・フレームワーク・OS の3層すべてを通らないと動かない機能は、**実機のログが唯一の審判**。
+- ログの読み方: 「警告が出ない」ことも情報だった。1回目は `Media capture intent could not be launched` が**出ない**＝カメラ分岐に入っていない＝原因は手前（属性）と特定できた。2回目は同じ警告が**出た**＝分岐には入った＝原因は先（intent 解決）に移った。**同じ症状（ピッカーが開く）でも、ログの有無で層を切り分けられる**。
+- 無線デバッグ（ワイヤレス ADB）が効いた: 手持ちのケーブルが充電専用でも実機検証は止まらない。ペア設定は端末の「専用コードによるデバイスのペア設定」→ `adb pair IP:ポート コード` → `adb connect IP:別ポート`。
+
+**残課題 / 次の方向**
+- 実機4点のうち①だけ済み。**②分析（⚙でキー登録→🔌接続テスト→実際のレシートを撮る）③書き出し3手段のどれが効くか ④数日後もデータが残るか** は本人の手が要る（APIキー入力・現物のレシート）。
+- 🖼 選ぶ側は未検証（写真ピッカーが開くところまでは確認済み＝r5 前の挙動と同じ経路）。
+
 ## r4 — 📱 Android native 化で ITP を根本回避（Capacitor・直接APK配布） (2026-08-10)
 
 **背景**

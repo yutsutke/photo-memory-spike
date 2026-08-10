@@ -35,10 +35,27 @@ npm install            # 初回のみ
 npm run build:debug    # sync:web → cap sync android → ./gradlew assembleDebug（⚠ Unix専用スクリプト）
 ```
 
+> ⚠ 初回だけ `android/local.properties` に SDK の場所が要る（git 管理外・この PC 固有）:
+> `sdk.dir=C\:\\Users\\yutsu\\AppData\\Local\\Android\\Sdk`
+
 ### 端末へ入れる
 
 - **adb があるなら**: `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`（`-r`=上書き更新）
 - **無ければ**: APK を Drive/メール等で端末に送り、タップ →「提供元不明のアプリ」を許可 → インストール
+
+#### 📶 ケーブルが使えない時＝無線デバッグ（2026-08-10 実績・手持ちのケーブルが充電専用だった）
+
+PC と端末が**同じ Wi-Fi** にいること。端末: 開発者向けオプション → **ワイヤレス デバッグ** を ON。
+
+```powershell
+adb pair 192.168.x.x:<ペア用ポート> <6桁コード>   # 「専用コードによるデバイスのペア設定」に出る番号
+adb connect 192.168.x.x:<接続用ポート>            # ワイヤレスデバッグの最初の画面に出る別番号
+adb -s 192.168.x.x:<接続用ポート> install -r ...
+```
+
+- ポート番号は**ペア用と接続用で別物**（ここでよく間違える）
+- 端末が Windows のデバイス一覧にすら出ない時は、ケーブルが充電専用＝USBデバッグの設定を疑う前にケーブルを疑う
+- スクショは `adb shell screencap -p /data/local/tmp/x.png` → `adb pull`（**PowerShell の `>` はバイナリを壊す**ので `exec-out >` を使わない）
 
 **デバッグ APK で配って構わない**（サイドロードに署名の種類は関係ない）。手間が最小で、リリース鍵の管理も要らない。
 

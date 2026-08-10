@@ -32,7 +32,11 @@ GitHub Pages 配下では あの日 web と同一オリジン＝IndexedDB / loca
 **結論: spike期間は A を維持**。根拠＝(1) Anthropicキーは失効・支出上限で被害を金銭の上限内に限定できる（MAP_SECRET を新オリジンへ広げるより漏洩時の質が軽い）(2) B は画像がサーバ経由＝「ローカル完結・ストア配布できる形」という spike の検証目的が消える (3) 最終形は native の Keychain で確定しており、暫定に投資しない。
 **⚠ 別件の重要制約（Aの弱点というより web spike 全体の弱点）**: iOS Safari は**7日間未訪問でサイトデータ（localStorage・IndexedDB＝キーもレシートも）を消し得る**（ITP）。**ホーム画面に追加**すると対象外になる → ⚙に案内表示（r3）・実機確認の最初にホーム画面追加を推奨。
 
-## 現在地 — r4 (2026-08-10) ＝ 📱 Android native 化（ITP対応）
+## 現在地 — r6 (2026-08-10 夜) ＝ 🎉 Pixel 7a 実機に APK が入り、📷 カメラが開いた
+
+- [x] **r6**: 📷 **カメラ起動を解禁**＝AndroidManifest に `<queries><intent><action android:name="android.media.action.IMAGE_CAPTURE"/></intent></queries>`。Android 11+ は宣言のない他アプリが「無い」ように見え、Capacitor の `resolveActivity()` が null → `Media capture intent could not be launched` でピッカーに落ちていた。**可視性の宣言＝権限ではない・INTERNET のみのまま**。実機で前面が `GoogleCamera/CaptureActivity` になるのを確認
+- [x] **r5**: 📷撮る（`capture`・1枚）と 🖼選ぶ（`multiple`・複数可）を**2入口に分離**。**`multiple` が付くと Chromium が `capture` を無視する**のが「カメラが開かない」1段目の原因だった（`isCaptureEnabled()`=false で Capacitor のカメラ分岐に入らない）。処理関数は共通（`onPhotoPicked`）。＋ボタン2つで文字が折り返す件を修正（`#shoot` を `left:0;right:0` 中央寄せ＋帯は `pointer-events:none`）
+- 実機検証の環境メモ: **手持ちの USB ケーブルが充電専用**でも**無線デバッグ**で通った＝端末の「専用コードによるデバイスのペア設定」→ `adb pair <IP:ペア用ポート> <6桁>` → `adb connect <IP:接続用ポート>`（番号は別物）。PC と同じ Wi-Fi が条件。ビルドは [BUILD-android.md](BUILD-android.md) のとおり一発（`local.properties` に SDK の場所だけ用意＝git 管理外）
 
 - [x] **r4**: **Capacitor で Android アプリ化**＝ iOS Safari の ITP（7日でサイトデータ削除）を根本回避。アプリ版のデータは「サイトデータ」ではなくアプリ領域＝自動削除の対象外。**ログイン方式は採らない**（データをサーバーに置くことになるため）。appId `io.github.yutsutke.receipt`（あの日と別）・アプリ名「レシート」・**権限は INTERNET のみ**。ビルドと配布は [BUILD-android.md](BUILD-android.md)
   - **CAMERA を宣言しない**のが正解と判明（Capacitor `BridgeWebChromeClient.isMediaCaptureSupported()` ＝「宣言していなければ許可不要」でOSのカメラを intent 起動。宣言すると実行時許可が必須になり、こちらは要求コードを持たないので撮影が壊れる）
@@ -43,11 +47,12 @@ GitHub Pages 配下では あの日 web と同一オリジン＝IndexedDB / loca
 
 - [x] **r1**: 📷 撮る（`<input capture>` → img+canvas 縮小 → IndexedDB）→ 🤖 自動分析（structured outputs・失敗時🔁・中断分は起動時再開）→ ⚙ キー登録（接続テスト=count_tokens無料）→ 📋 一覧（日付降順・月グループ＋月合計）→ 📤 期間書き出し（JSON/CSV/共有シート）
 - [x] **r2**: ライフログ実装の教訓を反映＝ ① 1枚に**複数レシート**（receipts配列・一覧は写真×レシートに展開・「📷内 1/2」表示） ② **印字住所**をOCRで拾う（送信・保存を1568→**2576px**に＝high-res上限） ③ **収入(income)** 対応（緑・+表示・月合計は支出のみ） ④ **カテゴリをライフログと同一セット**に（食費/外食/日用品/交通/医療/衣類/娯楽/その他）・currency廃止＝円整数 ⑤ store/branch 分離 ⑥ 書き出し **version 2**（フラット・photo_id 紐付け・支店/住所/種別列）
-- [ ] ▶ **次の一手（次セッションはここから）: 手元 Windows で APK をビルドして Android 実機に入れ、一周通す**。手順は [BUILD-android.md](BUILD-android.md)（**main にマージ済み**。Windows は `.\android\gradlew.bat -p android assembleDebug` ＝ vc4 と同じ流儀）。**見るのは4つ**:
-  1. 📷 **撮影が動くか**（CAMERA 未宣言でカメラが開くか＝設計の当たり外れがここで出る）
-  2. 🤖 分析が通るか（⚙でキー登録→🔌接続テスト→撮る）
-  3. 📤 **書き出しの3手段のどれが効くか**（共有シート／ダウンロード／📋コピー。**WebView は DownloadListener 未実装だと `<a download>` が無反応**＝その時は📋コピーが命綱。全滅なら Capacitor の Share/Filesystem プラグイン導入を r5 で）
-  4. アプリを閉じて数日後に開いてもデータが残るか（ITP対応の答え合わせ）
+- [x] 実機一周の①＝📷 **撮影が動くか** → **YES**（r5+r6 で解消。CAMERA 権限なしのままカメラアプリが開く＝r4 の「宣言しない」判断は正しかった）
+- [ ] ▶ **次の一手（本人の手が要る・アプリは Pixel 7a に入っている）**:
+  2. 🤖 **分析が通るか** ＝ ⚙ で **APIキーを登録**（キー入力は本人のみ）→ 🔌 接続テスト（無料）→ 📷 で**現物のレシート**を撮る → 店名/日付/金額が入るか
+  3. 📤 **書き出しの3手段のどれが効くか**（共有シート／ダウンロード／📋コピー。**WebView は DownloadListener 未実装だと `<a download>` が無反応**＝その時は📋コピーが命綱。全滅なら Capacitor の Share/Filesystem プラグイン導入を r7 で）
+  4. アプリを閉じて**数日後**に開いてもデータが残るか（ITP対応の答え合わせ＝これだけ時間を置く）
+  - ついでに: 🖼 選ぶ（複数枚）の経路も一度通す
 - [ ] iOS は当面ブラウザ版＋**ホーム画面に追加**で回避（PWA は ITP の7日削除の対象外）。native iOS は配布が重い（審査/TestFlight）ので後回し
 
 ## 📚 ライフログ（owntracks-supabase-notion）から移植した教訓（出典: 同リポ CLAUDE.md・receipt関数。実運用228枚・収支248行の実測）

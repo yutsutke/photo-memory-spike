@@ -35,6 +35,16 @@
         </provider>
     </application>
 
+    <!-- Android 11+ のパッケージ可視性（他アプリは宣言しないと「無い」ように見える）。
+         宣言が無いと Capacitor の resolveActivity(ACTION_IMAGE_CAPTURE) が null を返し、
+         「Media capture intent could not be launched」→ 写真ピッカーに落ちる（r6・Pixel 7a 実機で確認）。
+         これは可視性の宣言であって権限ではない＝CAMERA 権限は不要のまま。 -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
