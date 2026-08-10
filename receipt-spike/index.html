@@ -104,6 +104,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <button class="btn" id="btnCsv">📊 CSV<br><small>表計算向け</small></button>
     <button class="btn" id="btnCopy">📋 コピー<br><small>貼り付け</small></button>
   </div>
+  <div class="note" id="expNote"></div>
   <div class="note">JSON は AI にそのまま渡せる形式（バージョン付き）。リンク共有したい場合は、共有シートから自分の Drive / iCloud に保存し、そのリンクを AI に渡してください（このアプリはリンクをホストしません）。</div>
 </div></div>
 
@@ -122,7 +123,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r6 📷カメラ起動を <queries> 宣言で解禁（Android11+の可視性・権限は増えない）｜r5 📷撮る（capture）と🖼選ぶ（multiple）を2入口に分離｜r4 📱 Android native 化（Capacitor・iOS Safariの7日削除を回避）＋📋コピー書き出し｜r3 OCRルールをライフログから移植＋専用キー運用の案内｜r2 複数レシート・印字住所・収入・高解像度・カテゴリ統一 · 2026-08-10';
+const BUILD = 'r7 📤書き出しをアプリ版でも通す＝Capacitor Share/Filesystem 経由（WebViewは<a download>もWeb Share APIも無反応）｜r6 📷カメラ起動を <queries> 宣言で解禁（Android11+の可視性・権限は増えない）｜r5 📷撮る（capture）と🖼選ぶ（multiple）を2入口に分離｜r4 📱 Android native 化（Capacitor・iOS Safariの7日削除を回避）＋📋コピー書き出し｜r3 OCRルールをライフログから移植＋専用キー運用の案内 · 2026-08-10';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -416,13 +417,31 @@ function download(name, text, type){
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 const expName = (from, to, ext) => `receipts_${from || 'all'}_${to || 'all'}.${ext}`;
+
+/* 書き出しの出口。native WebView は <a download> も Web Share API も効かない（r6 実機で確認＝押しても無反応）。
+   → アプリ版は Capacitor プラグイン経由: キャッシュに一時ファイルを書く（権限不要）→ 共有シートへ URI を渡す。
+   ブラウザ版は従来どおりダウンロード。📋 コピーはどちらでも効く最後の逃げ道として不変（r4）。 */
+async function nativeShareFile(name, text){
+  const { Filesystem, Share } = window.Capacitor.Plugins;
+  await Filesystem.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
+  const { uri } = await Filesystem.getUri({ path: name, directory: 'CACHE' });
+  await Share.share({ title: 'レシートデータ', files: [uri] });
+}
+async function exportOut(name, text, mime){
+  if (!IS_NATIVE) return download(name, text, mime);
+  try { await nativeShareFile(name, text); }
+  catch (err) {
+    const m = String(err?.message || err);
+    if (!/cancel|abort|dismiss/i.test(m)) toast('渡せませんでした: ' + m); // 共有シートを閉じただけの時は黙る
+  }
+}
 document.getElementById('btnJson').onclick = async () => {
   const { from, to, rows } = await exportTargets();
-  download(expName(from, to, 'json'), exportJson(rows, from, to), 'application/json');
+  await exportOut(expName(from, to, 'json'), exportJson(rows, from, to), 'application/json');
 };
 document.getElementById('btnCsv').onclick = async () => {
   const { from, to, rows } = await exportTargets();
-  download(expName(from, to, 'csv'), exportCsv(rows), 'text/csv');
+  await exportOut(expName(from, to, 'csv'), exportCsv(rows), 'text/csv');
 };
 // 📋 コピー＝共有シートもダウンロードも使えない環境（WebView 等）でも必ずデータを外に出せる逃げ道
 document.getElementById('btnCopy').onclick = async () => {
@@ -434,10 +453,12 @@ document.getElementById('btnCopy').onclick = async () => {
 };
 document.getElementById('btnShare').onclick = async () => {
   const { from, to, rows } = await exportTargets();
-  const file = new File([exportJson(rows, from, to)], expName(from, to, 'json'), { type: 'application/json' });
+  const name = expName(from, to, 'json'), text = exportJson(rows, from, to);
+  if (IS_NATIVE) return exportOut(name, text, 'application/json');
+  const file = new File([text], name, { type: 'application/json' });
   if (navigator.canShare?.({ files: [file] })) {
     try { await navigator.share({ files: [file], title: 'レシートデータ' }); } catch (_) { /* キャンセル */ }
-  } else { toast('この環境は共有シート非対応。JSON/CSV ダウンロードを使ってください'); }
+  } else { toast('この環境は共有シート非対応。📋 コピーを使ってください'); }
 };
 async function refreshExpCount(){
   const { rows } = await exportTargets();
@@ -479,6 +500,9 @@ document.getElementById('btnExport').onclick = () => {
   const today = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
   if (!document.getElementById('expFrom').value) document.getElementById('expFrom').value = today.slice(0, 8) + '01';
   if (!document.getElementById('expTo').value) document.getElementById('expTo').value = today;
+  document.getElementById('expNote').innerHTML = IS_NATIVE
+    ? '📱 アプリ版では 📄JSON / 📊CSV も<b>共有シート経由</b>で渡します（アプリの中から直接ダウンロードフォルダには置けないため）。保存先は共有シートで Drive / Files などを選んでください。'
+    : '';
   refreshExpCount(); show('ovExport');
 };
 let toastTimer = null;
