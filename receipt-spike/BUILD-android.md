@@ -17,8 +17,7 @@
 ### Windows（PowerShell・vc4 と同じ流儀）
 
 ```powershell
-git fetch origin claude/start-ncjb6i        # ← receipt-spike は 2026-08-10 時点 main 未マージ＝このブランチにある
-git checkout claude/start-ncjb6i            #    （merge 済みなら main のままでよい）
+git checkout main && git pull               # receipt-spike は main にマージ済み（2026-08-10）
 cd receipt-spike
 npm install                                  # 初回のみ
 npm run sync:web

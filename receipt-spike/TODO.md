@@ -43,7 +43,7 @@ GitHub Pages 配下では あの日 web と同一オリジン＝IndexedDB / loca
 
 - [x] **r1**: 📷 撮る（`<input capture>` → img+canvas 縮小 → IndexedDB）→ 🤖 自動分析（structured outputs・失敗時🔁・中断分は起動時再開）→ ⚙ キー登録（接続テスト=count_tokens無料）→ 📋 一覧（日付降順・月グループ＋月合計）→ 📤 期間書き出し（JSON/CSV/共有シート）
 - [x] **r2**: ライフログ実装の教訓を反映＝ ① 1枚に**複数レシート**（receipts配列・一覧は写真×レシートに展開・「📷内 1/2」表示） ② **印字住所**をOCRで拾う（送信・保存を1568→**2576px**に＝high-res上限） ③ **収入(income)** 対応（緑・+表示・月合計は支出のみ） ④ **カテゴリをライフログと同一セット**に（食費/外食/日用品/交通/医療/衣類/娯楽/その他）・currency廃止＝円整数 ⑤ store/branch 分離 ⑥ 書き出し **version 2**（フラット・photo_id 紐付け・支店/住所/種別列）
-- [ ] ▶ **次の一手（次セッションはここから）: 手元 Windows で APK をビルドして Android 実機に入れ、一周通す**。手順は [BUILD-android.md](BUILD-android.md)（⚠ コードは `claude/start-ncjb6i` ブランチ＝main 未マージ。Windows は `.\android\gradlew.bat -p android assembleDebug` ＝ vc4 と同じ流儀）。**見るのは4つ**:
+- [ ] ▶ **次の一手（次セッションはここから）: 手元 Windows で APK をビルドして Android 実機に入れ、一周通す**。手順は [BUILD-android.md](BUILD-android.md)（**main にマージ済み**。Windows は `.\android\gradlew.bat -p android assembleDebug` ＝ vc4 と同じ流儀）。**見るのは4つ**:
   1. 📷 **撮影が動くか**（CAMERA 未宣言でカメラが開くか＝設計の当たり外れがここで出る）
   2. 🤖 分析が通るか（⚙でキー登録→🔌接続テスト→撮る）
   3. 📤 **書き出しの3手段のどれが効くか**（共有シート／ダウンロード／📋コピー。**WebView は DownloadListener 未実装だと `<a download>` が無反応**＝その時は📋コピーが命綱。全滅なら Capacitor の Share/Filesystem プラグイン導入を r5 で）
