@@ -28,6 +28,8 @@ main{padding:10px 14px;}
 .rec .sub{color:var(--dim); font-size:12.5px;}
 .rec .amt{font-size:16px; font-weight:700; white-space:nowrap;}
 .rec .amt.na{color:var(--dim); font-weight:400; font-size:13px;}
+.rec .amt.inc{color:var(--ok);}
+.rec .st small{color:var(--dim); font-weight:400;}
 .chip{display:inline-block; font-size:11px; color:var(--dim); border:1px solid var(--line); border-radius:8px; padding:0 6px; margin-left:6px;}
 .rec button{background:none; border:1px solid var(--line); color:var(--acc); border-radius:8px; padding:6px 10px; font-size:14px;}
 .pend{color:var(--acc);} .errt{color:var(--err);}
@@ -72,9 +74,9 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
   <div class="row"><label>Anthropic APIキー（<a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a> で発行）</label>
     <input type="password" id="inKey" placeholder="sk-ant-..." autocomplete="off"></div>
   <div class="row"><label>分析モデル</label><select id="inModel">
-    <option value="claude-opus-5">Claude Opus 5（既定・最高精度 / 約2〜3円/枚）</option>
-    <option value="claude-sonnet-5">Claude Sonnet 5（速い / 約1〜2円/枚）</option>
-    <option value="claude-haiku-4-5">Claude Haiku 4.5（最安 / 1円未満/枚）</option>
+    <option value="claude-opus-5">Claude Opus 5（既定・最高精度 / 約5円/枚）</option>
+    <option value="claude-sonnet-5">Claude Sonnet 5（速い / 約3円/枚）</option>
+    <option value="claude-haiku-4-5">Claude Haiku 4.5（最安 / 1円未満・住所は読めないことあり）</option>
   </select></div>
   <button class="btn" id="btnTest">🔌 接続テスト（無料・課金されません）</button>
   <div class="note">キーは<b>この端末のブラウザ内にのみ</b>保存されます（このアプリにサーバーはありません）。レシート画像は分析のときだけ、<b>あなたのキーで Anthropic API に直接</b>送信されます。それ以外に外部へ送るものはありません。</div>
@@ -112,7 +114,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r1 🧾 撮る→自動AI分析→一覧→期間書き出し · 2026-08-10';
+const BUILD = 'r2 🧾 ライフログ実装の教訓を反映（1枚に複数レシート・印字住所・収入・高解像度OCR・カテゴリ統一）｜r1 撮る→自動AI分析→一覧→期間書き出し · 2026-08-10';
 console.log('BUILD:', BUILD);
 
 /* ---------- 設定（localStorage は あの日 web と同一オリジン共有 → rcpt. 接頭辞で分離） ---------- */
@@ -188,23 +190,32 @@ async function apiPost(path, body){
 }
 
 const NULLABLE = t => ({ anyOf: [{ type: t }, { type: 'null' }] });
+// カテゴリはライフログ(owntracks-supabase-notion)の transactions と同一セット＝将来のデータ受け渡しでマッピング不要
+const CATS = ['食費','外食','日用品','交通','医療','衣類','娯楽','その他'];
+// 1枚の写真に複数レシート対応（ライフログ実運用の教訓＝レシートは後でまとめて撮る）
 const RECEIPT_SCHEMA = {
   type: 'object', additionalProperties: false,
-  properties: {
-    store:    NULLABLE('string'),
-    date:     NULLABLE('string'),
-    time:     NULLABLE('string'),
-    total:    NULLABLE('integer'),
-    currency: { type: 'string' },
-    category: { type: 'string', enum: ['食料品','外食','日用品','交通','医療','衣料','趣味・娯楽','その他'] },
-    payment:  NULLABLE('string'),
-    items: { type: 'array', items: {
-      type: 'object', additionalProperties: false,
-      properties: { name: { type: 'string' }, price: NULLABLE('integer'), qty: NULLABLE('integer') },
-      required: ['name', 'price', 'qty'],
-    } },
-  },
-  required: ['store', 'date', 'time', 'total', 'currency', 'category', 'payment', 'items'],
+  properties: { receipts: { type: 'array', items: {
+    type: 'object', additionalProperties: false,
+    properties: {
+      store:    NULLABLE('string'),
+      branch:   NULLABLE('string'),
+      address:  NULLABLE('string'),
+      date:     NULLABLE('string'),
+      time:     NULLABLE('string'),
+      total:    NULLABLE('integer'),
+      kind:     { type: 'string', enum: ['expense', 'income'] },
+      category: { type: 'string', enum: CATS },
+      payment:  NULLABLE('string'),
+      items: { type: 'array', items: {
+        type: 'object', additionalProperties: false,
+        properties: { name: { type: 'string' }, price: NULLABLE('integer'), qty: NULLABLE('integer') },
+        required: ['name', 'price', 'qty'],
+      } },
+    },
+    required: ['store', 'branch', 'address', 'date', 'time', 'total', 'kind', 'category', 'payment', 'items'],
+  } } },
+  required: ['receipts'],
 };
 
 async function analyzeReceipt(rec){
@@ -212,10 +223,10 @@ async function analyzeReceipt(rec){
   const output_config = { format: { type: 'json_schema', schema: RECEIPT_SCHEMA } };
   if (model !== 'claude-haiku-4-5') output_config.effort = 'low'; // effort は Haiku 4.5 非対応
   const res = await apiPost('/messages', {
-    model, max_tokens: 3000, output_config,
+    model, max_tokens: 6000, output_config,
     messages: [{ role: 'user', content: [
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await blobToB64(rec.img) } },
-      { type: 'text', text: 'これはレシートの写真です。記載内容を読み取り、スキーマに従って構造化してください。読み取れない・存在しない項目は null。total は税込の支払総額（通貨の最小単位の整数、日本円なら円）。date は YYYY-MM-DD。currency は ISO 4217（例: JPY）。品目は主要なものを上から順に。' },
+      { type: 'text', text: 'これはレシートの写真です。写っているレシートをすべて読み取り、スキーマに従って構造化してください（1枚に複数のレシートが写っていることがあります）。読み取れない・存在しない項目は null。store はチェーン名・支店名は branch へ。address は印字されている店舗住所をそのまま（推測しない）。total は税込の支払総額（円の整数）。date は YYYY-MM-DD、time は HH:MM（24時間）。返金・受け取りなら kind を income に。品目は上から順にすべて。' },
     ] }],
   });
   if (res.stop_reason === 'refusal') throw new Error('AI が分析を拒否しました（画像を確認してください）');
@@ -228,7 +239,8 @@ document.getElementById('photoInput').addEventListener('change', async e => {
   const files = [...e.target.files];
   try {
     for (const f of files) {
-      const [img, thumb] = [await downscale(f, 1568, 0.85), await downscale(f, 320, 0.7)];
+      // 2576px＝高解像度visionの上限。住所の印字は低解像度だと読めない（ライフログ実測: 1600pxでほぼ0%・4096pxで31%）
+      const [img, thumb] = [await downscale(f, 2576, 0.85), await downscale(f, 320, 0.7)];
       const rec = { id: 'r' + Date.now() + Math.random().toString(36).slice(2, 7),
                     ts: Date.now(), status: 'pending', img, thumb, data: null, error: null, meta: null };
       await dbPut(rec); await renderList();
@@ -255,35 +267,49 @@ async function runAnalysis(id){
 
 /* ---------- 一覧（レシート記載の日付降順・月グループ＋月合計） ---------- */
 const thumbUrls = [];
-const recDate = r => (r.data?.date) || new Date(r.ts).toISOString().slice(0, 10);
 const yen = n => '¥' + Number(n).toLocaleString('ja-JP');
-const money = r => r.data?.total == null ? null :
-  (r.data.currency && r.data.currency !== 'JPY' ? `${r.data.total.toLocaleString()} ${r.data.currency}` : yen(r.data.total));
+const receiptsOf = r => !r.data ? [] : Array.isArray(r.data.receipts) ? r.data.receipts : [r.data];
+const capDate = r => new Date(r.ts).toISOString().slice(0, 10);
+
+// 表示行 = 写真×レシート（1枚の写真に複数レシート）。未分析・失敗・0検出は写真単位で1行
+async function listRows(){
+  const rows = [];
+  for (const r of await dbAll()) {
+    const rcs = receiptsOf(r);
+    if (r.status !== 'done' || !rcs.length) rows.push({ rec: r, rc: null, i: 0, n: 0, date: capDate(r) });
+    else rcs.forEach((rc, i) => rows.push({ rec: r, rc, i, n: rcs.length, date: rc.date || capDate(r) }));
+  }
+  return rows.sort((a, b) => b.date.localeCompare(a.date) || b.rec.ts - a.rec.ts);
+}
 
 async function renderList(){
-  const all = (await dbAll()).sort((a, b) => recDate(b).localeCompare(recDate(a)) || b.ts - a.ts);
+  const rows = await listRows();
   const list = document.getElementById('list');
   thumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
-  if (!all.length) { list.innerHTML = '<div class="empty">📷 でレシートを撮ると、自動で読み取りが始まります。<br>まず ⚙ で APIキーを登録してください。</div>'; return; }
+  if (!rows.length) { list.innerHTML = '<div class="empty">📷 でレシートを撮ると、自動で読み取りが始まります。<br>まず ⚙ で APIキーを登録してください。</div>'; return; }
   let html = '', curMonth = '';
-  for (const r of all) {
-    const m = recDate(r).slice(0, 7);
+  for (const row of rows) {
+    const m = row.date.slice(0, 7);
     if (m !== curMonth) {
       curMonth = m;
-      const monthTotal = all.filter(x => recDate(x).slice(0, 7) === m && x.data?.total != null && (x.data.currency || 'JPY') === 'JPY')
-                            .reduce((s, x) => s + x.data.total, 0);
-      html += `<div class="mon"><b>${m.replace('-', '年')}月</b><span>${monthTotal ? yen(monthTotal) : ''}</span></div>`;
+      const spend = rows.filter(x => x.date.slice(0, 7) === m && x.rc && x.rc.kind !== 'income' && x.rc.total != null)
+                        .reduce((s, x) => s + x.rc.total, 0);
+      html += `<div class="mon"><b>${m.replace('-', '年')}月</b><span>${spend ? yen(spend) : ''}</span></div>`;
     }
+    const r = row.rec, rc = row.rc;
     const turl = URL.createObjectURL(r.thumb); thumbUrls.push(turl);
-    const title = r.status === 'done' ? (r.data.store || '店名不明')
-                : r.status === 'pending' ? '<span class="pend">🤖 読み取り中…</span>'
-                : '<span class="errt">読み取り失敗</span>';
-    const amt = money(r);
+    let title, right;
+    if (rc) {
+      title = (rc.store || '店名不明') + (rc.branch ? ` <small>${rc.branch}</small>` : '') + `<span class="chip">${rc.category || ''}</span>`;
+      right = rc.total == null ? '<div class="amt na">—</div>'
+            : rc.kind === 'income' ? `<div class="amt inc">+${yen(rc.total)}</div>` : `<div class="amt">${yen(rc.total)}</div>`;
+    } else if (r.status === 'pending') { title = '<span class="pend">🤖 読み取り中…</span>'; right = ''; }
+    else { title = `<span class="errt">${r.status === 'error' ? '読み取り失敗' : 'レシートを検出できず'}</span>`; right = `<button data-retry="${r.id}">🔁</button>`; }
     html += `<div class="rec" data-id="${r.id}">
       <img src="${turl}" alt="">
-      <div class="mid"><div class="st">${title}${r.status === 'done' ? `<span class="chip">${r.data.category || ''}</span>` : ''}</div>
-      <div class="sub">${recDate(r)}${r.data?.time ? ' ' + r.data.time : ''}</div></div>
-      ${r.status === 'error' ? `<button data-retry="${r.id}">🔁</button>` : `<div class="amt ${amt ? '' : 'na'}">${amt || '—'}</div>`}
+      <div class="mid"><div class="st">${title}</div>
+      <div class="sub">${row.date}${rc?.time ? ' ' + rc.time : ''}${row.n > 1 ? ` ・📷内 ${row.i + 1}/${row.n}` : ''}</div></div>
+      ${right}
     </div>`;
   }
   list.innerHTML = html;
@@ -303,13 +329,21 @@ async function openDetail(id){
   if (detailUrl) URL.revokeObjectURL(detailUrl);
   detailUrl = URL.createObjectURL(r.img);
   document.getElementById('dImg').src = detailUrl;
-  document.getElementById('dTitle').textContent = r.data?.store || 'レシート';
-  const d = r.data, kv = (k, v) => v == null ? '' : `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
-  document.getElementById('dBody').innerHTML = !d
-    ? `<div class="note">${r.status === 'pending' ? '🤖 読み取り中…' : '❌ ' + (r.error || '未分析')}</div>`
-    : kv('日付', d.date) + kv('時刻', d.time) + kv('合計', money(r)) + kv('カテゴリ', d.category) + kv('支払', d.payment)
-      + (d.items?.length ? '<table class="items">' + d.items.map(i =>
-          `<tr><td>${i.name}${i.qty > 1 ? ' ×' + i.qty : ''}</td><td>${i.price != null ? yen(i.price) : ''}</td></tr>`).join('') + '</table>' : '')
+  const rcs = receiptsOf(r);
+  document.getElementById('dTitle').textContent = rcs.length
+    ? (rcs[0].store || 'レシート') + (rcs.length > 1 ? ` ほか${rcs.length - 1}件` : '') : 'レシート';
+  const kv = (k, v) => v == null ? '' : `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+  document.getElementById('dBody').innerHTML = !rcs.length
+    ? `<div class="note">${r.status === 'pending' ? '🤖 読み取り中…' : '❌ ' + (r.error || 'レシートを検出できませんでした')}</div>`
+    : rcs.map((d, i) =>
+        (rcs.length > 1 ? `<h2 style="margin:14px 0 4px">🧾 ${i + 1}/${rcs.length}</h2>` : '')
+        + kv('店名', d.store && d.branch ? `${d.store} ${d.branch}` : d.store)
+        + kv('日付', d.date) + kv('時刻', d.time)
+        + kv(d.kind === 'income' ? '受取' : '合計', d.total != null ? yen(d.total) : null)
+        + kv('カテゴリ', d.category) + kv('支払', d.payment) + kv('住所', d.address)
+        + (d.items?.length ? '<table class="items">' + d.items.map(it =>
+            `<tr><td>${it.name}${it.qty > 1 ? ' ×' + it.qty : ''}</td><td>${it.price != null ? yen(it.price) : ''}</td></tr>`).join('') + '</table>' : '')
+      ).join('')
       + (r.meta ? `<div class="note">${r.meta.model} / in ${r.meta.in} · out ${r.meta.out} tokens</div>` : '');
   show('ovDetail');
 }
@@ -322,27 +356,28 @@ document.getElementById('btnDelete').onclick = async () => {
 /* ---------- 書き出し（期間指定 → JSON / CSV / OS共有シート） ---------- */
 async function exportTargets(){
   const from = document.getElementById('expFrom').value, to = document.getElementById('expTo').value;
-  const all = await dbAll();
-  return { from, to, recs: all.filter(r => { const d = recDate(r); return (!from || d >= from) && (!to || d <= to); })
-                              .sort((a, b) => recDate(a).localeCompare(recDate(b))) };
+  const rows = (await listRows()).filter(x => x.rc && (!from || x.date >= from) && (!to || x.date <= to))
+                                 .sort((a, b) => a.date.localeCompare(b.date));
+  return { from, to, rows };
 }
-function exportJson(recs, from, to){
+function exportJson(rows, from, to){
+  // 統計は入れない＝生データからAI/表計算が自分で計算する（ライフログの交換フォーマットと同方針）
   return JSON.stringify({
-    format: 'receipt-spike-export', version: 1,
+    format: 'receipt-spike-export', version: 2,
     exported_at: new Date().toISOString(), period: { from: from || null, to: to || null },
-    count: recs.length,
-    receipts: recs.map(r => ({ id: r.id, captured_at: new Date(r.ts).toISOString(), status: r.status, ...(r.data || {}) })),
+    count: rows.length,
+    receipts: rows.map(x => ({ photo_id: x.rec.id, captured_at: new Date(x.rec.ts).toISOString(), ...x.rc })),
   }, null, 1);
 }
-function exportCsv(recs){
+function exportCsv(rows){
   const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
-  const rows = [['日付', '時刻', '店名', '合計', '通貨', 'カテゴリ', '支払', '品目'].join(',')];
-  for (const r of recs) {
-    const d = r.data || {};
-    rows.push([recDate(r), d.time, d.store, d.total, d.currency, d.category, d.payment,
-               (d.items || []).map(i => i.name).join('、')].map(esc).join(','));
+  const out = [['日付', '時刻', '店名', '支店', '金額', '種別', 'カテゴリ', '支払', '住所', '品目'].join(',')];
+  for (const x of rows) {
+    const d = x.rc;
+    out.push([x.date, d.time, d.store, d.branch, d.total, d.kind === 'income' ? '収入' : '支出',
+              d.category, d.payment, d.address, (d.items || []).map(i => i.name).join('、')].map(esc).join(','));
   }
-  return '﻿' + rows.join('\n'); // BOM: Excel の文字化け対策
+  return '﻿' + out.join('\n'); // BOM: Excel の文字化け対策
 }
 function download(name, text, type){
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -352,24 +387,24 @@ function download(name, text, type){
 }
 const expName = (from, to, ext) => `receipts_${from || 'all'}_${to || 'all'}.${ext}`;
 document.getElementById('btnJson').onclick = async () => {
-  const { from, to, recs } = await exportTargets();
-  download(expName(from, to, 'json'), exportJson(recs, from, to), 'application/json');
+  const { from, to, rows } = await exportTargets();
+  download(expName(from, to, 'json'), exportJson(rows, from, to), 'application/json');
 };
 document.getElementById('btnCsv').onclick = async () => {
-  const { from, to, recs } = await exportTargets();
-  download(expName(from, to, 'csv'), exportCsv(recs), 'text/csv');
+  const { from, to, rows } = await exportTargets();
+  download(expName(from, to, 'csv'), exportCsv(rows), 'text/csv');
 };
 document.getElementById('btnShare').onclick = async () => {
-  const { from, to, recs } = await exportTargets();
-  const file = new File([exportJson(recs, from, to)], expName(from, to, 'json'), { type: 'application/json' });
+  const { from, to, rows } = await exportTargets();
+  const file = new File([exportJson(rows, from, to)], expName(from, to, 'json'), { type: 'application/json' });
   if (navigator.canShare?.({ files: [file] })) {
     try { await navigator.share({ files: [file], title: 'レシートデータ' }); } catch (_) { /* キャンセル */ }
   } else { toast('この環境は共有シート非対応。JSON/CSV ダウンロードを使ってください'); }
 };
 async function refreshExpCount(){
-  const { recs } = await exportTargets();
-  const total = recs.filter(r => r.data?.total != null && (r.data.currency || 'JPY') === 'JPY').reduce((s, r) => s + r.data.total, 0);
-  document.getElementById('expCount').textContent = `対象: ${recs.length}件 ${total ? '/ 合計 ' + yen(total) : ''}`;
+  const { rows } = await exportTargets();
+  const spend = rows.filter(x => x.rc.kind !== 'income' && x.rc.total != null).reduce((s, x) => s + x.rc.total, 0);
+  document.getElementById('expCount').textContent = `対象: ${rows.length}件 ${spend ? '/ 支出合計 ' + yen(spend) : ''}`;
 }
 document.getElementById('expFrom').onchange = refreshExpCount;
 document.getElementById('expTo').onchange = refreshExpCount;
