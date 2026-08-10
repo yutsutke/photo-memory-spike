@@ -25,9 +25,17 @@ index.html              # 本体 (HTML + CSS + JS インライン、CDN 依存)
 TODO.md                 # 「次に何をやる」の生きたリスト + 現在地
 CHANGELOG.md            # 「過去に何をやったか」の蓄積 (背景・設計判断・教訓)
 README.md               # 外向き説明、ほぼ更新しない
+receipt-spike/          # 🧾 別プロダクト「レシート」の spike (下記参照。あの日とは独立運用)
 .claude/launch.json     # ローカル dev サーバ設定 (port 5273、別プロジェクトと衝突回避)
 .gitignore
 ```
+
+### 🧾 receipt-spike/ — 別プロダクトの spike（2026-08-10〜）
+
+レシート分析アプリ（**別アプリ・別 appId 予定**）の spike。「別アプリにする」判断の全記録は CHANGELOG v233。運用ルール:
+- **あの日本体と完全独立**: BUILD は r1, r2, …（あの日の vN/phaseN.M を使わない）。TODO/CHANGELOG は `receipt-spike/` 配下の別冊を更新する。あの日の index.html に依存を張らない・混ぜない。
+- **同一オリジン注意**: GitHub Pages 上では あの日 web と IndexedDB/localStorage を共有する。receipt-spike 側は DB名 `receipt-spike`・localStorage `rcpt.*` を使う（衝突禁止）。同一オリジンに依存した機能は作らない。
+- データ共有は「OS写真ライブラリ＋日パック式ファイル契約」のみ。DB直結はしない。
 
 ホスティングは GitHub Pages (`https://yutsutke.github.io/photo-memory-spike/`)。リポは public。
 
