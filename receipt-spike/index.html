@@ -86,6 +86,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <div class="seg" id="provSeg">
       <button type="button" data-prov="anthropic">Claude<small>Anthropic</small></button>
       <button type="button" data-prov="openai">ChatGPT<small>OpenAI</small></button>
+      <button type="button" data-prov="openrouter">OpenRouter<small>色々なモデル</small></button>
     </div></div>
   <div class="row"><label id="keyLabel"></label>
     <input type="password" id="inKey" autocomplete="off"></div>
@@ -98,6 +99,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <div class="row"><label>APIのURL（OpenAI互換の別サービスを使う時だけ変える）</label>
       <input id="inBase" autocomplete="off"></div>
     <div class="note">キーとモデルは <b>AI ごとに別々に保存</b>されます（両方登録しておけば、上のボタンで切り替えるだけ）。</div>
+    <div class="note">🌏 <b>OpenRouter</b> なら鍵1本で色々なモデル（中国製を含む）を試せます。一覧は<b>画像を読めるモデルだけ</b>に絞って出します。ほかの OpenAI 互換サービスを使う時は、上の「APIのURL」を変えてください（<b>画像が読める・端末から直接呼べる</b>ことが条件）。</div>
   </details>
   <div class="note">キーは<b>この端末のアプリ内にのみ</b>保存されます（このアプリにサーバーはありません）。レシート画像は分析のときだけ、<b>あなたのキーで、選んだAIのAPIに直接</b>送信されます。それ以外に外部へ送るものはありません。</div>
   <div class="note">🔐 おすすめ運用: このアプリ<b>専用のAPIキー</b>を発行し、Console 側で<b>支出上限</b>を低く設定しておく（万一漏れても被害がその上限で止まる・いつでも失効できる）。</div>
@@ -138,7 +140,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r9 🧠分析に使うAIを選べる＝Claude/ChatGPTの2択＋詳細設定（モデルID直接入力・一覧取得・OpenAI互換のURL）｜r8 🤖AIに渡す＝文字で共有（Claudeはtext/*しか受け取らずJSONファイルでは共有先に出ない・端末に問い合わせて確認）｜r7 📤書き出しをアプリ版でも通す＝Capacitor Share/Filesystem 経由（WebViewは<a download>もWeb Share APIも無反応）｜r6 📷カメラ起動を <queries> 宣言で解禁（Android11+の可視性・権限は増えない）｜r5 📷撮る（capture）と🖼選ぶ（multiple）を2入口に分離 · 2026-08-10';
+const BUILD = 'r10 🌏OpenRouterを3択目に追加＋JSONの頼み方を3段構えに（型指定に非対応なサービスでも通る）｜r9 🧠分析に使うAIを選べる＝Claude/ChatGPTの2択＋詳細設定（モデルID直接入力・一覧取得・OpenAI互換のURL）｜r8 🤖AIに渡す＝文字で共有（Claudeはtext/*しか受け取らずJSONファイルでは共有先に出ない・端末に問い合わせて確認）｜r7 📤書き出しをアプリ版でも通す＝Capacitor Share/Filesystem 経由（WebViewは<a download>もWeb Share APIも無反応）｜r6 📷カメラ起動を <queries> 宣言で解禁（Android11+の可視性・権限は増えない） · 2026-08-10';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -153,6 +155,7 @@ const LS = {
   model: p => `rcpt.model.${p}`,
   base:  p => `rcpt.base.${p}`,
   list:  p => `rcpt.models.${p}`, // API から取ってきたモデル一覧のキャッシュ
+  fmt:   p => `rcpt.fmt.${p}`,    // そのサービスで通った「JSONの頼み方」を覚えておく（r10）
 };
 // r8 以前は Anthropic 決め打ち（rcpt.apiKey / rcpt.model）だった → 一度だけ引っ越す
 (function migrateSettings(){
@@ -315,44 +318,101 @@ const PROVIDERS = {
                   body: { model: getModel(), messages: [{ role: 'user', content: 'test' }] } }), // 無料
     listModels: async () => ((await apiFetch('/models?limit=100')).data || []).map(m => [m.id, m.display_name || m.id]),
   },
-  openai: {
-    label: 'ChatGPT', vendor: 'OpenAI',
-    base: 'https://api.openai.com/v1',
-    keyPage: 'https://platform.openai.com/api-keys', keyHint: 'sk-...',
+  // OpenAI 互換の入口（ChatGPT・OpenRouter）は下でまとめて足す＝中身が同じなのでひな形を使い回す
+};
+
+function openAICompatible(o){
+  return {
+    label: o.label, vendor: o.vendor, base: o.base, keyPage: o.keyPage, keyHint: o.keyHint,
     defaultModel: '', // 決め打ちしない＝「🔄 使えるモデルの一覧を取得」で本人のアカウントの正解を入れる
     presets: [],
-    headers: () => ({ 'content-type': 'application/json', authorization: 'Bearer ' + getKey() }),
+    headers: () => ({ 'content-type': 'application/json', authorization: 'Bearer ' + getKey(), ...(o.extraHeaders || {}) }),
     async analyze(model, b64){
-      const res = await apiFetch('/chat/completions', { method: 'POST', body: {
-        model, max_completion_tokens: 6000,
-        response_format: { type: 'json_schema', json_schema: { name: 'receipts', strict: true, schema: RECEIPT_SCHEMA } },
-        messages: [
-          { role: 'system', content: OCR_RULES },
-          { role: 'user', content: [
-            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64, detail: 'high' } },
-            { type: 'text', text: 'このレシート写真から情報を抽出して。' },
-          ] },
-        ],
-      }});
-      const msg = res.choices?.[0]?.message || {};
-      if (msg.refusal) throw new Error('AI が分析を拒否しました: ' + msg.refusal);
-      return { text: msg.content || '', model: res.model, in: res.usage?.prompt_tokens, out: res.usage?.completion_tokens };
+      /* JSONの頼み方は3段構え（r10）。厳密な型指定に対応していないサービスがあるため、
+         断られたら緩い指定＋指示文に落とし、それも駄目なら指示文だけで頼む。通った形は覚えて次から一発。 */
+      const withSchemaText = OCR_RULES +
+        '\n\n出力は次の JSON スキーマに厳密に従った JSON だけを返す（説明文・コードブロックを付けない）:\n' + JSON.stringify(RECEIPT_SCHEMA);
+      const FORMATS = [
+        ['json_schema', { type: 'json_schema', json_schema: { name: 'receipts', strict: true, schema: RECEIPT_SCHEMA } }],
+        ['json_object', { type: 'json_object' }],
+        ['none', null],
+      ];
+      const known = localStorage.getItem(LS.fmt(getProv()));
+      const order = known ? [...FORMATS].sort((a, b) => (b[0] === known) - (a[0] === known)) : FORMATS;
+      let lastErr;
+      for (const [name, response_format] of order) {
+        const body = {
+          model,
+          [o.tokenParam || 'max_tokens']: 6000,
+          messages: [
+            { role: 'system', content: name === 'json_schema' ? OCR_RULES : withSchemaText },
+            { role: 'user', content: [
+              { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64, detail: 'high' } },
+              { type: 'text', text: 'このレシート写真から情報を抽出して。' },
+            ] },
+          ],
+        };
+        if (response_format) body.response_format = response_format;
+        try {
+          const res = await apiFetch('/chat/completions', { method: 'POST', body });
+          const msg = res.choices?.[0]?.message || {};
+          if (msg.refusal) throw new Error('AI が分析を拒否しました: ' + msg.refusal);
+          localStorage.setItem(LS.fmt(getProv()), name);
+          return { text: msg.content || '', model: res.model, in: res.usage?.prompt_tokens, out: res.usage?.completion_tokens };
+        } catch (err) {
+          lastErr = err;
+          // 「その頼み方は使えない」系だけ次の形へ。キー無効・レート制限・拒否はそこで終わり
+          if (!/response_format|json_schema|schema|not support|unsupported|invalid|param/i.test(String(err.message))) throw err;
+        }
+      }
+      throw lastErr;
     },
     test: () => apiFetch('/models'), // 無料（キーが有効かだけ見る）
     listModels: async () => {
-      // 画像を読めない用途のモデル（音声・埋め込み・画像生成など）は選んでも失敗するので落とす
-      const NG = /embedding|tts|whisper|audio|realtime|moderation|dall-e|sora|image|transcribe|search|rerank/i;
-      return ((await apiFetch('/models')).data || []).map(m => m.id).filter(id => !NG.test(id))
-               .sort().map(id => [id, id]);
+      const data = (await apiFetch('/models')).data || [];
+      // 画像を読めないもの（音声・埋め込み・画像生成など）は選んでも失敗するので落とす
+      const NG = /embedding|tts|whisper|audio|realtime|moderation|dall-e|sora|image-gen|transcribe|rerank/i;
+      const seesImages = m => {
+        const mods = m.architecture?.input_modalities; // OpenRouter は入力の種類を返す＝画像可だけに絞れる
+        return Array.isArray(mods) ? mods.includes('image') : true;
+      };
+      return data.filter(m => seesImages(m) && !NG.test(m.id))
+                 .map(m => [m.id, m.name && m.name !== m.id ? `${m.name}（${m.id}）` : m.id])
+                 .sort((a, b) => a[0].localeCompare(b[0]));
     },
-  },
-};
+  };
+}
+PROVIDERS.openai = openAICompatible({
+  label: 'ChatGPT', vendor: 'OpenAI',
+  base: 'https://api.openai.com/v1',
+  keyPage: 'https://platform.openai.com/api-keys', keyHint: 'sk-...',
+  tokenParam: 'max_completion_tokens', // 新しめのモデルは max_tokens を受け付けない
+});
+// OpenRouter＝鍵1本で色々なモデル（中国製も含む）に届く窓口。互換サービスを使う時の既定の道にする
+PROVIDERS.openrouter = openAICompatible({
+  label: 'OpenRouter', vendor: '色々なモデル',
+  base: 'https://openrouter.ai/api/v1',
+  keyPage: 'https://openrouter.ai/keys', keyHint: 'sk-or-...',
+  tokenParam: 'max_tokens',
+  extraHeaders: { 'X-Title': 'receipt-spike' },
+});
+
+// 型指定なしで頼んだ時、モデルは ```json … ``` や前置きを付けてくることがある（r10）
+function parseJsonLoose(text){
+  const t = String(text || '').trim();
+  try { return JSON.parse(t); } catch (_) {}
+  const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) { try { return JSON.parse(fenced[1]); } catch (_) {} }
+  const s = t.indexOf('{'), e = t.lastIndexOf('}');
+  if (s >= 0 && e > s) return JSON.parse(t.slice(s, e + 1));
+  throw new Error('AI の返事を JSON として読めませんでした（別のモデルを試してください）');
+}
 
 async function analyzeReceipt(rec){
   const model = getModel();
   if (!model) throw new Error('分析モデルが未選択です（⚙ の詳細設定から選んでください）');
   const r = await P().analyze(model, await blobToB64(rec.img));
-  return { data: JSON.parse(r.text),
+  return { data: parseJsonLoose(r.text),
            meta: { provider: getProv(), model: r.model || model, in: r.in, out: r.out, at: Date.now() } };
 }
 
