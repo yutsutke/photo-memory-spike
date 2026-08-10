@@ -98,9 +98,9 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <div class="row" style="flex:1"><label>まで</label><input type="date" id="expTo"></div>
   </div>
   <div class="note" id="expCount" style="margin:0 0 10px"></div>
-  <button class="btn pri" id="btnShare">📤 共有シートで渡す（AIアプリ・Drive等へ）</button>
+  <button class="btn pri" id="btnShareText">🤖 AIに渡す（Claude 等）<br><small>文字として共有＝AIアプリが共有先に出ます</small></button>
   <div class="dual">
-    <button class="btn" id="btnJson">📄 JSON<br><small>AI向け</small></button>
+    <button class="btn" id="btnJson">📄 JSON<br><small>ファイル保存</small></button>
     <button class="btn" id="btnCsv">📊 CSV<br><small>表計算向け</small></button>
     <button class="btn" id="btnCopy">📋 コピー<br><small>貼り付け</small></button>
   </div>
@@ -123,7 +123,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r7 📤書き出しをアプリ版でも通す＝Capacitor Share/Filesystem 経由（WebViewは<a download>もWeb Share APIも無反応）｜r6 📷カメラ起動を <queries> 宣言で解禁（Android11+の可視性・権限は増えない）｜r5 📷撮る（capture）と🖼選ぶ（multiple）を2入口に分離｜r4 📱 Android native 化（Capacitor・iOS Safariの7日削除を回避）＋📋コピー書き出し｜r3 OCRルールをライフログから移植＋専用キー運用の案内 · 2026-08-10';
+const BUILD = 'r8 🤖AIに渡す＝文字で共有（Claudeはtext/*しか受け取らずJSONファイルでは共有先に出ない・端末に問い合わせて確認）｜r7 📤書き出しをアプリ版でも通す＝Capacitor Share/Filesystem 経由（WebViewは<a download>もWeb Share APIも無反応）｜r6 📷カメラ起動を <queries> 宣言で解禁（Android11+の可視性・権限は増えない）｜r5 📷撮る（capture）と🖼選ぶ（multiple）を2入口に分離｜r4 📱 Android native 化（Capacitor・iOS Safariの7日削除を回避）＋📋コピー書き出し · 2026-08-10';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -451,14 +451,30 @@ document.getElementById('btnCopy').onclick = async () => {
     toast('📋 コピーしました（AIアプリやメモに貼り付けできます）');
   } catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
 };
-document.getElementById('btnShare').onclick = async () => {
+/* 🤖 AIアプリに渡す。Android の共有先は MIME で決まり、端末に問い合わせた結果
+   Claude（com.anthropic.claude）が受け取るのは image/* ・ text/* ・ pdf ・ rtf ・ epub だけ
+   ＝ application/json のファイルでは共有先に出ない（r7 まではこれで出なかった）。
+   → 文字（text/plain）で渡す。量が多いと intent が大きすぎて落ちるので、その時は .txt ファイル（同じく text/plain）にする。 */
+const AI_TEXT_MAX = 100000; // 文字数の目安
+document.getElementById('btnShareText').onclick = async () => {
   const { from, to, rows } = await exportTargets();
-  const name = expName(from, to, 'json'), text = exportJson(rows, from, to);
-  if (IS_NATIVE) return exportOut(name, text, 'application/json');
-  const file = new File([text], name, { type: 'application/json' });
-  if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'レシートデータ' }); } catch (_) { /* キャンセル */ }
-  } else { toast('この環境は共有シート非対応。📋 コピーを使ってください'); }
+  const text = exportJson(rows, from, to);
+  try {
+    if (!IS_NATIVE) {
+      if (navigator.share) await navigator.share({ title: 'レシートデータ', text });
+      else toast('この環境は共有シート非対応。📋 コピーを使ってください');
+      return;
+    }
+    if (text.length <= AI_TEXT_MAX) {
+      await window.Capacitor.Plugins.Share.share({ title: 'レシートデータ', text, dialogTitle: 'AIに渡す' });
+    } else {
+      await nativeShareFile(expName(from, to, 'txt'), text); // 中身は JSON のまま・拡張子だけ txt＝AIアプリが受け取れる
+      toast('件数が多いのでファイル（.txt）で渡しました');
+    }
+  } catch (err) {
+    const m = String(err?.message || err);
+    if (!/cancel|abort|dismiss/i.test(m)) toast('渡せませんでした: ' + m);
+  }
 };
 async function refreshExpCount(){
   const { rows } = await exportTargets();
@@ -501,7 +517,7 @@ document.getElementById('btnExport').onclick = () => {
   if (!document.getElementById('expFrom').value) document.getElementById('expFrom').value = today.slice(0, 8) + '01';
   if (!document.getElementById('expTo').value) document.getElementById('expTo').value = today;
   document.getElementById('expNote').innerHTML = IS_NATIVE
-    ? '📱 アプリ版では 📄JSON / 📊CSV も<b>共有シート経由</b>で渡します（アプリの中から直接ダウンロードフォルダには置けないため）。保存先は共有シートで Drive / Files などを選んでください。'
+    ? '📱 アプリ版の使い分け: <b>🤖AIに渡す</b>＝文字で共有（AIアプリは JSON ファイルを受け取らないため。Claude 等が共有先に出ます）／<b>📄JSON・📊CSV</b>＝ファイルで共有（Drive・Files への保存用）。保存先は共有シートで選んでください。'
     : '';
   refreshExpCount(); show('ovExport');
 };

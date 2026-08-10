@@ -2,6 +2,28 @@
 
 > あの日（リポ直下）の CHANGELOG とは独立。こちらは r1, r2, … で進む。
 
+## r8 — 🤖 AIアプリ（Claude）を共有先に出す＝文字で渡す (2026-08-10)
+
+**背景**
+- r7 で共有シートは開くようになったが、**共有先に Claude が出ない**（ユーザー「でないですね。でるようにしたいですね」）。このデータの一番の使い道が「AI に渡して分析させる」なので、ここが通らないと書き出しの意味が半分になる。
+
+**原因（推測せず端末に問い合わせた）**
+- Android の共有先は **MIME タイプで決まる**。`adb shell dumpsys package com.anthropic.claude` で Claude の受け取り宣言を確認＝ **`image/*` ・ `text/*` ・ `application/pdf` ・ `application/rtf` ・ `application/epub+zip` のみ**。`cmd package query-activities -a SEND -t application/json` は**該当なし**。
+- r7 は JSON を `application/json` のファイルで渡していた＝**Claude の受け取り対象外**だったので、そもそも候補に並ばなかった。Drive や Files は `*/*` を受けるので出ていた＝「共有シート自体は動いている」ので気づきにくい。
+
+**設計判断**
+- **🤖 AIに渡す＝文字（text/plain）で共有**に変更（旧「📤 共有シートで渡す」を置き換え）。ファイルでなく文字にすると Claude・Keep・メッセージなど text を受けるアプリが全部並ぶ。
+- **量が多い時だけ `.txt` ファイルに切り替える**（10万文字を超えたら）。Android の intent は大きすぎると落ちる（TransactionTooLarge）ため。**`.txt` も `text/plain` なので Claude は受け取れる**＝中身は JSON のまま拡張子だけ変える、という割り切り。
+- **📄JSON / 📊CSV はファイル共有のまま残す**（Drive・Files への保存用）。役割を「AIに渡す＝文字」「保存する＝ファイル」で分け、📤の画面にその使い分けを表示。
+- 📋 コピーは不変（3回連続で触っていない＝どの環境でも効く最後の逃げ道）。
+
+**結果 / 観察**
+- 実機で **Claude が共有先に並ぶのを確認**。プレビューに `receipt-spike-export / version 2 / period` が正しく載る。
+
+**教訓**
+- **「共有先に出ない」は権限でもバグでもなく、宣言された MIME の不一致**。しかも**共有シート自体は正常に出る**ので「動いているのに目的のアプリだけ無い」という分かりにくい形になる。→ **相手アプリが何を受け取ると宣言しているかは端末に聞ける**（`dumpsys package <pkg>` / `cmd package query-activities`）。推測でフォーマットを試すより速くて確実。
+- 渡す相手（AIアプリ）の都合が、こちらのデータ形式の選択（JSON ファイル vs 文字）を決めた。**交換フォーマットは「正しさ」だけでなく「相手が受け取れるか」で選ぶ**。
+
 ## r7 — 📤 書き出しをアプリ版でも通す（Capacitor Share / Filesystem 経由） (2026-08-10)
 
 **背景**

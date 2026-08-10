@@ -32,10 +32,15 @@ GitHub Pages 配下では あの日 web と同一オリジン＝IndexedDB / loca
 **結論: spike期間は A を維持**。根拠＝(1) Anthropicキーは失効・支出上限で被害を金銭の上限内に限定できる（MAP_SECRET を新オリジンへ広げるより漏洩時の質が軽い）(2) B は画像がサーバ経由＝「ローカル完結・ストア配布できる形」という spike の検証目的が消える (3) 最終形は native の Keychain で確定しており、暫定に投資しない。
 **⚠ 別件の重要制約（Aの弱点というより web spike 全体の弱点）**: iOS Safari は**7日間未訪問でサイトデータ（localStorage・IndexedDB＝キーもレシートも）を消し得る**（ITP）。**ホーム画面に追加**すると対象外になる → ⚙に案内表示（r3）・実機確認の最初にホーム画面追加を推奨。
 
-## 現在地 — r7 (2026-08-10 夜) ＝ 🎉 Pixel 7a 実機で一周通った（撮る→分析→書き出し）
+## 現在地 — r8 (2026-08-10 夜) ＝ 🎉 実機で一周＋🤖 Claude に直接渡せるところまで
 
 **実機4点のうち①②③がクリア。残るは④（数日後にデータが残るか）だけ＝時間待ち。**
 
+- [x] **r8**: 🤖 **AIに渡す＝文字（text/plain）で共有**に変更＝**Claude が共有先に出るようになった**（実機確認）。真因＝Claude が受け取ると宣言しているのは `image/* ・ text/* ・ pdf ・ rtf ・ epub` **だけで `application/json` は対象外**（`dumpsys package com.anthropic.claude` で確認）＝JSONファイルでは候補に並ばない。量が多い時（10万文字超）は `.txt` ファイルに自動で切替（intent が大きすぎると落ちるため・`.txt` も text/plain なので Claude は受け取れる）。📄JSON/📊CSV はファイル共有のまま＝**「AIに渡す＝文字」「保存＝ファイル」**に役割分け
+- **📈 データを Claude に渡して分析する手順（2026-08-10 に決めた運用）**:
+  - **軽く聞く**＝スマホで 📤 → 🤖AIに渡す → Claude（最短。件数が少ないうち）
+  - **ちゃんと分析**＝📄JSON をファイルで Drive 等へ → PC で **Claude Code に読ませる**。理由＝集計を**コードで**やるので数字が正確・件数が増えても平気・**ライフログ（Supabase）の位置ログや日誌と突き合わせられる**
+  - AI に渡すのは **JSON**（CSV は品目が名前だけになり金額が落ちる）／**期間を区切って渡す**（同じ月を2回渡すと二重計上。JSON の `period` で確認できる）／画像は渡らない
 - [x] **r7**: 📤 **書き出しをアプリ版でも通した**＝`Filesystem.writeFile(CACHE)` → `getUri` → `Share.share(files)`（`@capacitor/share` + `@capacitor/filesystem`）。WebView には `<a download>` も Web Share API も無く**押しても無反応**だったのが真因。📄JSON/📊CSV もアプリ版は共有シート経由（Android は scoped storage で共有ダウンロードフォルダへ直接置けないため）＝📤画面に native 限定の説明を追加。**📋コピーは不変**（唯一効いていた逃げ道は触らない）。**権限は INTERNET のみのまま**（キャッシュ書き込みは権限不要）
 - [x] **r6**: 📷 **カメラ起動を解禁**＝AndroidManifest に `<queries><intent><action android:name="android.media.action.IMAGE_CAPTURE"/></intent></queries>`。Android 11+ は宣言のない他アプリが「無い」ように見え、Capacitor の `resolveActivity()` が null → `Media capture intent could not be launched` でピッカーに落ちていた。**可視性の宣言＝権限ではない・INTERNET のみのまま**。実機で前面が `GoogleCamera/CaptureActivity` になるのを確認
 - [x] **r5**: 📷撮る（`capture`・1枚）と 🖼選ぶ（`multiple`・複数可）を**2入口に分離**。**`multiple` が付くと Chromium が `capture` を無視する**のが「カメラが開かない」1段目の原因だった（`isCaptureEnabled()`=false で Capacitor のカメラ分岐に入らない）。処理関数は共通（`onPhotoPicked`）。＋ボタン2つで文字が折り返す件を修正（`#shoot` を `left:0;right:0` 中央寄せ＋帯は `pointer-events:none`）
