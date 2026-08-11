@@ -235,7 +235,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい・地理院は世界の下地つき）＋期間に 今日/今週/期間を選ぶ を追加（統計・マップ共通）｜r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ（住所から探す/地図をタップ）｜r11 📊統計（期間＝月/年/全期間・分類・お店2段・推移）＝レシートだけで完結・収入は混ぜない｜r10 🌏OpenRouterを3択目に追加＋JSONの頼み方を3段構えに（型指定に非対応なサービスでも通る）｜r9 🧠分析に使うAIを選べる＝Claude/ChatGPTの2択＋詳細設定（モデルID直接入力・一覧取得・OpenAI互換のURL） · 2026-08-11';
+const BUILD = 'r15 🛒品目の集計を統計に追加（何をよく買っているか・畳むのは書き方のゆれだけ・明細の合計と支出合計を並べて出す）｜r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい・地理院は世界の下地つき）＋期間に 今日/今週/期間を選ぶ を追加（統計・マップ共通）｜r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ（住所から探す/地図をタップ）｜r11 📊統計（期間＝月/年/全期間・分類・お店2段・推移）＝レシートだけで完結・収入は混ぜない｜r10 🌏OpenRouterを3択目に追加＋JSONの頼み方を3段構えに（型指定に非対応なサービスでも通る） · 2026-08-11';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -870,12 +870,47 @@ function groupStores(rows){
   return out;
 }
 
+/* ---------- 品目のまとめ（r15）＝「何をよく買っているか」 ----------
+   ★ 店名の畳み込み規則（sameShopName＝同じ長さの1文字違いを畳む）は品目に持ち込まない。
+     品目は「味違い・サイズ違い」が普通で、1文字違いが**別の商品**であることが多い
+     （本搾りレモン ⇔ 本搾りグレープ／牛乳 ⇔ 豆乳）。畳むのは「同じ文字の書き方のゆれ」だけにする。
+   ⚠ 品目の金額を足してもレシートの合計にはならない（値引き・税・読めなかった行）。
+     隠さずに「明細で読めた分」として割合を出す。 */
+// 書き方のゆれだけを消す。NFKC ＝ 半角カナ→全角（レシートは半角カナ印字が普通）・全角英数→半角を一度に畳む
+function itemNorm(s){
+  return String(s || '').normalize('NFKC')
+    .replace(/^[※*#・\s]+/, '')   // 軽減税率などの先頭記号（NFKC 後は ＊→* ･→・ に揃っている）
+    .replace(/\s+/g, ' ').trim();
+}
+// 表示行（listRows の要素）→ [{key, name, yen, n, nUnk, cat, lines:[{x, it}]}]
+function groupItems(rows){
+  const G = new Map();
+  rows.forEach(x => (x.rc.items || []).forEach(it => {
+    const key = itemNorm(it.name); if (!key) return;
+    const g = G.get(key) || { key, name: key, yen: 0, n: 0, nUnk: 0, lines: [], by: {} };
+    g.n++;
+    if (it.price == null) g.nUnk++; else g.yen += it.price;
+    g.lines.push({ x, it });
+    const c = x.rc.category || 'その他';
+    g.by[c] = (g.by[c] || 0) + (it.price || 0);
+    G.set(key, g);
+  }));
+  const out = [...G.values()];
+  // 見出しの名前＝正規化した形そのもの。⚠ 店（groupStores）と違って「代表の書き方を選ぶ」必要はない
+  //   ＝畳む条件が「正規化すると同じ」なので、グループの全員が同じ形に揃っている。
+  //   印字のままの名前は 内訳 → レシート詳細（明細表）で見られる＝原本は失っていない。
+  out.forEach(g => { g.cat = Object.entries(g.by).sort((a, b) => b[1] - a[1])[0][0]; });
+  return out;
+}
+
 /* --- 期間（今日／今週／月／年／全期間／期間を選ぶ）--- r13 でユーザー要望の3つを追加 */
 let stMode = 'month', stY = 0, stM = 0;   // 表示中の年・月
 let stDay = '';                            // 表示中の日（今日／今週の起点）
 let stFrom = '', stTo = '';                // 「期間を選ぶ」の開始・終了
 let stSort = 'yen';                        // お店の並び: yen=金額 / count=回数
-let stOpen = new Set();                    // 開いている内訳（分類名 / 店名）
+let itSort = 'yen', itAll = false;         // 品目の並び／上位だけか全部か（r15）
+const IT_TOP = 20;                         // 品目は種類が多い＝まず上位だけ出し、押した時に全部へ広げる
+let stOpen = new Set();                    // 開いている内訳（分類名 / 店名 / 品目）
 const pad2 = n => String(n).padStart(2, '0');
 // 今日（端末の日付）。⚠ toISOString は UTC なので日本時間の夜に前日へずれる＝使わない
 const todayStr = () => { const n = new Date(); return `${n.getFullYear()}-${pad2(n.getMonth() + 1)}-${pad2(n.getDate())}`; };
@@ -920,6 +955,13 @@ function itemsHtml(rows){
     `<div class="stItem" data-open="${x.rec.id}"><span>${x.date.slice(5)}</span>` +
     `<span class="s">${esc(x.rc.store || '店名不明')}${x.rc.branch ? ' ' + esc(x.rc.branch) : ''}</span>` +
     `<span class="a">${x.rc.total == null ? '—' : yen(x.rc.total)}</span></div>`).join('') + '</div>';
+}
+// 品目の内訳＝いつ・どこで・その品目がいくらだったか（レシートの合計ではなく**その行の金額**を出す）
+function itemLinesHtml(lines){
+  return '<div class="stItems">' + lines.slice().sort((a, b) => b.x.date.localeCompare(a.x.date)).map(({ x, it }) =>
+    `<div class="stItem" data-open="${x.rec.id}"><span>${x.date.slice(5)}</span>` +
+    `<span class="s">${esc(x.rc.store || '店名不明')}${it.qty > 1 ? ` ×${it.qty}` : ''}</span>` +
+    `<span class="a">${it.price == null ? '—' : yen(it.price)}</span></div>`).join('') + '</div>';
 }
 
 async function renderStats(){
@@ -980,6 +1022,30 @@ async function renderStats(){
   });
   html += `</div>`;
 
+  // 品目（r15）＝レシートだけが持つ情報。⚠ 合計と一致しないので「読めた分」を先に断る
+  const its = groupItems(exp).sort((a, b) => itSort === 'count' ? (b.n - a.n || b.yen - a.yen) : (b.yen - a.yen || b.n - a.n));
+  const itLines = its.reduce((s, g) => s + g.n, 0);
+  html += `<div class="stSec"><div class="stTitle">品目（${its.length}種）
+    ${its.length ? `<button id="itSortBtn">${itSort === 'yen' ? '金額順' : '回数順'}</button>` : ''}</div>`;
+  if (!itLines) {
+    html += `<div class="stEmpty">この期間のレシートには明細がありません。</div>`;
+  } else {
+    // ⚠ 割合（合計の何%）にはしない＝値引き行や数量ぶんの重複で **100%を超えることがある**。
+    //   2つの数字を並べて置き、食い違いは食い違いのまま見せる（黙って辻褄を合わせない）。
+    const known = its.reduce((s, g) => s + g.yen, 0), unk = its.reduce((s, g) => s + g.nUnk, 0);
+    html += `<div class="stSub" style="margin:-2px 0 4px">明細 ${itLines}行 ${yen(known)}（支出合計 ${yen(total)}）${unk ? ` ・ 価格なし ${unk}行` : ''}</div>`;
+    const shown = itAll ? its : its.slice(0, IT_TOP);
+    shown.forEach(g => {
+      html += `<div class="stRow" data-item="${esc(g.key)}"><span class="dot" style="background:${catColor(g.cat)}"></span>
+        <span class="nm">${esc(g.name)}</span><span class="pct">${g.n}回</span>
+        <span class="val">${g.n === g.nUnk ? '—' : yen(g.yen)}</span></div>`;
+      if (stOpen.has('i:' + g.key)) html += itemLinesHtml(g.lines);
+    });
+    if (its.length > shown.length)
+      html += `<div class="stRow" id="itMore" style="color:var(--acc)">…ほか ${its.length - shown.length}種を見る</div>`;
+  }
+  html += `</div>`;
+
   // 推移＝月モードは日別・年/全期間は月別（記録のある区切りだけ出す）
   // 推移の粒度＝短い期間は日別・長い期間は月別（「期間を選ぶ」は長さで決める＝62日までは日別）
   const spanAll = (per.from && per.to) ? Math.round((new Date(per.to) - new Date(per.from)) / 86400000) : 9999;
@@ -1000,11 +1066,13 @@ async function renderStats(){
 }
 document.getElementById('stBody').addEventListener('click', e => {
   if (e.target.id === 'stSortBtn') { stSort = stSort === 'yen' ? 'count' : 'yen'; renderStats(); return; }
+  if (e.target.id === 'itSortBtn') { itSort = itSort === 'yen' ? 'count' : 'yen'; renderStats(); return; }
+  if (e.target.id === 'itMore')    { itAll = true; renderStats(); return; }
   const open = e.target.closest('[data-open]');
   if (open) { openDetail(open.dataset.open); return; }        // 明細 → 元のレシートへ
-  const row = e.target.closest('[data-cat],[data-store]');
+  const row = e.target.closest('[data-cat],[data-store],[data-item]');
   if (!row) return;
-  const k = row.dataset.cat ? 'c:' + row.dataset.cat : 's:' + row.dataset.store;
+  const k = row.dataset.cat ? 'c:' + row.dataset.cat : row.dataset.item ? 'i:' + row.dataset.item : 's:' + row.dataset.store;
   stOpen.has(k) ? stOpen.delete(k) : stOpen.add(k);
   renderStats();
 });
