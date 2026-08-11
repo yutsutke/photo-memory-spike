@@ -17,7 +17,7 @@
 >
 > **🔧 セッション43（2026-08-11 朝）＝🧾 レシート r11-r12＝📊 統計 と 💴 支出マップ（ライフログの実装から「判断の理由」を移植）。あの日本体は無改修。**
 >
-> **🔧 セッション44（2026-08-11）＝🧾 レシート r14（🍎 iOS の足場＋Codemagic→TestFlight）／r15（🛒 品目の集計を 📊 統計に追加）。あの日本体は無改修。**
+> **🔧 セッション44（2026-08-11）＝🧾 レシート r14（🍎 iOS の足場＋Codemagic→TestFlight）／r15（🛒 品目の集計を 📊 統計に追加）／r16（📋 初期画面に並び替え4つ＋詳細表示＝実機スクショを見たユーザーの声）。あの日本体は無改修。**
 >
 > **▶▶ 次回はここから＝🧾 レシート、人の手が要る2つ**: ① **Codemagic の「レシート iOS → TestFlight」ビルド結果を見る**（8/11 朝に開始したが未確認＝Claude からは Codemagic に届かない。落ちていたらログ末尾を渡せば直せる） ② **r15 の品目と 💴 の位置決めを実機で触る**。⚠ **r14/r15 は `claude/receipt-app-dev-6nr5ub` ブランチにあり main には未反映＝`https://yutsutke.github.io/photo-memory-spike/receipt-spike/` にはまだ出ていない**（Pages は main を配信）→ **先に main へ入れる**。アプリ版はさらに APK の作り直しが必要（手順は `receipt-spike/BUILD-android.md`）。あわせて持ち越しの「ChatGPT / OpenRouter を実キーで通す」も。詳細は `receipt-spike/TODO.md` 現在地。あの日側の次の一手（iOS 1.7 Codemagic→審査 / Android vc5 / 実機確認）は下記セッション41から変わらず。
 > - **▶ あの日側の次の一手は変わらず下記セッション41の3つ**（iOS 1.7 Codemagic ビルド→審査 / Android vc5 / 実機確認）。プリフライト点検済み＝新権限ゼロ確認・sync:web OK・CDN残留ゼロ。⚠️ vc5 手元ビルド時は資格情報と同一コールで `BUILD_NUMBER=5` を渡すこと（忘れると versionCode=1 に落ちて Play に弾かれる）。

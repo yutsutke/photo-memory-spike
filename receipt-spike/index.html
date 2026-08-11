@@ -21,8 +21,15 @@ header h1{font-size:18px; margin:0; flex:1;}
 main{padding:10px 14px;}
 .empty{color:var(--dim); text-align:center; padding:48px 20px;}
 .mon{margin:18px 0 6px; display:flex; align-items:baseline; gap:8px;}
-.mon b{font-size:15px;}
-.mon span{color:var(--dim); font-size:13px; margin-left:auto;}
+.mon b{font-size:15px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.mon span{color:var(--dim); font-size:13px; margin-left:auto; white-space:nowrap;}
+.mon i{width:9px; height:9px; border-radius:50%; flex:none; align-self:center;}
+/* 一覧の並び替え・表示切替（r16）。初期画面に置くので、高さを取らない1行に収める */
+.lbar{display:flex; gap:8px; align-items:center;}
+.lbar .seg{flex:1; gap:6px;}
+.lbar .seg button{padding:7px 2px; font-size:13.5px; border-radius:10px;}
+.lbtn{flex:none; background:var(--card); border:1px solid var(--line); color:var(--dim); border-radius:10px; padding:7px 10px; font-size:13px;}
+.lbtn.on{background:var(--acc); color:#04121f; font-weight:700; border-color:var(--acc);}
 .rec{display:flex; gap:10px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:8px; margin-bottom:8px;}
 .rec img{width:52px; height:52px; object-fit:cover; border-radius:8px; background:#000;}
 .rec .mid{flex:1; min-width:0;}
@@ -32,6 +39,12 @@ main{padding:10px 14px;}
 .rec .amt.na{color:var(--dim); font-weight:400; font-size:13px;}
 .rec .amt.inc{color:var(--ok);}
 .rec .st small{color:var(--dim); font-weight:400;}
+.rec.dense{align-items:flex-start;}
+.rec .det{margin-top:4px; font-size:12.5px; color:var(--dim);}
+.rec .det .di{display:flex; gap:8px;}
+.rec .det .di span:first-child{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.rec .det .di span:last-child{white-space:nowrap;}
+.rec .det .dt{opacity:.8;}
 .chip{display:inline-block; font-size:11px; color:var(--dim); border:1px solid var(--line); border-radius:8px; padding:0 6px; margin-left:6px;}
 .rec button{background:none; border:1px solid var(--line); color:var(--acc); border-radius:8px; padding:6px 10px; font-size:14px;}
 .pend{color:var(--acc);} .errt{color:var(--err);}
@@ -118,7 +131,18 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
   <button class="hbtn" id="btnSettings" title="設定">⚙</button>
 </header>
 
-<main><div id="list"></div></main>
+<main>
+  <div class="lbar">
+    <div class="seg" id="listSortSeg">
+      <button type="button" data-ls="date">日付</button>
+      <button type="button" data-ls="amount">金額</button>
+      <button type="button" data-ls="store">お店</button>
+      <button type="button" data-ls="cat">分類</button>
+    </div>
+    <button type="button" class="lbtn" id="btnDense" title="1件ずつの中身（品目・支払）も出す">詳細</button>
+  </div>
+  <div id="list"></div>
+</main>
 
 <div id="shoot">
   <!-- ⚠ capture と multiple は同居させない: multiple が付くと Chromium が capture を無視し、
@@ -235,7 +259,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r15 🛒品目の集計を統計に追加（何をよく買っているか・畳むのは書き方のゆれだけ・明細の合計と支出合計を並べて出す）｜r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい・地理院は世界の下地つき）＋期間に 今日/今週/期間を選ぶ を追加（統計・マップ共通）｜r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ（住所から探す/地図をタップ）｜r11 📊統計（期間＝月/年/全期間・分類・お店2段・推移）＝レシートだけで完結・収入は混ぜない｜r10 🌏OpenRouterを3択目に追加＋JSONの頼み方を3段構えに（型指定に非対応なサービスでも通る） · 2026-08-11';
+const BUILD = 'r16 📋初期画面の並び替え（日付/金額/お店/分類）＋詳細表示（品目・支払を行の中に）＝選んだ形は端末に覚える｜r15 🛒品目の集計を統計に追加（何をよく買っているか・畳むのは書き方のゆれだけ・明細の合計と支出合計を並べて出す）｜r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい・地理院は世界の下地つき）＋期間に 今日/今週/期間を選ぶ を追加（統計・マップ共通）｜r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ（住所から探す/地図をタップ）｜r11 📊統計（期間＝月/年/全期間・分類・お店2段・推移）＝レシートだけで完結・収入は混ぜない · 2026-08-11';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -570,38 +594,100 @@ async function listRows(){
   return rows.sort((a, b) => b.date.localeCompare(a.date) || b.rec.ts - a.rec.ts);
 }
 
+/* --- 並び替え・表示（r16）---
+   ⚠ 合計は**支出だけ**（収入は混ぜない）＝月見出しが元からそうだったので、他の見出しも同じ約束に揃える。
+   ⚠ お店のまとめ方は `groupStores` を使う＝統計・地図と**同じ名寄せ**（別に書くと必ずズレる・r12 の教訓）。 */
+let listSort = localStorage.getItem('rcpt.listSort') || 'date';
+let listDense = localStorage.getItem('rcpt.listDense') === '1';
+const sumExp = rows => rows.reduce((s, x) => s + (x.rc && x.rc.kind !== 'income' && x.rc.total != null ? x.rc.total : 0), 0);
+const byDateDesc = (a, b) => b.date.localeCompare(a.date) || b.rec.ts - a.rec.ts;
+const pushTo = (M, k, v) => { const a = M.get(k) || []; a.push(v); M.set(k, a); return a; };
+
+// 並び替え → [{label, dot, right, rows}]。見出しの中身は並べ方ごとに変える（何で並んでいるかが見出しで分かる）
+function listGroups(rows){
+  const done = rows.filter(x => x.rc), undone = rows.filter(x => !x.rc);
+  // ⚠ 読み取り前/失敗は金額も店名も分類も無い＝日付以外の並びでは**末尾にまとめる**（先頭に混ざると邪魔）
+  const tail = undone.length ? [{ label: 'まだ読み取れていません', right: `${undone.length}件`, rows: undone.sort(byDateDesc) }] : [];
+  const money = g => `${g.length}件 ・ ${yen(sumExp(g))}`;
+
+  if (listSort === 'amount') {
+    // 金額の大きい順。⚠ 金額が読めなかった分（total=null）は末尾へ（0円として上に来ないように）
+    const s = done.slice().sort((a, b) => (b.rc.total ?? -1) - (a.rc.total ?? -1) || byDateDesc(a, b));
+    return [{ label: '金額の大きい順', right: money(s), rows: s }, ...tail];
+  }
+  if (listSort === 'store') {
+    return groupStores(done)
+      .map(g => ({ label: g.name, dot: catColor(g.cat), right: money(g.rows), rows: g.rows.slice().sort(byDateDesc) }))
+      .sort((a, b) => sumExp(b.rows) - sumExp(a.rows) || b.rows.length - a.rows.length)
+      .concat(tail);
+  }
+  if (listSort === 'cat') {
+    const G = new Map();
+    done.forEach(x => pushTo(G, x.rc.category || 'その他', x));
+    return [...G.entries()]
+      .map(([c, rs]) => ({ label: c, dot: catColor(c), right: money(rs), rows: rs.slice().sort(byDateDesc) }))
+      .sort((a, b) => sumExp(b.rows) - sumExp(a.rows))
+      .concat(tail);
+  }
+  // 日付（既定）＝月ごと。読み取り前のものも撮った日の月に混ぜる（撮った順に見えるのが自然）
+  const G = new Map();
+  rows.forEach(x => pushTo(G, x.date.slice(0, 7), x));
+  return [...G.keys()].sort().reverse().map(m => {
+    const rs = G.get(m).slice().sort(byDateDesc), v = sumExp(rs);
+    return { label: m.replace('-', '年') + '月', right: v ? yen(v) : '', rows: rs };
+  });
+}
+
+// 詳細表示のときだけ足す中身＝品目（先頭3つ）と支払。⚠ 空のものは出さない（空行が並ぶと読みにくい）
+function recDetHtml(rc){
+  if (!listDense || !rc) return '';
+  const its = rc.items || [];
+  const head = its.slice(0, 3).map(it =>
+    `<div class="di"><span>${esc(it.name)}${it.qty > 1 ? ` ×${it.qty}` : ''}</span>` +
+    `<span>${it.price == null ? '' : yen(it.price)}</span></div>`).join('');
+  const bits = [];
+  if (its.length > 3) bits.push(`ほか${its.length - 3}点`);
+  if (rc.payment) bits.push(esc(rc.payment));
+  const tail = bits.length ? `<div class="dt">${bits.join(' ・ ')}</div>` : '';
+  return head || tail ? `<div class="det">${head}${tail}</div>` : '';
+}
+
+function recHtml(row){
+  const r = row.rec, rc = row.rc;
+  const turl = URL.createObjectURL(r.thumb); thumbUrls.push(turl);
+  let title, right;
+  if (rc) {
+    title = (rc.store || '店名不明') + (rc.branch ? ` <small>${rc.branch}</small>` : '') + `<span class="chip">${rc.category || ''}</span>`;
+    right = rc.total == null ? '<div class="amt na">—</div>'
+          : rc.kind === 'income' ? `<div class="amt inc">+${yen(rc.total)}</div>` : `<div class="amt">${yen(rc.total)}</div>`;
+  } else if (r.status === 'pending') { title = '<span class="pend">🤖 読み取り中…</span>'; right = ''; }
+  else { title = `<span class="errt">${r.status === 'error' ? '読み取り失敗' : 'レシートを検出できず'}</span>`; right = `<button data-retry="${r.id}">🔁</button>`; }
+  return `<div class="rec${listDense ? ' dense' : ''}" data-id="${r.id}">
+    <img src="${turl}" alt="">
+    <div class="mid"><div class="st">${title}</div>
+    <div class="sub">${row.date}${rc?.time ? ' ' + rc.time : ''}${row.n > 1 ? ` ・📷内 ${row.i + 1}/${row.n}` : ''}</div>
+    ${recDetHtml(rc)}</div>
+    ${right}
+  </div>`;
+}
+
 async function renderList(){
   const rows = await listRows();
   const list = document.getElementById('list');
   thumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
+  document.querySelectorAll('#listSortSeg button').forEach(b => b.classList.toggle('on', b.dataset.ls === listSort));
+  document.getElementById('btnDense').classList.toggle('on', listDense);
   if (!rows.length) { list.innerHTML = '<div class="empty">📷 でレシートを撮ると、自動で読み取りが始まります。<br>まず ⚙ で APIキーを登録してください。</div>'; return; }
-  let html = '', curMonth = '';
-  for (const row of rows) {
-    const m = row.date.slice(0, 7);
-    if (m !== curMonth) {
-      curMonth = m;
-      const spend = rows.filter(x => x.date.slice(0, 7) === m && x.rc && x.rc.kind !== 'income' && x.rc.total != null)
-                        .reduce((s, x) => s + x.rc.total, 0);
-      html += `<div class="mon"><b>${m.replace('-', '年')}月</b><span>${spend ? yen(spend) : ''}</span></div>`;
-    }
-    const r = row.rec, rc = row.rc;
-    const turl = URL.createObjectURL(r.thumb); thumbUrls.push(turl);
-    let title, right;
-    if (rc) {
-      title = (rc.store || '店名不明') + (rc.branch ? ` <small>${rc.branch}</small>` : '') + `<span class="chip">${rc.category || ''}</span>`;
-      right = rc.total == null ? '<div class="amt na">—</div>'
-            : rc.kind === 'income' ? `<div class="amt inc">+${yen(rc.total)}</div>` : `<div class="amt">${yen(rc.total)}</div>`;
-    } else if (r.status === 'pending') { title = '<span class="pend">🤖 読み取り中…</span>'; right = ''; }
-    else { title = `<span class="errt">${r.status === 'error' ? '読み取り失敗' : 'レシートを検出できず'}</span>`; right = `<button data-retry="${r.id}">🔁</button>`; }
-    html += `<div class="rec" data-id="${r.id}">
-      <img src="${turl}" alt="">
-      <div class="mid"><div class="st">${title}</div>
-      <div class="sub">${row.date}${rc?.time ? ' ' + rc.time : ''}${row.n > 1 ? ` ・📷内 ${row.i + 1}/${row.n}` : ''}</div></div>
-      ${right}
-    </div>`;
-  }
-  list.innerHTML = html;
+  list.innerHTML = listGroups(rows).map(g =>
+    `<div class="mon">${g.dot ? `<i style="background:${g.dot}"></i>` : ''}<b>${esc(g.label)}</b><span>${g.right}</span></div>`
+    + g.rows.map(recHtml).join('')).join('');
 }
+document.querySelectorAll('#listSortSeg button').forEach(b => b.onclick = () => {
+  listSort = b.dataset.ls; localStorage.setItem('rcpt.listSort', listSort); renderList();
+});
+document.getElementById('btnDense').onclick = () => {
+  listDense = !listDense; localStorage.setItem('rcpt.listDense', listDense ? '1' : '0'); renderList();
+};
 document.getElementById('list').addEventListener('click', e => {
   const retry = e.target.closest('[data-retry]');
   if (retry) { runAnalysis(retry.dataset.retry); return; }
