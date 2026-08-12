@@ -9,6 +9,8 @@
 <style>
 :root{ --bg:#111; --card:#1c1c1e; --line:#2c2c2e; --fg:#eee; --dim:#9a9a9e; --acc:#7ad; --err:#f0a0a0; --ok:#9fd8a0; }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+/* ⚠ hidden 属性は UA の display:none。作者側の display 指定（.btn{display:block} 等）に負けるので明示的に勝たせる */
+[hidden]{display:none !important;}
 body{margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 -apple-system,"Hiragino Sans",sans-serif; padding-bottom:90px;}
 header{position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:8px; padding:calc(env(safe-area-inset-top) + 10px) 14px 10px; background:rgba(17,17,17,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
 header h1{font-size:18px; margin:0; flex:1;}
@@ -37,6 +39,9 @@ main{padding:10px 14px;}
 .pend{color:var(--acc);} .errt{color:var(--err);}
 .overlay{position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.75); display:none; align-items:flex-end; justify-content:center;}
 .overlay.on{display:flex;}
+/* 重なりは DOM の順（後にあるものが上）で決まる。⚙ だけは前にあるのに上へ出す必要がある
+   （📈 分析の「⚙ 変える」から開くため）＝ここだけ明示的に持ち上げる */
+#ovSettings{z-index:22;}
 .sheet{background:var(--bg); border-top:1px solid var(--line); border-radius:16px 16px 0 0; width:100%; max-width:560px; max-height:88vh; overflow-y:auto; padding:16px 16px calc(env(safe-area-inset-bottom) + 16px);}
 .sheet h2{font-size:16px; margin:0 0 12px;}
 .sheet .x{float:right; background:none; border:none; color:var(--dim); font-size:20px; padding:2px 8px;}
@@ -108,11 +113,32 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 /* 出典表記は消せない（タイルの利用条件）が、2行に折り返すと地図を隠すので小さく1行に収める */
 .leaflet-control-attribution{background:rgba(0,0,0,.5) !important; color:#888 !important; font-size:9px !important; line-height:1.4; padding:0 4px !important;}
 .leaflet-control-attribution a{color:#aaa !important;}
+/* 📈 分析（レシートをまとめてAIに読ませる） */
+#anPrompt{width:100%; min-height:96px; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:10px; padding:10px; font-family:inherit; font-size:15px; line-height:1.6; resize:vertical;}
+.anChk{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--dim); margin:8px 0 12px;}
+.anChk input{width:18px; height:18px; accent-color:var(--acc); flex:none;}
+.anAi{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--dim); margin:10px 0;}
+.anAi b{color:var(--fg); font-weight:600;}
+.anAi button{margin-left:auto; flex:none; background:none; border:1px solid var(--line); color:var(--dim); border-radius:8px; padding:3px 9px; font-size:12px;}
+.anItem{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px;}
+.anItem .t{font-size:14.5px; font-weight:600;}
+.anItem .s{font-size:12px; color:var(--dim); margin-top:2px;}
+/* ⚠ クラス名を .x にしない＝ .sheet .x（閉じる✕）と同じ強さで当たり float してしまう */
+.anItem .ex{font-size:13px; color:var(--dim); margin-top:6px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+/* AI の返事（見出し・箇条書き・太字だけ＝mdToHtml が対応する記法） */
+.mdBody{font-size:15px; line-height:1.75;}
+.mdBody h2{font-size:16px; margin:18px 0 6px; color:var(--acc);}
+.mdBody h3,.mdBody h4{font-size:14.5px; margin:14px 0 4px;}
+.mdBody p{margin:8px 0;}
+.mdBody ul,.mdBody ol{margin:8px 0; padding-left:20px;}
+.mdBody li{margin:4px 0;}
+.mdBody code{background:var(--card); border-radius:4px; padding:1px 5px; font-size:13px;}
 </style>
 </head>
 <body>
 <header>
   <h1>🧾 レシート</h1>
+  <button class="hbtn" id="btnAnalyze" title="分析（期間を決めてAIに読ませる）">📈</button>
   <button class="hbtn" id="btnStats" title="統計（期間・分類・お店・推移）">📊</button>
   <button class="hbtn" id="btnExport" title="期間を指定して書き出し">📤</button>
   <button class="hbtn" id="btnSettings" title="設定">⚙</button>
@@ -130,7 +156,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 <!-- ⚙ 設定 -->
 <div class="overlay" id="ovSettings"><div class="sheet">
   <button class="x" data-close>✕</button><h2>⚙ 設定</h2>
-  <div class="row"><label>分析に使うAI</label>
+  <div class="row"><label>📷 写真の読み取りに使うAI</label>
     <div class="seg" id="provSeg">
       <button type="button" data-prov="anthropic">Claude<small>Anthropic</small></button>
       <button type="button" data-prov="openai">ChatGPT<small>OpenAI</small></button>
@@ -138,7 +164,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     </div></div>
   <div class="row"><label id="keyLabel"></label>
     <input type="password" id="inKey" autocomplete="off"></div>
-  <div class="row"><label>分析モデル</label><select id="inModel"></select></div>
+  <div class="row"><label>読み取りモデル</label><select id="inModel"></select></div>
   <button class="btn" id="btnTest">🔌 接続テスト（無料・課金されません）</button>
   <details class="adv" id="advBox"><summary>🛠 詳細設定（一覧に無いモデル・ほかのサービスを使う）</summary>
     <button class="btn" id="btnFetchModels">🔄 使えるモデルの一覧を取得</button>
@@ -149,6 +175,19 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <div class="note">キーとモデルは <b>AI ごとに別々に保存</b>されます（両方登録しておけば、上のボタンで切り替えるだけ）。</div>
     <div class="note">🌏 <b>OpenRouter</b> なら鍵1本で色々なモデル（中国製を含む）を試せます。一覧は<b>画像を読めるモデルだけ</b>に絞って出します。ほかの OpenAI 互換サービスを使う時は、上の「APIのURL」を変えてください（<b>画像が読める・端末から直接呼べる</b>ことが条件）。</div>
   </details>
+  <!-- 📈 分析用の AI＝写真の読み取りとは別に選べる（読み取りは安いモデル・分析は賢いモデル、が組める） -->
+  <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
+    <label>📈 データの分析に使うAI（📈 画面で使います）</label>
+    <div class="seg wrap" id="anProvSeg">
+      <button type="button" data-anprov="">読み取りと同じ</button>
+      <button type="button" data-anprov="anthropic">Claude</button>
+      <button type="button" data-anprov="openai">ChatGPT</button>
+      <button type="button" data-anprov="openrouter">OpenRouter</button>
+    </div></div>
+  <div class="row" id="anKeyRow" hidden><label id="anKeyLabel"></label>
+    <input type="password" id="anKey" autocomplete="off"></div>
+  <div class="row"><label>分析モデル</label><select id="anModel"></select></div>
+  <div class="note">分析は<b>文章を書かせる</b>使い方なので、読み取りより<b>賢いモデル</b>が向きます（写真は安いモデル・分析は賢いモデル、という組み合わせができます）。<b>APIキーは AI ごとに1本</b>を読み取りと共有します（同じ鍵を2回貼らなくて済みます）。</div>
   <div class="note">キーは<b>この端末のアプリ内にのみ</b>保存されます（このアプリにサーバーはありません）。レシート画像は分析のときだけ、<b>あなたのキーで、選んだAIのAPIに直接</b>送信されます。それ以外に外部へ送るものはありません。</div>
   <div class="note">🔐 おすすめ運用: このアプリ<b>専用のAPIキー</b>を発行し、Console 側で<b>支出上限</b>を低く設定しておく（万一漏れても被害がその上限で止まる・いつでも失効できる）。</div>
   <div class="note" id="noteStore"></div>
@@ -171,6 +210,58 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
   </div>
   <div class="note" id="expNote"></div>
   <div class="note">JSON は AI にそのまま渡せる形式（バージョン付き）。リンク共有したい場合は、共有シートから自分の Drive / iCloud に保存し、そのリンクを AI に渡してください（このアプリはリンクをホストしません）。</div>
+</div></div>
+
+<!-- 📈 分析（期間を決めて、まとめてAIに読ませる） -->
+<div class="overlay" id="ovAnalyze"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2>📈 分析</h2>
+  <div class="seg" id="anTabs" style="margin-bottom:10px">
+    <button type="button" data-antab="new">🆕 分析する</button>
+    <button type="button" data-antab="hist">🗂 履歴</button>
+  </div>
+
+  <div id="anNewPane">
+    <div class="row"><label>使うデータの期間</label>
+      <div class="seg wrap" id="anPeriodSeg">
+        <button type="button" data-ap="month">今月</button>
+        <button type="button" data-ap="lastmonth">先月</button>
+        <button type="button" data-ap="d30">直近30日</button>
+        <button type="button" data-ap="year">今年</button>
+        <button type="button" data-ap="all">全期間</button>
+        <button type="button" data-ap="range">期間を選ぶ</button>
+      </div></div>
+    <div class="dual" id="anRangeRow" style="display:none">
+      <div class="row" style="flex:1"><label>から</label><input type="date" id="anFrom"></div>
+      <div class="row" style="flex:1"><label>まで</label><input type="date" id="anTo"></div>
+    </div>
+    <div class="note" id="anCount" style="margin:0 0 14px"></div>
+
+    <div class="row"><label>聞きかたの型（選ぶと下に入ります・そのまま書き換えられます）</label>
+      <div class="seg wrap" id="anPresetSeg"></div></div>
+    <div class="row"><label>AIへの依頼</label>
+      <textarea id="anPrompt" placeholder="例: この期間の支出で気づいたことを教えて"></textarea></div>
+
+    <div class="anAi" id="anAiLine"></div>
+    <label class="anChk"><input type="checkbox" id="anSaveChk"><span>結果を自動で保存する（🗂 履歴に貯まります）</span></label>
+    <button class="btn pri" id="btnAnRun">▶ 分析する</button>
+    <div class="note">レシートの<b>文字データ（JSON）だけ</b>を、あなたのキーで選んだAIに直接送ります（<b>写真は送りません</b>）。中身は 📤 の書き出しと同じです。</div>
+  </div>
+
+  <div id="anHistPane" hidden><div id="anHistBody"></div></div>
+</div></div>
+
+<!-- 📈 分析の結果 -->
+<div class="overlay" id="ovAnRes"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2 id="arTitle">📈 分析</h2>
+  <div class="note" id="arMeta" style="margin:0 0 12px"></div>
+  <div class="mdBody" id="arBody"></div>
+  <div class="dual" style="margin-top:16px">
+    <button class="btn" id="btnArCopy">📋 コピー</button>
+    <button class="btn" id="btnArShare">📤 共有</button>
+  </div>
+  <button class="btn" id="btnArDelete" style="color:var(--err)">🗑 この分析を削除</button>
+  <details class="adv"><summary>この分析に使った依頼文を見る</summary>
+    <div class="note" id="arPrompt" style="white-space:pre-wrap"></div></details>
 </div></div>
 
 <!-- 📊 統計 -->
@@ -235,7 +326,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい・地理院は世界の下地つき）＋期間に 今日/今週/期間を選ぶ を追加（統計・マップ共通）｜r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ（住所から探す/地図をタップ）｜r11 📊統計（期間＝月/年/全期間・分類・お店2段・推移）＝レシートだけで完結・収入は混ぜない｜r10 🌏OpenRouterを3択目に追加＋JSONの頼み方を3段構えに（型指定に非対応なサービスでも通る）｜r9 🧠分析に使うAIを選べる＝Claude/ChatGPTの2択＋詳細設定（モデルID直接入力・一覧取得・OpenAI互換のURL） · 2026-08-11';
+const BUILD = 'r15 📈分析＝期間を決めて溜まったレシートをまとめてAIに読ませる（写真の読み取りとは別のAI・別モデルを選べる／聞きかたは型を選ぶか自由に書く／結果は自動保存で🗂履歴に貯まる）｜r14 🍎iPhone版の足場＋Codemagic で TestFlight（web は無改修・TestFlight 到達を確認）｜r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい）＋期間に 今日/今週/期間を選ぶ を追加（統計・マップ共通）｜r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ｜r11 📊統計（期間＝月/年/全期間・分類・お店2段・推移）＝レシートだけで完結・収入は混ぜない · 2026-08-12';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -252,6 +343,15 @@ const LS = {
   list:  p => `rcpt.models.${p}`, // API から取ってきたモデル一覧のキャッシュ
   fmt:   p => `rcpt.fmt.${p}`,    // そのサービスで通った「JSONの頼み方」を覚えておく（r10）
 };
+/* 📈 分析（r15）の設定。⚠ 写真の読み取りとは別の用途＝別の AI・別のモデルを選べる。
+   キー（rcpt.key.*）と APIのURL は AI ごとに1本を読み取りと共有する＝同じ鍵を2回貼らせない。
+   分けるのは「どの AI を使うか」と「どのモデルか」だけ（読み取りは安いモデル・分析は賢いモデル、が組める）。 */
+const AN = {
+  prov:   'rcpt.an.provider',       // 空 = 読み取りと同じ AI
+  model:  p => `rcpt.an.model.${p}`, // 空 = 読み取りと同じモデル
+  period: 'rcpt.an.period', from: 'rcpt.an.from', to: 'rcpt.an.to',
+  preset: 'rcpt.an.preset', prompt: 'rcpt.an.prompt', save: 'rcpt.an.save',
+};
 // r8 以前は Anthropic 決め打ち（rcpt.apiKey / rcpt.model）だった → 一度だけ引っ越す
 (function migrateSettings(){
   const k = localStorage.getItem('rcpt.apiKey'), m = localStorage.getItem('rcpt.model');
@@ -259,22 +359,39 @@ const LS = {
   if (m != null) { if (!localStorage.getItem(LS.model('anthropic'))) localStorage.setItem(LS.model('anthropic'), m); localStorage.removeItem('rcpt.model'); }
 })();
 const getProv  = () => localStorage.getItem(LS.prov) || 'anthropic';
-const P        = () => PROVIDERS[getProv()] || PROVIDERS.anthropic;
+const provOf   = p => PROVIDERS[p] || PROVIDERS.anthropic;
+const P        = () => provOf(getProv());
 const getKey   = () => localStorage.getItem(LS.key(getProv())) || '';
 const getModel = () => localStorage.getItem(LS.model(getProv())) || P().defaultModel || '';
-const getBase  = () => (localStorage.getItem(LS.base(getProv())) || P().base).replace(/\/+$/, '');
 const getList  = p => { try { return JSON.parse(localStorage.getItem(LS.list(p)) || '[]'); } catch (_) { return []; } };
+// 分析用に選ばれている AI（未選択なら読み取りと同じ）
+const anProv = () => { const v = localStorage.getItem(AN.prov); return v && PROVIDERS[v] ? v : getProv(); };
+
+/* 呼び出しの「文脈」＝どの AI に・どの鍵で・どのモデルで頼むか。
+   ⚠ グローバル状態（getProv 等）を呼び出しの途中で参照しないこと。読み取りと分析は同時に走り得るので、
+     途中で設定が切り替わると混線する（撮影しながら分析、が普通に起きる）。文脈は最初に固めて引数で渡す。 */
+function ctxFor(role){
+  const prov = role === 'an' ? anProv() : getProv();
+  const p = provOf(prov);
+  const model = (role === 'an' ? localStorage.getItem(AN.model(prov)) : '')
+             || localStorage.getItem(LS.model(prov)) || p.defaultModel || '';
+  return { role, prov, p, model,
+           key:  localStorage.getItem(LS.key(prov)) || '',
+           base: (localStorage.getItem(LS.base(prov)) || p.base).replace(/\/+$/, '') };
+}
 
 /* ---------- IndexedDB（あの日と同一オリジン共有 → DB名で分離） ---------- */
 // v2（r12）で PLACES＝店舗マスタ（店ごとの位置を1回決めて覚える）を追加。既存の receipts はそのまま
-const DB_NAME = 'receipt-spike', STORE = 'receipts', PLACES = 'places';
+// v3（r15）で ANALYSES＝📈 分析の結果を貯める場所を追加（既存の2つはそのまま）
+const DB_NAME = 'receipt-spike', STORE = 'receipts', PLACES = 'places', ANALYSES = 'analyses';
 let _db = null;
 function db(){ return _db ? Promise.resolve(_db) : new Promise((ok, ng) => {
-  const rq = indexedDB.open(DB_NAME, 2);
+  const rq = indexedDB.open(DB_NAME, 3);
   rq.onupgradeneeded = () => {
     const d = rq.result;
-    if (!d.objectStoreNames.contains(STORE))  d.createObjectStore(STORE,  { keyPath: 'id' });
-    if (!d.objectStoreNames.contains(PLACES)) d.createObjectStore(PLACES, { keyPath: 'key' });
+    if (!d.objectStoreNames.contains(STORE))    d.createObjectStore(STORE,    { keyPath: 'id' });
+    if (!d.objectStoreNames.contains(PLACES))   d.createObjectStore(PLACES,   { keyPath: 'key' });
+    if (!d.objectStoreNames.contains(ANALYSES)) d.createObjectStore(ANALYSES, { keyPath: 'id' });
   };
   rq.onsuccess = () => { _db = rq.result; ok(_db); };
   rq.onerror = () => ng(rq.error);
@@ -291,6 +408,9 @@ const dbAll = ()  => tx(STORE, 'readonly',  s => s.getAll());
 const plPut = p   => tx(PLACES, 'readwrite', s => s.put(p));
 const plDel = k   => tx(PLACES, 'readwrite', s => s.delete(k));
 const plAll = ()  => tx(PLACES, 'readonly',  s => s.getAll());
+const anPut = a   => tx(ANALYSES, 'readwrite', s => s.put(a));
+const anDel = id  => tx(ANALYSES, 'readwrite', s => s.delete(id));
+const anAll = ()  => tx(ANALYSES, 'readonly',  s => s.getAll());
 
 /* ---------- 画像（iOS の教訓: createImageBitmap でなく <img>+<canvas>、URL は必ず revoke） ---------- */
 function loadImage(blob){ return new Promise((ok, ng) => {
@@ -321,11 +441,11 @@ const blobToB64 = blob => new Promise((ok, ng) => {
 
 /* ---------- AIへの窓口（BYOキー・端末→APIへ直接。サーバーは無い） ----------
    選んだ AI の「入口（URL・ヘッダ）」だけ差し替える共通の呼び出し。中身の違いは PROVIDERS が吸収する。 */
-async function apiFetch(path, { method = 'GET', body = null } = {}){
-  if (!getKey()) throw new Error('APIキーが未設定です（⚙ から登録）');
+async function apiFetch(ctx, path, { method = 'GET', body = null } = {}){
+  if (!ctx.key) throw new Error(`${ctx.p.vendor} のAPIキーが未設定です（⚙ から登録）`);
   let res;
   try {
-    res = await fetch(getBase() + path, { method, headers: P().headers(), body: body ? JSON.stringify(body) : undefined });
+    res = await fetch(ctx.base + path, { method, headers: ctx.p.headers(ctx), body: body ? JSON.stringify(body) : undefined });
   } catch (_) {
     // fetch 自体が失敗＝回線が無いか、そのサービスが端末からの直接呼び出しを許していない（CORS）
     throw new Error('APIに届きませんでした（通信状況か、APIのURLを確認してください）');
@@ -386,8 +506,28 @@ const OCR_RULES = `あなたはレシート読み取りの専門家。写真に�
   推測で補わない（知識から市区町村を足す等をしない）。読めた文字だけを返す。
   複数の住所が印字されている場合（本社と店舗など）は、その買い物をした店舗の方を選ぶ。`;
 
+/* 📈 分析（r15）＝写真ではなく「溜まったレシートの文字データ」をまとめて読ませる時の頼み方。
+   ⚠ 説教させない。家計のデータは弱みなので、責める文章が返ると次から開かなくなる（＝データも溜まらない）。 */
+const AN_SYSTEM = `あなたは家計の相談相手。渡されたレシートのデータ（JSON）だけを根拠に、日本語で答える。
+
+データについて:
+- レシートアプリの書き出し形式。金額は日本円の整数。kind が "income" は収入なので、支出の集計に混ぜない。
+- 集計値は入っていない。合計・平均・割合は自分で数えて計算する。
+- store が店名・branch が支店。同じ店が少し違う書き方で入っていることがある（写真の読み違い）ので、明らかに同じ店はまとめて数える。
+- date が null のレシートは、日付が要る話からは外す。
+
+書き方:
+- 見出し（##）・箇条書き（-）・太字（**）だけを使う。表・コードブロックは使わない。
+- 数字を出す時は「何件で、いくら」を添えて、どこから来た数字か分かるようにする。
+- データから分からないことは、分からないと書く。推測を事実のように書かない。
+- 説教しない・決めつけない。事実と、本人がこれから選べることを短く。
+- 全体で 800 字程度まで。`;
+
 /* ---------- どのAIを使うか（r9） ----------
-   増やす時はここに1つ足すだけ。analyze は「モデルと画像を渡すと、JSON文字列と使用量を返す」約束。
+   増やす時はここに1つ足すだけ。約束は2つ:
+     analyze(ctx, b64)                = 画像を渡すと「レシートJSONの文字列」と使用量を返す（📷 読み取り）
+     chat(ctx, system, user, maxTok)  = 文章を渡すと「文章」と使用量を返す（📈 分析）
+   ⚠ 鍵・URL・モデルは ctx から取る（グローバルを見ない）＝読み取りと分析が同時に走っても混線しない。
    一覧に無いモデルは詳細設定で直接入力でき、モデル一覧は API から取ってくる＝新しいモデルが出ても待たずに使える。 */
 const PROVIDERS = {
   anthropic: {
@@ -401,13 +541,13 @@ const PROVIDERS = {
       ['claude-haiku-4-5','Claude Haiku 4.5（最安 / 1円未満・住所は読めないことあり）'],
     ],
     // CORS は公式のオプトインヘッダで許可される
-    headers: () => ({ 'content-type': 'application/json', 'x-api-key': getKey(),
-                      'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }),
-    async analyze(model, b64){
+    headers: ctx => ({ 'content-type': 'application/json', 'x-api-key': ctx.key,
+                       'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }),
+    async analyze(ctx, b64){
       const output_config = { format: { type: 'json_schema', schema: RECEIPT_SCHEMA } };
-      if (model !== 'claude-haiku-4-5') output_config.effort = 'low'; // effort は Haiku 4.5 非対応
-      const res = await apiFetch('/messages', { method: 'POST', body: {
-        model, max_tokens: 6000, output_config, system: OCR_RULES,
+      if (ctx.model !== 'claude-haiku-4-5') output_config.effort = 'low'; // effort は Haiku 4.5 非対応
+      const res = await apiFetch(ctx, '/messages', { method: 'POST', body: {
+        model: ctx.model, max_tokens: 6000, output_config, system: OCR_RULES,
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
           { type: 'text', text: 'このレシート写真から情報を抽出して。' },
@@ -417,9 +557,19 @@ const PROVIDERS = {
       return { text: (res.content || []).filter(b => b.type === 'text').map(b => b.text).join(''),
                model: res.model, in: res.usage?.input_tokens, out: res.usage?.output_tokens };
     },
-    test: () => apiFetch('/messages/count_tokens', { method: 'POST',
-                  body: { model: getModel(), messages: [{ role: 'user', content: 'test' }] } }), // 無料
-    listModels: async () => ((await apiFetch('/models?limit=100')).data || []).map(m => [m.id, m.display_name || m.id]),
+    // 📈 分析＝考えさせる用途なので effort は指定しない（読み取りの low は「型に嵌めるだけ」だから効いていた）
+    async chat(ctx, system, user, maxTokens){
+      const res = await apiFetch(ctx, '/messages', { method: 'POST', body: {
+        model: ctx.model, max_tokens: maxTokens, system,
+        messages: [{ role: 'user', content: [{ type: 'text', text: user }] }],
+      }});
+      if (res.stop_reason === 'refusal') throw new Error('AI が回答を拒否しました');
+      return { text: (res.content || []).filter(b => b.type === 'text').map(b => b.text).join(''),
+               model: res.model, in: res.usage?.input_tokens, out: res.usage?.output_tokens };
+    },
+    test: ctx => apiFetch(ctx, '/messages/count_tokens', { method: 'POST',
+                   body: { model: ctx.model, messages: [{ role: 'user', content: 'test' }] } }), // 無料
+    listModels: async ctx => ((await apiFetch(ctx, '/models?limit=100')).data || []).map(m => [m.id, m.display_name || m.id]),
   },
   // OpenAI 互換の入口（ChatGPT・OpenRouter）は下でまとめて足す＝中身が同じなのでひな形を使い回す
 };
@@ -429,8 +579,8 @@ function openAICompatible(o){
     label: o.label, vendor: o.vendor, base: o.base, keyPage: o.keyPage, keyHint: o.keyHint,
     defaultModel: '', // 決め打ちしない＝「🔄 使えるモデルの一覧を取得」で本人のアカウントの正解を入れる
     presets: [],
-    headers: () => ({ 'content-type': 'application/json', authorization: 'Bearer ' + getKey(), ...(o.extraHeaders || {}) }),
-    async analyze(model, b64){
+    headers: ctx => ({ 'content-type': 'application/json', authorization: 'Bearer ' + ctx.key, ...(o.extraHeaders || {}) }),
+    async analyze(ctx, b64){
       /* JSONの頼み方は3段構え（r10）。厳密な型指定に対応していないサービスがあるため、
          断られたら緩い指定＋指示文に落とし、それも駄目なら指示文だけで頼む。通った形は覚えて次から一発。 */
       const withSchemaText = OCR_RULES +
@@ -440,12 +590,12 @@ function openAICompatible(o){
         ['json_object', { type: 'json_object' }],
         ['none', null],
       ];
-      const known = localStorage.getItem(LS.fmt(getProv()));
+      const known = localStorage.getItem(LS.fmt(ctx.prov));
       const order = known ? [...FORMATS].sort((a, b) => (b[0] === known) - (a[0] === known)) : FORMATS;
       let lastErr;
       for (const [name, response_format] of order) {
         const body = {
-          model,
+          model: ctx.model,
           [o.tokenParam || 'max_tokens']: 6000,
           messages: [
             { role: 'system', content: name === 'json_schema' ? OCR_RULES : withSchemaText },
@@ -457,10 +607,10 @@ function openAICompatible(o){
         };
         if (response_format) body.response_format = response_format;
         try {
-          const res = await apiFetch('/chat/completions', { method: 'POST', body });
+          const res = await apiFetch(ctx, '/chat/completions', { method: 'POST', body });
           const msg = res.choices?.[0]?.message || {};
           if (msg.refusal) throw new Error('AI が分析を拒否しました: ' + msg.refusal);
-          localStorage.setItem(LS.fmt(getProv()), name);
+          localStorage.setItem(LS.fmt(ctx.prov), name);
           return { text: msg.content || '', model: res.model, in: res.usage?.prompt_tokens, out: res.usage?.completion_tokens };
         } catch (err) {
           lastErr = err;
@@ -470,9 +620,19 @@ function openAICompatible(o){
       }
       throw lastErr;
     },
-    test: () => apiFetch('/models'), // 無料（キーが有効かだけ見る）
-    listModels: async () => {
-      const data = (await apiFetch('/models')).data || [];
+    // 📈 分析＝ふつうの chat（JSONを強いない＝型指定の3段構えは要らない）
+    async chat(ctx, system, user, maxTokens){
+      const res = await apiFetch(ctx, '/chat/completions', { method: 'POST', body: {
+        model: ctx.model, [o.tokenParam || 'max_tokens']: maxTokens,
+        messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      }});
+      const msg = res.choices?.[0]?.message || {};
+      if (msg.refusal) throw new Error('AI が回答を拒否しました: ' + msg.refusal);
+      return { text: msg.content || '', model: res.model, in: res.usage?.prompt_tokens, out: res.usage?.completion_tokens };
+    },
+    test: ctx => apiFetch(ctx, '/models'), // 無料（キーが有効かだけ見る）
+    listModels: async ctx => {
+      const data = (await apiFetch(ctx, '/models')).data || [];
       // 画像を読めないもの（音声・埋め込み・画像生成など）は選んでも失敗するので落とす
       const NG = /embedding|tts|whisper|audio|realtime|moderation|dall-e|sora|image-gen|transcribe|rerank/i;
       const seesImages = m => {
@@ -512,11 +672,11 @@ function parseJsonLoose(text){
 }
 
 async function analyzeReceipt(rec){
-  const model = getModel();
-  if (!model) throw new Error('分析モデルが未選択です（⚙ の詳細設定から選んでください）');
-  const r = await P().analyze(model, await blobToB64(rec.img));
+  const ctx = ctxFor('ocr');
+  if (!ctx.model) throw new Error('読み取りモデルが未選択です（⚙ の詳細設定から選んでください）');
+  const r = await ctx.p.analyze(ctx, await blobToB64(rec.img));
   return { data: parseJsonLoose(r.text),
-           meta: { provider: getProv(), model: r.model || model, in: r.in, out: r.out, at: Date.now() } };
+           meta: { provider: ctx.prov, model: r.model || ctx.model, in: r.in, out: r.out, at: Date.now() } };
 }
 
 /* ---------- 取り込み → 自動分析 ---------- */
@@ -714,25 +874,28 @@ document.getElementById('btnCopy').onclick = async () => {
    ＝ application/json のファイルでは共有先に出ない（r7 まではこれで出なかった）。
    → 文字（text/plain）で渡す。量が多いと intent が大きすぎて落ちるので、その時は .txt ファイル（同じく text/plain）にする。 */
 const AI_TEXT_MAX = 100000; // 文字数の目安
-document.getElementById('btnShareText').onclick = async () => {
-  const { from, to, rows } = await exportTargets();
-  const text = exportJson(rows, from, to);
+// 文字を外へ出す共通の出口（📤 の「AIに渡す」と 📈 分析結果の共有が同じ経路を通る）
+async function shareTextOut(title, text, fileName, dialogTitle){
   try {
     if (!IS_NATIVE) {
-      if (navigator.share) await navigator.share({ title: 'レシートデータ', text });
+      if (navigator.share) await navigator.share({ title, text });
       else toast('この環境は共有シート非対応。📋 コピーを使ってください');
       return;
     }
     if (text.length <= AI_TEXT_MAX) {
-      await window.Capacitor.Plugins.Share.share({ title: 'レシートデータ', text, dialogTitle: 'AIに渡す' });
+      await window.Capacitor.Plugins.Share.share({ title, text, dialogTitle: dialogTitle || title });
     } else {
-      await nativeShareFile(expName(from, to, 'txt'), text); // 中身は JSON のまま・拡張子だけ txt＝AIアプリが受け取れる
-      toast('件数が多いのでファイル（.txt）で渡しました');
+      await nativeShareFile(fileName, text); // 中身はそのまま・拡張子だけ txt＝AIアプリが受け取れる
+      toast('量が多いのでファイル（.txt）で渡しました');
     }
   } catch (err) {
     const m = String(err?.message || err);
-    if (!/cancel|abort|dismiss/i.test(m)) toast('渡せませんでした: ' + m);
+    if (!/cancel|abort|dismiss/i.test(m)) toast('渡せませんでした: ' + m); // 共有シートを閉じただけの時は黙る
   }
+}
+document.getElementById('btnShareText').onclick = async () => {
+  const { from, to, rows } = await exportTargets();
+  await shareTextOut('レシートデータ', exportJson(rows, from, to), expName(from, to, 'txt'), 'AIに渡す');
 };
 async function refreshExpCount(){
   const { rows } = await exportTargets();
@@ -766,7 +929,41 @@ function renderSettings(){
   document.getElementById('inModelCustom').value = '';
   const base = document.getElementById('inBase');
   base.value = localStorage.getItem(LS.base(prov)) || ''; base.placeholder = p.base;
+  renderAnSettings();
 }
+/* 📈 分析に使う AI（r15）。⚠ キーは AI ごとに1本を読み取りと共有する＝同じ鍵を2回貼らせない。
+   分析用に「読み取りとは別の AI」を選んだ時だけ、その AI のキー欄をここに出す
+   （出さないと、鍵を登録するために上のボタンを一度切り替える必要があり、読み取り側の設定まで動いてしまう）。 */
+function renderAnSettings(){
+  const sel = localStorage.getItem(AN.prov) || '';     // '' = 読み取りと同じ
+  const prov = anProv(), p = provOf(prov);
+  document.querySelectorAll('#anProvSeg button').forEach(b => b.classList.toggle('on', b.dataset.anprov === sel));
+
+  const keyRow = document.getElementById('anKeyRow'), needKey = sel && sel !== getProv();
+  keyRow.hidden = !needKey;
+  if (needKey) {
+    document.getElementById('anKeyLabel').innerHTML =
+      `${p.vendor} の APIキー（<a href="${p.keyPage}" target="_blank" rel="noopener">発行ページを開く</a>）`;
+    const k = document.getElementById('anKey');
+    k.value = localStorage.getItem(LS.key(prov)) || ''; k.placeholder = p.keyHint;
+  }
+  // 分析モデル。空 = 読み取りと同じモデルを使う
+  const ocrModel = localStorage.getItem(LS.model(prov)) || p.defaultModel || '（未選択）';
+  const cur = localStorage.getItem(AN.model(prov)) || '';
+  document.getElementById('anModel').innerHTML =
+    [[ '', `読み取りと同じ（${ocrModel}）` ], ...modelChoices(prov)]
+      .map(([id, label]) => `<option value="${esc(id)}"${id === cur ? ' selected' : ''}>${esc(label)}</option>`).join('');
+}
+document.querySelectorAll('#anProvSeg button').forEach(b => b.onclick = () => {
+  const v = b.dataset.anprov;
+  if (v) localStorage.setItem(AN.prov, v); else localStorage.removeItem(AN.prov);
+  renderAnSettings();
+});
+document.getElementById('anKey').onchange = e => localStorage.setItem(LS.key(anProv()), e.target.value.trim());
+document.getElementById('anModel').onchange = e => {
+  const v = e.target.value;
+  if (v) localStorage.setItem(AN.model(anProv()), v); else localStorage.removeItem(AN.model(anProv()));
+};
 document.querySelectorAll('#provSeg button').forEach(b => b.onclick = () => {
   localStorage.setItem(LS.prov, b.dataset.prov); renderSettings();
 });
@@ -782,9 +979,9 @@ document.getElementById('inBase').onchange = e => {
   if (v) localStorage.setItem(LS.base(getProv()), v); else localStorage.removeItem(LS.base(getProv()));
 };
 document.getElementById('btnFetchModels').onclick = async e => {
-  const b = e.target, prov = getProv(); b.textContent = '🔄 取得中…';
+  const b = e.target, ctx = ctxFor('ocr'), prov = ctx.prov; b.textContent = '🔄 取得中…';
   try {
-    const list = await P().listModels();
+    const list = await ctx.p.listModels(ctx);
     localStorage.setItem(LS.list(prov), JSON.stringify(list));
     if (!localStorage.getItem(LS.model(prov)) && list[0]) localStorage.setItem(LS.model(prov), list[0][0]);
     renderSettings();
@@ -795,7 +992,8 @@ document.getElementById('btnFetchModels').onclick = async e => {
 document.getElementById('btnTest').onclick = async e => {
   const b = e.target; b.textContent = '🔌 確認中…';
   try {
-    await P().test(); // 無料のエンドポイントだけ叩く＝キー確認で課金されない
+    const ctx = ctxFor('ocr');
+    await ctx.p.test(ctx); // 無料のエンドポイントだけ叩く＝キー確認で課金されない
     b.textContent = '✅ 接続OK（キー有効）';
   } catch (err) { b.textContent = '❌ ' + err.message; }
   setTimeout(() => { b.textContent = '🔌 接続テスト（無料・課金されません）'; }, 4000);
@@ -1335,6 +1533,242 @@ async function geocodeAll(){
   renderSpendMap();
 }
 
+/* ---------- 📈 分析（期間を決めて、溜まったレシートをまとめて AI に読ませる・r15） ----------
+   📊 統計が「アプリが数える」なら、こちらは「AI に読ませて言葉にしてもらう」。
+   ⚠ 送るのは 📤 と同じ書き出し JSON（生データのみ・集計は入れない）＝手で Claude に渡すのと同じ中身。
+      写真は送らない（📷 の読み取りで既に文字になっているので、もう一度画像を送る必要がない＝安い・速い）。
+   ⚠ 期間は「今月・先月・直近30日」など**実行した時点から数える**＝同じ設定で来月また押せば来月の話になる。 */
+
+// 型（プリセット）。選ぶと下の依頼文に入り、そのまま書き換えられる＝「おすすめ」と「自由」を1か所で満たす
+const AN_PRESETS = [
+  ['review', '📊 ふりかえり',   'この期間の支出をふりかえって。目立つ特徴、前と比べて変わった点、気づいたことを3〜5個あげて。'],
+  ['save',   '💡 節約のヒント', '減らせそうな支出を、無理のない順に3つ。それぞれ「いま いくら使っているか」と「次に何をすればいいか」を具体的に。'],
+  ['food',   '🍚 食費をくわしく','食費と外食を分けて詳しく。1回あたりの金額・回数・よく買っているもの。自炊と外食の割合も。'],
+  ['store',  '🏪 お店のくせ',   'よく行くお店と、そこでの使い方の傾向を教えて。同じような物を別の店で買っている、といった無駄があれば指摘して。'],
+  ['memo',   '🧾 月次メモ',     '家計簿に残す月次コメントを、事実ベースで200字程度で書いて。数字は正確に。'],
+  ['free',   '✍️ 自由に書く',   ''],
+];
+const AN_PRESET_LABEL = id => (AN_PRESETS.find(p => p[0] === id) || [, '📈 分析'])[1];
+const isPresetText = t => AN_PRESETS.some(p => p[2] && p[2] === t);
+
+let anMode   = localStorage.getItem(AN.period) || 'month';
+let anFrom   = localStorage.getItem(AN.from) || '', anTo = localStorage.getItem(AN.to) || '';
+let anPreset = localStorage.getItem(AN.preset) || 'review';
+let anTab    = 'new';
+let anBusy   = false;
+let arCur    = null;   // いま結果画面に出している分析（履歴から開いた / いま実行した）
+const anSaveOn = () => localStorage.getItem(AN.save) !== '0'; // 既定＝保存する
+
+function anPeriod(){
+  const t = todayStr(), y = +t.slice(0, 4), m = +t.slice(5, 7);
+  const lastDay = (yy, mm) => pad2(new Date(yy, mm, 0).getDate()); // mm は 1-12（Date の 0 日＝前月末日）
+  if (anMode === 'all')  return { from: '', to: '', label: '全期間' };
+  if (anMode === 'd30')  return { from: addDays(t, -29), to: t, label: '直近30日' };
+  if (anMode === 'year') return { from: `${y}-01-01`, to: `${y}-12-31`, label: `${y}年` };
+  if (anMode === 'lastmonth') {
+    const ly = m === 1 ? y - 1 : y, lm = m === 1 ? 12 : m - 1;
+    return { from: `${ly}-${pad2(lm)}-01`, to: `${ly}-${pad2(lm)}-${lastDay(ly, lm)}`, label: `${ly}年${lm}月（先月）` };
+  }
+  if (anMode === 'range') {
+    // ⚠ 統計と同じ作法＝逆さまでも黙って入れ替えない（打ち間違いを親切に直すと「なぜこの数字？」が追えなくなる）
+    if (!anFrom || !anTo) return { bad: '開始と終了の両方を選んでください', label: '期間を選ぶ' };
+    if (anFrom > anTo)    return { bad: '開始が終了より後になっています', label: `${md(anFrom)} 〜 ${md(anTo)}` };
+    return { from: anFrom, to: anTo, label: `${md(anFrom)} 〜 ${md(anTo)}` };
+  }
+  return { from: `${y}-${pad2(m)}-01`, to: `${y}-${pad2(m)}-${lastDay(y, m)}`, label: `${y}年${m}月（今月）` };
+}
+async function anTargets(){
+  const per = anPeriod();
+  if (per.bad) return { per, rows: [] };
+  const rows = (await listRows()).filter(x => x.rc && (!per.from || x.date >= per.from) && (!per.to || x.date <= per.to))
+                                 .sort((a, b) => a.date.localeCompare(b.date));
+  return { per, rows };
+}
+
+/* AI の返事を読める形に。⚠ 必ず先にエスケープしてから記法を戻す＝モデルの出力を HTML として実行させない。
+   対応するのは AN_SYSTEM で「これだけ使って」と頼んである記法（見出し・箇条書き・太字）に絞る。 */
+function mdToHtml(src){
+  const inline = s => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  let out = '', list = null;
+  const closeList = () => { if (list) { out += `</${list}>`; list = null; } };
+  for (const raw of String(src || '').replace(/\r/g, '').split('\n')) {
+    const l = raw.trim();
+    if (!l) { closeList(); continue; }
+    // AI に「##」を使うよう頼んであるので ## を主見出し(h2)にする＝いちばん目立つ形にそろえる
+    const h = l.match(/^(#{1,4})\s+(.*)$/);
+    if (h) { closeList(); const n = h[1].length <= 2 ? 2 : 3; out += `<h${n}>${inline(h[2])}</h${n}>`; continue; }
+    const ul = l.match(/^[-*・]\s+(.*)$/);
+    if (ul) { if (list !== 'ul') { closeList(); out += '<ul>'; list = 'ul'; } out += `<li>${inline(ul[1])}</li>`; continue; }
+    const ol = l.match(/^\d+[.)]\s+(.*)$/);
+    if (ol) { if (list !== 'ol') { closeList(); out += '<ol>'; list = 'ol'; } out += `<li>${inline(ol[1])}</li>`; continue; }
+    closeList(); out += `<p>${inline(l)}</p>`;
+  }
+  closeList();
+  return out;
+}
+
+async function renderAnalyze(){
+  const per = anPeriod();
+  document.querySelectorAll('#anPeriodSeg button').forEach(b => b.classList.toggle('on', b.dataset.ap === anMode));
+  document.getElementById('anRangeRow').style.display = anMode === 'range' ? 'flex' : 'none';
+  if (anMode === 'range') { document.getElementById('anFrom').value = anFrom; document.getElementById('anTo').value = anTo; }
+
+  // 対象件数と「送る量」＝課金は送る文字数で効くので、押す前に見えるようにする
+  const cnt = document.getElementById('anCount');
+  if (per.bad) cnt.innerHTML = `<span style="color:var(--err)">${esc(per.bad)}</span>`;
+  else {
+    const { rows } = await anTargets();
+    const chars = rows.length ? exportJson(rows, per.from, per.to).length : 0;
+    const spend = rows.filter(x => x.rc.kind !== 'income' && x.rc.total != null).reduce((s, x) => s + x.rc.total, 0);
+    cnt.innerHTML = !rows.length
+      ? `<b>${esc(per.label)}</b>：この期間にレシートがありません`
+      : `<b>${esc(per.label)}</b>：${rows.length}件${spend ? ' ・ 支出 ' + yen(spend) : ''} ・ 送るデータ 約${chars.toLocaleString('ja-JP')}文字`
+        + (chars > 150000 ? '<br><span style="color:var(--err)">⚠ 量が多いので、期間を狭めるか料金にご注意を（モデルによっては上限を超えます）</span>' : '');
+  }
+
+  // 型（プリセット）
+  const seg = document.getElementById('anPresetSeg');
+  if (!seg.children.length) {
+    seg.innerHTML = AN_PRESETS.map(([id, label]) => `<button type="button" data-ap2="${id}">${label}</button>`).join('');
+    seg.querySelectorAll('button').forEach(b => b.onclick = () => {
+      anPreset = b.dataset.ap2; localStorage.setItem(AN.preset, anPreset);
+      const ta = document.getElementById('anPrompt'), text = (AN_PRESETS.find(p => p[0] === anPreset) || [,, ''])[2];
+      // ✍️自由：本人が書いた文は消さない（型の文そのままの時だけ空にする）
+      if (text || isPresetText(ta.value.trim()) || !ta.value.trim()) ta.value = text;
+      localStorage.setItem(AN.prompt, ta.value);
+      renderAnalyze();
+    });
+  }
+  seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.ap2 === anPreset));
+
+  // 使う AI（⚙ で選ぶ。ここでは何を使うかが見えるだけ）
+  const ctx = ctxFor('an');
+  document.getElementById('anAiLine').innerHTML =
+    `分析に使うAI: <b>${esc(ctx.p.label)}</b> / ${esc(ctx.model || '（モデル未選択）')}`
+    + (ctx.key ? '' : ' <span style="color:var(--err)">キー未登録</span>')
+    + `<button id="anGoSettings">⚙ 変える</button>`;
+  document.getElementById('anGoSettings').onclick = () => { openSettings(); };
+
+  document.getElementById('anSaveChk').checked = anSaveOn();
+  const run = document.getElementById('btnAnRun');
+  run.disabled = anBusy;
+  run.textContent = anBusy ? '🤖 分析中…（30秒ほどかかります）' : '▶ 分析する';
+  run.style.opacity = anBusy ? '.6' : '';
+}
+
+async function renderAnHistory(){
+  const all = (await anAll()).sort((a, b) => b.ts - a.ts);
+  document.querySelector('#anTabs [data-antab="hist"]').textContent = `🗂 履歴${all.length ? ` (${all.length})` : ''}`;
+  document.getElementById('anHistBody').innerHTML = !all.length
+    ? '<div class="stEmpty">まだ分析がありません。「🆕 分析する」で作ると、ここに貯まります。</div>'
+    : all.map(a => {
+        const d = new Date(a.ts);
+        const snip = String(a.text || '').replace(/[#*`>_-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 70);
+        return `<div class="anItem" data-an="${esc(a.id)}">
+          <div class="t">${esc(a.presetLabel || '📈 分析')}<span class="chip">${esc(a.period?.label || '')}</span></div>
+          <div class="s">${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}
+            ・ ${a.count}件 ・ ${esc(a.model || '')}</div>
+          <div class="ex">${esc(snip)}</div></div>`;
+      }).join('');
+}
+document.getElementById('anHistBody').addEventListener('click', async e => {
+  const it = e.target.closest('[data-an]'); if (!it) return;
+  const a = (await anAll()).find(x => x.id === it.dataset.an);
+  if (a) openAnResult(a);
+});
+
+function openAnResult(a){
+  arCur = a;
+  document.getElementById('arTitle').textContent = `${a.presetLabel || '📈 分析'} ・ ${a.period?.label || ''}`;
+  const d = new Date(a.ts);
+  document.getElementById('arMeta').textContent =
+    `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+    + ` ・ 対象 ${a.count}件 ・ ${a.model || ''}`
+    + (a.in != null ? ` / in ${a.in} · out ${a.out} tokens` : '')
+    + (a.saved === false ? ' ・ ⚠ 保存していません（この画面を閉じると消えます）' : '');
+  document.getElementById('arBody').innerHTML = mdToHtml(a.text);
+  document.getElementById('arPrompt').textContent = a.prompt || '';
+  document.getElementById('btnArDelete').hidden = a.saved === false;
+  document.getElementById('ovAnRes').querySelector('.sheet').scrollTop = 0;
+  show('ovAnRes');
+}
+const arText = a => `${a.presetLabel || '📈 分析'}（${a.period?.label || ''}・${a.count}件）\n\n${a.text}`;
+document.getElementById('btnArCopy').onclick = async () => {
+  if (!arCur) return;
+  try { await navigator.clipboard.writeText(arText(arCur)); toast('📋 コピーしました'); }
+  catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
+};
+document.getElementById('btnArShare').onclick = () => {
+  if (!arCur) return;
+  shareTextOut('レシートの分析', arText(arCur), `receipt_analysis_${arCur.id}.txt`);
+};
+document.getElementById('btnArDelete').onclick = async () => {
+  if (!arCur || arCur.saved === false) return;
+  if (!confirm('この分析を削除しますか？（レシートは消えません）')) return;
+  await anDel(arCur.id); hide('ovAnRes'); renderAnHistory();
+};
+
+async function anRun(){
+  if (anBusy) return;
+  const { per, rows } = await anTargets();
+  if (per.bad) { toast(per.bad); return; }
+  if (!rows.length) { toast('この期間にレシートがありません（期間を変えてください）'); return; }
+  const prompt = document.getElementById('anPrompt').value.trim();
+  if (!prompt) { toast('聞きたいことを書いてください（上の型を選ぶと入ります）'); return; }
+  const ctx = ctxFor('an');
+  if (!ctx.key)   { toast(`${ctx.p.vendor} のAPIキーが未登録です（⚙ から登録してください）`); return; }
+  if (!ctx.model) { toast('分析モデルが未選択です（⚙ の「分析モデル」で選んでください）'); return; }
+
+  anBusy = true; renderAnalyze();
+  try {
+    const data = exportJson(rows, per.from, per.to);
+    const r = await ctx.p.chat(ctx, AN_SYSTEM,
+      `${prompt}\n\n--- レシートのデータ（${per.label}・${rows.length}件） ---\n${data}`, 4000);
+    const text = String(r.text || '').trim();
+    if (!text) throw new Error('AI から空の返事が返りました（別のモデルを試してください）');
+    const rec = {
+      id: 'a' + Date.now() + Math.random().toString(36).slice(2, 7), ts: Date.now(),
+      preset: anPreset, presetLabel: AN_PRESET_LABEL(anPreset), prompt,
+      period: { mode: anMode, from: per.from, to: per.to, label: per.label }, count: rows.length,
+      provider: ctx.prov, model: r.model || ctx.model, in: r.in, out: r.out, text,
+    };
+    // 「設定すれば自動で貯まる」＝保存ボタンは置かない。オフの時だけ、その場限りだと明示する
+    if (anSaveOn()) { rec.saved = true; await anPut(rec); await renderAnHistory(); }
+    else rec.saved = false;
+    openAnResult(rec);
+  } catch (err) { toast('❌ ' + (err.message || err)); }
+  finally { anBusy = false; renderAnalyze(); }
+}
+document.getElementById('btnAnRun').onclick = anRun;
+document.querySelectorAll('#anPeriodSeg button').forEach(b => b.onclick = () => {
+  const prev = anPeriod();
+  anMode = b.dataset.ap; localStorage.setItem(AN.period, anMode);
+  if (anMode === 'range' && (!anFrom || !anTo)) {
+    anFrom = prev.from || todayStr(); anTo = prev.to || todayStr();
+    localStorage.setItem(AN.from, anFrom); localStorage.setItem(AN.to, anTo);
+  }
+  renderAnalyze();
+});
+document.getElementById('anFrom').onchange = e => { anFrom = e.target.value; localStorage.setItem(AN.from, anFrom); renderAnalyze(); };
+document.getElementById('anTo').onchange   = e => { anTo   = e.target.value; localStorage.setItem(AN.to,   anTo);   renderAnalyze(); };
+document.getElementById('anPrompt').oninput = e => localStorage.setItem(AN.prompt, e.target.value);
+document.getElementById('anSaveChk').onchange = e => localStorage.setItem(AN.save, e.target.checked ? '1' : '0');
+function setAnTab(t){
+  anTab = t;
+  document.querySelectorAll('#anTabs button').forEach(b => b.classList.toggle('on', b.dataset.antab === t));
+  document.getElementById('anNewPane').hidden  = t !== 'new';
+  document.getElementById('anHistPane').hidden = t !== 'hist';
+  return t === 'hist' ? renderAnHistory() : renderAnalyze();
+}
+document.querySelectorAll('#anTabs button').forEach(b => b.onclick = () => setAnTab(b.dataset.antab));
+document.getElementById('btnAnalyze').onclick = async () => {
+  const ta = document.getElementById('anPrompt');
+  if (!ta.value) ta.value = localStorage.getItem(AN.prompt) || (AN_PRESETS.find(p => p[0] === anPreset) || [,, ''])[2] || '';
+  show('ovAnalyze');
+  await renderAnHistory();   // 履歴の件数をタブに出す（開く前から溜まっているのが見える）
+  await setAnTab(anTab);
+};
+
 /* ---------- モーダル・toast ---------- */
 function show(id){ document.getElementById(id).classList.add('on'); }
 function hide(id){ document.getElementById(id).classList.remove('on'); }
@@ -1342,14 +1776,15 @@ const isOpen = id => document.getElementById(id).classList.contains('on');
 // ⚠ 閉じるのは「いま押した画面だけ」（r11）＝統計の内訳からレシートを開いて閉じたとき、下の統計が残る
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.overlay').classList.remove('on'));
 document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('on'); }));
-document.getElementById('btnSettings').onclick = () => {
+function openSettings(){
   renderSettings();
   document.getElementById('noteStore').innerHTML = IS_NATIVE
     ? '📱 <b>アプリ版</b>で動作中＝データは端末のアプリ領域に保存され、ブラウザの自動削除の対象外です（消えるのはアプリを削除した時）。'
     : '⚠ <b>ブラウザ版</b>です。iPhone の Safari は<b>7日間サイトを開かないとデータ（キーとレシート）を消す</b>ことがあります。<b>ホーム画面に追加</b>するか、アプリ版を使ってください。';
   document.getElementById('buildLine').textContent = 'BUILD: ' + BUILD;
   show('ovSettings');
-};
+}
+document.getElementById('btnSettings').onclick = openSettings;
 document.getElementById('btnExport').onclick = () => {
   const now = new Date(), p = n => String(n).padStart(2, '0');
   const today = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
