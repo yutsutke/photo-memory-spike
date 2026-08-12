@@ -133,6 +133,23 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 .mdBody ul,.mdBody ol{margin:8px 0; padding-left:20px;}
 .mdBody li{margin:4px 0;}
 .mdBody code{background:var(--card); border-radius:4px; padding:1px 5px; font-size:13px;}
+/* 📎 いっしょに渡すもの（画像・PDF・テキスト） */
+.attBtn{display:block; text-align:center; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:12px; padding:11px; font-size:15px;}
+.attBtn input{display:none;}
+.anAtt{display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:7px 10px; margin-top:6px; font-size:13.5px;}
+.anAtt .nm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.anAtt .sz{color:var(--dim); font-size:12px; flex:none;}
+.anAtt button{flex:none; background:none; border:none; color:var(--dim); font-size:16px; padding:0 2px;}
+/* 🔎 地図の拡大表示（全画面）。⚠ Leaflet は容器の大きさが変わったら invalidateSize() が要る */
+#mapWrap{position:relative;}
+#mapWrap.full{position:fixed; inset:0; z-index:25; background:var(--bg);}
+#mapWrap.full #rmap{height:100%; border-radius:0; border:none;}
+#rmapFull{position:absolute; top:10px; right:10px; z-index:1000; width:38px; height:38px; border-radius:10px;
+          background:rgba(28,28,30,.92); border:1px solid var(--line); color:var(--fg); font-size:17px; line-height:1;}
+#mapWrap.full #rmapFull{top:calc(env(safe-area-inset-top) + 10px);}
+/* 全画面の間も凡例（分類の絞り込み）は使えるようにする＝下端に重ねる */
+#mapWrap.full ~ #smLegend{position:fixed; left:0; right:0; bottom:0; z-index:26; margin:0;
+  background:rgba(17,17,17,.94); padding:8px 10px calc(env(safe-area-inset-bottom) + 8px); justify-content:center;}
 </style>
 </head>
 <body>
@@ -241,6 +258,11 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <div class="row"><label>AIへの依頼</label>
       <textarea id="anPrompt" placeholder="例: この期間の支出で気づいたことを教えて"></textarea></div>
 
+    <div class="row"><label>📎 いっしょに渡すもの（任意）</label>
+      <label class="attBtn">📎 画像・PDF・テキストを選ぶ
+        <input type="file" id="anFiles" multiple accept="image/*,application/pdf,text/*,.csv,.tsv,.md,.json,.txt"></label>
+      <div id="anAttList"></div></div>
+
     <div class="anAi" id="anAiLine"></div>
     <label class="anChk"><input type="checkbox" id="anSaveChk"><span>結果を自動で保存する（🗂 履歴に貯まります）</span></label>
     <button class="btn pri" id="btnAnRun">▶ 分析する</button>
@@ -291,7 +313,10 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
       <button type="button" data-mt="count">回数</button>
     </div>
     <div class="smLegend" id="smBase"></div>
-    <div id="rmap"></div>
+    <div id="mapWrap">
+      <div id="rmap"></div>
+      <button id="rmapFull" title="大きく表示">⛶</button>
+    </div>
     <div id="smLegend" class="smLegend"></div>
     <div id="smBody"></div>
   </div>
@@ -326,7 +351,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r15 📈分析＝期間を決めて溜まったレシートをまとめてAIに読ませる（写真の読み取りとは別のAI・別モデルを選べる／聞きかたは型を選ぶか自由に書く／結果は自動保存で🗂履歴に貯まる）｜r14 🍎iPhone版の足場＋Codemagic で TestFlight（web は無改修・TestFlight 到達を確認）｜r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい）＋期間に 今日/今週/期間を選ぶ を追加（統計・マップ共通）｜r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ｜r11 📊統計（期間＝月/年/全期間・分類・お店2段・推移）＝レシートだけで完結・収入は混ぜない · 2026-08-12';
+const BUILD = 'r16 🩺聞きかたの型を「食費をくわしく」→「健康の面から」に差し替え＋📎画像/PDF/テキストを依頼に一緒に渡せる＋⛶支出マップを全画面で見られる｜r15 📈分析＝期間を決めて溜まったレシートをまとめてAIに読ませる（写真の読み取りとは別のAI・別モデルを選べる／型を選ぶか自由に書く／結果は自動保存で🗂履歴に貯まる）｜r14 🍎iPhone版の足場＋Codemagic で TestFlight（web は無改修・TestFlight 到達を確認）｜r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい）＋期間に 今日/今週/期間を選ぶ を追加｜r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ · 2026-08-12';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -515,6 +540,7 @@ const AN_SYSTEM = `あなたは家計の相談相手。渡されたレシート�
 - 集計値は入っていない。合計・平均・割合は自分で数えて計算する。
 - store が店名・branch が支店。同じ店が少し違う書き方で入っていることがある（写真の読み違い）ので、明らかに同じ店はまとめて数える。
 - date が null のレシートは、日付が要る話からは外す。
+- 画像・PDF・テキストが一緒に添付されていることがある。その時はレシートのデータと突き合わせて読む（レシートだけでは分からない事情がそこにある）。
 
 書き方:
 - 見出し（##）・箇条書き（-）・太字（**）だけを使う。表・コードブロックは使わない。
@@ -522,6 +548,12 @@ const AN_SYSTEM = `あなたは家計の相談相手。渡されたレシート�
 - データから分からないことは、分からないと書く。推測を事実のように書かない。
 - 説教しない・決めつけない。事実と、本人がこれから選べることを短く。
 - 全体で 800 字程度まで。`;
+
+/* 添付が無い時は content を「ただの文字列」で送る（r16）。
+   ⚠ 部品の配列は画像/PDF を混ぜるための形。文字だけの時まで配列にすると、r10 で間口を広げた
+     「OpenAI 互換の別サービス」の一部が受け付けない（文字列しか想定していない実装がある）。
+     添付という新機能のために、添付を使わない人の道を狭めない。 */
+const onlyText = parts => (parts.length === 1 && parts[0].kind === 'text') ? parts[0].text : null;
 
 /* ---------- どのAIを使うか（r9） ----------
    増やす時はここに1つ足すだけ。約束は2つ:
@@ -558,10 +590,14 @@ const PROVIDERS = {
                model: res.model, in: res.usage?.input_tokens, out: res.usage?.output_tokens };
     },
     // 📈 分析＝考えさせる用途なので effort は指定しない（読み取りの low は「型に嵌めるだけ」だから効いていた）
-    async chat(ctx, system, user, maxTokens){
+    async chat(ctx, system, parts, maxTokens){
+      const content = onlyText(parts) || parts.map(p =>
+          p.kind === 'image' ? { type: 'image',    source: { type: 'base64', media_type: p.mime, data: p.b64 } }
+        : p.kind === 'pdf'   ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.b64 } }
+        : { type: 'text', text: p.text });
       const res = await apiFetch(ctx, '/messages', { method: 'POST', body: {
         model: ctx.model, max_tokens: maxTokens, system,
-        messages: [{ role: 'user', content: [{ type: 'text', text: user }] }],
+        messages: [{ role: 'user', content }],
       }});
       if (res.stop_reason === 'refusal') throw new Error('AI が回答を拒否しました');
       return { text: (res.content || []).filter(b => b.type === 'text').map(b => b.text).join(''),
@@ -621,10 +657,17 @@ function openAICompatible(o){
       throw lastErr;
     },
     // 📈 分析＝ふつうの chat（JSONを強いない＝型指定の3段構えは要らない）
-    async chat(ctx, system, user, maxTokens){
+    async chat(ctx, system, parts, maxTokens){
+      // ⚠ PDF は OpenAI 互換の入口ごとに扱いが違う（受け取れないところもある）＝黙って落とさずに断る
+      const content = onlyText(parts) || parts.map(p => {
+        if (p.kind === 'pdf') throw new Error(`${o.label} には PDF を渡せません（${p.name}）。Claude を選ぶか、PDF を画像にして渡してください`);
+        return p.kind === 'image'
+          ? { type: 'image_url', image_url: { url: `data:${p.mime};base64,${p.b64}`, detail: 'high' } }
+          : { type: 'text', text: p.text };
+      });
       const res = await apiFetch(ctx, '/chat/completions', { method: 'POST', body: {
         model: ctx.model, [o.tokenParam || 'max_tokens']: maxTokens,
-        messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+        messages: [{ role: 'system', content: system }, { role: 'user', content }],
       }});
       const msg = res.choices?.[0]?.message || {};
       if (msg.refusal) throw new Error('AI が回答を拒否しました: ' + msg.refusal);
@@ -1225,6 +1268,7 @@ function setTab(t){
   document.getElementById('stHead').textContent = t === 'map' ? '💴 支出マップ' : '📊 統計';
   document.getElementById('stBody').hidden = t !== 'stats';
   document.getElementById('mapPane').hidden = t !== 'map';
+  if (t !== 'map') setMapFull(false); // 📊 に戻ったのに全画面が残っていると、次に 💴 を開いた時いきなり全画面になる
   renderTab();
 }
 document.querySelectorAll('#stTabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
@@ -1245,6 +1289,7 @@ document.getElementById('btnStats').onclick = async () => {
     const d = rows.length ? rows[0].date : todayStr();
     stY = +d.slice(0, 4); stM = +d.slice(5, 7); stDay = d;
   }
+  setMapFull(false); // 開き直したら等倍から（前回の全画面を引きずらない）
   show('ovStats'); setTab(stTab);
 };
 
@@ -1436,6 +1481,18 @@ async function renderSpendMap(){
   } else html = `<div class="stEmpty">すべての店に場所が入っています（${pinned.length}軒）。</div>`;
   document.getElementById('smBody').innerHTML = html;
 }
+/* ⛶ 地図の拡大表示（全画面）。スマホでは 46vh だと店が重なって読めない、が動機。
+   ⚠ Leaflet は容器の大きさが変わっても自分では気づかない＝invalidateSize() を必ず呼ぶ（呼ばないと
+      タイルが元の大きさのまま貼られて、右下や下端が灰色に残る）。 */
+function setMapFull(on){
+  const w = document.getElementById('mapWrap');
+  w.classList.toggle('full', on);
+  document.getElementById('rmapFull').textContent = on ? '✕' : '⛶';
+  document.getElementById('rmapFull').title = on ? '元に戻す' : '大きく表示';
+  if (smMap) smMap.invalidateSize();
+}
+document.getElementById('rmapFull').onclick = () =>
+  setMapFull(!document.getElementById('mapWrap').classList.contains('full'));
 document.querySelectorAll('#smMetricSeg button').forEach(b => b.onclick = () => { smMetric = b.dataset.mt; renderSpendMap(); });
 document.getElementById('smLegend').addEventListener('click', e => {
   const b = e.target.closest('[data-lg]'); if (!b) return;
@@ -1543,17 +1600,21 @@ async function geocodeAll(){
 const AN_PRESETS = [
   ['review', '📊 ふりかえり',   'この期間の支出をふりかえって。目立つ特徴、前と比べて変わった点、気づいたことを3〜5個あげて。'],
   ['save',   '💡 節約のヒント', '減らせそうな支出を、無理のない順に3つ。それぞれ「いま いくら使っているか」と「次に何をすればいいか」を具体的に。'],
-  ['food',   '🍚 食費をくわしく','食費と外食を分けて詳しく。1回あたりの金額・回数・よく買っているもの。自炊と外食の割合も。'],
+  // r16: 「🍚 食費をくわしく」から差し替え（金額の話は 📊 統計で見えるので、AI には数えられない側を聞く）
+  ['health', '🩺 健康の面から', '買っているものから、食生活について健康の面で気づくことを教えて。栄養の偏り・よく買っているもの・続けられている良い点も。医者の代わりではないので断定はしないで、気になる点は受診の目安として書いて。'],
   ['store',  '🏪 お店のくせ',   'よく行くお店と、そこでの使い方の傾向を教えて。同じような物を別の店で買っている、といった無駄があれば指摘して。'],
   ['memo',   '🧾 月次メモ',     '家計簿に残す月次コメントを、事実ベースで200字程度で書いて。数字は正確に。'],
   ['free',   '✍️ 自由に書く',   ''],
 ];
 const AN_PRESET_LABEL = id => (AN_PRESETS.find(p => p[0] === id) || [, '📈 分析'])[1];
+const AN_PRESET_TEXT  = id => (AN_PRESETS.find(p => p[0] === id) || [,, ''])[2] || '';
 const isPresetText = t => AN_PRESETS.some(p => p[2] && p[2] === t);
 
 let anMode   = localStorage.getItem(AN.period) || 'month';
 let anFrom   = localStorage.getItem(AN.from) || '', anTo = localStorage.getItem(AN.to) || '';
+// ⚠ 型を入れ替えると、端末に覚えている id が無くなることがある（r16 で food→health）＝先頭に戻す
 let anPreset = localStorage.getItem(AN.preset) || 'review';
+if (!AN_PRESETS.some(p => p[0] === anPreset)) anPreset = AN_PRESETS[0][0];
 let anTab    = 'new';
 let anBusy   = false;
 let arCur    = null;   // いま結果画面に出している分析（履歴から開いた / いま実行した）
@@ -1577,6 +1638,46 @@ function anPeriod(){
   }
   return { from: `${y}-${pad2(m)}-01`, to: `${y}-${pad2(m)}-${lastDay(y, m)}`, label: `${y}年${m}月（今月）` };
 }
+/* 📎 いっしょに渡すもの（r16）。レシートの数字だけでは分からない話（健康診断の結果・献立の写真・別表）を
+   同じ依頼に混ぜられるようにする。⚠ 添付そのものは保存しない（一度きりの材料・DB を重くしない）＝
+   履歴に残すのは「何を付けたか」の名前だけ。 */
+let anAtt = [];
+const attKb = n => n < 1024 ? n + 'B' : n < 1024 * 1024 ? Math.round(n / 1024) + 'KB' : (n / 1048576).toFixed(1) + 'MB';
+function attKind(f){
+  const t = (f.type || '').toLowerCase(), n = (f.name || '').toLowerCase();
+  if (t.startsWith('image/')) return 'image';
+  if (t === 'application/pdf' || n.endsWith('.pdf')) return 'pdf';
+  if (t.startsWith('text/') || /\.(txt|csv|tsv|md|json|log)$/.test(n)) return 'text';
+  return null;
+}
+async function anAddFiles(files){
+  for (const f of files) {
+    const kind = attKind(f);
+    if (!kind) { toast(`${f.name} は渡せない種類です（画像・PDF・テキストのみ）`); continue; }
+    try {
+      if (kind === 'image') {
+        // 1568px＝vision が見る大きさの目安。レシート本体（2576px）と違い「印字を読む」用途ではないので上げない
+        const small = await downscale(f, 1568, 0.85);
+        anAtt.push({ name: f.name, kind, mime: 'image/jpeg', size: small.size, b64: await blobToB64(small) });
+      } else if (kind === 'pdf') {
+        anAtt.push({ name: f.name, kind, mime: 'application/pdf', size: f.size, b64: await blobToB64(f) });
+      } else {
+        anAtt.push({ name: f.name, kind, mime: f.type || 'text/plain', size: f.size, text: await f.text() });
+      }
+    } catch (err) { toast(`${f.name} を読めませんでした: ${err.message || err}`); }
+  }
+  renderAnalyze();
+}
+document.getElementById('anFiles').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  try { await anAddFiles(files); }
+  finally { e.target.value = ''; } // iOS の教訓: await の前に消さない
+});
+document.getElementById('anAttList').addEventListener('click', e => {
+  const b = e.target.closest('[data-attx]'); if (!b) return;
+  anAtt.splice(+b.dataset.attx, 1); renderAnalyze();
+});
+
 async function anTargets(){
   const per = anPeriod();
   if (per.bad) return { per, rows: [] };
@@ -1623,8 +1724,18 @@ async function renderAnalyze(){
     cnt.innerHTML = !rows.length
       ? `<b>${esc(per.label)}</b>：この期間にレシートがありません`
       : `<b>${esc(per.label)}</b>：${rows.length}件${spend ? ' ・ 支出 ' + yen(spend) : ''} ・ 送るデータ 約${chars.toLocaleString('ja-JP')}文字`
+        + (anAtt.length ? ` ＋ 📎${anAtt.length}件` : '')
         + (chars > 150000 ? '<br><span style="color:var(--err)">⚠ 量が多いので、期間を狭めるか料金にご注意を（モデルによっては上限を超えます）</span>' : '');
   }
+
+  // 📎 添付の一覧（✕ で外せる）
+  const attTotal = anAtt.reduce((s, a) => s + (a.size || 0), 0);
+  document.getElementById('anAttList').innerHTML = anAtt.map((a, i) =>
+    `<div class="anAtt"><span>${a.kind === 'image' ? '🖼' : a.kind === 'pdf' ? '📄' : '📝'}</span>
+      <span class="nm">${esc(a.name)}</span><span class="sz">${attKb(a.size || 0)}</span>
+      <button data-attx="${i}" title="外す">✕</button></div>`).join('')
+    + (anAtt.length ? `<div class="note" style="margin-top:6px">添付そのものは<b>保存しません</b>（履歴には名前だけ残ります）。${
+        attTotal > 8 * 1024 * 1024 ? '<br><span style="color:var(--err)">⚠ 合計が大きいので、AI に断られることがあります</span>' : ''}</div>` : '');
 
   // 型（プリセット）
   const seg = document.getElementById('anPresetSeg');
@@ -1632,7 +1743,7 @@ async function renderAnalyze(){
     seg.innerHTML = AN_PRESETS.map(([id, label]) => `<button type="button" data-ap2="${id}">${label}</button>`).join('');
     seg.querySelectorAll('button').forEach(b => b.onclick = () => {
       anPreset = b.dataset.ap2; localStorage.setItem(AN.preset, anPreset);
-      const ta = document.getElementById('anPrompt'), text = (AN_PRESETS.find(p => p[0] === anPreset) || [,, ''])[2];
+      const ta = document.getElementById('anPrompt'), text = AN_PRESET_TEXT(anPreset);
       // ✍️自由：本人が書いた文は消さない（型の文そのままの時だけ空にする）
       if (text || isPresetText(ta.value.trim()) || !ta.value.trim()) ta.value = text;
       localStorage.setItem(AN.prompt, ta.value);
@@ -1685,6 +1796,7 @@ function openAnResult(a){
     `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
     + ` ・ 対象 ${a.count}件 ・ ${a.model || ''}`
     + (a.in != null ? ` / in ${a.in} · out ${a.out} tokens` : '')
+    + (a.attachments?.length ? ` ・ 📎 ${a.attachments.map(f => f.name).join(' / ')}` : '')
     + (a.saved === false ? ' ・ ⚠ 保存していません（この画面を閉じると消えます）' : '');
   document.getElementById('arBody').innerHTML = mdToHtml(a.text);
   document.getElementById('arPrompt').textContent = a.prompt || '';
@@ -1722,14 +1834,24 @@ async function anRun(){
   anBusy = true; renderAnalyze();
   try {
     const data = exportJson(rows, per.from, per.to);
-    const r = await ctx.p.chat(ctx, AN_SYSTEM,
-      `${prompt}\n\n--- レシートのデータ（${per.label}・${rows.length}件） ---\n${data}`, 4000);
+    // ⚠ 並びは「添付 → 依頼文＋データ」。長い材料を先に置き、聞きたいことを最後にする方が読み違いが少ない
+    const parts = [];
+    for (const a of anAtt) {
+      if (a.kind === 'text') parts.push({ kind: 'text', text: `--- 添付ファイル: ${a.name} ---\n${a.text}` });
+      else parts.push({ kind: a.kind, mime: a.mime, b64: a.b64, name: a.name });
+    }
+    const attNote = anAtt.length ? `\n（添付: ${anAtt.map(a => a.name).join(' / ')}）` : '';
+    parts.push({ kind: 'text', text: `${prompt}${attNote}\n\n--- レシートのデータ（${per.label}・${rows.length}件） ---\n${data}` });
+
+    const r = await ctx.p.chat(ctx, AN_SYSTEM, parts, 4000);
     const text = String(r.text || '').trim();
     if (!text) throw new Error('AI から空の返事が返りました（別のモデルを試してください）');
     const rec = {
       id: 'a' + Date.now() + Math.random().toString(36).slice(2, 7), ts: Date.now(),
       preset: anPreset, presetLabel: AN_PRESET_LABEL(anPreset), prompt,
       period: { mode: anMode, from: per.from, to: per.to, label: per.label }, count: rows.length,
+      // 添付の中身は保存しない（名前だけ）＝何を見せた上での答えかは残るが、DB は重くならない
+      attachments: anAtt.map(a => ({ name: a.name, kind: a.kind })),
       provider: ctx.prov, model: r.model || ctx.model, in: r.in, out: r.out, text,
     };
     // 「設定すれば自動で貯まる」＝保存ボタンは置かない。オフの時だけ、その場限りだと明示する
@@ -1763,7 +1885,7 @@ function setAnTab(t){
 document.querySelectorAll('#anTabs button').forEach(b => b.onclick = () => setAnTab(b.dataset.antab));
 document.getElementById('btnAnalyze').onclick = async () => {
   const ta = document.getElementById('anPrompt');
-  if (!ta.value) ta.value = localStorage.getItem(AN.prompt) || (AN_PRESETS.find(p => p[0] === anPreset) || [,, ''])[2] || '';
+  if (!ta.value) ta.value = localStorage.getItem(AN.prompt) || AN_PRESET_TEXT(anPreset);
   show('ovAnalyze');
   await renderAnHistory();   // 履歴の件数をタブに出す（開く前から溜まっているのが見える）
   await setAnTab(anTab);
