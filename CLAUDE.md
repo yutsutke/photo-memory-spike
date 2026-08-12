@@ -108,6 +108,8 @@ receipt-spike/          # 🧾 別プロダクト「レシート」の spike (�
 
 理由: spike を GitHub Pages (`https://yutsutke.github.io/photo-memory-spike/`) で実機 (iPhone Safari) 確認する運用。push されないとスマホで触れない = push がワークフローの一部。
 
+**作業ブランチを指定された場合 (Claude Code on the web / リモートセッション) も、指定が無ければ main へのマージまで済ませる** (2026-08-12 ユーザー指示)。理由は上と同じで、**GitHub Pages は main 配信**なのでマージしないとスマホで確認できず、ワークフローが途中で止まる。作業ブランチへ push → main へ fast-forward マージ → 両方 push、まで一気通貫でやる。
+
 順序:
 1. TODO.md / CHANGELOG.md 更新 (上述の必須ルール)
 2. BUILD バージョン文字列を上げる (上述)
