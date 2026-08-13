@@ -276,9 +276,11 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <div class="row"><label>AIへの依頼</label>
       <textarea id="anPrompt" placeholder="例: この期間の支出で気づいたことを教えて"></textarea></div>
 
-    <div class="row"><label>📎 いっしょに渡すもの（任意）</label>
+    <!-- ⚠ 「渡す」だけだと AI が読むのかが伝わらない＝実装はあるのに気付かれなかった（r24 で言い直し） -->
+    <div class="row"><label>📎 AI にいっしょに読ませるもの（任意）</label>
       <label class="attBtn">📎 画像・PDF・テキストを選ぶ
         <input type="file" id="anFiles" multiple accept="image/*,application/pdf,text/*,.csv,.tsv,.md,.json,.txt"></label>
+      <div class="note" style="margin-top:6px">健康診断の結果・献立の写真・食事のメモなど。<b>レシートのデータと突き合わせて</b>読みます（レシートだけでは分からない事情を渡せます）。</div>
       <div id="anAttList"></div></div>
 
     <div class="anAi" id="anAiLine"></div>
@@ -418,7 +420,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r23 📍場所が入らない時に理由が分かるように＝番地で駄目なら町名まで落として探す・全角ハイフンの取りこぼしを修正・見つからなかった店は💴に理由を表示・🔎は覚えている結果を無視して探し直す・届かない時は黙らず知らせる｜🗂分析の履歴を選んで（またはすべて）まとめて書き出せる｜r22 🧮税と数量を正しく持つ＝明細は税抜・合計は税込で混ざっていたのを、税率(8/10%)・消費税・値引き・単価まで読み取って区別。price は「その行の合計」に統一（qtyを掛けない）。数字が合わないレシートに ⚠要確認 を出す｜r21 ⏱日付のUTCずれを修正＝日付が印字されていないレシートが1日ずれていた（朝9時前に撮った分）＋書き出しの時刻に+09:00を付与＋🔑1枚の写真から複数レシートを切り出した時に一意なレシートIDを振る（photo_idだけでは重複）｜r20 📍レシートの印字住所から自動でお店の場所を決める＝撮るだけで💴支出マップに出る（⚙で切れる・手で置いた位置は上書きしない・見つからない住所は覚えて送り直さない）｜r19 ✏️レシートの内容を手で直せる（店名/日付/合計/分類/住所/登録番号/品目・読み取りに失敗した写真も手入力で登録できる・🔁再分析は手直しを上書きする前に確認） · 2026-08-13';
+const BUILD = 'r24 🧾税込・税抜が混ざる問題＝AIの判定に頼らず「数字の方から」見分ける（考えられる読み方を全部試して合計に合うものを採る・どれも合わなければ⚠）＋📎の言い方を「AIにいっしょに読ませるもの」に直しPDFは選んだ時点で可否が分かるように｜r23 📍場所が入らない時に理由が分かるように＝番地で駄目なら町名まで落として探す・全角ハイフンの取りこぼしを修正・見つからなかった店は💴に理由を表示・🔎は覚えている結果を無視して探し直す・届かない時は黙らず知らせる｜🗂分析の履歴を選んで（またはすべて）まとめて書き出せる｜r22 🧮税と数量を正しく持つ＝明細は税抜・合計は税込で混ざっていたのを、税率(8/10%)・消費税・値引き・単価まで読み取って区別。price は「その行の合計」に統一（qtyを掛けない）。数字が合わないレシートに ⚠要確認 を出す｜r21 ⏱日付のUTCずれを修正＝日付が印字されていないレシートが1日ずれていた（朝9時前に撮った分）＋書き出しの時刻に+09:00を付与＋🔑1枚の写真から複数レシートを切り出した時に一意なレシートIDを振る（photo_idだけでは重複）｜r20 📍レシートの印字住所から自動でお店の場所を決める＝撮るだけで💴支出マップに出る（⚙で切れる・手で置いた位置は上書きしない・見つからない住所は覚えて送り直さない） · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -611,7 +613,7 @@ const OCR_RULES = `あなたはレシート読み取りの専門家。写真に�
   ⚠ price に qty を掛けないこと（price はすでに掛けたあとの金額）。単価の印字が無ければ unit_price は null、個数の印字が無ければ qty は null。
 - tax_rate はその品目の消費税率（8 または 10 の整数）。日本では 8%（軽減税率）と 10% が混在する。軽減税率の印（※・軽・＊ など、レシート下部に凡例がある）が付いていれば 8、付いていなければそのレシートの標準税率。判断できなければ null。
 - 値引き・割引の行は items に入れず、その合計額を discount に**正の数**で入れる（印字が無ければ null）。
-- price_incl_tax: 明細の金額が税込なら true、税抜（本体価格）なら false。「税抜」「本体価格」の断りや、小計＋消費税＝合計 の関係から判断する。分からなければ null。
+- price_incl_tax: 明細の金額が税込なら true、税抜（本体価格）なら false。「税抜」「本体価格」の断りが**はっきり印字されている時だけ**入れる。⚠ **分からなければ無理に決めず null にする**（アプリ側が明細と合計の数字から見分けるので、当てずっぽうの true/false はかえって邪魔になる）。
 - total_excl_tax（税抜合計・小計）と tax（消費税額の合計）は、**印字があればそのまま**入れる。印字が無ければ null。⚠ 自分で計算して埋めないこと（あとで数字が合っているかを確かめるのに使うので、計算で埋めると確かめられなくなる）。
 - 店名はチェーン名（例: セブン-イレブン）、支店名は branch に分ける。
 - category は内容から最も近いものを選ぶ。返金・受け取りなら kind を income に。
@@ -883,21 +885,49 @@ const capDate = r => ymdLocal(new Date(r.ts));
      (2) **合わなければ知らせる**。⚠ 数字を勝手に直さない（原本はレシートであってアプリではない）。
    ⚠ 材料が足りない時は「合わない」ではなく「検算しない」。読めなかっただけの物を
       間違い扱いすると、⚠ が出っぱなしになって誰も見なくなる。 */
-function checkTotals(rc){
+/* ⚠ r24 で作り直し。実データで「**個別に消費税が含まれているレシートと、含まれていないレシートが
+      混ざる**」ことが分かった（外税のスーパーと内税のコンビニ）。方式はレシートごとに違う。
+   ⚠ しかも **AI の判定（price_incl_tax）は当てにならない**＝「税抜」「本体価格」の断りは
+      店ごとに書き方が違い、書いていないレシートも多い。
+   → **数字の方から決める**。考えられる読み方を全部試して、合計に合うものを採る。
+     合うものが1つも無ければ ⚠（そこで初めて人に聞く）。 */
+function totalCandidates(rc){
   const all = rc.items || [];
   const items = all.filter(it => it.price != null);
-  if (!items.length || items.length !== all.length) return null;   // 読めていない行がある＝検算しない
-  const sum = items.reduce((a, it) => a + it.price, 0);            // ⚠ qty は掛けない（price は行の合計）
+  if (!items.length || items.length !== all.length) return [];   // 読めていない行がある＝検算しない
+  const sum = items.reduce((a, it) => a + it.price, 0);          // ⚠ qty は掛けない（price は行の合計）
   const disc = rc.discount || 0;
-  let calc = null, how = '', tol = 2;                              // 端数まるめの1〜2円は許す
-  if (rc.price_incl_tax === true)   { calc = sum - disc; how = '明細(税込) − 値引き'; }
-  else if (rc.tax != null)          { calc = sum - disc + rc.tax; how = '明細(税抜) − 値引き ＋ 消費税'; }
-  else if (rc.price_incl_tax === false && items.every(it => it.tax_rate)) {
-    calc = Math.round(items.reduce((a, it) => a + it.price * (1 + it.tax_rate / 100), 0)) - disc;
-    how = '明細(税抜) × 税率 − 値引き'; tol = Math.max(2, items.length);  // 品目ごとに端数が出る分ゆるめる
+  const out = [{ incl: true, calc: sum - disc, how: '明細(税込) − 値引き', tol: 2 }];  // 端数まるめの1〜2円は許す
+  // 消費税額が印字されていない時も、税抜合計と合計の差から出せる
+  const tax = rc.tax != null ? rc.tax
+            : (rc.total_excl_tax != null && rc.total != null) ? rc.total - rc.total_excl_tax : null;
+  if (tax != null) out.push({ incl: false, calc: sum - disc + tax, how: '明細(税抜) − 値引き ＋ 消費税', tol: 2 });
+  if (items.every(it => it.tax_rate))
+    out.push({ incl: false, calc: Math.round(items.reduce((a, it) => a + it.price * (1 + it.tax_rate / 100), 0)) - disc,
+               how: '明細(税抜) × 税率 − 値引き', tol: Math.max(2, items.length) });  // 品目ごとに端数が出る分ゆるめる
+  return out;
+}
+function checkTotals(rc){
+  if (rc.total == null) return null;
+  const cands = totalCandidates(rc);
+  if (!cands.length) return null;
+  const hit = cands.filter(c => Math.abs(rc.total - c.calc) <= c.tol);
+  const stated = typeof rc.price_incl_tax === 'boolean' ? rc.price_incl_tax : null;
+  if (!hit.length) {   // どの読み方でも合わない＝いちばん近いものを差として見せる
+    const near = cands.reduce((a, c) => Math.abs(rc.total - c.calc) < Math.abs(rc.total - a.calc) ? c : a);
+    return { ok: false, how: near.how, calc: near.calc, diff: rc.total - near.calc };
   }
-  if (calc == null) return null;
-  return { ok: Math.abs(rc.total - calc) <= tol, sum, calc, diff: rc.total - calc, how };
+  // 合うものが複数ある時は、印字の言い分を優先（数字だけでは区別が付かない＝どちらでも辻褄は合う）
+  const best = hit.find(c => c.incl === stated) || hit[0];
+  return { ok: true, incl: best.incl, how: best.how,
+           by: stated === null ? '数字から' : best.incl === stated ? '印字から' : '数字から（印字と食い違い）' };
+}
+// このレシートの明細が税込か税抜か。数字で決まればそれ、決まらなければ印字の言い分（無ければ null）
+function inclTaxOf(rc){
+  const c = checkTotals(rc);
+  if (c && c.ok) return { v: c.incl, by: c.by };
+  if (typeof rc.price_incl_tax === 'boolean') return { v: rc.price_incl_tax, by: '印字から' };
+  return null;
 }
 // 単価×個数が行の合計に合わない品目（実データ: qty=2 なのに price は行の合計、という取り違え）
 const badQtyItems = rc => (rc.items || []).filter(it =>
@@ -992,7 +1022,8 @@ async function openDetail(id){
         + kv('うち税抜', d.total_excl_tax != null ? yen(d.total_excl_tax) : null)
         + kv('消費税', d.tax != null ? yen(d.tax) : null)
         + kv('値引き', d.discount != null ? '−' + yen(d.discount) : null)
-        + kv('明細の金額', d.price_incl_tax == null ? null : d.price_incl_tax ? '税込' : '税抜（本体価格）')
+        + kv('明細の金額', (() => { const t = inclTaxOf(d);   // 数字で見分けた結果と、その判断の根拠を出す（r24）
+              return t ? `${t.v ? '税込' : '税抜（本体価格）'}（${t.by}）` : null; })())
         + kv('カテゴリ', d.category) + kv('支払', d.payment) + kv('住所', d.address)
         + kv('登録番号', d.regno)
         + (d.items?.length ? '<table class="items">' + d.items.map(it =>
@@ -1834,7 +1865,9 @@ async function renderSpendMap(){
         autoGeoOn() ? '' : '<br>⚠ ⚙ の「<b>印字住所から自動で場所を決める</b>」は<b>オフ</b>です。'}</div>
       ${withAddr ? `<button class="btn" id="btnGeoAll">🔎 住所のある ${withAddr}軒 をもう一度探す</button>` : ''}`;
     unset.forEach(s => {
-      const why = !s.addr ? '住所なし' : s.src === 'geofail' ? '🔎 住所では見つかりませんでした' : '🔎 これから探します';
+      const why = !s.addr ? '住所なし・タップして地図で置く（✏️ で住所を入れても入ります）'
+                : s.src === 'geofail' ? '🔎 住所では見つかりませんでした・タップして地図で置く'
+                : '🔎 これから探します';
       html += `<div class="stRow" data-fix="${esc(s.key)}"><span class="dot" style="background:${catColor(s.cat)}"></span>
         <span class="nm">${esc(s.name)} <small style="color:var(--dim)">${why}</small></span>
         <span class="pct">${s.n}回</span><span class="val">${yen(s.yen)}</span></div>`;
@@ -2146,7 +2179,10 @@ async function renderAnalyze(){
     `<div class="anAtt"><span>${a.kind === 'image' ? '🖼' : a.kind === 'pdf' ? '📄' : '📝'}</span>
       <span class="nm">${esc(a.name)}</span><span class="sz">${attKb(a.size || 0)}</span>
       <button data-attx="${i}" title="外す">✕</button></div>`).join('')
-    + (anAtt.length ? `<div class="note" style="margin-top:6px">添付そのものは<b>保存しません</b>（履歴には名前だけ残ります）。${
+    + (anAtt.length ? `<div class="note" style="margin-top:6px">この ${anAtt.length}件を<b>依頼といっしょに AI へ送ります</b>（添付そのものは<b>保存しません</b>＝履歴には名前だけ残ります）。${
+        // ⚠ PDF は Claude だけ。▶ を押してから断られるのではなく、選んだ時点で分かるようにする（r24）
+        anAtt.some(a => a.kind === 'pdf') && anProv() !== 'anthropic'
+          ? `<br><span style="color:var(--err)">⚠ PDF は <b>Claude</b> にしか渡せません（いまの分析AIは ${esc(provOf(anProv()).label)}）。⚙ で Claude を選ぶか、画像にしてから渡してください</span>` : ''}${
         attTotal > 8 * 1024 * 1024 ? '<br><span style="color:var(--err)">⚠ 合計が大きいので、AI に断られることがあります</span>' : ''}</div>` : '');
 
   // 型（プリセット）
