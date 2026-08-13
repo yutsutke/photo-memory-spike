@@ -351,7 +351,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r16 🩺聞きかたの型を「食費をくわしく」→「健康の面から」に差し替え＋📎画像/PDF/テキストを依頼に一緒に渡せる＋⛶支出マップを全画面で見られる｜r15 📈分析＝期間を決めて溜まったレシートをまとめてAIに読ませる（写真の読み取りとは別のAI・別モデルを選べる／型を選ぶか自由に書く／結果は自動保存で🗂履歴に貯まる）｜r14 🍎iPhone版の足場＋Codemagic で TestFlight（web は無改修・TestFlight 到達を確認）｜r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい）＋期間に 今日/今週/期間を選ぶ を追加｜r12 💴支出マップ（店ごとに1ピン・大きさ=金額/回数・色=分類・凡例で絞り込み）＋店舗マスタ · 2026-08-12';
+const BUILD = 'r17 ⏳返事が途中で切れる件に対処＝📈分析の上限を8000に（今どきのモデルは「考えた分＋返事」で上限を使う）・切れた時は「上限に達した」と分かる文言＋本文に注記（📷読み取りも同様）｜r16 🩺聞きかたの型を「食費をくわしく」→「健康の面から」に差し替え＋📎画像/PDF/テキストを依頼に一緒に渡せる＋⛶支出マップを全画面で見られる｜r15 📈分析＝期間を決めて溜まったレシートをまとめてAIに読ませる（写真の読み取りとは別のAI・別モデルを選べる／型を選ぶか自由に書く／結果は自動保存で🗂履歴に貯まる）｜r14 🍎iPhone版の足場＋Codemagic で TestFlight（web は無改修・TestFlight 到達を確認）｜r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい）＋期間に 今日/今週/期間を選ぶ を追加 · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -486,6 +486,12 @@ async function apiFetch(ctx, path, { method = 'GET', body = null } = {}){
   return res.json();
 }
 
+/* 返事が「上限で途中で切れた」か（r17）。
+   ⚠ 今どきのモデルは考えてから答えるので、max_tokens は「考えた分＋返事」の合計を縛る。
+     使い切ると返事が空のまま返ってくる＝「モデルが悪い」ように見えて実は上限の問題なので、区別して伝える。
+     Anthropic は stop_reason='max_tokens' / OpenAI互換は finish_reason='length'。 */
+const isCut = s => s === 'max_tokens' || s === 'length';
+
 const NULLABLE = t => ({ anyOf: [{ type: t }, { type: 'null' }] });
 // カテゴリはライフログ(owntracks-supabase-notion)の transactions と同一セット＝将来のデータ受け渡しでマッピング不要
 const CATS = ['食費','外食','日用品','交通','医療','衣類','娯楽','その他'];
@@ -587,6 +593,7 @@ const PROVIDERS = {
       }});
       if (res.stop_reason === 'refusal') throw new Error('AI が分析を拒否しました（画像を確認してください）');
       return { text: (res.content || []).filter(b => b.type === 'text').map(b => b.text).join(''),
+               stop: res.stop_reason,
                model: res.model, in: res.usage?.input_tokens, out: res.usage?.output_tokens };
     },
     // 📈 分析＝考えさせる用途なので effort は指定しない（読み取りの low は「型に嵌めるだけ」だから効いていた）
@@ -601,6 +608,7 @@ const PROVIDERS = {
       }});
       if (res.stop_reason === 'refusal') throw new Error('AI が回答を拒否しました');
       return { text: (res.content || []).filter(b => b.type === 'text').map(b => b.text).join(''),
+               stop: res.stop_reason,
                model: res.model, in: res.usage?.input_tokens, out: res.usage?.output_tokens };
     },
     test: ctx => apiFetch(ctx, '/messages/count_tokens', { method: 'POST',
@@ -647,7 +655,8 @@ function openAICompatible(o){
           const msg = res.choices?.[0]?.message || {};
           if (msg.refusal) throw new Error('AI が分析を拒否しました: ' + msg.refusal);
           localStorage.setItem(LS.fmt(ctx.prov), name);
-          return { text: msg.content || '', model: res.model, in: res.usage?.prompt_tokens, out: res.usage?.completion_tokens };
+          return { text: msg.content || '', stop: res.choices?.[0]?.finish_reason,
+                   model: res.model, in: res.usage?.prompt_tokens, out: res.usage?.completion_tokens };
         } catch (err) {
           lastErr = err;
           // 「その頼み方は使えない」系だけ次の形へ。キー無効・レート制限・拒否はそこで終わり
@@ -671,7 +680,8 @@ function openAICompatible(o){
       }});
       const msg = res.choices?.[0]?.message || {};
       if (msg.refusal) throw new Error('AI が回答を拒否しました: ' + msg.refusal);
-      return { text: msg.content || '', model: res.model, in: res.usage?.prompt_tokens, out: res.usage?.completion_tokens };
+      return { text: msg.content || '', stop: res.choices?.[0]?.finish_reason,
+               model: res.model, in: res.usage?.prompt_tokens, out: res.usage?.completion_tokens };
     },
     test: ctx => apiFetch(ctx, '/models'), // 無料（キーが有効かだけ見る）
     listModels: async ctx => {
@@ -718,6 +728,8 @@ async function analyzeReceipt(rec){
   const ctx = ctxFor('ocr');
   if (!ctx.model) throw new Error('読み取りモデルが未選択です（⚙ の詳細設定から選んでください）');
   const r = await ctx.p.analyze(ctx, await blobToB64(rec.img));
+  // 上限で切れた＝JSON は必ず途中で終わっている。「読めませんでした」より原因が分かる言い方で先に止める
+  if (isCut(r.stop)) throw new Error('読み取りが上限に達しました（レシートが長い／明細が多い可能性）。⚙ の詳細設定で別のモデルもお試しください');
   return { data: parseJsonLoose(r.text),
            meta: { provider: ctx.prov, model: r.model || ctx.model, in: r.in, out: r.out, at: Date.now() } };
 }
@@ -1843,9 +1855,15 @@ async function anRun(){
     const attNote = anAtt.length ? `\n（添付: ${anAtt.map(a => a.name).join(' / ')}）` : '';
     parts.push({ kind: 'text', text: `${prompt}${attNote}\n\n--- レシートのデータ（${per.label}・${rows.length}件） ---\n${data}` });
 
-    const r = await ctx.p.chat(ctx, AN_SYSTEM, parts, 4000);
-    const text = String(r.text || '').trim();
-    if (!text) throw new Error('AI から空の返事が返りました（別のモデルを試してください）');
+    // ⚠ 8000（r17 で 4000 から）＝今どきのモデルは考えてから答えるので、上限は「考えた分＋返事」の合計を縛る。
+    //   AN_SYSTEM で頼んでいるのは 800 字程度なので、実際に使う量（＝課金）は増えない。切れないための余白。
+    const r = await ctx.p.chat(ctx, AN_SYSTEM, parts, 8000);
+    let text = String(r.text || '').trim();
+    if (!text) throw new Error(isCut(r.stop)
+      ? '上限に達して返事が返りませんでした（AI が考えているうちに使い切った可能性）。期間を短くするか、別のモデルをお試しください'
+      : 'AI から空の返事が返りました（別のモデルを試してください）');
+    // 切れたものを黙って完成品として貯めない（あとで読み返した時に気付けるよう本文に残す）
+    if (isCut(r.stop)) text += '\n\n**⚠ 上限に達したため、ここで切れています。**';
     const rec = {
       id: 'a' + Date.now() + Math.random().toString(36).slice(2, 7), ts: Date.now(),
       preset: anPreset, presetLabel: AN_PRESET_LABEL(anPreset), prompt,
