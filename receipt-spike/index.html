@@ -376,10 +376,9 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
   <button class="x" data-close>✕</button><h2 id="dTitle">レシート</h2>
   <img id="dImg" alt="レシート画像">
   <div id="dBody"></div>
-  <div class="dual" style="margin-top:12px">
-    <button class="btn" id="btnReanalyze">🔁 再分析</button>
-    <button class="btn" id="btnDelete" style="color:var(--err)">🗑 削除</button>
-  </div>
+  <!-- 🔁 再分析は r29 で撤去（実機で失敗し、失敗すると読めていた内容が一覧・統計から消えて見えた）。
+       読み直しは「読み取りに失敗した写真」だけ＝一覧の 🔁 に残す。直すのは ✏️ 手で直す。 -->
+  <button class="btn" id="btnDelete" style="color:var(--err); margin-top:12px">🗑 削除</button>
 </div></div>
 
 <!-- ✏️ 手で直す（r19）＝読み取りが間違っていた時の逃げ道。写真は原本として残したまま、文字データだけ直す -->
@@ -418,14 +417,14 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <div id="edItems"></div>
     <button class="btn" id="edAddItem" type="button">＋ 品目を足す</button></div>
   <button class="btn pri" id="edSave">この内容にする</button>
-  <div class="note">⚠ このレシートを <b>🔁 再分析</b>すると、AI の読み取りで<b>上書きされます</b>（手で直した内容は消えます）。写真そのものは変わりません。</div>
+  <div class="note">直した内容が AI に上書きされることはありません（🔁 再分析は r29 で撤去）。写真そのものは変わりません。</div>
 </div></div>
 
 <div id="toast"></div>
 
 <script>
 'use strict';
-const BUILD = 'r28 🧾1枚の写真に2枚のレシートが写っていても、詳細はタップした1枚だけを出す（写真の下の 🧾 で隣の1枚へ・✏️と🗑もその1枚に効く・🗑は残りと写真を消さない・🔁は写真ごと読み直すと先に断る）｜r27 📡分析をストリーミングに＝返事が届いた端から出る（1年分を賢いモデルに読ませても待ちが見える・長い沈黙で接続が切られにくい）。上限は「全体で何分」ではなく「何も届かない時間が3分」に変更・生成中は⏹だけ出す（未完成をコピー/共有させない）｜r26 ⏱待ち時間の扱いを直す＝これまでアプリ側に制限時間が無く固まっても分からなかった。固定の「30秒ほど」をやめ経過秒を出す／⏹やめるを置く／読み取り3分・分析5分で打ち切り（理由の分かる文言で）｜r25 🗾住所の検索を国土地理院優先に（日本の住所は丁目・番＝街区まで座標が出る。見つからなければOpenStreetMapへ）＋▶の下の説明を送信内容に合わせて出し分け（📎を選んでいる時は「レシートの文字データ＋選んだN件」と書く）｜r24 🧾税込・税抜が混ざる問題＝AIの判定に頼らず「数字の方から」見分ける（考えられる読み方を全部試して合計に合うものを採る・どれも合わなければ⚠）＋📎の言い方を「AIにいっしょに読ませるもの」に直しPDFは選んだ時点で可否が分かるように · 2026-08-13';
+const BUILD = 'r29 🔁詳細の再分析を撤去（実機で失敗するうえ、失敗すると読めていた店名・金額が一覧や📊から消えて見えた＝読めているレシートを壊せるボタンだった）。読み直しは「読み取りに失敗した写真」だけ＝一覧の🔁に残す・直すのは✏️手で直す｜r28 🧾1枚の写真に2枚のレシートが写っていても、詳細はタップした1枚だけを出す（写真の下の 🧾 で隣の1枚へ・✏️と🗑もその1枚に効く・🗑は残りと写真を消さない）｜r27 📡分析をストリーミングに＝返事が届いた端から出る（1年分を賢いモデルに読ませても待ちが見える・長い沈黙で接続が切られにくい）。上限は「全体で何分」ではなく「何も届かない時間が3分」に変更・生成中は⏹だけ出す（未完成をコピー/共有させない）｜r26 ⏱待ち時間の扱いを直す＝これまでアプリ側に制限時間が無く固まっても分からなかった。固定の「30秒ほど」をやめ経過秒を出す／⏹やめるを置く／読み取り3分・分析5分で打ち切り（理由の分かる文言で）｜r25 🗾住所の検索を国土地理院優先に（日本の住所は丁目・番＝街区まで座標が出る。見つからなければOpenStreetMapへ）＋▶の下の説明を送信内容に合わせて出し分け（📎を選んでいる時は「レシートの文字データ＋選んだN件」と書く） · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -555,7 +554,7 @@ async function httpErr(res){
   try { msg = (await res.json()).error?.message || msg; } catch (_) {}
   if (res.status === 401) msg = 'APIキーが無効です（⚙ で確認を）';
   if (res.status === 404) msg = 'モデルかURLが見つかりません（⚙ の詳細設定で確認を）: ' + msg;
-  if (res.status === 429) msg = 'レート制限中。少し待って 🔁 再分析を';
+  if (res.status === 429) msg = 'レート制限中。少し待ってから一覧の 🔁 でやり直してください';
   return new Error(msg);
 }
 /* SSE（届いた端から返事を受け取る）。onLine には `data: {...}` の1行がそのまま渡る。
@@ -1174,10 +1173,9 @@ async function openDetail(id, i = 0){
       + (receiptIssues(d).length
           ? `<div class="note warn">⚠ 数字が合いません（読み違いの可能性）<br>${receiptIssues(d).map(esc).join('<br>')}<br>✏️ で直せます。</div>` : '')
       + editBtn(rcs.length > 1 ? `この 🧾 ${detailIdx + 1}枚目 を手で直す` : '手で直す'))
-      + (r.edited ? '<div class="note">✏️ 手で直したレシートです（🔁 再分析すると AI の読み取りで上書きされます）</div>' : '')
+      + (r.edited ? '<div class="note">✏️ 手で直したレシートです</div>' : '')
       + (r.meta ? `<div class="note">${esc(r.meta.model)} / in ${r.meta.in} · out ${r.meta.out} tokens</div>` : '');
   // ボタンの名前も「いま何に効くのか」に合わせる（🗑 が写真ごと消すのか1枚だけかは、押す前に分かる必要がある）
-  document.getElementById('btnReanalyze').textContent = rcs.length > 1 ? '🔁 写真ごと再分析' : '🔁 再分析';
   document.getElementById('btnDelete').textContent = rcs.length > 1 ? '🗑 この1枚を削除' : '🗑 削除';
   show('ovDetail');
 }
@@ -1186,21 +1184,18 @@ document.getElementById('dBody').onclick = e => {
   if (go) { openDetail(detailId, +go.dataset.go); return; }   // 同じ写真の別のレシートへ（r28）
   const b = e.target.closest('[data-edit]'); if (b) openEdit(detailId, +b.dataset.edit);
 };
-document.getElementById('btnReanalyze').onclick = async () => {
-  const r = await dbGet(detailId); if (!r) { hide('ovDetail'); return; }
-  const n = receiptsOf(r).length;
-  // 手直しは黙って捨てない（もう一度読ませれば AI の結果で上書きされる）
-  // ⚠ 読み直す単位は**写真**＝同じ写真に写っている他のレシートも一緒に読み直される（r28）
-  const warn = [n > 1 ? `この写真には ${n} 枚写っています。読み直すと ${n} 枚すべてが AI の読み取りに置き換わります。` : '',
-                r.edited ? '手で直した内容も上書きされます。' : ''].filter(Boolean).join('\n');
-  if (warn && !confirm(warn + '\nよろしいですか？')) return;
-  hide('ovDetail'); runAnalysis(detailId);
-};
+/* 🔁 再分析（詳細の中）は r29 で撤去。実機で押すと読み取り失敗になり、しかも失敗すると
+   status が error になって**読めていた店名・金額が一覧・📊統計・📤書き出しから消えて見える**
+   （データは残っているが表に出ない）＝すでに読めているレシートを壊せるボタンだった。
+   ⚠ 読み直しが要るのは「読み取りに失敗した写真」だけなので、一覧の 🔁（data-retry）は残す。
+      読み取りを直す手段は ✏️ 手で直す（r19）＝課金も運任せも無い。 */
 
 /* ---------- ✏️ 手で直す（r19） ----------
    読み取りは当たり外れがあるのに、直す手段が「🔁 再分析（＝また課金して運任せ）」しか無かった。
+   r29 でその 🔁 を撤去したので、**読み取りを直す手段はここだけ**になった。
    ⚠ 直すのは**文字データだけ**。写真は原本（紙を捨てたら唯一のコピー）なので触らない。
-   ⚠ 直したことを `edited` に覚えておく＝🔁 再分析が手直しを上書きすることを先に警告できる。 */
+   ⚠ 直したことは `edited` に覚えておく＝詳細に「✏️ 手で直したレシート」と出る（r29 で 🔁 を
+      撤去したので上書きの警告用途は消えたが、**人が触った印**としては残す）。 */
 let edId = null, edIdx = 0;
 function renderEdItems(list){
   // ⚠ 単価（unit_price）は欄を出さない代わりに data- で持ち回る＝手で直しても消えない
@@ -1272,8 +1267,9 @@ document.getElementById('edSave').onclick = async () => {
 };
 /* 🗑 は「いま見ている1枚」を消す（r28）。
    ⚠ 同じ写真に他のレシートが写っている間は**写真を消さない**＝写真は原本（紙を捨てたら唯一のコピー）で、
-      残る側がそれを使っている。1枚だけ減らした時は edited を立てる＝🔁 で戻ることを先に警告できる
-      （AI が1枚を2枚と読み違えた時に、片方を消す使い方ができる）。 */
+      残る側がそれを使っている。1枚だけ減らした時は edited を立てる＝人が触った印を残す
+      （AI が1枚を2枚と読み違えた時に、片方を消す使い方ができる。r29 で 🔁 を撤去したので、
+      消した1枚が AI の読み直しで復活することはもう無い）。 */
 document.getElementById('btnDelete').onclick = async () => {
   const r = await dbGet(detailId); if (!r) { hide('ovDetail'); return; }
   const rcs = receiptsOf(r);
