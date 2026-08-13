@@ -393,7 +393,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r20 📍レシートの印字住所から自動でお店の場所を決める＝撮るだけで💴支出マップに出る（⚙で切れる・手で置いた位置は上書きしない・見つからない住所は覚えて送り直さない）｜r19 ✏️レシートの内容を手で直せる（店名/日付/合計/分類/住所/登録番号/品目・読み取りに失敗した写真も手入力で登録できる・🔁再分析は手直しを上書きする前に確認）｜r18 🧾登録番号（T+13桁）も読み取って同じ会社をまとめる＝「ドラッグストア クリエイト」と「クリエイト」が別の店に数えられていたのを修正（業態語を落としても寄せる・別ブランドは畳まない）｜r17 ⏳返事が途中で切れる件に対処＝📈分析の上限を8000に（今どきのモデルは「考えた分＋返事」で上限を使う）・切れた時は「上限に達した」と分かる文言＋本文に注記（📷読み取りも同様）｜r16 🩺聞きかたの型を「食費をくわしく」→「健康の面から」に差し替え＋📎画像/PDF/テキストを依頼に一緒に渡せる＋⛶支出マップを全画面で見られる · 2026-08-13';
+const BUILD = 'r21 ⏱日付のUTCずれを修正＝日付が印字されていないレシートが1日ずれていた（朝9時前に撮った分）＋書き出しの時刻に+09:00を付与＋🔑1枚の写真から複数レシートを切り出した時に一意なレシートIDを振る（photo_idだけでは重複）｜r20 📍レシートの印字住所から自動でお店の場所を決める＝撮るだけで💴支出マップに出る（⚙で切れる・手で置いた位置は上書きしない・見つからない住所は覚えて送り直さない）｜r19 ✏️レシートの内容を手で直せる（店名/日付/合計/分類/住所/登録番号/品目・読み取りに失敗した写真も手入力で登録できる・🔁再分析は手直しを上書きする前に確認）｜r18 🧾登録番号（T+13桁）も読み取って同じ会社をまとめる＝「ドラッグストア クリエイト」と「クリエイト」が別の店に数えられていたのを修正（業態語を落としても寄せる・別ブランドは畳まない）｜r17 ⏳返事が途中で切れる件に対処＝📈分析の上限を8000に（今どきのモデルは「考えた分＋返事」で上限を使う）・切れた時は「上限に達した」と分かる文言＋本文に注記（📷読み取りも同様） · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -819,7 +819,18 @@ async function runAnalysis(id){
 const thumbUrls = [];
 const yen = n => '¥' + Number(n).toLocaleString('ja-JP');
 const receiptsOf = r => !r.data ? [] : Array.isArray(r.data.receipts) ? r.data.receipts : [r.data];
-const capDate = r => new Date(r.ts).toISOString().slice(0, 10);
+/* --- 日付は必ず「端末のローカル時刻」で数える（r21） ---
+   ⚠ toISOString() は UTC。日本時間の朝9時より前に撮ったレシートが**前日**になる。
+      期間の todayStr では避けていたのに、**写真の日付 capDate だけ UTC のまま**だった＝
+      日付が印字されていないレシートが、一覧・統計・書き出しで1日ずれていた。
+   ⚠ 書き出しの時刻には「+09:00」まで書く。captured_at が UTC・date/time がローカルだと、
+      受け取った側が captured_at で日付集計したときに夜間分がずれる（実データで判明）。 */
+const pad2 = n => String(n).padStart(2, '0');
+const ymdLocal = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const tzOf = d => { const m = -d.getTimezoneOffset(), s = m < 0 ? '-' : '+', a = Math.abs(m);
+                    return `${s}${pad2(Math.floor(a / 60))}:${pad2(a % 60)}`; };
+const isoLocal = d => `${ymdLocal(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}${tzOf(d)}`;
+const capDate = r => ymdLocal(new Date(r.ts));
 
 // 表示行 = 写真×レシート（1枚の写真に複数レシート）。未分析・失敗・0検出は写真単位で1行
 async function listRows(){
@@ -850,7 +861,8 @@ async function renderList(){
     const turl = URL.createObjectURL(r.thumb); thumbUrls.push(turl);
     let title, right;
     if (rc) {
-      title = (rc.store || '店名不明') + (rc.branch ? ` <small>${rc.branch}</small>` : '') + `<span class="chip">${rc.category || ''}</span>`;
+      // ⚠ 値はエスケープする（AI の出力も ✏️ の手入力も、そのまま HTML にしない）
+      title = esc(rc.store || '店名不明') + (rc.branch ? ` <small>${esc(rc.branch)}</small>` : '') + `<span class="chip">${esc(rc.category || '')}</span>`;
       right = rc.total == null ? '<div class="amt na">—</div>'
             : rc.kind === 'income' ? `<div class="amt inc">+${yen(rc.total)}</div>` : `<div class="amt">${yen(rc.total)}</div>`;
     } else if (r.status === 'pending') { title = '<span class="pend">🤖 読み取り中…</span>'; right = ''; }
@@ -990,18 +1002,26 @@ async function exportTargets(){
 function exportJson(rows, from, to){
   // 統計は入れない＝生データからAI/表計算が自分で計算する（ライフログの交換フォーマットと同方針）
   return JSON.stringify({
-    format: 'receipt-spike-export', version: 3,   // v3（r18）で regno（登録番号）が加わった。他は v2 のまま
-    exported_at: new Date().toISOString(), period: { from: from || null, to: to || null },
+    // v4（r21）＝ receipt_id（一意な鍵）を追加・時刻をローカル時刻＋オフセットに。v3 は regno 追加、v2 はフラット化
+    format: 'receipt-spike-export', version: 4,
+    exported_at: isoLocal(new Date()),
+    timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone || null),  // date/time（レシートの印字）が指す地域
+    period: { from: from || null, to: to || null },
     count: rows.length,
-    receipts: rows.map(x => ({ photo_id: x.rec.id, captured_at: new Date(x.rec.ts).toISOString(), ...x.rc })),
+    receipts: rows.map(x => ({
+      // ⚠ 1枚の写真から複数レシートを切り出すので、photo_id は一意にならない（主キーにすると片方が消える）
+      receipt_id: `${x.rec.id}-${x.i + 1}`, receipt_no: x.i + 1, photo_id: x.rec.id,
+      captured_at: isoLocal(new Date(x.rec.ts)),   // 撮った時刻（ローカル＋オフセット）
+      ...x.rc })),
   }, null, 1);
 }
 function exportCsv(rows){
   const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
-  const out = [['日付', '時刻', '店名', '支店', '金額', '種別', 'カテゴリ', '支払', '住所', '登録番号', '品目'].join(',')];
+  // ⚠ 先頭は レシートID（写真の id ＋ 何枚目）＝表計算で主キーにできる。photo_id だけだと重複する
+  const out = [['レシートID', '日付', '時刻', '店名', '支店', '金額', '種別', 'カテゴリ', '支払', '住所', '登録番号', '品目'].join(',')];
   for (const x of rows) {
     const d = x.rc;
-    out.push([x.date, d.time, d.store, d.branch, d.total, d.kind === 'income' ? '収入' : '支出',
+    out.push([`${x.rec.id}-${x.i + 1}`, x.date, d.time, d.store, d.branch, d.total, d.kind === 'income' ? '収入' : '支出',
               d.category, d.payment, d.address, d.regno, (d.items || []).map(i => i.name).join('、')].map(esc).join(','));
   }
   return '﻿' + out.join('\n'); // BOM: Excel の文字化け対策
@@ -1314,9 +1334,8 @@ let stDay = '';                            // 表示中の日（今日／今週�
 let stFrom = '', stTo = '';                // 「期間を選ぶ」の開始・終了
 let stSort = 'yen';                        // お店の並び: yen=金額 / count=回数
 let stOpen = new Set();                    // 開いている内訳（分類名 / 店名）
-const pad2 = n => String(n).padStart(2, '0');
-// 今日（端末の日付）。⚠ toISOString は UTC なので日本時間の夜に前日へずれる＝使わない
-const todayStr = () => { const n = new Date(); return `${n.getFullYear()}-${pad2(n.getMonth() + 1)}-${pad2(n.getDate())}`; };
+// 今日（端末の日付）。⚠ toISOString は UTC なので日本時間の夜に前日へずれる＝使わない（pad2/ymdLocal は上で定義）
+const todayStr = () => ymdLocal(new Date());
 const DOW = ['日', '月', '火', '水', '木', '金', '土'];
 const dowOf = d => DOW[new Date(d + 'T00:00:00').getDay()];
 function addDays(d, n){
