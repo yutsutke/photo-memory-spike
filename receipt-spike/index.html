@@ -224,7 +224,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <label>📍 お店の場所の決め方（💴 支出マップ）</label>
     <label class="anChk"><input type="checkbox" id="autoGeoChk"><span>レシートの<b>印字住所から自動で場所を決める</b></span></label>
   </div>
-  <div class="note">🌏 オンの間は、読み取りが終わるたびに<b>住所の文字だけ</b>を OpenStreetMap（外部サービス）へ送り、座標を返してもらいます（<b>写真・金額・品目は送りません</b>）。決まった位置は<b>この端末の中だけ</b>に保存されます。オフにすると、💴 の 🔎 ボタンを押した時だけ送ります。<b>見つからなかった住所・ずれている店は、💴 からタップして手で置けます</b>（手で置いた位置が優先されます）。</div>
+  <div class="note">🌏 オンの間は、読み取りが終わるたびに<b>住所の文字だけ</b>を <b>国土地理院</b>（日本の住所に強い）へ送り、見つからなければ <b>OpenStreetMap</b> にも送って座標を返してもらいます（<b>写真・金額・品目は送りません</b>）。決まった位置は<b>この端末の中だけ</b>に保存されます。オフにすると、💴 の 🔎 ボタンを押した時だけ送ります。<b>見つからなかった住所・ずれている店は、💴 からタップして手で置けます</b>（手で置いた位置が優先されます）。⚠ 地理院でも<b>号（建物単位）までは出ません</b>＝同じ番地に複数の店があると重なります。</div>
   <div class="note" id="noteStore"></div>
   <div class="note" id="buildLine"></div>
 </div></div>
@@ -286,7 +286,8 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <div class="anAi" id="anAiLine"></div>
     <label class="anChk"><input type="checkbox" id="anSaveChk"><span>結果を自動で保存する（🗂 履歴に貯まります）</span></label>
     <button class="btn pri" id="btnAnRun">▶ 分析する</button>
-    <div class="note">レシートの<b>文字データ（JSON）だけ</b>を、あなたのキーで選んだAIに直接送ります（<b>写真は送りません</b>）。中身は 📤 の書き出しと同じです。</div>
+    <!-- ⚠ 何を送るかは 📎 の有無で変わる＝固定文だと嘘になる（r25 でユーザー指摘） -->
+    <div class="note" id="anSendNote"></div>
   </div>
 
   <!-- 🗂 履歴（r24: まとめて書き出せる）＝1件ずつ開いて渡すのは、溜まるほど現実的でなくなる -->
@@ -420,7 +421,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r24 🧾税込・税抜が混ざる問題＝AIの判定に頼らず「数字の方から」見分ける（考えられる読み方を全部試して合計に合うものを採る・どれも合わなければ⚠）＋📎の言い方を「AIにいっしょに読ませるもの」に直しPDFは選んだ時点で可否が分かるように｜r23 📍場所が入らない時に理由が分かるように＝番地で駄目なら町名まで落として探す・全角ハイフンの取りこぼしを修正・見つからなかった店は💴に理由を表示・🔎は覚えている結果を無視して探し直す・届かない時は黙らず知らせる｜🗂分析の履歴を選んで（またはすべて）まとめて書き出せる｜r22 🧮税と数量を正しく持つ＝明細は税抜・合計は税込で混ざっていたのを、税率(8/10%)・消費税・値引き・単価まで読み取って区別。price は「その行の合計」に統一（qtyを掛けない）。数字が合わないレシートに ⚠要確認 を出す｜r21 ⏱日付のUTCずれを修正＝日付が印字されていないレシートが1日ずれていた（朝9時前に撮った分）＋書き出しの時刻に+09:00を付与＋🔑1枚の写真から複数レシートを切り出した時に一意なレシートIDを振る（photo_idだけでは重複）｜r20 📍レシートの印字住所から自動でお店の場所を決める＝撮るだけで💴支出マップに出る（⚙で切れる・手で置いた位置は上書きしない・見つからない住所は覚えて送り直さない） · 2026-08-13';
+const BUILD = 'r25 🗾住所の検索を国土地理院優先に（日本の住所は丁目・番＝街区まで座標が出る。見つからなければOpenStreetMapへ）＋▶の下の説明を送信内容に合わせて出し分け（📎を選んでいる時は「レシートの文字データ＋選んだN件」と書く）｜r24 🧾税込・税抜が混ざる問題＝AIの判定に頼らず「数字の方から」見分ける（考えられる読み方を全部試して合計に合うものを採る・どれも合わなければ⚠）＋📎の言い方を「AIにいっしょに読ませるもの」に直しPDFは選んだ時点で可否が分かるように｜r23 📍場所が入らない時に理由が分かるように＝番地で駄目なら町名まで落として探す・全角ハイフンの取りこぼしを修正・見つからなかった店は💴に理由を表示・🔎は覚えている結果を無視して探し直す・届かない時は黙らず知らせる｜🗂分析の履歴を選んで（またはすべて）まとめて書き出せる｜r22 🧮税と数量を正しく持つ＝明細は税抜・合計は税込で混ざっていたのを、税率(8/10%)・消費税・値引き・単価まで読み取って区別。price は「その行の合計」に統一（qtyを掛けない）。数字が合わないレシートに ⚠要確認 を出す｜r21 ⏱日付のUTCずれを修正＝日付が印字されていないレシートが1日ずれていた（朝9時前に撮った分）＋書き出しの時刻に+09:00を付与＋🔑1枚の写真から複数レシートを切り出した時に一意なレシートIDを振る（photo_idだけでは重複） · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1714,6 +1715,23 @@ document.getElementById('smBase').addEventListener('click', e => {
 });
 
 /* --- 住所 → 座標（Nominatim・1秒に1回まで・結果は端末に保存）--- */
+/* --- 住所 → 座標の窓口（r25） ---
+   ⚠ 日本の住所は **国土地理院** の方が確実に細かい。地理院は日本の住所データ（位置参照情報）が
+      元なので **丁目・番（街区）** まで座標が返る。OpenStreetMap は日本だと町丁目止まり、
+      番地は入っていないことが多い（実機で「だいたいの場所」までしか出なかった原因）。
+   ⚠ ただし地理院でも **号（建物単位）までは出ない**＝ビルの何階、までは分からない。
+      そこから先が要るなら、レシートの時刻とスマホの位置履歴を突き合わせる別の手が要る。
+   ⚠ 日本の外は地理院に無いので、見つからなければ OpenStreetMap に落とす（順番に意味がある）。 */
+const GEOCODERS = [
+  { name: '地理院',
+    url: q => `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(q)}`,
+    // ⚠ GeoJSON の coordinates は [経度, 緯度] の順（lat/lon を取り違えると地球の裏側に飛ぶ）
+    pick: d => { const c = d && d[0] && d[0].geometry && d[0].geometry.coordinates;
+                 return (c && c.length >= 2 && isFinite(c[0]) && isFinite(c[1])) ? { lat: +c[1], lon: +c[0] } : null; } },
+  { name: 'OSM',
+    url: q => `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=ja&q=${encodeURIComponent(q)}`,
+    pick: d => (d && d[0]) ? { lat: parseFloat(d[0].lat), lon: parseFloat(d[0].lon) } : null },
+];
 const GEO_CACHE = 'rcpt.geocache';
 let geoCache = (() => { try { return JSON.parse(localStorage.getItem(GEO_CACHE) || '{}'); } catch (_) { return {}; } })();
 let geoQueue = Promise.resolve();
@@ -1725,14 +1743,26 @@ function forwardGeocode(q, force){
   if (!force && q in geoCache) return Promise.resolve(geoCache[q] || null);
   const run = geoQueue.then(async () => {
     if (!force && q in geoCache) return geoCache[q] || null;
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=ja&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('住所の検索に失敗しました（' + res.status + '）');
-    const d = await res.json();
-    const r = (d && d[0]) ? { lat: parseFloat(d[0].lat), lon: parseFloat(d[0].lon) } : null;
-    geoCache[q] = r || 0;   // 0 ＝「探したが見つからなかった」
+    let netErr = null;
+    for (const g of GEOCODERS) {
+      try {
+        const res = await fetch(g.url(q));
+        if (!res.ok) throw new Error(`${g.name} が ${res.status} を返しました`);
+        const r = g.pick(await res.json());
+        if (r) {
+          const hit = { ...r, via: g.name };
+          geoCache[q] = hit;
+          try { localStorage.setItem(GEO_CACHE, JSON.stringify(geoCache)); } catch (_) {}
+          return hit;
+        }
+      } catch (err) { netErr = err; }   // この窓口には届かなかった＝次の窓口を試す
+    }
+    // ⚠ どこにも届かなかった時は「見つからなかった」として覚えない（次にまた試せる）。
+    //   届いたうえで0件だった時だけ覚える＝一時的な不通を「無い住所」として固定しない
+    if (netErr) throw netErr;
+    geoCache[q] = 0;   // 0 ＝「探したが見つからなかった」
     try { localStorage.setItem(GEO_CACHE, JSON.stringify(geoCache)); } catch (_) {}
-    return r;
+    return null;
   });
   // ⚠ 次の1回は1.1秒後（Nominatim の利用規約＝1秒に1回まで）。成功でも失敗でも待つ
   geoQueue = run.then(() => new Promise(r => setTimeout(r, 1100)), () => new Promise(r => setTimeout(r, 1100)));
@@ -1787,7 +1817,7 @@ function shopAggregate(rows, places){
     out.push({ key: keys[0], keys, name: s.name === BRANCH_NONE ? g.name : `${g.name} ${s.name}`,
                yen: s.yen, n: s.n, rows: s.rows, addr, by,
                cat: Object.entries(by).sort((a, b) => b[1] - a[1])[0][0], // 色＝その店でいちばん使っている分類
-               lat: p ? p.lat : null, lon: p ? p.lon : null, src: p ? p.src : null });
+               lat: p ? p.lat : null, lon: p ? p.lon : null, src: p ? p.src : null, via: p ? p.via : null });
   }));
   return out.sort((a, b) => b.yen - a.yen);
 }
@@ -1837,7 +1867,7 @@ async function renderSpendMap(){
       });
       mk.bindPopup(`<div class="smPop"><b>${esc(s.name)}</b>
         <div class="sub"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${catColor(s.cat)};margin-right:5px"></span>${esc(s.cat)} ・ ${yen(s.yen)} ・ ${s.n}回</div>
-        <div class="sub">位置＝${s.src === 'geocode' ? '印字住所から探した場所' : '手で置いた場所'}</div>
+        <div class="sub">位置＝${s.src === 'geocode' ? `印字住所から探した場所${s.via ? '（' + esc(s.via) + '）' : ''}` : '手で置いた場所'}</div>
         <button data-fix="${esc(s.key)}">📍 位置を直す</button></div>`, { minWidth: 190 });
       mk.on('click', () => { smSel = s.key; });
       return mk;
@@ -1954,8 +1984,9 @@ document.getElementById('btnGeocode').onclick = async e => {
   setTimeout(() => { b.textContent = '🔎 この住所から探す'; }, 6000);
 };
 // 保存/削除は「その店の全部の書き方」に対して行う（上の⚠＝鍵の迷子を作らない）
-async function savePlace(shop, lat, lon, src){
-  await Promise.all(shop.keys.map(k => plPut({ key: k, name: shop.name, lat, lon, src, address: shop.addr || '', at: Date.now() })));
+async function savePlace(shop, lat, lon, src, via){
+  await Promise.all(shop.keys.map(k => plPut({ key: k, name: shop.name, lat, lon, src, via: via || null,
+                                               address: shop.addr || '', at: Date.now() })));
 }
 /* 探したが見つからなかったことを覚える（r23）。
    ⚠ これが無いと「自動で探したのに何も起きない」が**黙って**続く＝原因が分からない。
@@ -1983,18 +2014,20 @@ async function geocodeAll(){
   if (!targets.length) return;
   if (!confirm(`${targets.length}軒の印字住所を OpenStreetMap に送って座標を探します（住所の文字だけ・約${Math.ceil(targets.length * 1.2)}秒）。よろしいですか？`)) return;
   const btn = document.getElementById('btnGeoAll');
-  let ok = 0, ng = 0, netErr = null;
+  let ok = 0, ng = 0, netErr = null, errRun = 0;
   for (const s of targets) {
     if (btn) btn.textContent = `🔎 探しています… ${ok + ng + 1}/${targets.length}`;
     try {
       // ⚠ 人が押した時は覚えている結果を無視して探し直す＝「押しても何も起きない」を作らない（r23）
       const r = await geocodeAddress(s.addr, true);
-      if (r) { await savePlace(s, r.lat, r.lon, 'geocode'); ok++; }
+      errRun = 0;
+      if (r) { await savePlace(s, r.lat, r.lon, 'geocode', r.via); ok++; }
       else { await markGeoFail(s); ng++; }
-    } catch (err) { netErr = err; break; }   // 届いていない＝残りも同じなので止めて、理由を出す
+    } catch (err) { netErr = err; if (++errRun >= 3) break; }   // 続けて3件駄目なら通信自体が駄目とみなす
   }
-  toast(netErr ? '❌ 検索サービスに届きませんでした（' + String(netErr.message || netErr).slice(0, 50) + '）'
-              : `🔎 ${ok}軒に場所が入りました${ng ? `（${ng}軒は住所では見つからず＝地図をタップして置いてください）` : ''}`);
+  toast(ok ? `🔎 ${ok}軒に場所が入りました${ng ? `（${ng}軒は住所では見つからず＝地図をタップして置いてください）` : ''}`
+           : netErr ? '❌ 検索サービスに届きませんでした（' + String(netErr.message || netErr).slice(0, 50) + '）'
+                    : `🔎 見つかりませんでした（${ng}軒＝地図をタップして置いてください）`);
   renderSpendMap();
 }
 
@@ -2015,12 +2048,14 @@ async function autoGeoSweep(){
     const rows = (await listRows()).filter(x => x.rc && x.rc.kind !== 'income');
     // ⚠ 一度探して見つからなかった店（geofail）は自動では蒸し返さない＝💴 の 🔎 を押した時だけ探し直す
     const targets = shopAggregate(rows, smPlaces).filter(s => s.lat == null && s.addr && s.src !== 'geofail');
-    let found = 0, netErr = null;
+    let found = 0, netErr = null, errRun = 0;
     for (const s of targets) {
       let r = null;
-      try { r = await geocodeAddress(s.addr); }
-      catch (err) { netErr = err; break; }   // 通信が落ちている＝残りも失敗するので、その場でやめる
-      if (r) { await savePlace(s, r.lat, r.lon, 'geocode'); found++; }
+      // ⚠ 1件失敗しただけで止めない（r25）。窓口が2つになったので、片方が落ちていても
+      //   もう片方で拾える店がある。ただし**続けて3件**失敗したら通信自体が駄目とみなして止める
+      try { r = await geocodeAddress(s.addr); errRun = 0; }
+      catch (err) { netErr = err; if (++errRun >= 3) break; continue; }
+      if (r) { await savePlace(s, r.lat, r.lon, 'geocode', r.via); found++; }
       else   { await markGeoFail(s); }       // 見つからなかったことを覚える（黙って消えないように）
       await loadPlaces();
       if (isOpen('ovStats') && stTab === 'map') renderSpendMap();  // 開いていれば、入った端から地図に出す
@@ -2184,6 +2219,15 @@ async function renderAnalyze(){
         anAtt.some(a => a.kind === 'pdf') && anProv() !== 'anthropic'
           ? `<br><span style="color:var(--err)">⚠ PDF は <b>Claude</b> にしか渡せません（いまの分析AIは ${esc(provOf(anProv()).label)}）。⚙ で Claude を選ぶか、画像にしてから渡してください</span>` : ''}${
         attTotal > 8 * 1024 * 1024 ? '<br><span style="color:var(--err)">⚠ 合計が大きいので、AI に断られることがあります</span>' : ''}</div>` : '');
+
+  /* ▶ の下の説明。⚠ 何を送るかは 📎 の有無で変わる（r25）。
+     「写真は送りません」は**レシートの写真**の話であって、📎 で選んだ画像は送る＝
+     固定文のままだと嘘になる。約束の文言は、実際の送信内容と必ず一致させる。 */
+  const kinds = [...new Set(anAtt.map(a => a.kind === 'image' ? '画像' : a.kind === 'pdf' ? 'PDF' : 'テキスト'))];
+  document.getElementById('anSendNote').innerHTML = anAtt.length
+    ? `レシートの<b>文字データ（JSON）</b>と、<b>📎 で選んだ ${anAtt.length}件（${kinds.join('・')}）</b>を、あなたのキーで選んだAIに直接送ります。`
+      + `<br><b>レシートの写真は送りません</b>（📷 の読み取りで文字になっているため）。文字データの中身は 📤 の書き出しと同じです。`
+    : `レシートの<b>文字データ（JSON）だけ</b>を、あなたのキーで選んだAIに直接送ります（<b>レシートの写真は送りません</b>）。中身は 📤 の書き出しと同じです。`;
 
   // 型（プリセット）
   const seg = document.getElementById('anPresetSeg');
