@@ -310,12 +310,14 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
   <button class="x" data-close>✕</button><h2 id="arTitle">📈 分析</h2>
   <div class="note" id="arMeta" style="margin:0 0 12px"></div>
   <div class="mdBody" id="arBody"></div>
-  <div class="dual" style="margin-top:16px">
+  <!-- 生成中は ⏹ だけを出す（まだ完成していないものを コピー/共有/削除 させない・r27） -->
+  <button class="btn" id="btnArStop" hidden style="margin-top:16px">⏹ やめる</button>
+  <div class="dual" id="arActions" style="margin-top:16px">
     <button class="btn" id="btnArCopy">📋 コピー</button>
     <button class="btn" id="btnArShare">📤 共有</button>
   </div>
   <button class="btn" id="btnArDelete" style="color:var(--err)">🗑 この分析を削除</button>
-  <details class="adv"><summary>この分析に使った依頼文を見る</summary>
+  <details class="adv" id="arAdv"><summary>この分析に使った依頼文を見る</summary>
     <div class="note" id="arPrompt" style="white-space:pre-wrap"></div></details>
 </div></div>
 
@@ -423,7 +425,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r26 ⏱待ち時間の扱いを直す＝これまでアプリ側に制限時間が無く固まっても分からなかった。固定の「30秒ほど」をやめ経過秒を出す／⏹やめるを置く／読み取り3分・分析5分で打ち切り（理由の分かる文言で）｜r25 🗾住所の検索を国土地理院優先に（日本の住所は丁目・番＝街区まで座標が出る。見つからなければOpenStreetMapへ）＋▶の下の説明を送信内容に合わせて出し分け（📎を選んでいる時は「レシートの文字データ＋選んだN件」と書く）｜r24 🧾税込・税抜が混ざる問題＝AIの判定に頼らず「数字の方から」見分ける（考えられる読み方を全部試して合計に合うものを採る・どれも合わなければ⚠）＋📎の言い方を「AIにいっしょに読ませるもの」に直しPDFは選んだ時点で可否が分かるように｜r23 📍場所が入らない時に理由が分かるように＝番地で駄目なら町名まで落として探す・全角ハイフンの取りこぼしを修正・見つからなかった店は💴に理由を表示・🔎は覚えている結果を無視して探し直す・届かない時は黙らず知らせる｜🗂分析の履歴を選んで（またはすべて）まとめて書き出せる｜r22 🧮税と数量を正しく持つ＝明細は税抜・合計は税込で混ざっていたのを、税率(8/10%)・消費税・値引き・単価まで読み取って区別。price は「その行の合計」に統一（qtyを掛けない）。数字が合わないレシートに ⚠要確認 を出す · 2026-08-13';
+const BUILD = 'r27 📡分析をストリーミングに＝返事が届いた端から出る（1年分を賢いモデルに読ませても待ちが見える・長い沈黙で接続が切られにくい）。上限は「全体で何分」ではなく「何も届かない時間が3分」に変更・生成中は⏹だけ出す（未完成をコピー/共有させない）｜r26 ⏱待ち時間の扱いを直す＝これまでアプリ側に制限時間が無く固まっても分からなかった。固定の「30秒ほど」をやめ経過秒を出す／⏹やめるを置く／読み取り3分・分析5分で打ち切り（理由の分かる文言で）｜r25 🗾住所の検索を国土地理院優先に（日本の住所は丁目・番＝街区まで座標が出る。見つからなければOpenStreetMapへ）＋▶の下の説明を送信内容に合わせて出し分け（📎を選んでいる時は「レシートの文字データ＋選んだN件」と書く）｜r24 🧾税込・税抜が混ざる問題＝AIの判定に頼らず「数字の方から」見分ける（考えられる読み方を全部試して合計に合うものを採る・どれも合わなければ⚠）＋📎の言い方を「AIにいっしょに読ませるもの」に直しPDFは選んだ時点で可否が分かるように｜r23 📍場所が入らない時に理由が分かるように＝番地で駄目なら町名まで落として探す・全角ハイフンの取りこぼしを修正・見つからなかった店は💴に理由を表示・🔎は覚えている結果を無視して探し直す・届かない時は黙らず知らせる｜🗂分析の履歴を選んで（またはすべて）まとめて書き出せる · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -544,6 +546,62 @@ const blobToB64 = blob => new Promise((ok, ng) => {
    ⚠ 短く切りすぎない方がよい（考えてから答えるモデルは普通に1〜2分かかる）。切るのは
       「明らかにおかしい」時だけにして、**途中でやめる手（⏹）は人に渡す**。 */
 const T_OCR = 180000, T_CHAT = 300000, T_SHORT = 60000;
+/* ⚠ ストリーミング（r27）の上限は「全体で何分」ではなく「**何も届かない時間**」で見る。
+   1年分を賢いモデルに読ませると、答え終わるまでに数分かかるのが普通＝全体で切ると
+   正常な長考まで殺す。届いている限りは待ち、**沈黙が続いた時だけ**止める。 */
+const T_IDLE = 180000;
+async function httpErr(res){
+  let msg = 'HTTP ' + res.status;
+  try { msg = (await res.json()).error?.message || msg; } catch (_) {}
+  if (res.status === 401) msg = 'APIキーが無効です（⚙ で確認を）';
+  if (res.status === 404) msg = 'モデルかURLが見つかりません（⚙ の詳細設定で確認を）: ' + msg;
+  if (res.status === 429) msg = 'レート制限中。少し待って 🔁 再分析を';
+  return new Error(msg);
+}
+/* SSE（届いた端から返事を受け取る）。onLine には `data: {...}` の1行がそのまま渡る。
+   ⚠ 中断（人が押した ⏹）と沈黙（届かなくなった）は言い分ける＝次の手が違う。 */
+async function apiStream(ctx, path, { body, idleMs = T_IDLE, signal = null, onLine }){
+  if (!ctx.key) throw new Error(`${ctx.p.vendor} のAPIキーが未設定です（⚙ から登録）`);
+  const ac = new AbortController();
+  let silent = false, stopped = false, idle = null;
+  const bump = () => { clearTimeout(idle); idle = setTimeout(() => { silent = true; ac.abort(); }, idleMs); };
+  const onStop = () => { stopped = true; ac.abort(); };
+  if (signal) { if (signal.aborted) onStop(); else signal.addEventListener('abort', onStop); }
+  const cleanup = () => { clearTimeout(idle); if (signal) signal.removeEventListener('abort', onStop); };
+  const why = () => stopped ? new Error('やめました')
+            : silent ? new Error(`${Math.round(idleMs / 1000)}秒のあいだ何も届かなかったので止めました（通信か、AIが応答していない可能性）`)
+            : new Error('APIに届きませんでした（通信状況か、APIのURLを確認してください）');
+  bump();
+  let res;
+  try {
+    res = await fetch(ctx.base + path, { method: 'POST', headers: ctx.p.headers(ctx),
+                                         body: JSON.stringify(body), signal: ac.signal });
+  } catch (_) { cleanup(); throw why(); }
+  if (!res.ok) { const e = await httpErr(res); cleanup(); throw e; }
+  if (!res.body) { cleanup(); throw new Error('この環境では届いた端から受け取れません（ストリーミング非対応）'); }
+  try {
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      bump();                                   // 1文字でも届いたら沈黙の時計を戻す
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).replace(/\r$/, ''); buf = buf.slice(i + 1);
+        if (line) onLine(line);
+      }
+    }
+  } catch (_) { throw why(); }
+  finally { cleanup(); }
+}
+const sseData = line => {
+  if (!line.startsWith('data:')) return null;
+  const s = line.slice(5).trim();
+  if (!s || s === '[DONE]') return null;
+  try { return JSON.parse(s); } catch (_) { return null; }
+};
 async function apiFetch(ctx, path, { method = 'GET', body = null, timeoutMs = T_SHORT, signal = null } = {}){
   if (!ctx.key) throw new Error(`${ctx.p.vendor} のAPIキーが未設定です（⚙ から登録）`);
   const ac = new AbortController();
@@ -564,15 +622,7 @@ async function apiFetch(ctx, path, { method = 'GET', body = null, timeoutMs = T_
     // fetch 自体が失敗＝回線が無いか、そのサービスが端末からの直接呼び出しを許していない（CORS）
     throw new Error('APIに届きませんでした（通信状況か、APIのURLを確認してください）');
   }
-  if (!res.ok) {
-    cleanup();
-    let msg = 'HTTP ' + res.status;
-    try { msg = (await res.json()).error?.message || msg; } catch (_) {}
-    if (res.status === 401) msg = 'APIキーが無効です（⚙ で確認を）';
-    if (res.status === 404) msg = 'モデルかURLが見つかりません（⚙ の詳細設定で確認を）: ' + msg;
-    if (res.status === 429) msg = 'レート制限中。少し待って 🔁 再分析を';
-    throw new Error(msg);
-  }
+  if (!res.ok) { const e = await httpErr(res); cleanup(); throw e; }
   // ⚠ 本文の読み込みも同じ signal で切れる（見出しだけ返って本文が来ない時に固まらない）
   try { return await res.json(); }
   catch (_) {
@@ -687,6 +737,11 @@ const onlyText = parts => (parts.length === 1 && parts[0].kind === 'text') ? par
      chat(ctx, system, user, maxTok)  = 文章を渡すと「文章」と使用量を返す（📈 分析）
    ⚠ 鍵・URL・モデルは ctx から取る（グローバルを見ない）＝読み取りと分析が同時に走っても混線しない。
    一覧に無いモデルは詳細設定で直接入力でき、モデル一覧は API から取ってくる＝新しいモデルが出ても待たずに使える。 */
+// 送るものの組み立て（一括でも届いた端からでも同じ形＝2か所で食い違わせない・r27）
+const anthropicContent = parts => onlyText(parts) || parts.map(p =>
+    p.kind === 'image' ? { type: 'image',    source: { type: 'base64', media_type: p.mime, data: p.b64 } }
+  : p.kind === 'pdf'   ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.b64 } }
+  : { type: 'text', text: p.text });
 const PROVIDERS = {
   anthropic: {
     label: 'Claude', vendor: 'Anthropic',
@@ -718,10 +773,7 @@ const PROVIDERS = {
     },
     // 📈 分析＝考えさせる用途なので effort は指定しない（読み取りの low は「型に嵌めるだけ」だから効いていた）
     async chat(ctx, system, parts, maxTokens, signal){
-      const content = onlyText(parts) || parts.map(p =>
-          p.kind === 'image' ? { type: 'image',    source: { type: 'base64', media_type: p.mime, data: p.b64 } }
-        : p.kind === 'pdf'   ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.b64 } }
-        : { type: 'text', text: p.text });
+      const content = anthropicContent(parts);
       const res = await apiFetch(ctx, '/messages', { method: 'POST', timeoutMs: T_CHAT, signal, body: {
         model: ctx.model, max_tokens: maxTokens, system,
         messages: [{ role: 'user', content }],
@@ -731,6 +783,25 @@ const PROVIDERS = {
                stop: res.stop_reason,
                model: res.model, in: res.usage?.input_tokens, out: res.usage?.output_tokens };
     },
+    // 届いた端から受け取る（r27）。onDelta にはその時点までの全文を渡す
+    async chatStream(ctx, system, parts, maxTokens, signal, onDelta){
+      const content = anthropicContent(parts);
+      let text = '', model = ctx.model, stop = null, tin = null, tout = null, err = null;
+      await apiStream(ctx, '/messages', { signal, body: {
+        model: ctx.model, max_tokens: maxTokens, system, stream: true,
+        messages: [{ role: 'user', content }],
+      }, onLine: line => {
+        const d = sseData(line); if (!d) return;
+        if (d.type === 'message_start') { model = d.message?.model || model; tin = d.message?.usage?.input_tokens ?? tin; }
+        else if (d.type === 'content_block_delta' && d.delta?.type === 'text_delta') { text += d.delta.text; onDelta(text); }
+        else if (d.type === 'message_delta') { stop = d.delta?.stop_reason || stop; tout = d.usage?.output_tokens ?? tout; }
+        // ⚠ ここで throw すると読み取りループの catch に飲まれて理由が消える＝持ち帰って後で投げる
+        else if (d.type === 'error') err = new Error(d.error?.message || 'ストリームでエラーが返りました');
+      } });
+      if (err) throw err;
+      if (stop === 'refusal') throw new Error('AI が回答を拒否しました');
+      return { text, stop, model, in: tin, out: tout };
+    },
     test: ctx => apiFetch(ctx, '/messages/count_tokens', { method: 'POST',
                    body: { model: ctx.model, messages: [{ role: 'user', content: 'test' }] } }), // 無料
     listModels: async ctx => ((await apiFetch(ctx, '/models?limit=100')).data || []).map(m => [m.id, m.display_name || m.id]),
@@ -739,6 +810,13 @@ const PROVIDERS = {
 };
 
 function openAICompatible(o){
+  // ⚠ PDF は OpenAI 互換の入口ごとに扱いが違う（受け取れないところもある）＝黙って落とさずに断る
+  const oaContent = parts => onlyText(parts) || parts.map(p => {
+    if (p.kind === 'pdf') throw new Error(`${o.label} には PDF を渡せません（${p.name}）。Claude を選ぶか、PDF を画像にして渡してください`);
+    return p.kind === 'image'
+      ? { type: 'image_url', image_url: { url: `data:${p.mime};base64,${p.b64}`, detail: 'high' } }
+      : { type: 'text', text: p.text };
+  });
   return {
     label: o.label, vendor: o.vendor, base: o.base, keyPage: o.keyPage, keyHint: o.keyHint,
     defaultModel: '', // 決め打ちしない＝「🔄 使えるモデルの一覧を取得」で本人のアカウントの正解を入れる
@@ -787,21 +865,40 @@ function openAICompatible(o){
     },
     // 📈 分析＝ふつうの chat（JSONを強いない＝型指定の3段構えは要らない）
     async chat(ctx, system, parts, maxTokens, signal){
-      // ⚠ PDF は OpenAI 互換の入口ごとに扱いが違う（受け取れないところもある）＝黙って落とさずに断る
-      const content = onlyText(parts) || parts.map(p => {
-        if (p.kind === 'pdf') throw new Error(`${o.label} には PDF を渡せません（${p.name}）。Claude を選ぶか、PDF を画像にして渡してください`);
-        return p.kind === 'image'
-          ? { type: 'image_url', image_url: { url: `data:${p.mime};base64,${p.b64}`, detail: 'high' } }
-          : { type: 'text', text: p.text };
-      });
       const res = await apiFetch(ctx, '/chat/completions', { method: 'POST', timeoutMs: T_CHAT, signal, body: {
         model: ctx.model, [o.tokenParam || 'max_tokens']: maxTokens,
-        messages: [{ role: 'system', content: system }, { role: 'user', content }],
+        messages: [{ role: 'system', content: system }, { role: 'user', content: oaContent(parts) }],
       }});
       const msg = res.choices?.[0]?.message || {};
       if (msg.refusal) throw new Error('AI が回答を拒否しました: ' + msg.refusal);
       return { text: msg.content || '', stop: res.choices?.[0]?.finish_reason,
                model: res.model, in: res.usage?.prompt_tokens, out: res.usage?.completion_tokens };
+    },
+    // 届いた端から受け取る（r27）
+    async chatStream(ctx, system, parts, maxTokens, signal, onDelta){
+      const content = oaContent(parts);
+      const body = { model: ctx.model, [o.tokenParam || 'max_tokens']: maxTokens, stream: true,
+                     stream_options: { include_usage: true },
+                     messages: [{ role: 'system', content: system }, { role: 'user', content }] };
+      let text = '', model = ctx.model, stop = null, tin = null, tout = null, err = null;
+      const read = line => {
+        const d = sseData(line); if (!d) return;
+        if (d.error) { err = new Error(d.error.message || 'ストリームでエラーが返りました'); return; }
+        const c = d.choices?.[0];
+        if (c?.delta?.content) { text += c.delta.content; onDelta(text); }
+        if (c?.finish_reason) stop = c.finish_reason;
+        if (d.model) model = d.model;
+        if (d.usage) { tin = d.usage.prompt_tokens ?? tin; tout = d.usage.completion_tokens ?? tout; }
+      };
+      try { await apiStream(ctx, '/chat/completions', { signal, body, onLine: read }); }
+      catch (e) {
+        // ⚠ stream_options を知らない互換サービスがある＝それだけを外してもう一度（r10 と同じ作法で間口を狭めない）
+        if (!/stream_options/i.test(String(e.message || e))) throw e;
+        delete body.stream_options;
+        await apiStream(ctx, '/chat/completions', { signal, body, onLine: read });
+      }
+      if (err) throw err;
+      return { text, stop, model, in: tin, out: tout };
     },
     test: ctx => apiFetch(ctx, '/models'), // 無料（キーが有効かだけ見る）
     listModels: async ctx => {
@@ -2124,7 +2221,7 @@ let anPreset = localStorage.getItem(AN.preset) || 'review';
 if (!AN_PRESETS.some(p => p[0] === anPreset)) anPreset = AN_PRESETS[0][0];
 let anTab    = 'new';
 let anBusy   = false;
-let anStartedAt = 0, anTick = null, anAbort = null;   // 経過秒の表示 / 中止（r26）
+let anStartedAt = 0, anTick = null, anAbort = null, anChars = 0;   // 経過秒の表示 / 中止（r26）/ 届いた文字数（r27）
 let arCur    = null;   // いま結果画面に出している分析（履歴から開いた / いま実行した）
 const anSaveOn = () => localStorage.getItem(AN.save) !== '0'; // 既定＝保存する
 
@@ -2234,8 +2331,9 @@ async function renderAnalyze(){
       : `<b>${esc(per.label)}</b>：${rows.length}件${spend ? ' ・ 支出 ' + yen(spend) : ''} ・ 送るデータ 約${chars.toLocaleString('ja-JP')}文字`
         + (anAtt.length ? ` ＋ 📎${anAtt.length}件` : '')
         // ⚠ かかる時間は量とモデルで変わる＝固定の数字を約束しない（r26）。上限だけは決めてあると伝える
-        + `<br>⏱ 返事が来るまで<b>1〜2分かかることがあります</b>（量と選んだモデルによります）。${
-             Math.round(T_CHAT / 60000)}分で打ち切ります／途中で <b>⏹ やめる</b> も押せます。`
+        // ⚠ ストリーミングにしたので「全体で何分」ではなく「沈黙が続いたら」が上限（r27）
+        + `<br>⏱ 返事は<b>届いた端から出ます</b>。1年分を賢いモデルに読ませると<b>数分かかることがあります</b>（量と選んだモデルによります）。`
+        + `途中で <b>⏹ やめる</b> を押せます／何も届かない時間が ${Math.round(T_IDLE / 60000)}分 続いたら止めます。`
         + (chars > 150000 ? '<br><span style="color:var(--err)">⚠ 量が多いので、期間を狭めるか料金にご注意を（モデルによっては上限を超えます）</span>' : '');
   }
 
@@ -2356,7 +2454,23 @@ document.getElementById('btnAnShareSel').onclick = async () => {
   shareTextOut(`レシートの分析（${list.length}件）`, anExportText(list), `receipt_analyses_${ymdLocal(new Date())}.txt`);
 };
 
+/* 生成中の見せ方（r27）。⚠ 完成していないものに コピー/共有/削除 を出さない
+   ＝途中の文章を「結果」として持ち出せてしまうと、あとで見て本物と区別が付かない。 */
+let arStreaming = false;
+function setArStreaming(on){
+  arStreaming = on;
+  document.getElementById('btnArStop').hidden = !on;
+  document.getElementById('arActions').hidden = on;
+  document.getElementById('arAdv').hidden = on;
+  if (on) document.getElementById('btnArDelete').hidden = true;
+}
+// 届いた分をそのまま描く。⚠ mdToHtml は必ずエスケープしてから記法を戻す（r15）＝途中の文字でも同じ
+function renderArStream(text){
+  document.getElementById('arBody').innerHTML = text
+    ? mdToHtml(text) : '<div class="note" style="margin:0">🤖 考えています…（届いた端から出します）</div>';
+}
 function openAnResult(a){
+  setArStreaming(false);
   arCur = a;
   document.getElementById('arTitle').textContent = `${a.presetLabel || '📈 分析'} ・ ${a.period?.label || ''}`;
   const d = new Date(a.ts);
@@ -2399,8 +2513,10 @@ async function anRun(){
   if (!ctx.key)   { toast(`${ctx.p.vendor} のAPIキーが未登録です（⚙ から登録してください）`); return; }
   if (!ctx.model) { toast('分析モデルが未選択です（⚙ の「分析モデル」で選んでください）'); return; }
 
-  anBusy = true; anStartedAt = Date.now(); anAbort = new AbortController();
-  anTick = setInterval(renderAnalyze, 1000);   // 経過秒を1秒ごとに描き直す（固まって見えないように）
+  anBusy = true; anStartedAt = Date.now(); anAbort = new AbortController(); anChars = 0;
+  // ⚠ 1秒ごとに renderAnalyze を丸ごと呼ぶと、そのたびに全レシートを読み直す（1年分だと重い）。
+  //   出したいのは経過秒だけなので、文字を書き換えるだけの軽い関数にする（r27）
+  anTick = setInterval(anTickUI, 1000);
   renderAnalyze();
   try {
     const data = exportJson(rows, per.from, per.to);
@@ -2415,7 +2531,21 @@ async function anRun(){
 
     // ⚠ 8000（r17 で 4000 から）＝今どきのモデルは考えてから答えるので、上限は「考えた分＋返事」の合計を縛る。
     //   AN_SYSTEM で頼んでいるのは 800 字程度なので、実際に使う量（＝課金）は増えない。切れないための余白。
-    const r = await ctx.p.chat(ctx, AN_SYSTEM, parts, 8000, anAbort.signal);
+    /* 届いた端から受け取る（r27）。1年分を賢いモデルに読ませると答え終わるまで数分かかるので、
+       ①待ちが見える ②長い沈黙で接続が切られにくい の両方が要る。
+       ⚠ 一度も届かないまま失敗した時だけ、従来の一括に落とす（ストリーミングを受け付けない
+         互換サービスがありうるため）。途中まで届いていたら**作り直さない**＝二重課金になる。 */
+    anStreamOpen(per, rows.length);
+    let r;
+    try {
+      r = await ctx.p.chatStream(ctx, AN_SYSTEM, parts, 8000, anAbort.signal, t => {
+        anChars = t.length; renderArStream(t);
+      });
+    } catch (e) {
+      const m = String(e.message || e);
+      if (anChars || /やめました|届かなかった/.test(m)) throw e;
+      r = await ctx.p.chat(ctx, AN_SYSTEM, parts, 8000, anAbort.signal);
+    }
     let text = String(r.text || '').trim();
     if (!text) throw new Error(isCut(r.stop)
       ? '上限に達して返事が返りませんでした（AI が考えているうちに使い切った可能性）。期間を短くするか、別のモデルをお試しください'
@@ -2438,10 +2568,43 @@ async function anRun(){
     const m = String(err.message || err);
     toast(m === 'やめました' ? '⏹ やめました' : '❌ ' + m);   // 自分で止めた時は失敗のように見せない
   }
-  finally { clearInterval(anTick); anTick = null; anAbort = null; anBusy = false; renderAnalyze(); }
+  finally {
+    clearInterval(anTick); anTick = null; anAbort = null; anBusy = false;
+    if (arStreaming) {
+      setArStreaming(false);
+      // ⚠ 一文字も届いていないなら結果画面は閉じる＝空の画面に「途中で終わりました」だけ残すと、
+      //   何が起きたのか分からない（理由は toast に出ている）。届いていた分があれば残す
+      if (!anChars) hide('ovAnRes');
+      else {
+        document.getElementById('arMeta').textContent = '⏹ 途中で終わりました（保存していません）';
+        document.getElementById('arActions').hidden = true;
+        document.getElementById('btnArDelete').hidden = true;
+      }
+    }
+    renderAnalyze();
+  }
+}
+// 生成中の結果画面を先に開く＝待ちを画面で見せる
+function anStreamOpen(per, count){
+  arCur = null;
+  document.getElementById('arTitle').textContent = `${AN_PRESET_LABEL(anPreset)} ・ ${per.label}`;
+  document.getElementById('arPrompt').textContent = '';
+  setArStreaming(true);
+  renderArStream('');
+  anTickUI();
+  document.getElementById('ovAnRes').querySelector('.sheet').scrollTop = 0;
+  show('ovAnRes');
+}
+function anTickUI(){
+  const secs = Math.round((Date.now() - anStartedAt) / 1000);
+  if (anBusy) document.getElementById('btnAnRun').textContent = `🤖 分析中… ${secs}秒`;
+  if (arStreaming) document.getElementById('arMeta').textContent =
+    `🤖 生成中… ${secs}秒${anChars ? ` ・ ${anChars.toLocaleString('ja-JP')}文字` : ''}（届いた端から出しています／⏹ で止められます）`;
 }
 document.getElementById('btnAnRun').onclick = anRun;
-document.getElementById('btnAnStop').onclick = () => { if (anAbort) anAbort.abort(); };
+const anStop = () => { if (anAbort) anAbort.abort(); };
+document.getElementById('btnAnStop').onclick = anStop;
+document.getElementById('btnArStop').onclick = anStop;
 document.querySelectorAll('#anPeriodSeg button').forEach(b => b.onclick = () => {
   const prev = anPeriod();
   anMode = b.dataset.ap; localStorage.setItem(AN.period, anMode);
