@@ -286,6 +286,8 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <div class="anAi" id="anAiLine"></div>
     <label class="anChk"><input type="checkbox" id="anSaveChk"><span>結果を自動で保存する（🗂 履歴に貯まります）</span></label>
     <button class="btn pri" id="btnAnRun">▶ 分析する</button>
+    <!-- ⏹ 待っている間に人がやめられる手（r26）＝上限で勝手に切るより、こちらを先に用意する -->
+    <button class="btn" id="btnAnStop" hidden>⏹ やめる</button>
     <!-- ⚠ 何を送るかは 📎 の有無で変わる＝固定文だと嘘になる（r25 でユーザー指摘） -->
     <div class="note" id="anSendNote"></div>
   </div>
@@ -421,7 +423,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r25 🗾住所の検索を国土地理院優先に（日本の住所は丁目・番＝街区まで座標が出る。見つからなければOpenStreetMapへ）＋▶の下の説明を送信内容に合わせて出し分け（📎を選んでいる時は「レシートの文字データ＋選んだN件」と書く）｜r24 🧾税込・税抜が混ざる問題＝AIの判定に頼らず「数字の方から」見分ける（考えられる読み方を全部試して合計に合うものを採る・どれも合わなければ⚠）＋📎の言い方を「AIにいっしょに読ませるもの」に直しPDFは選んだ時点で可否が分かるように｜r23 📍場所が入らない時に理由が分かるように＝番地で駄目なら町名まで落として探す・全角ハイフンの取りこぼしを修正・見つからなかった店は💴に理由を表示・🔎は覚えている結果を無視して探し直す・届かない時は黙らず知らせる｜🗂分析の履歴を選んで（またはすべて）まとめて書き出せる｜r22 🧮税と数量を正しく持つ＝明細は税抜・合計は税込で混ざっていたのを、税率(8/10%)・消費税・値引き・単価まで読み取って区別。price は「その行の合計」に統一（qtyを掛けない）。数字が合わないレシートに ⚠要確認 を出す｜r21 ⏱日付のUTCずれを修正＝日付が印字されていないレシートが1日ずれていた（朝9時前に撮った分）＋書き出しの時刻に+09:00を付与＋🔑1枚の写真から複数レシートを切り出した時に一意なレシートIDを振る（photo_idだけでは重複） · 2026-08-13';
+const BUILD = 'r26 ⏱待ち時間の扱いを直す＝これまでアプリ側に制限時間が無く固まっても分からなかった。固定の「30秒ほど」をやめ経過秒を出す／⏹やめるを置く／読み取り3分・分析5分で打ち切り（理由の分かる文言で）｜r25 🗾住所の検索を国土地理院優先に（日本の住所は丁目・番＝街区まで座標が出る。見つからなければOpenStreetMapへ）＋▶の下の説明を送信内容に合わせて出し分け（📎を選んでいる時は「レシートの文字データ＋選んだN件」と書く）｜r24 🧾税込・税抜が混ざる問題＝AIの判定に頼らず「数字の方から」見分ける（考えられる読み方を全部試して合計に合うものを採る・どれも合わなければ⚠）＋📎の言い方を「AIにいっしょに読ませるもの」に直しPDFは選んだ時点で可否が分かるように｜r23 📍場所が入らない時に理由が分かるように＝番地で駄目なら町名まで落として探す・全角ハイフンの取りこぼしを修正・見つからなかった店は💴に理由を表示・🔎は覚えている結果を無視して探し直す・届かない時は黙らず知らせる｜🗂分析の履歴を選んで（またはすべて）まとめて書き出せる｜r22 🧮税と数量を正しく持つ＝明細は税抜・合計は税込で混ざっていたのを、税率(8/10%)・消費税・値引き・単価まで読み取って区別。price は「その行の合計」に統一（qtyを掛けない）。数字が合わないレシートに ⚠要確認 を出す · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -536,16 +538,34 @@ const blobToB64 = blob => new Promise((ok, ng) => {
 
 /* ---------- AIへの窓口（BYOキー・端末→APIへ直接。サーバーは無い） ----------
    選んだ AI の「入口（URL・ヘッダ）」だけ差し替える共通の呼び出し。中身の違いは PROVIDERS が吸収する。 */
-async function apiFetch(ctx, path, { method = 'GET', body = null } = {}){
+/* --- 待ち時間の上限（r26） ---
+   ⚠ これまで signal を渡しておらず、**アプリ側の制限時間が無かった**＝長引いた時に何が起きるかは
+      ブラウザ/OS 任せで、誰も決めていなかった。固まったのか動いているのかも分からない。
+   ⚠ 短く切りすぎない方がよい（考えてから答えるモデルは普通に1〜2分かかる）。切るのは
+      「明らかにおかしい」時だけにして、**途中でやめる手（⏹）は人に渡す**。 */
+const T_OCR = 180000, T_CHAT = 300000, T_SHORT = 60000;
+async function apiFetch(ctx, path, { method = 'GET', body = null, timeoutMs = T_SHORT, signal = null } = {}){
   if (!ctx.key) throw new Error(`${ctx.p.vendor} のAPIキーが未設定です（⚙ から登録）`);
+  const ac = new AbortController();
+  // ⚠ abort(reason) は古い環境で理由が落ちるので、旗で見分ける（時間切れ か 人がやめた か）
+  let timedOut = false, stopped = false;
+  const timer = setTimeout(() => { timedOut = true; ac.abort(); }, timeoutMs);
+  const onStop = () => { stopped = true; ac.abort(); };
+  if (signal) { if (signal.aborted) onStop(); else signal.addEventListener('abort', onStop); }
+  const cleanup = () => { clearTimeout(timer); if (signal) signal.removeEventListener('abort', onStop); };
   let res;
   try {
-    res = await fetch(ctx.base + path, { method, headers: ctx.p.headers(ctx), body: body ? JSON.stringify(body) : undefined });
+    res = await fetch(ctx.base + path, { method, headers: ctx.p.headers(ctx),
+                                         body: body ? JSON.stringify(body) : undefined, signal: ac.signal });
   } catch (_) {
+    cleanup();
+    if (stopped)  throw new Error('やめました');
+    if (timedOut) throw new Error(`時間がかかりすぎたので止めました（${Math.round(timeoutMs / 1000)}秒）。期間を短くするか、軽いモデルをお試しください`);
     // fetch 自体が失敗＝回線が無いか、そのサービスが端末からの直接呼び出しを許していない（CORS）
     throw new Error('APIに届きませんでした（通信状況か、APIのURLを確認してください）');
   }
   if (!res.ok) {
+    cleanup();
     let msg = 'HTTP ' + res.status;
     try { msg = (await res.json()).error?.message || msg; } catch (_) {}
     if (res.status === 401) msg = 'APIキーが無効です（⚙ で確認を）';
@@ -553,7 +573,14 @@ async function apiFetch(ctx, path, { method = 'GET', body = null } = {}){
     if (res.status === 429) msg = 'レート制限中。少し待って 🔁 再分析を';
     throw new Error(msg);
   }
-  return res.json();
+  // ⚠ 本文の読み込みも同じ signal で切れる（見出しだけ返って本文が来ない時に固まらない）
+  try { return await res.json(); }
+  catch (_) {
+    if (stopped)  throw new Error('やめました');
+    if (timedOut) throw new Error(`時間がかかりすぎたので止めました（${Math.round(timeoutMs / 1000)}秒）。期間を短くするか、軽いモデルをお試しください`);
+    throw new Error('返事を読めませんでした（途中で切れた可能性）');
+  }
+  finally { cleanup(); }
 }
 
 /* 返事が「上限で途中で切れた」か（r17）。
@@ -677,7 +704,7 @@ const PROVIDERS = {
     async analyze(ctx, b64){
       const output_config = { format: { type: 'json_schema', schema: RECEIPT_SCHEMA } };
       if (ctx.model !== 'claude-haiku-4-5') output_config.effort = 'low'; // effort は Haiku 4.5 非対応
-      const res = await apiFetch(ctx, '/messages', { method: 'POST', body: {
+      const res = await apiFetch(ctx, '/messages', { method: 'POST', timeoutMs: T_OCR, body: {
         model: ctx.model, max_tokens: 6000, output_config, system: OCR_RULES,
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
@@ -690,12 +717,12 @@ const PROVIDERS = {
                model: res.model, in: res.usage?.input_tokens, out: res.usage?.output_tokens };
     },
     // 📈 分析＝考えさせる用途なので effort は指定しない（読み取りの low は「型に嵌めるだけ」だから効いていた）
-    async chat(ctx, system, parts, maxTokens){
+    async chat(ctx, system, parts, maxTokens, signal){
       const content = onlyText(parts) || parts.map(p =>
           p.kind === 'image' ? { type: 'image',    source: { type: 'base64', media_type: p.mime, data: p.b64 } }
         : p.kind === 'pdf'   ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.b64 } }
         : { type: 'text', text: p.text });
-      const res = await apiFetch(ctx, '/messages', { method: 'POST', body: {
+      const res = await apiFetch(ctx, '/messages', { method: 'POST', timeoutMs: T_CHAT, signal, body: {
         model: ctx.model, max_tokens: maxTokens, system,
         messages: [{ role: 'user', content }],
       }});
@@ -744,7 +771,7 @@ function openAICompatible(o){
         };
         if (response_format) body.response_format = response_format;
         try {
-          const res = await apiFetch(ctx, '/chat/completions', { method: 'POST', body });
+          const res = await apiFetch(ctx, '/chat/completions', { method: 'POST', timeoutMs: T_OCR, body });
           const msg = res.choices?.[0]?.message || {};
           if (msg.refusal) throw new Error('AI が分析を拒否しました: ' + msg.refusal);
           localStorage.setItem(LS.fmt(ctx.prov), name);
@@ -759,7 +786,7 @@ function openAICompatible(o){
       throw lastErr;
     },
     // 📈 分析＝ふつうの chat（JSONを強いない＝型指定の3段構えは要らない）
-    async chat(ctx, system, parts, maxTokens){
+    async chat(ctx, system, parts, maxTokens, signal){
       // ⚠ PDF は OpenAI 互換の入口ごとに扱いが違う（受け取れないところもある）＝黙って落とさずに断る
       const content = onlyText(parts) || parts.map(p => {
         if (p.kind === 'pdf') throw new Error(`${o.label} には PDF を渡せません（${p.name}）。Claude を選ぶか、PDF を画像にして渡してください`);
@@ -767,7 +794,7 @@ function openAICompatible(o){
           ? { type: 'image_url', image_url: { url: `data:${p.mime};base64,${p.b64}`, detail: 'high' } }
           : { type: 'text', text: p.text };
       });
-      const res = await apiFetch(ctx, '/chat/completions', { method: 'POST', body: {
+      const res = await apiFetch(ctx, '/chat/completions', { method: 'POST', timeoutMs: T_CHAT, signal, body: {
         model: ctx.model, [o.tokenParam || 'max_tokens']: maxTokens,
         messages: [{ role: 'system', content: system }, { role: 'user', content }],
       }});
@@ -2097,6 +2124,7 @@ let anPreset = localStorage.getItem(AN.preset) || 'review';
 if (!AN_PRESETS.some(p => p[0] === anPreset)) anPreset = AN_PRESETS[0][0];
 let anTab    = 'new';
 let anBusy   = false;
+let anStartedAt = 0, anTick = null, anAbort = null;   // 経過秒の表示 / 中止（r26）
 let arCur    = null;   // いま結果画面に出している分析（履歴から開いた / いま実行した）
 const anSaveOn = () => localStorage.getItem(AN.save) !== '0'; // 既定＝保存する
 
@@ -2205,6 +2233,9 @@ async function renderAnalyze(){
       ? `<b>${esc(per.label)}</b>：この期間にレシートがありません`
       : `<b>${esc(per.label)}</b>：${rows.length}件${spend ? ' ・ 支出 ' + yen(spend) : ''} ・ 送るデータ 約${chars.toLocaleString('ja-JP')}文字`
         + (anAtt.length ? ` ＋ 📎${anAtt.length}件` : '')
+        // ⚠ かかる時間は量とモデルで変わる＝固定の数字を約束しない（r26）。上限だけは決めてあると伝える
+        + `<br>⏱ 返事が来るまで<b>1〜2分かかることがあります</b>（量と選んだモデルによります）。${
+             Math.round(T_CHAT / 60000)}分で打ち切ります／途中で <b>⏹ やめる</b> も押せます。`
         + (chars > 150000 ? '<br><span style="color:var(--err)">⚠ 量が多いので、期間を狭めるか料金にご注意を（モデルによっては上限を超えます）</span>' : '');
   }
 
@@ -2255,8 +2286,11 @@ async function renderAnalyze(){
   document.getElementById('anSaveChk').checked = anSaveOn();
   const run = document.getElementById('btnAnRun');
   run.disabled = anBusy;
-  run.textContent = anBusy ? '🤖 分析中…（30秒ほどかかります）' : '▶ 分析する';
+  // ⚠ 固定の「30秒ほど」はやめた（データ量で変わるのに変わらない数字は嘘になる）。
+  //   代わりに**経過秒**を出す＝動いているのか固まったのかが分かる（r26）
+  run.textContent = anBusy ? `🤖 分析中… ${Math.round((Date.now() - anStartedAt) / 1000)}秒` : '▶ 分析する';
   run.style.opacity = anBusy ? '.6' : '';
+  document.getElementById('btnAnStop').hidden = !anBusy;
 }
 
 let anSel = new Set();   // 選んでいる分析の id（まとめて書き出す用・r24）
@@ -2365,7 +2399,9 @@ async function anRun(){
   if (!ctx.key)   { toast(`${ctx.p.vendor} のAPIキーが未登録です（⚙ から登録してください）`); return; }
   if (!ctx.model) { toast('分析モデルが未選択です（⚙ の「分析モデル」で選んでください）'); return; }
 
-  anBusy = true; renderAnalyze();
+  anBusy = true; anStartedAt = Date.now(); anAbort = new AbortController();
+  anTick = setInterval(renderAnalyze, 1000);   // 経過秒を1秒ごとに描き直す（固まって見えないように）
+  renderAnalyze();
   try {
     const data = exportJson(rows, per.from, per.to);
     // ⚠ 並びは「添付 → 依頼文＋データ」。長い材料を先に置き、聞きたいことを最後にする方が読み違いが少ない
@@ -2379,7 +2415,7 @@ async function anRun(){
 
     // ⚠ 8000（r17 で 4000 から）＝今どきのモデルは考えてから答えるので、上限は「考えた分＋返事」の合計を縛る。
     //   AN_SYSTEM で頼んでいるのは 800 字程度なので、実際に使う量（＝課金）は増えない。切れないための余白。
-    const r = await ctx.p.chat(ctx, AN_SYSTEM, parts, 8000);
+    const r = await ctx.p.chat(ctx, AN_SYSTEM, parts, 8000, anAbort.signal);
     let text = String(r.text || '').trim();
     if (!text) throw new Error(isCut(r.stop)
       ? '上限に達して返事が返りませんでした（AI が考えているうちに使い切った可能性）。期間を短くするか、別のモデルをお試しください'
@@ -2398,10 +2434,14 @@ async function anRun(){
     if (anSaveOn()) { rec.saved = true; await anPut(rec); await renderAnHistory(); }
     else rec.saved = false;
     openAnResult(rec);
-  } catch (err) { toast('❌ ' + (err.message || err)); }
-  finally { anBusy = false; renderAnalyze(); }
+  } catch (err) {
+    const m = String(err.message || err);
+    toast(m === 'やめました' ? '⏹ やめました' : '❌ ' + m);   // 自分で止めた時は失敗のように見せない
+  }
+  finally { clearInterval(anTick); anTick = null; anAbort = null; anBusy = false; renderAnalyze(); }
 }
 document.getElementById('btnAnRun').onclick = anRun;
+document.getElementById('btnAnStop').onclick = () => { if (anAbort) anAbort.abort(); };
 document.querySelectorAll('#anPeriodSeg button').forEach(b => b.onclick = () => {
   const prev = anPeriod();
   anMode = b.dataset.ap; localStorage.setItem(AN.period, anMode);
