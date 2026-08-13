@@ -351,7 +351,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r17 ⏳返事が途中で切れる件に対処＝📈分析の上限を8000に（今どきのモデルは「考えた分＋返事」で上限を使う）・切れた時は「上限に達した」と分かる文言＋本文に注記（📷読み取りも同様）｜r16 🩺聞きかたの型を「食費をくわしく」→「健康の面から」に差し替え＋📎画像/PDF/テキストを依頼に一緒に渡せる＋⛶支出マップを全画面で見られる｜r15 📈分析＝期間を決めて溜まったレシートをまとめてAIに読ませる（写真の読み取りとは別のAI・別モデルを選べる／型を選ぶか自由に書く／結果は自動保存で🗂履歴に貯まる）｜r14 🍎iPhone版の足場＋Codemagic で TestFlight（web は無改修・TestFlight 到達を確認）｜r13 🗺地図の種類を選べる（ダーク/標準/淡色/明るい）＋期間に 今日/今週/期間を選ぶ を追加 · 2026-08-13';
+const BUILD = 'r18 🧾登録番号（T+13桁）も読み取って同じ会社をまとめる＝「ドラッグストア クリエイト」と「クリエイト」が別の店に数えられていたのを修正（業態語を落としても寄せる・別ブランドは畳まない）｜r17 ⏳返事が途中で切れる件に対処＝📈分析の上限を8000に（今どきのモデルは「考えた分＋返事」で上限を使う）・切れた時は「上限に達した」と分かる文言＋本文に注記（📷読み取りも同様）｜r16 🩺聞きかたの型を「食費をくわしく」→「健康の面から」に差し替え＋📎画像/PDF/テキストを依頼に一緒に渡せる＋⛶支出マップを全画面で見られる｜r15 📈分析＝期間を決めて溜まったレシートをまとめてAIに読ませる（写真の読み取りとは別のAI・別モデルを選べる／型を選ぶか自由に書く／結果は自動保存で🗂履歴に貯まる）｜r14 🍎iPhone版の足場＋Codemagic で TestFlight（web は無改修・TestFlight 到達を確認） · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -504,6 +504,7 @@ const RECEIPT_SCHEMA = {
       store:    NULLABLE('string'),
       branch:   NULLABLE('string'),
       address:  NULLABLE('string'),
+      regno:    NULLABLE('string'),   // 適格請求書発行事業者登録番号（T+13桁）＝同じ会社かどうかの決め手（r18）
       date:     NULLABLE('string'),
       time:     NULLABLE('string'),
       total:    NULLABLE('integer'),
@@ -516,7 +517,7 @@ const RECEIPT_SCHEMA = {
         required: ['name', 'price', 'qty'],
       } },
     },
-    required: ['store', 'branch', 'address', 'date', 'time', 'total', 'kind', 'category', 'payment', 'items'],
+    required: ['store', 'branch', 'address', 'regno', 'date', 'time', 'total', 'kind', 'category', 'payment', 'items'],
   } } },
   required: ['receipts'],
 };
@@ -535,7 +536,10 @@ const OCR_RULES = `あなたはレシート読み取りの専門家。写真に�
 - address: その店舗の住所を印字のまま（都道府県から番地まで。改行は空白1つに畳む）。
   印字が無ければ必ず null。電話番号・郵便番号だけ、店名だけ、といったものは住所ではないので null。
   推測で補わない（知識から市区町村を足す等をしない）。読めた文字だけを返す。
-  複数の住所が印字されている場合（本社と店舗など）は、その買い物をした店舗の方を選ぶ。`;
+  複数の住所が印字されている場合（本社と店舗など）は、その買い物をした店舗の方を選ぶ。
+- regno: 「登録番号」「適格請求書発行事業者登録番号」として印字された、T で始まる13桁の番号（例: T1234567890123）。
+  印字が無ければ必ず null。推測で作らない。電話番号・レシート番号・店舗コード・法人番号の見出しが無い数字は登録番号ではないので null。
+  T が読めなくても13桁の数字が「登録番号」の見出しで印字されていれば、その数字を返す。`;
 
 /* 📈 分析（r15）＝写真ではなく「溜まったレシートの文字データ」をまとめて読ませる時の頼み方。
    ⚠ 説教させない。家計のデータは弱みなので、責める文章が返ると次から開かなくなる（＝データも溜まらない）。 */
@@ -844,6 +848,7 @@ async function openDetail(id){
         + kv('日付', d.date) + kv('時刻', d.time)
         + kv(d.kind === 'income' ? '受取' : '合計', d.total != null ? yen(d.total) : null)
         + kv('カテゴリ', d.category) + kv('支払', d.payment) + kv('住所', d.address)
+        + kv('登録番号', d.regno)
         + (d.items?.length ? '<table class="items">' + d.items.map(it =>
             `<tr><td>${it.name}${it.qty > 1 ? ' ×' + it.qty : ''}</td><td>${it.price != null ? yen(it.price) : ''}</td></tr>`).join('') + '</table>' : '')
       ).join('')
@@ -867,7 +872,7 @@ async function exportTargets(){
 function exportJson(rows, from, to){
   // 統計は入れない＝生データからAI/表計算が自分で計算する（ライフログの交換フォーマットと同方針）
   return JSON.stringify({
-    format: 'receipt-spike-export', version: 2,
+    format: 'receipt-spike-export', version: 3,   // v3（r18）で regno（登録番号）が加わった。他は v2 のまま
     exported_at: new Date().toISOString(), period: { from: from || null, to: to || null },
     count: rows.length,
     receipts: rows.map(x => ({ photo_id: x.rec.id, captured_at: new Date(x.rec.ts).toISOString(), ...x.rc })),
@@ -875,11 +880,11 @@ function exportJson(rows, from, to){
 }
 function exportCsv(rows){
   const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
-  const out = [['日付', '時刻', '店名', '支店', '金額', '種別', 'カテゴリ', '支払', '住所', '品目'].join(',')];
+  const out = [['日付', '時刻', '店名', '支店', '金額', '種別', 'カテゴリ', '支払', '住所', '登録番号', '品目'].join(',')];
   for (const x of rows) {
     const d = x.rc;
     out.push([x.date, d.time, d.store, d.branch, d.total, d.kind === 'income' ? '収入' : '支出',
-              d.category, d.payment, d.address, (d.items || []).map(i => i.name).join('、')].map(esc).join(','));
+              d.category, d.payment, d.address, d.regno, (d.items || []).map(i => i.name).join('、')].map(esc).join(','));
   }
   return '﻿' + out.join('\n'); // BOM: Excel の文字化け対策
 }
@@ -1095,11 +1100,68 @@ function sameShopName(a0, b0){
   if (a.length !== b.length || a.length < 4) return false;
   return editDist(a, b) <= Math.floor(a.length / 3);
 }
+/* --- 店名（チェーン名）の名寄せ（r18） ---
+   実データで「ドラッグストア クリエイト 八王子宇津木台店」と「クリエイト 八王子宇津木台店」が
+   別の店として数えられた。支店名は同じなのに、店名の書き方が違うと別グループになっていた
+   （sameShopName は支店名にしか効いていなかった）。決め手を2つ用意する:
+     ① 登録番号（適格請求書発行事業者登録番号・T+13桁）が同じ → 同じ会社。いちばん強い証拠
+     ② 業態語（ドラッグストア/スーパー/株式会社…）を落とすと同じ → 同じ店名の書き方違い
+   ⚠ ①は**会社**の番号であって店舗の番号ではない＝同じチェーンの別支店は同じ番号になる。
+      だから登録番号で束ねるのは「店名」までで、**支店の区別は今までどおり branch で行う**。
+   ⚠ ②の業態語リストは短く保つ。「ローソン」と「ローソンストア100」のような**別ブランドを
+      畳まない**ため、知っている飾り言葉だけを落とす（包含関係では畳まない）。 */
+function regnoNorm(v){
+  const s = String(v || '').replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+                           .toUpperCase().replace(/[^0-9T]/g, '');
+  const m = s.match(/T?(\d{13})/);   // T が読めていなくても13桁が取れれば使う
+  return m ? 'T' + m[1] : null;
+}
+const BIZ_WORDS = ['ドラッグストア', 'ドラックストア', 'スーパーマーケット', 'ホームセンター',
+                   'コンビニエンスストア', 'スーパー', '株式会社', '（株）', '(株)', '有限会社', '（有）', '(有)'];
+function bizNorm(s){
+  let t = String(s || '');
+  for (let i = 0; i < 3; i++) {          // 前後に複数付くことがある（例「株式会社ドラッグストア○○」）
+    const before = t;
+    for (const w of BIZ_WORDS) {
+      if (t.startsWith(w) && t.length - w.length >= 2) t = t.slice(w.length).trim();
+      if (t.endsWith(w)   && t.length - w.length >= 2) t = t.slice(0, -w.length).trim();
+    }
+    if (t === before) break;
+  }
+  return t;
+}
+// 「書き方 → 代表の書き方」の対応表。①②で繋がったものを 1 つのまとまりにする（Union-Find）
+function storeCanon(rows){
+  const parent = new Map(), cnt = new Map();
+  const add  = k => { if (!parent.has(k)) parent.set(k, k); return k; };
+  const find = k => { while (parent.get(k) !== k) { parent.set(k, parent.get(parent.get(k))); k = parent.get(k); } return k; };
+  const link = (a, b) => { a = find(add(a)); b = find(add(b)); if (a !== b) parent.set(a, b); };
+  rows.forEach(x => {
+    const sn = storeNorm(x.rc.store, STORE_NONE);
+    add(sn); cnt.set(sn, (cnt.get(sn) || 0) + 1);
+    if (sn === STORE_NONE) return;                       // 「店名なし」どうしは束ねない
+    const bz = bizNorm(sn); if (bz) link(sn, 'B:' + bz); // ② 飾りを落とした形が同じなら同じ
+    const t = regnoNorm(x.rc.regno); if (t) link(sn, 'T:' + t); // ① 登録番号が同じなら同じ会社
+  });
+  // 代表名＝そのまとまりで**いちばん多く出てきた書き方**、同数なら短い方
+  //   （多数決＝OCR の少数派の誤読を見出しにしない／短さ＝飾り言葉の付いた方を選ばない）
+  //   ⚠ 支店の代表名は「短さ→金額」（sameShopName で畳むのは同じ長さの1文字違いなので、多数決が効かない）
+  const best = new Map();
+  cnt.forEach((c, sn) => {
+    const root = find(sn), b = best.get(root);
+    if (!b || c > cnt.get(b) || (c === cnt.get(b) && sn.length < b.length)) best.set(root, sn);
+  });
+  const map = new Map();
+  cnt.forEach((_, sn) => map.set(sn, best.get(find(sn)) || sn));
+  return map;
+}
+
 // 表示行（listRows の要素）→ [{name, yen, n, cat, rows, shops:[{name, yen, n, rows}]}]
 function groupStores(rows){
+  const canon = storeCanon(rows);
   const G = new Map();
   rows.forEach(x => {
-    const key = storeNorm(x.rc.store, STORE_NONE);
+    const key = canon.get(storeNorm(x.rc.store, STORE_NONE)) || storeNorm(x.rc.store, STORE_NONE);
     const g = G.get(key) || { name: key, yen: 0, n: 0, rows: [], shops: [] };
     const amt = x.rc.total || 0;
     g.yen += amt; g.n++; g.rows.push(x);
