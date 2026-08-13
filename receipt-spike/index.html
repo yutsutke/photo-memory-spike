@@ -212,6 +212,12 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
   <div class="note">分析は<b>文章を書かせる</b>使い方なので、読み取りより<b>賢いモデル</b>が向きます（写真は安いモデル・分析は賢いモデル、という組み合わせができます）。<b>APIキーは AI ごとに1本</b>を読み取りと共有します（同じ鍵を2回貼らなくて済みます）。</div>
   <div class="note">キーは<b>この端末のアプリ内にのみ</b>保存されます（このアプリにサーバーはありません）。レシート画像は分析のときだけ、<b>あなたのキーで、選んだAIのAPIに直接</b>送信されます。それ以外に外部へ送るものはありません。</div>
   <div class="note">🔐 おすすめ運用: このアプリ<b>専用のAPIキー</b>を発行し、Console 側で<b>支出上限</b>を低く設定しておく（万一漏れても被害がその上限で止まる・いつでも失効できる）。</div>
+  <!-- 📍 場所の決め方（r20）＝外部サービスへ送る話なので、キーの話とは分けて置く -->
+  <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
+    <label>📍 お店の場所の決め方（💴 支出マップ）</label>
+    <label class="anChk"><input type="checkbox" id="autoGeoChk"><span>レシートの<b>印字住所から自動で場所を決める</b></span></label>
+  </div>
+  <div class="note">🌏 オンの間は、読み取りが終わるたびに<b>住所の文字だけ</b>を OpenStreetMap（外部サービス）へ送り、座標を返してもらいます（<b>写真・金額・品目は送りません</b>）。決まった位置は<b>この端末の中だけ</b>に保存されます。オフにすると、💴 の 🔎 ボタンを押した時だけ送ります。<b>見つからなかった住所・ずれている店は、💴 からタップして手で置けます</b>（手で置いた位置が優先されます）。</div>
   <div class="note" id="noteStore"></div>
   <div class="note" id="buildLine"></div>
 </div></div>
@@ -387,7 +393,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r19 ✏️レシートの内容を手で直せる（店名/日付/合計/分類/住所/登録番号/品目・読み取りに失敗した写真も手入力で登録できる・🔁再分析は手直しを上書きする前に確認）｜r18 🧾登録番号（T+13桁）も読み取って同じ会社をまとめる＝「ドラッグストア クリエイト」と「クリエイト」が別の店に数えられていたのを修正（業態語を落としても寄せる・別ブランドは畳まない）｜r17 ⏳返事が途中で切れる件に対処＝📈分析の上限を8000に（今どきのモデルは「考えた分＋返事」で上限を使う）・切れた時は「上限に達した」と分かる文言＋本文に注記（📷読み取りも同様）｜r16 🩺聞きかたの型を「食費をくわしく」→「健康の面から」に差し替え＋📎画像/PDF/テキストを依頼に一緒に渡せる＋⛶支出マップを全画面で見られる｜r15 📈分析＝期間を決めて溜まったレシートをまとめてAIに読ませる（写真の読み取りとは別のAI・別モデルを選べる／型を選ぶか自由に書く／結果は自動保存で🗂履歴に貯まる） · 2026-08-13';
+const BUILD = 'r20 📍レシートの印字住所から自動でお店の場所を決める＝撮るだけで💴支出マップに出る（⚙で切れる・手で置いた位置は上書きしない・見つからない住所は覚えて送り直さない）｜r19 ✏️レシートの内容を手で直せる（店名/日付/合計/分類/住所/登録番号/品目・読み取りに失敗した写真も手入力で登録できる・🔁再分析は手直しを上書きする前に確認）｜r18 🧾登録番号（T+13桁）も読み取って同じ会社をまとめる＝「ドラッグストア クリエイト」と「クリエイト」が別の店に数えられていたのを修正（業態語を落としても寄せる・別ブランドは畳まない）｜r17 ⏳返事が途中で切れる件に対処＝📈分析の上限を8000に（今どきのモデルは「考えた分＋返事」で上限を使う）・切れた時は「上限に達した」と分かる文言＋本文に注記（📷読み取りも同様）｜r16 🩺聞きかたの型を「食費をくわしく」→「健康の面から」に差し替え＋📎画像/PDF/テキストを依頼に一緒に渡せる＋⛶支出マップを全画面で見られる · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -805,6 +811,7 @@ async function runAnalysis(id){
   }
   await dbPut(rec); await renderList();
   if (isOpen('ovStats')) renderStats(); // 分析が終わったら、開いている統計にも反映する
+  if (rec.status === 'done') autoGeoSweep();  // 印字住所から場所も入れる（r20・待たない）
   if (rec.status === 'error') toast('❌ ' + rec.error);
 }
 
@@ -965,6 +972,7 @@ document.getElementById('edSave').onclick = async () => {
   await renderList();
   if (isOpen('ovDetail')) await openDetail(edId);
   if (isOpen('ovStats')) renderTab();
+  autoGeoSweep();   // 住所を直したなら、その住所で場所も探し直す（r20・待たない）
 };
 document.getElementById('btnDelete').onclick = async () => {
   if (!confirm('このレシートを削除しますか？')) return;
@@ -1099,8 +1107,13 @@ function renderSettings(){
   document.getElementById('inModelCustom').value = '';
   const base = document.getElementById('inBase');
   base.value = localStorage.getItem(LS.base(prov)) || ''; base.placeholder = p.base;
+  document.getElementById('autoGeoChk').checked = autoGeoOn();
   renderAnSettings();
 }
+document.getElementById('autoGeoChk').onchange = e => {
+  localStorage.setItem(AUTO_GEO, e.target.checked ? '1' : '0');
+  if (e.target.checked) autoGeoSweep();   // オンにした瞬間に、溜まっていた分を入れる
+};
 /* 📈 分析に使う AI（r15）。⚠ キーは AI ごとに1本を読み取りと共有する＝同じ鍵を2回貼らせない。
    分析用に「読み取りとは別の AI」を選んだ時だけ、その AI のキー欄をここに出す
    （出さないと、鍵を登録するために上のボタンを一度切り替える必要があり、読み取り側の設定まで動いてしまう）。 */
@@ -1453,6 +1466,7 @@ function setTab(t){
   document.getElementById('stBody').hidden = t !== 'stats';
   document.getElementById('mapPane').hidden = t !== 'map';
   if (t !== 'map') setMapFull(false); // 📊 に戻ったのに全画面が残っていると、次に 💴 を開いた時いきなり全画面になる
+  if (t === 'map') autoGeoSweep();    // 溜まっていた分の場所もここで入れる（r20・待たない）
   renderTab();
 }
 document.querySelectorAll('#stTabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
@@ -1545,15 +1559,18 @@ const GEO_CACHE = 'rcpt.geocache';
 let geoCache = (() => { try { return JSON.parse(localStorage.getItem(GEO_CACHE) || '{}'); } catch (_) { return {}; } })();
 let geoQueue = Promise.resolve();
 function forwardGeocode(q){
-  if (geoCache[q]) return Promise.resolve(geoCache[q]);
+  // ⚠ 見つからなかった住所も覚える（0 を入れる）＝自動で回すようになった r20 以降、
+  //   同じ住所を毎回 OpenStreetMap へ送り直さないため。通信そのものが失敗した時は覚えない（次に試せる）
+  if (q in geoCache) return Promise.resolve(geoCache[q] || null);
   const run = geoQueue.then(async () => {
-    if (geoCache[q]) return geoCache[q];
+    if (q in geoCache) return geoCache[q] || null;
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=ja&q=${encodeURIComponent(q)}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('住所の検索に失敗しました（' + res.status + '）');
     const d = await res.json();
     const r = (d && d[0]) ? { lat: parseFloat(d[0].lat), lon: parseFloat(d[0].lon) } : null;
-    if (r) { geoCache[q] = r; try { localStorage.setItem(GEO_CACHE, JSON.stringify(geoCache)); } catch (_) {} }
+    geoCache[q] = r || 0;   // 0 ＝「探したが見つからなかった」
+    try { localStorage.setItem(GEO_CACHE, JSON.stringify(geoCache)); } catch (_) {}
     return r;
   });
   // ⚠ 次の1回は1.1秒後（Nominatim の利用規約＝1秒に1回まで）。成功でも失敗でも待つ
@@ -1772,6 +1789,37 @@ async function geocodeAll(){
   }
   toast(`🔎 ${ok}軒に場所が入りました${ng ? `（${ng}軒は見つからず＝地図をタップして置いてください）` : ''}`);
   renderSpendMap();
+}
+
+/* --- 📍 印字住所から自動で場所を決める（r20） ---
+   これまでは 🔎 を押した時だけ探していたので、撮っただけでは 💴 支出マップに出なかった。
+   ⚠ **外部サービス（OpenStreetMap）へ住所の文字を送る**動きなので、⚙ で切れるようにし、
+      何を送るかを ⚙ に明記した。送るのは住所だけ（写真・金額・品目は送らない）。
+   ⚠ **手で置いた位置を上書きしない**＝位置がまだ無い店だけが対象（lat == null）。
+   ⚠ 1秒に1回の制限は forwardGeocode の待ち行列がそのまま効く（まとめて探すのと同じ道）。 */
+const AUTO_GEO = 'rcpt.autogeo';
+const autoGeoOn = () => localStorage.getItem(AUTO_GEO) !== '0';   // 既定＝オン
+let autoGeoBusy = false;
+async function autoGeoSweep(){
+  if (!autoGeoOn() || autoGeoBusy) return;
+  autoGeoBusy = true;
+  try {
+    await loadPlaces();
+    const rows = (await listRows()).filter(x => x.rc && x.rc.kind !== 'income');
+    const targets = shopAggregate(rows, smPlaces).filter(s => s.lat == null && s.addr);
+    let found = 0;
+    for (const s of targets) {
+      let r = null;
+      try { r = await forwardGeocode(s.addr); }
+      catch (_) { break; }   // 通信が落ちている＝残りも失敗するので、その場でやめる（次の機会に再開）
+      if (!r) continue;      // 見つからない住所は forwardGeocode が覚える＝毎回送り直さない
+      await savePlace(s, r.lat, r.lon, 'geocode'); found++;
+      await loadPlaces();
+      if (isOpen('ovStats') && stTab === 'map') renderSpendMap();  // 開いていれば、入った端から地図に出す
+    }
+    // 地図を見ている時は目の前で増えるので黙っている。見ていない時だけ「入った」と伝える
+    if (found && !(isOpen('ovStats') && stTab === 'map')) toast(`📍 ${found}軒の場所が入りました（💴 支出マップで見られます）`);
+  } finally { autoGeoBusy = false; }
 }
 
 /* ---------- 📈 分析（期間を決めて、溜まったレシートをまとめて AI に読ませる・r15） ----------
