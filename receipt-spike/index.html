@@ -115,6 +115,11 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 .leaflet-control-attribution a{color:#aaa !important;}
 /* 📈 分析（レシートをまとめてAIに読ませる） */
 #anPrompt{width:100%; min-height:96px; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:10px; padding:10px; font-family:inherit; font-size:15px; line-height:1.6; resize:vertical;}
+/* ✏️ 手で直す（r19）の品目行。名前を広く・個数は狭く＝スマホ幅で3つ並べても読める */
+.edIt{display:flex; gap:6px; margin-bottom:6px;}
+.edIt input{background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px; font-size:15px; min-width:0;}
+.edIt .nm{flex:3;} .edIt .pr{flex:2;} .edIt .qt{width:54px; flex:none;}
+.edIt .rm{flex:none; width:38px; background:none; border:1px solid var(--line); color:var(--dim); border-radius:8px; font-size:15px;}
 .anChk{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--dim); margin:8px 0 12px;}
 .anChk input{width:18px; height:18px; accent-color:var(--acc); flex:none;}
 .anAi{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--dim); margin:10px 0;}
@@ -347,11 +352,42 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
   </div>
 </div></div>
 
+<!-- ✏️ 手で直す（r19）＝読み取りが間違っていた時の逃げ道。写真は原本として残したまま、文字データだけ直す -->
+<div class="overlay" id="ovEdit"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2 id="edTitle">✏️ 手で直す</h2>
+  <div class="note" style="margin-top:0">読み取りが間違っていたら、ここで直せます。直した内容は<b>この端末に保存</b>され、📊 統計・💴 マップ・📤 書き出し・📈 分析にそのまま効きます。</div>
+  <div class="dual">
+    <div class="row" style="flex:1"><label>店名（チェーン名）</label><input id="edStore" autocomplete="off"></div>
+    <div class="row" style="flex:1"><label>支店</label><input id="edBranch" autocomplete="off"></div>
+  </div>
+  <div class="dual">
+    <div class="row" style="flex:1"><label>日付</label><input type="date" id="edDate"></div>
+    <div class="row" style="flex:1"><label>時刻</label><input type="time" id="edTime"></div>
+  </div>
+  <div class="dual">
+    <div class="row" style="flex:1"><label>合計（円）</label><input type="number" inputmode="numeric" id="edTotal"></div>
+    <div class="row" style="flex:1"><label>種別</label><select id="edKind">
+      <option value="expense">支出</option><option value="income">収入</option></select></div>
+  </div>
+  <div class="dual">
+    <div class="row" style="flex:1"><label>分類</label><select id="edCat"></select></div>
+    <div class="row" style="flex:1"><label>支払</label><input id="edPay" autocomplete="off"></div>
+  </div>
+  <div class="row"><label>住所（レシートの印字どおり）</label><input id="edAddr" autocomplete="off"></div>
+  <div class="row"><label>登録番号（T+13桁）＝同じ会社のレシートをまとめるのに使います</label>
+    <input id="edRegno" placeholder="T1234567890123" autocomplete="off"></div>
+  <div class="row"><label>品目（名前・金額・個数）</label>
+    <div id="edItems"></div>
+    <button class="btn" id="edAddItem" type="button">＋ 品目を足す</button></div>
+  <button class="btn pri" id="edSave">この内容にする</button>
+  <div class="note">⚠ このレシートを <b>🔁 再分析</b>すると、AI の読み取りで<b>上書きされます</b>（手で直した内容は消えます）。写真そのものは変わりません。</div>
+</div></div>
+
 <div id="toast"></div>
 
 <script>
 'use strict';
-const BUILD = 'r18 🧾登録番号（T+13桁）も読み取って同じ会社をまとめる＝「ドラッグストア クリエイト」と「クリエイト」が別の店に数えられていたのを修正（業態語を落としても寄せる・別ブランドは畳まない）｜r17 ⏳返事が途中で切れる件に対処＝📈分析の上限を8000に（今どきのモデルは「考えた分＋返事」で上限を使う）・切れた時は「上限に達した」と分かる文言＋本文に注記（📷読み取りも同様）｜r16 🩺聞きかたの型を「食費をくわしく」→「健康の面から」に差し替え＋📎画像/PDF/テキストを依頼に一緒に渡せる＋⛶支出マップを全画面で見られる｜r15 📈分析＝期間を決めて溜まったレシートをまとめてAIに読ませる（写真の読み取りとは別のAI・別モデルを選べる／型を選ぶか自由に書く／結果は自動保存で🗂履歴に貯まる）｜r14 🍎iPhone版の足場＋Codemagic で TestFlight（web は無改修・TestFlight 到達を確認） · 2026-08-13';
+const BUILD = 'r19 ✏️レシートの内容を手で直せる（店名/日付/合計/分類/住所/登録番号/品目・読み取りに失敗した写真も手入力で登録できる・🔁再分析は手直しを上書きする前に確認）｜r18 🧾登録番号（T+13桁）も読み取って同じ会社をまとめる＝「ドラッグストア クリエイト」と「クリエイト」が別の店に数えられていたのを修正（業態語を落としても寄せる・別ブランドは畳まない）｜r17 ⏳返事が途中で切れる件に対処＝📈分析の上限を8000に（今どきのモデルは「考えた分＋返事」で上限を使う）・切れた時は「上限に達した」と分かる文言＋本文に注記（📷読み取りも同様）｜r16 🩺聞きかたの型を「食費をくわしく」→「健康の面から」に差し替え＋📎画像/PDF/テキストを依頼に一緒に渡せる＋⛶支出マップを全画面で見られる｜r15 📈分析＝期間を決めて溜まったレシートをまとめてAIに読ませる（写真の読み取りとは別のAI・別モデルを選べる／型を選ぶか自由に書く／結果は自動保存で🗂履歴に貯まる） · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -762,7 +798,7 @@ async function runAnalysis(id){
   try {
     const { data, meta } = await analyzeReceipt(rec);
     rec = await dbGet(id); if (!rec) return; // 分析中に削除されたら破棄
-    rec.status = 'done'; rec.data = data; rec.meta = meta;
+    rec.status = 'done'; rec.data = data; rec.meta = meta; rec.edited = null; // AI の結果で上書き＝手直しの印も消す
   } catch (err) {
     rec = await dbGet(id); if (!rec) return;
     rec.status = 'error'; rec.error = String(err.message || err);
@@ -839,9 +875,12 @@ async function openDetail(id){
   const rcs = receiptsOf(r);
   document.getElementById('dTitle').textContent = rcs.length
     ? (rcs[0].store || 'レシート') + (rcs.length > 1 ? ` ほか${rcs.length - 1}件` : '') : 'レシート';
-  const kv = (k, v) => v == null ? '' : `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
-  document.getElementById('dBody').innerHTML = !rcs.length
-    ? `<div class="note">${r.status === 'pending' ? '🤖 読み取り中…' : '❌ ' + (r.error || 'レシートを検出できませんでした')}</div>`
+  // ⚠ 値は必ずエスケープする（AI の出力も手入力も、そのまま HTML にしない）
+  const kv = (k, v) => v == null || v === '' ? '' : `<div class="kv"><span>${k}</span><span>${esc(v)}</span></div>`;
+  const editBtn = (i, label) => `<button class="btn" data-edit="${i}" style="margin-top:10px">✏️ ${label}</button>`;
+  document.getElementById('dBody').innerHTML = (!rcs.length
+    ? `<div class="note">${r.status === 'pending' ? '🤖 読み取り中…' : '❌ ' + esc(r.error || 'レシートを検出できませんでした')}</div>`
+      + (r.status === 'pending' ? '' : editBtn(0, '手で入力する'))
     : rcs.map((d, i) =>
         (rcs.length > 1 ? `<h2 style="margin:14px 0 4px">🧾 ${i + 1}/${rcs.length}</h2>` : '')
         + kv('店名', d.store && d.branch ? `${d.store} ${d.branch}` : d.store)
@@ -850,12 +889,83 @@ async function openDetail(id){
         + kv('カテゴリ', d.category) + kv('支払', d.payment) + kv('住所', d.address)
         + kv('登録番号', d.regno)
         + (d.items?.length ? '<table class="items">' + d.items.map(it =>
-            `<tr><td>${it.name}${it.qty > 1 ? ' ×' + it.qty : ''}</td><td>${it.price != null ? yen(it.price) : ''}</td></tr>`).join('') + '</table>' : '')
-      ).join('')
-      + (r.meta ? `<div class="note">${r.meta.model} / in ${r.meta.in} · out ${r.meta.out} tokens</div>` : '');
+            `<tr><td>${esc(it.name)}${it.qty > 1 ? ' ×' + esc(it.qty) : ''}</td><td>${it.price != null ? yen(it.price) : ''}</td></tr>`).join('') + '</table>' : '')
+        + editBtn(i, (rcs.length > 1 ? `🧾 ${i + 1} を` : '') + '手で直す')
+      ).join(''))
+      + (r.edited ? '<div class="note">✏️ 手で直したレシートです（🔁 再分析すると AI の読み取りで上書きされます）</div>' : '')
+      + (r.meta ? `<div class="note">${esc(r.meta.model)} / in ${r.meta.in} · out ${r.meta.out} tokens</div>` : '');
   show('ovDetail');
 }
-document.getElementById('btnReanalyze').onclick = () => { hide('ovDetail'); runAnalysis(detailId); };
+document.getElementById('dBody').onclick = e => {
+  const b = e.target.closest('[data-edit]'); if (b) openEdit(detailId, +b.dataset.edit);
+};
+document.getElementById('btnReanalyze').onclick = async () => {
+  const r = await dbGet(detailId);
+  // 手直しは黙って捨てない（もう一度読ませれば AI の結果で上書きされる）
+  if (r?.edited && !confirm('もう一度 AI に読ませると、手で直した内容は上書きされます。よろしいですか？')) return;
+  hide('ovDetail'); runAnalysis(detailId);
+};
+
+/* ---------- ✏️ 手で直す（r19） ----------
+   読み取りは当たり外れがあるのに、直す手段が「🔁 再分析（＝また課金して運任せ）」しか無かった。
+   ⚠ 直すのは**文字データだけ**。写真は原本（紙を捨てたら唯一のコピー）なので触らない。
+   ⚠ 直したことを `edited` に覚えておく＝🔁 再分析が手直しを上書きすることを先に警告できる。 */
+let edId = null, edIdx = 0;
+function renderEdItems(list){
+  document.getElementById('edItems').innerHTML = list.map(it => `<div class="edIt">
+    <input class="nm" placeholder="品目" value="${esc(it.name)}" autocomplete="off">
+    <input class="pr" type="number" inputmode="numeric" placeholder="金額" value="${it.price == null ? '' : it.price}">
+    <input class="qt" type="number" inputmode="numeric" placeholder="個" value="${it.qty == null ? '' : it.qty}">
+    <button type="button" class="rm" title="この行を消す">✕</button></div>`).join('');
+}
+// 画面に出ている値をそのまま読む（配列と DOM を二重に持つと必ずずれる）
+const readEdItems = () => [...document.querySelectorAll('#edItems .edIt')].map(el => {
+  const num = v => { const n = Math.round(+v); return v === '' || !Number.isFinite(n) ? null : n; };
+  return { name: el.querySelector('.nm').value.trim(), price: num(el.querySelector('.pr').value), qty: num(el.querySelector('.qt').value) };
+});
+document.getElementById('edAddItem').onclick = () => renderEdItems(readEdItems().concat([{ name: '', price: null, qty: null }]));
+document.getElementById('edItems').onclick = e => {
+  const b = e.target.closest('.rm'); if (!b) return;
+  const i = [...document.querySelectorAll('#edItems .edIt')].indexOf(b.parentElement);
+  const list = readEdItems(); list.splice(i, 1); renderEdItems(list);
+};
+async function openEdit(id, i){
+  const r = await dbGet(id); if (!r) return;
+  const rcs = receiptsOf(r), d = rcs[i] || {};
+  edId = id; edIdx = i;
+  document.getElementById('edTitle').textContent = rcs.length > 1 ? `✏️ 手で直す（🧾 ${i + 1}/${rcs.length}）`
+                                                : rcs.length ? '✏️ 手で直す' : '✏️ 手で入力する';
+  const v = (k, val) => { document.getElementById(k).value = val == null ? '' : val; };
+  v('edStore', d.store); v('edBranch', d.branch); v('edDate', d.date || capDate(r)); v('edTime', d.time);
+  v('edTotal', d.total); v('edAddr', d.address); v('edRegno', d.regno); v('edPay', d.payment);
+  document.getElementById('edKind').value = d.kind === 'income' ? 'income' : 'expense';
+  const cat = document.getElementById('edCat');
+  cat.innerHTML = CATS.map(c => `<option value="${c}">${c}</option>`).join('');
+  cat.value = CATS.includes(d.category) ? d.category : 'その他';
+  renderEdItems((d.items || []).map(it => ({ name: it.name || '', price: it.price ?? null, qty: it.qty ?? null })));
+  show('ovEdit');
+}
+document.getElementById('edSave').onclick = async () => {
+  const r = await dbGet(edId); if (!r) { hide('ovEdit'); return; }
+  const g = k => document.getElementById(k).value.trim();
+  const num = k => { const s = g(k), n = Math.round(+s); return s === '' || !Number.isFinite(n) ? null : n; };
+  const rcs = receiptsOf(r).map(x => ({ ...x }));            // 触るのは複製（元の参照を書き換えない）
+  rcs[edIdx] = { ...(rcs[edIdx] || {}),
+    store: g('edStore') || null, branch: g('edBranch') || null,
+    date: g('edDate') || null, time: g('edTime') || null,
+    total: num('edTotal'), kind: document.getElementById('edKind').value,
+    category: document.getElementById('edCat').value, payment: g('edPay') || null,
+    address: g('edAddr') || null, regno: g('edRegno') || null,
+    items: readEdItems().filter(it => it.name),              // 名前が空の行は捨てる
+  };
+  r.data = { receipts: rcs };                                // 形を receipts 配列に揃える（r2 以前の形も吸収）
+  r.status = 'done'; r.error = null; r.edited = Date.now();
+  await dbPut(r);
+  hide('ovEdit'); toast('✏️ 直しました');
+  await renderList();
+  if (isOpen('ovDetail')) await openDetail(edId);
+  if (isOpen('ovStats')) renderTab();
+};
 document.getElementById('btnDelete').onclick = async () => {
   if (!confirm('このレシートを削除しますか？')) return;
   await dbDel(detailId); hide('ovDetail'); renderList();
