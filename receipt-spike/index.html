@@ -129,7 +129,10 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 .anAi{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--dim); margin:10px 0;}
 .anAi b{color:var(--fg); font-weight:600;}
 .anAi button{margin-left:auto; flex:none; background:none; border:1px solid var(--line); color:var(--dim); border-radius:8px; padding:3px 9px; font-size:12px;}
-.anItem{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px;}
+.anItem{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px; display:flex; gap:10px; align-items:flex-start;}
+.anItem .sel{width:19px; height:19px; accent-color:var(--acc); flex:none; margin-top:2px;}
+.anItem .bd{flex:1; min-width:0;}
+#anHistBar{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:10px;}
 .anItem .t{font-size:14.5px; font-weight:600;}
 .anItem .s{font-size:12px; color:var(--dim); margin-top:2px;}
 /* ⚠ クラス名を .x にしない＝ .sheet .x（閉じる✕）と同じ強さで当たり float してしまう */
@@ -284,7 +287,17 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <div class="note">レシートの<b>文字データ（JSON）だけ</b>を、あなたのキーで選んだAIに直接送ります（<b>写真は送りません</b>）。中身は 📤 の書き出しと同じです。</div>
   </div>
 
-  <div id="anHistPane" hidden><div id="anHistBody"></div></div>
+  <!-- 🗂 履歴（r24: まとめて書き出せる）＝1件ずつ開いて渡すのは、溜まるほど現実的でなくなる -->
+  <div id="anHistPane" hidden>
+    <div id="anHistBar" hidden>
+      <label class="anChk" style="margin:0"><input type="checkbox" id="anSelAll"><span id="anSelLbl">すべて選ぶ</span></label>
+      <div class="dual" style="margin-top:8px">
+        <button class="btn" id="btnAnCopySel">📋 コピー</button>
+        <button class="btn" id="btnAnShareSel">📤 書き出す</button>
+      </div>
+    </div>
+    <div id="anHistBody"></div>
+  </div>
 </div></div>
 
 <!-- 📈 分析の結果 -->
@@ -405,7 +418,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r22 🧮税と数量を正しく持つ＝明細は税抜・合計は税込で混ざっていたのを、税率(8/10%)・消費税・値引き・単価まで読み取って区別。price は「その行の合計」に統一（qtyを掛けない）。数字が合わないレシートに ⚠要確認 を出す｜r21 ⏱日付のUTCずれを修正＝日付が印字されていないレシートが1日ずれていた（朝9時前に撮った分）＋書き出しの時刻に+09:00を付与＋🔑1枚の写真から複数レシートを切り出した時に一意なレシートIDを振る（photo_idだけでは重複）｜r20 📍レシートの印字住所から自動でお店の場所を決める＝撮るだけで💴支出マップに出る（⚙で切れる・手で置いた位置は上書きしない・見つからない住所は覚えて送り直さない）｜r19 ✏️レシートの内容を手で直せる（店名/日付/合計/分類/住所/登録番号/品目・読み取りに失敗した写真も手入力で登録できる・🔁再分析は手直しを上書きする前に確認）｜r18 🧾登録番号（T+13桁）も読み取って同じ会社をまとめる＝「ドラッグストア クリエイト」と「クリエイト」が別の店に数えられていたのを修正（業態語を落としても寄せる・別ブランドは畳まない） · 2026-08-13';
+const BUILD = 'r23 📍場所が入らない時に理由が分かるように＝番地で駄目なら町名まで落として探す・全角ハイフンの取りこぼしを修正・見つからなかった店は💴に理由を表示・🔎は覚えている結果を無視して探し直す・届かない時は黙らず知らせる｜🗂分析の履歴を選んで（またはすべて）まとめて書き出せる｜r22 🧮税と数量を正しく持つ＝明細は税抜・合計は税込で混ざっていたのを、税率(8/10%)・消費税・値引き・単価まで読み取って区別。price は「その行の合計」に統一（qtyを掛けない）。数字が合わないレシートに ⚠要確認 を出す｜r21 ⏱日付のUTCずれを修正＝日付が印字されていないレシートが1日ずれていた（朝9時前に撮った分）＋書き出しの時刻に+09:00を付与＋🔑1枚の写真から複数レシートを切り出した時に一意なレシートIDを振る（photo_idだけでは重複）｜r20 📍レシートの印字住所から自動でお店の場所を決める＝撮るだけで💴支出マップに出る（⚙で切れる・手で置いた位置は上書きしない・見つからない住所は覚えて送り直さない）｜r19 ✏️レシートの内容を手で直せる（店名/日付/合計/分類/住所/登録番号/品目・読み取りに失敗した写真も手入力で登録できる・🔁再分析は手直しを上書きする前に確認） · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1673,12 +1686,14 @@ document.getElementById('smBase').addEventListener('click', e => {
 const GEO_CACHE = 'rcpt.geocache';
 let geoCache = (() => { try { return JSON.parse(localStorage.getItem(GEO_CACHE) || '{}'); } catch (_) { return {}; } })();
 let geoQueue = Promise.resolve();
-function forwardGeocode(q){
+function forwardGeocode(q, force){
   // ⚠ 見つからなかった住所も覚える（0 を入れる）＝自動で回すようになった r20 以降、
   //   同じ住所を毎回 OpenStreetMap へ送り直さないため。通信そのものが失敗した時は覚えない（次に試せる）
-  if (q in geoCache) return Promise.resolve(geoCache[q] || null);
+  // ⚠ force＝人が「もう一度探す」を押した時。覚えていても送り直す（r23）。
+  //   押しても何も起きないボタンは、うまくいかない時にいちばん人を困らせる
+  if (!force && q in geoCache) return Promise.resolve(geoCache[q] || null);
   const run = geoQueue.then(async () => {
-    if (q in geoCache) return geoCache[q] || null;
+    if (!force && q in geoCache) return geoCache[q] || null;
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=ja&q=${encodeURIComponent(q)}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('住所の検索に失敗しました（' + res.status + '）');
@@ -1691,6 +1706,34 @@ function forwardGeocode(q){
   // ⚠ 次の1回は1.1秒後（Nominatim の利用規約＝1秒に1回まで）。成功でも失敗でも待つ
   geoQueue = run.then(() => new Promise(r => setTimeout(r, 1100)), () => new Promise(r => setTimeout(r, 1100)));
   return run;
+}
+
+/* --- 印字住所を、探せる形に段階的に短くする（r23） ---
+   レシートの住所は番地まで入っているが、OpenStreetMap は日本の番地に弱い。
+   そのまま → 番地・丁目を落として町名まで、の順で探す。
+   ⚠ 市区町村までは落とさない。市の中心にピンが立つと「そこで使った」ように見えて嘘になる
+      （見つからないなら、地図をタップして手で置いてもらう方が正しい）。 */
+function addrSteps(a0){
+  const a = String(a0 || '')
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))  // 全角英数→半角
+    // ⚠ ハイフンに見える文字は種類が多い（全角ハイフン－・マイナス−・ダッシュ–—―）。
+    //   全角英数の変換だけでは「１２３－４」が「123－4」になり、番地を落とす正規表現に当たらない
+    .replace(/[－−–—―‐]/g, '-')
+    .replace(/(\d)[ー](\d)/g, '$1-$2')   // 住所では長音符が番地の区切りに使われることがある（数字に挟まれた時だけ）
+    .replace(/\s+/g, ' ').trim();
+  if (!a) return [];
+  const steps = [a];
+  const town = a.replace(/[0-9][-0-9]*\s*(丁目|番地|番|号)?.*$/, '').trim();   // 番地から後ろを落とす
+  if (town && town !== a && town.length >= 4) steps.push(town);
+  return [...new Set(steps)];
+}
+// 段階的に短くしながら探す。当たった形（used）も返す＝どこまで削って当たったかが分かる
+async function geocodeAddress(addr, force){
+  for (const q of addrSteps(addr)) {
+    const r = await forwardGeocode(q, force);
+    if (r) return { ...r, used: q };
+  }
+  return null;
 }
 
 /* --- 店舗（店名×支店）ごとに1つにまとめる ---
@@ -1785,12 +1828,15 @@ async function renderSpendMap(){
   let html = '';
   if (!shops.length) html = `<div class="stEmpty">この期間に支出のレシートがありません。</div>`;
   else if (unset.length) {
+    // ⚠ 「なぜ場所が入らなかったか」をここに出す（r23）＝黙って未設定のままだと原因が分からない
     html = `<div class="stSec"><div class="stTitle">📍 場所が未設定（${unset.length}軒 ・ ${yen(unsetYen)}）</div>
-      <div class="stEmpty" style="padding:0 0 8px">1軒ずつ<b>1回だけ</b>決めれば、その店の次のレシートにも自動で効きます。</div>
-      ${withAddr ? `<button class="btn" id="btnGeoAll">🔎 住所のある ${withAddr}軒 をまとめて探す</button>` : ''}`;
+      <div class="stEmpty" style="padding:0 0 8px">1軒ずつ<b>1回だけ</b>決めれば、その店の次のレシートにも自動で効きます。${
+        autoGeoOn() ? '' : '<br>⚠ ⚙ の「<b>印字住所から自動で場所を決める</b>」は<b>オフ</b>です。'}</div>
+      ${withAddr ? `<button class="btn" id="btnGeoAll">🔎 住所のある ${withAddr}軒 をもう一度探す</button>` : ''}`;
     unset.forEach(s => {
+      const why = !s.addr ? '住所なし' : s.src === 'geofail' ? '🔎 住所では見つかりませんでした' : '🔎 これから探します';
       html += `<div class="stRow" data-fix="${esc(s.key)}"><span class="dot" style="background:${catColor(s.cat)}"></span>
-        <span class="nm">${esc(s.name)}${s.addr ? '' : ' <small style="color:var(--dim)">住所なし</small>'}</span>
+        <span class="nm">${esc(s.name)} <small style="color:var(--dim)">${why}</small></span>
         <span class="pct">${s.n}回</span><span class="val">${yen(s.yen)}</span></div>`;
     });
     html += `</div>`;
@@ -1864,15 +1910,26 @@ document.getElementById('btnGeocode').onclick = async e => {
   const b = e.target, q = b.dataset.addr; if (!q) return;
   b.textContent = '🔎 探しています…';
   try {
-    const r = await forwardGeocode(q);
+    const r = await geocodeAddress(q, true);   // 人が押した＝覚えている結果を無視して探し直す
     if (!r) { b.textContent = '❌ この住所では見つかりませんでした（地図をタップして置いてください）'; }
-    else { setPin({ lat: r.lat, lng: r.lon }); pMap.setView([r.lat, r.lon], 16, { animate: false }); b.textContent = '✅ 見つかりました（ずれていたら地図をタップして直せます）'; }
+    else {
+      setPin({ lat: r.lat, lng: r.lon }); pMap.setView([r.lat, r.lon], 16, { animate: false });
+      b.textContent = r.used === q ? '✅ 見つかりました（ずれていたら地図をタップして直せます）'
+                                   : `✅「${r.used}」で見つかりました（番地までは出ないので、ずれていたら地図をタップして直してください）`;
+    }
   } catch (err) { b.textContent = '❌ ' + (err.message || err); }
   setTimeout(() => { b.textContent = '🔎 この住所から探す'; }, 6000);
 };
 // 保存/削除は「その店の全部の書き方」に対して行う（上の⚠＝鍵の迷子を作らない）
 async function savePlace(shop, lat, lon, src){
   await Promise.all(shop.keys.map(k => plPut({ key: k, name: shop.name, lat, lon, src, address: shop.addr || '', at: Date.now() })));
+}
+/* 探したが見つからなかったことを覚える（r23）。
+   ⚠ これが無いと「自動で探したのに何も起きない」が**黙って**続く＝原因が分からない。
+      位置は空のまま（＝地図には出ない）だが、💴 の一覧に理由を出せるようになる。 */
+async function markGeoFail(shop){
+  await Promise.all(shop.keys.map(k => plPut({ key: k, name: shop.name, lat: null, lon: null,
+                                               src: 'geofail', address: shop.addr || '', at: Date.now() })));
 }
 document.getElementById('btnPlaceSave').onclick = async () => {
   if (!pLatLng) { toast('地図をタップして場所を選んでください'); return; }
@@ -1893,16 +1950,18 @@ async function geocodeAll(){
   if (!targets.length) return;
   if (!confirm(`${targets.length}軒の印字住所を OpenStreetMap に送って座標を探します（住所の文字だけ・約${Math.ceil(targets.length * 1.2)}秒）。よろしいですか？`)) return;
   const btn = document.getElementById('btnGeoAll');
-  let ok = 0, ng = 0;
+  let ok = 0, ng = 0, netErr = null;
   for (const s of targets) {
     if (btn) btn.textContent = `🔎 探しています… ${ok + ng + 1}/${targets.length}`;
     try {
-      const r = await forwardGeocode(s.addr);
+      // ⚠ 人が押した時は覚えている結果を無視して探し直す＝「押しても何も起きない」を作らない（r23）
+      const r = await geocodeAddress(s.addr, true);
       if (r) { await savePlace(s, r.lat, r.lon, 'geocode'); ok++; }
-      else ng++;
-    } catch (_) { ng++; }
+      else { await markGeoFail(s); ng++; }
+    } catch (err) { netErr = err; break; }   // 届いていない＝残りも同じなので止めて、理由を出す
   }
-  toast(`🔎 ${ok}軒に場所が入りました${ng ? `（${ng}軒は見つからず＝地図をタップして置いてください）` : ''}`);
+  toast(netErr ? '❌ 検索サービスに届きませんでした（' + String(netErr.message || netErr).slice(0, 50) + '）'
+              : `🔎 ${ok}軒に場所が入りました${ng ? `（${ng}軒は住所では見つからず＝地図をタップして置いてください）` : ''}`);
   renderSpendMap();
 }
 
@@ -1914,23 +1973,29 @@ async function geocodeAll(){
    ⚠ 1秒に1回の制限は forwardGeocode の待ち行列がそのまま効く（まとめて探すのと同じ道）。 */
 const AUTO_GEO = 'rcpt.autogeo';
 const autoGeoOn = () => localStorage.getItem(AUTO_GEO) !== '0';   // 既定＝オン
-let autoGeoBusy = false;
+let autoGeoBusy = false, autoGeoWarned = false;
 async function autoGeoSweep(){
   if (!autoGeoOn() || autoGeoBusy) return;
   autoGeoBusy = true;
   try {
     await loadPlaces();
     const rows = (await listRows()).filter(x => x.rc && x.rc.kind !== 'income');
-    const targets = shopAggregate(rows, smPlaces).filter(s => s.lat == null && s.addr);
-    let found = 0;
+    // ⚠ 一度探して見つからなかった店（geofail）は自動では蒸し返さない＝💴 の 🔎 を押した時だけ探し直す
+    const targets = shopAggregate(rows, smPlaces).filter(s => s.lat == null && s.addr && s.src !== 'geofail');
+    let found = 0, netErr = null;
     for (const s of targets) {
       let r = null;
-      try { r = await forwardGeocode(s.addr); }
-      catch (_) { break; }   // 通信が落ちている＝残りも失敗するので、その場でやめる（次の機会に再開）
-      if (!r) continue;      // 見つからない住所は forwardGeocode が覚える＝毎回送り直さない
-      await savePlace(s, r.lat, r.lon, 'geocode'); found++;
+      try { r = await geocodeAddress(s.addr); }
+      catch (err) { netErr = err; break; }   // 通信が落ちている＝残りも失敗するので、その場でやめる
+      if (r) { await savePlace(s, r.lat, r.lon, 'geocode'); found++; }
+      else   { await markGeoFail(s); }       // 見つからなかったことを覚える（黙って消えないように）
       await loadPlaces();
       if (isOpen('ovStats') && stTab === 'map') renderSpendMap();  // 開いていれば、入った端から地図に出す
+    }
+    // ⚠ 黙って失敗しない（r23）。届かなかった時は理由を出す。連発しないよう1セッションに1回だけ
+    if (netErr && !autoGeoWarned) {
+      autoGeoWarned = true;
+      toast('📍 場所の自動検索に届きませんでした（' + String(netErr.message || netErr).slice(0, 50) + '）。💴 の 🔎 でやり直せます');
     }
     // 地図を見ている時は目の前で増えるので黙っている。見ていない時だけ「入った」と伝える
     if (found && !(isOpen('ovStats') && stTab === 'map')) toast(`📍 ${found}軒の場所が入りました（💴 支出マップで見られます）`);
@@ -2114,26 +2179,68 @@ async function renderAnalyze(){
   run.style.opacity = anBusy ? '.6' : '';
 }
 
+let anSel = new Set();   // 選んでいる分析の id（まとめて書き出す用・r24）
 async function renderAnHistory(){
   const all = (await anAll()).sort((a, b) => b.ts - a.ts);
+  const ids = new Set(all.map(a => a.id));
+  [...anSel].forEach(id => { if (!ids.has(id)) anSel.delete(id); });   // 消された分は選択からも外す
   document.querySelector('#anTabs [data-antab="hist"]').textContent = `🗂 履歴${all.length ? ` (${all.length})` : ''}`;
+  document.getElementById('anHistBar').hidden = !all.length;
+  document.getElementById('anSelAll').checked = all.length > 0 && anSel.size === all.length;
+  document.getElementById('anSelLbl').textContent = anSel.size ? `${anSel.size}件を選択中` : 'すべて選ぶ';
+  document.getElementById('btnAnCopySel').disabled = !anSel.size;
+  document.getElementById('btnAnShareSel').disabled = !anSel.size;
   document.getElementById('anHistBody').innerHTML = !all.length
     ? '<div class="stEmpty">まだ分析がありません。「🆕 分析する」で作ると、ここに貯まります。</div>'
     : all.map(a => {
         const d = new Date(a.ts);
         const snip = String(a.text || '').replace(/[#*`>_-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 70);
-        return `<div class="anItem" data-an="${esc(a.id)}">
-          <div class="t">${esc(a.presetLabel || '📈 分析')}<span class="chip">${esc(a.period?.label || '')}</span></div>
-          <div class="s">${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}
-            ・ ${a.count}件 ・ ${esc(a.model || '')}</div>
-          <div class="ex">${esc(snip)}</div></div>`;
+        return `<div class="anItem">
+          <input type="checkbox" class="sel" data-sel="${esc(a.id)}"${anSel.has(a.id) ? ' checked' : ''} title="まとめて書き出す">
+          <div class="bd" data-an="${esc(a.id)}">
+            <div class="t">${esc(a.presetLabel || '📈 分析')}<span class="chip">${esc(a.period?.label || '')}</span></div>
+            <div class="s">${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}
+              ・ ${a.count}件 ・ ${esc(a.model || '')}</div>
+            <div class="ex">${esc(snip)}</div></div></div>`;
       }).join('');
 }
 document.getElementById('anHistBody').addEventListener('click', async e => {
+  // ⚠ チェックボックスは「開く」に化けさせない（選ぶつもりが結果画面に飛ぶと選べない）
+  const cb = e.target.closest('[data-sel]');
+  if (cb) { cb.checked ? anSel.add(cb.dataset.sel) : anSel.delete(cb.dataset.sel); renderAnHistory(); return; }
   const it = e.target.closest('[data-an]'); if (!it) return;
   const a = (await anAll()).find(x => x.id === it.dataset.an);
   if (a) openAnResult(a);
 });
+document.getElementById('anSelAll').onchange = async e => {
+  const all = await anAll();
+  anSel = e.target.checked ? new Set(all.map(a => a.id)) : new Set();
+  renderAnHistory();
+};
+/* 選んだ分析を1つの文章にまとめる（r24）。
+   ⚠ 出すのは**読める形（Markdown）**。分析の結果は文章なので、JSON に包むと読みにくくなるだけ。
+      レシートの生データが欲しい時は 📤 の JSON/CSV があり、そちらとは役割が違う。 */
+function anExportText(list){
+  const head = `# レシートの分析（${list.length}件）\n書き出し: ${isoLocal(new Date())}\n`;
+  return head + list.map((a, i) => {
+    const d = new Date(a.ts);
+    const att = a.attachments?.length ? `\n添付: ${a.attachments.map(x => x.name).join(' / ')}` : '';
+    return `\n---\n\n## ${i + 1}. ${a.presetLabel || '📈 分析'}（${a.period?.label || ''}・${a.count}件）\n`
+      + `実行: ${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+      + ` ・ ${a.model || ''}${a.in != null ? ` ・ in ${a.in} / out ${a.out} tokens` : ''}\n`
+      + `依頼: ${a.prompt || ''}${att}\n\n${a.text || ''}\n`;
+  }).join('');
+}
+const anSelected = async () => (await anAll()).sort((a, b) => a.ts - b.ts).filter(a => anSel.has(a.id));  // 古い順＝読む順
+document.getElementById('btnAnCopySel').onclick = async () => {
+  const list = await anSelected(); if (!list.length) return;
+  try { await navigator.clipboard.writeText(anExportText(list)); toast(`📋 ${list.length}件をコピーしました`); }
+  catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
+};
+document.getElementById('btnAnShareSel').onclick = async () => {
+  const list = await anSelected(); if (!list.length) return;
+  shareTextOut(`レシートの分析（${list.length}件）`, anExportText(list), `receipt_analyses_${ymdLocal(new Date())}.txt`);
+};
 
 function openAnResult(a){
   arCur = a;
