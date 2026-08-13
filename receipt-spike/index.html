@@ -120,6 +120,10 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 .edIt input{background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px; font-size:15px; min-width:0;}
 .edIt .nm{flex:3;} .edIt .pr{flex:2;} .edIt .qt{width:54px; flex:none;}
 .edIt .rm{flex:none; width:38px; background:none; border:1px solid var(--line); color:var(--dim); border-radius:8px; font-size:15px;}
+.edIt select{flex:none; width:62px; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px 4px; font-size:14px;}
+/* ⚠ 数字が合わない印（r22）＝直す価値がある場所だけに出す */
+.note.warn{color:var(--err); border-left:3px solid var(--err); padding-left:8px;}
+.chip.warn{background:var(--err); color:#fff;}
 .anChk{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--dim); margin:8px 0 12px;}
 .anChk input{width:18px; height:18px; accent-color:var(--acc); flex:none;}
 .anAi{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--dim); margin:10px 0;}
@@ -375,14 +379,22 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <div class="row" style="flex:1"><label>種別</label><select id="edKind">
       <option value="expense">支出</option><option value="income">収入</option></select></div>
   </div>
+  <!-- 税と値引き（r22）＝明細と合計を突き合わせる材料。印字が無ければ空のままでよい -->
   <div class="dual">
-    <div class="row" style="flex:1"><label>分類</label><select id="edCat"></select></div>
-    <div class="row" style="flex:1"><label>支払</label><input id="edPay" autocomplete="off"></div>
+    <div class="row" style="flex:1"><label>税抜合計</label><input type="number" inputmode="numeric" id="edEx"></div>
+    <div class="row" style="flex:1"><label>消費税</label><input type="number" inputmode="numeric" id="edTax"></div>
+    <div class="row" style="flex:1"><label>値引き</label><input type="number" inputmode="numeric" id="edDisc"></div>
   </div>
+  <div class="dual">
+    <div class="row" style="flex:1"><label>明細の金額は</label><select id="edIncl">
+      <option value="">わからない</option><option value="1">税込</option><option value="0">税抜（本体価格）</option></select></div>
+    <div class="row" style="flex:1"><label>分類</label><select id="edCat"></select></div>
+  </div>
+  <div class="row"><label>支払</label><input id="edPay" autocomplete="off"></div>
   <div class="row"><label>住所（レシートの印字どおり）</label><input id="edAddr" autocomplete="off"></div>
   <div class="row"><label>登録番号（T+13桁）＝同じ会社のレシートをまとめるのに使います</label>
     <input id="edRegno" placeholder="T1234567890123" autocomplete="off"></div>
-  <div class="row"><label>品目（名前・金額・個数）</label>
+  <div class="row"><label>品目（名前・金額＝その行の合計・個数・税率）</label>
     <div id="edItems"></div>
     <button class="btn" id="edAddItem" type="button">＋ 品目を足す</button></div>
   <button class="btn pri" id="edSave">この内容にする</button>
@@ -393,7 +405,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r21 ⏱日付のUTCずれを修正＝日付が印字されていないレシートが1日ずれていた（朝9時前に撮った分）＋書き出しの時刻に+09:00を付与＋🔑1枚の写真から複数レシートを切り出した時に一意なレシートIDを振る（photo_idだけでは重複）｜r20 📍レシートの印字住所から自動でお店の場所を決める＝撮るだけで💴支出マップに出る（⚙で切れる・手で置いた位置は上書きしない・見つからない住所は覚えて送り直さない）｜r19 ✏️レシートの内容を手で直せる（店名/日付/合計/分類/住所/登録番号/品目・読み取りに失敗した写真も手入力で登録できる・🔁再分析は手直しを上書きする前に確認）｜r18 🧾登録番号（T+13桁）も読み取って同じ会社をまとめる＝「ドラッグストア クリエイト」と「クリエイト」が別の店に数えられていたのを修正（業態語を落としても寄せる・別ブランドは畳まない）｜r17 ⏳返事が途中で切れる件に対処＝📈分析の上限を8000に（今どきのモデルは「考えた分＋返事」で上限を使う）・切れた時は「上限に達した」と分かる文言＋本文に注記（📷読み取りも同様） · 2026-08-13';
+const BUILD = 'r22 🧮税と数量を正しく持つ＝明細は税抜・合計は税込で混ざっていたのを、税率(8/10%)・消費税・値引き・単価まで読み取って区別。price は「その行の合計」に統一（qtyを掛けない）。数字が合わないレシートに ⚠要確認 を出す｜r21 ⏱日付のUTCずれを修正＝日付が印字されていないレシートが1日ずれていた（朝9時前に撮った分）＋書き出しの時刻に+09:00を付与＋🔑1枚の写真から複数レシートを切り出した時に一意なレシートIDを振る（photo_idだけでは重複）｜r20 📍レシートの印字住所から自動でお店の場所を決める＝撮るだけで💴支出マップに出る（⚙で切れる・手で置いた位置は上書きしない・見つからない住所は覚えて送り直さない）｜r19 ✏️レシートの内容を手で直せる（店名/日付/合計/分類/住所/登録番号/品目・読み取りに失敗した写真も手入力で登録できる・🔁再分析は手直しを上書きする前に確認）｜r18 🧾登録番号（T+13桁）も読み取って同じ会社をまとめる＝「ドラッグストア クリエイト」と「クリエイト」が別の店に数えられていたのを修正（業態語を落としても寄せる・別ブランドは畳まない） · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -549,17 +561,27 @@ const RECEIPT_SCHEMA = {
       regno:    NULLABLE('string'),   // 適格請求書発行事業者登録番号（T+13桁）＝同じ会社かどうかの決め手（r18）
       date:     NULLABLE('string'),
       time:     NULLABLE('string'),
-      total:    NULLABLE('integer'),
+      total:    NULLABLE('integer'),          // 税込の支払合計
+      // r22: 明細（税抜）と合計（税込）が混ざっていて検算できなかった。印字どおりに持つ（計算では埋めない）
+      total_excl_tax: NULLABLE('integer'),    // 税抜合計（小計）
+      tax:            NULLABLE('integer'),    // 消費税額の合計
+      discount:       NULLABLE('integer'),    // 値引き・割引の合計（正の数）
+      price_incl_tax: NULLABLE('boolean'),    // 明細の金額が税込か（日本は 8% と 10% が混在するので税率は品目ごとに持つ）
       kind:     { type: 'string', enum: ['expense', 'income'] },
       category: { type: 'string', enum: CATS },
       payment:  NULLABLE('string'),
       items: { type: 'array', items: {
         type: 'object', additionalProperties: false,
-        properties: { name: { type: 'string' }, price: NULLABLE('integer'), qty: NULLABLE('integer') },
-        required: ['name', 'price', 'qty'],
+        properties: { name: { type: 'string' },
+                      price:      NULLABLE('integer'),   // その行の金額（＝行の合計。qty を掛けたあとの数字）
+                      unit_price: NULLABLE('integer'),   // 単価（印字があれば）
+                      qty:        NULLABLE('integer'),
+                      tax_rate:   NULLABLE('integer') }, // 8 または 10
+        required: ['name', 'price', 'unit_price', 'qty', 'tax_rate'],
       } },
     },
-    required: ['store', 'branch', 'address', 'regno', 'date', 'time', 'total', 'kind', 'category', 'payment', 'items'],
+    required: ['store', 'branch', 'address', 'regno', 'date', 'time', 'total',
+               'total_excl_tax', 'tax', 'discount', 'price_incl_tax', 'kind', 'category', 'payment', 'items'],
   } } },
   required: ['receipts'],
 };
@@ -571,7 +593,13 @@ const OCR_RULES = `あなたはレシート読み取りの専門家。写真に�
 - 写真には1枚または複数のレシートが写っていることがある。写っているレシートを全部、別々の要素として抽出する。レシートが写っていなければ空配列。
 - total は合計（税込・支払額）。ポイント払い等があっても請求合計を使う。日本円の整数。
 - 日付・時刻はレシートの印字から読む。和暦や「R6」表記は西暦に直す（date=YYYY-MM-DD・time=HH:MM 24時間）。読めなければ null。
-- items にはレシートの明細を一行ずつ全部入れる（後から品目で検索するため）。割引・小計・合計・お預り・お釣り・ポイント等の行は含めない（実際に買った商品だけ）。価格が読めない品目は price を null。数量が印字されていれば qty に（無ければ null）。
+- items にはレシートの明細を一行ずつ全部入れる（後から品目で検索するため）。小計・合計・お預り・お釣り・ポイント等の行は含めない（実際に買った商品だけ）。価格が読めない品目は price を null。
+- price は「その明細行の金額」＝**行の合計**を印字どおりに入れる。「単価 × 個数」と印字されている行は、単価を unit_price・個数を qty・**行の合計を price** に入れる。
+  ⚠ price に qty を掛けないこと（price はすでに掛けたあとの金額）。単価の印字が無ければ unit_price は null、個数の印字が無ければ qty は null。
+- tax_rate はその品目の消費税率（8 または 10 の整数）。日本では 8%（軽減税率）と 10% が混在する。軽減税率の印（※・軽・＊ など、レシート下部に凡例がある）が付いていれば 8、付いていなければそのレシートの標準税率。判断できなければ null。
+- 値引き・割引の行は items に入れず、その合計額を discount に**正の数**で入れる（印字が無ければ null）。
+- price_incl_tax: 明細の金額が税込なら true、税抜（本体価格）なら false。「税抜」「本体価格」の断りや、小計＋消費税＝合計 の関係から判断する。分からなければ null。
+- total_excl_tax（税抜合計・小計）と tax（消費税額の合計）は、**印字があればそのまま**入れる。印字が無ければ null。⚠ 自分で計算して埋めないこと（あとで数字が合っているかを確かめるのに使うので、計算で埋めると確かめられなくなる）。
 - 店名はチェーン名（例: セブン-イレブン）、支店名は branch に分ける。
 - category は内容から最も近いものを選ぶ。返金・受け取りなら kind を income に。
 - payment は支払方法（現金/クレジット/電子マネー/QR/その他）。複数あれば主たるもの。読めなければ null。
@@ -590,7 +618,10 @@ const AN_SYSTEM = `あなたは家計の相談相手。渡されたレシート�
 データについて:
 - レシートアプリの書き出し形式。金額は日本円の整数。kind が "income" は収入なので、支出の集計に混ぜない。
 - 集計値は入っていない。合計・平均・割合は自分で数えて計算する。
-- store が店名・branch が支店。同じ店が少し違う書き方で入っていることがある（写真の読み違い）ので、明らかに同じ店はまとめて数える。
+- store が店名・branch が支店。同じ店が少し違う書き方で入っていることがある（写真の読み違い）ので、明らかに同じ店はまとめて数える。regno（登録番号）が同じなら同じ会社。
+- 1件の鍵は receipt_id。photo_id は「写真」の鍵で、1枚の写真に複数のレシートが写っていると重複するので、数える時に使わない。
+- total が税込の支払合計。items[].price は「その行の合計」＝ qty を掛けたあとの金額なので、price に qty を掛けないこと。price が税込か税抜かは price_incl_tax、品目ごとの税率は tax_rate（日本は 8% と 10% が混在）。
+- 日付の集計には date（レシートの印字）を使う。captured_at は「撮った時刻」なので、後日まとめて撮ると買った日と食い違う。
 - date が null のレシートは、日付が要る話からは外す。
 - 画像・PDF・テキストが一緒に添付されていることがある。その時はレシートのデータと突き合わせて読む（レシートだけでは分からない事情がそこにある）。
 
@@ -832,6 +863,45 @@ const tzOf = d => { const m = -d.getTimezoneOffset(), s = m < 0 ? '-' : '+', a =
 const isoLocal = d => `${ymdLocal(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}${tzOf(d)}`;
 const capDate = r => ymdLocal(new Date(r.ts));
 
+/* --- 読み取りの検算（r22） ---
+   実データで「items.price は税抜・total は税込」「qty=2 なのに price は行の合計」という
+   食い違いが見つかった。直し方は2つ:
+     (1) 意味を決める（price は**行の合計**・税率は品目ごと・税と値引きは印字どおり持つ）
+     (2) **合わなければ知らせる**。⚠ 数字を勝手に直さない（原本はレシートであってアプリではない）。
+   ⚠ 材料が足りない時は「合わない」ではなく「検算しない」。読めなかっただけの物を
+      間違い扱いすると、⚠ が出っぱなしになって誰も見なくなる。 */
+function checkTotals(rc){
+  const all = rc.items || [];
+  const items = all.filter(it => it.price != null);
+  if (!items.length || items.length !== all.length) return null;   // 読めていない行がある＝検算しない
+  const sum = items.reduce((a, it) => a + it.price, 0);            // ⚠ qty は掛けない（price は行の合計）
+  const disc = rc.discount || 0;
+  let calc = null, how = '', tol = 2;                              // 端数まるめの1〜2円は許す
+  if (rc.price_incl_tax === true)   { calc = sum - disc; how = '明細(税込) − 値引き'; }
+  else if (rc.tax != null)          { calc = sum - disc + rc.tax; how = '明細(税抜) − 値引き ＋ 消費税'; }
+  else if (rc.price_incl_tax === false && items.every(it => it.tax_rate)) {
+    calc = Math.round(items.reduce((a, it) => a + it.price * (1 + it.tax_rate / 100), 0)) - disc;
+    how = '明細(税抜) × 税率 − 値引き'; tol = Math.max(2, items.length);  // 品目ごとに端数が出る分ゆるめる
+  }
+  if (calc == null) return null;
+  return { ok: Math.abs(rc.total - calc) <= tol, sum, calc, diff: rc.total - calc, how };
+}
+// 単価×個数が行の合計に合わない品目（実データ: qty=2 なのに price は行の合計、という取り違え）
+const badQtyItems = rc => (rc.items || []).filter(it =>
+  it.unit_price != null && it.qty != null && it.price != null && Math.abs(it.unit_price * it.qty - it.price) > 1);
+// 見つかった食い違いを日本語で返す（空＝問題なし or 検算できる材料が無い）
+function receiptIssues(rc){
+  const out = [];
+  if (!rc || rc.total == null) return out;
+  if (rc.total_excl_tax != null && rc.tax != null && Math.abs(rc.total - (rc.total_excl_tax + rc.tax)) > 2)
+    out.push(`税抜 ${yen(rc.total_excl_tax)} ＋ 消費税 ${yen(rc.tax)} が 合計 ${yen(rc.total)} と合いません`);
+  const c = checkTotals(rc);
+  if (c && !c.ok) out.push(`明細の合計が合いません（${c.how} ＝ ${yen(c.calc)} ／ 合計 ${yen(rc.total)}・差 ${yen(c.diff)}）`);
+  badQtyItems(rc).forEach(it =>
+    out.push(`「${it.name}」の 単価 ${yen(it.unit_price)} × ${it.qty} が 金額 ${yen(it.price)} と合いません`));
+  return out;
+}
+
 // 表示行 = 写真×レシート（1枚の写真に複数レシート）。未分析・失敗・0検出は写真単位で1行
 async function listRows(){
   const rows = [];
@@ -862,7 +932,8 @@ async function renderList(){
     let title, right;
     if (rc) {
       // ⚠ 値はエスケープする（AI の出力も ✏️ の手入力も、そのまま HTML にしない）
-      title = esc(rc.store || '店名不明') + (rc.branch ? ` <small>${esc(rc.branch)}</small>` : '') + `<span class="chip">${esc(rc.category || '')}</span>`;
+      title = esc(rc.store || '店名不明') + (rc.branch ? ` <small>${esc(rc.branch)}</small>` : '') + `<span class="chip">${esc(rc.category || '')}</span>`
+            + (receiptIssues(rc).length ? '<span class="chip warn">⚠ 要確認</span>' : '');   // 数字が合わない＝直す価値がある印（r22）
       right = rc.total == null ? '<div class="amt na">—</div>'
             : rc.kind === 'income' ? `<div class="amt inc">+${yen(rc.total)}</div>` : `<div class="amt">${yen(rc.total)}</div>`;
     } else if (r.status === 'pending') { title = '<span class="pend">🤖 読み取り中…</span>'; right = ''; }
@@ -905,10 +976,19 @@ async function openDetail(id){
         + kv('店名', d.store && d.branch ? `${d.store} ${d.branch}` : d.store)
         + kv('日付', d.date) + kv('時刻', d.time)
         + kv(d.kind === 'income' ? '受取' : '合計', d.total != null ? yen(d.total) : null)
+        + kv('うち税抜', d.total_excl_tax != null ? yen(d.total_excl_tax) : null)
+        + kv('消費税', d.tax != null ? yen(d.tax) : null)
+        + kv('値引き', d.discount != null ? '−' + yen(d.discount) : null)
+        + kv('明細の金額', d.price_incl_tax == null ? null : d.price_incl_tax ? '税込' : '税抜（本体価格）')
         + kv('カテゴリ', d.category) + kv('支払', d.payment) + kv('住所', d.address)
         + kv('登録番号', d.regno)
         + (d.items?.length ? '<table class="items">' + d.items.map(it =>
-            `<tr><td>${esc(it.name)}${it.qty > 1 ? ' ×' + esc(it.qty) : ''}</td><td>${it.price != null ? yen(it.price) : ''}</td></tr>`).join('') + '</table>' : '')
+            `<tr><td>${esc(it.name)}${it.qty > 1 ? ' ×' + esc(it.qty) : ''}`
+            + `${it.unit_price != null ? ` <small>@${yen(it.unit_price)}</small>` : ''}`
+            + `${it.tax_rate ? ` <small>${it.tax_rate}%</small>` : ''}</td>`
+            + `<td>${it.price != null ? yen(it.price) : ''}</td></tr>`).join('') + '</table>' : '')
+        + (receiptIssues(d).length
+            ? `<div class="note warn">⚠ 数字が合いません（読み違いの可能性）<br>${receiptIssues(d).map(esc).join('<br>')}<br>✏️ で直せます。</div>` : '')
         + editBtn(i, (rcs.length > 1 ? `🧾 ${i + 1} を` : '') + '手で直す')
       ).join(''))
       + (r.edited ? '<div class="note">✏️ 手で直したレシートです（🔁 再分析すると AI の読み取りで上書きされます）</div>' : '')
@@ -931,18 +1011,25 @@ document.getElementById('btnReanalyze').onclick = async () => {
    ⚠ 直したことを `edited` に覚えておく＝🔁 再分析が手直しを上書きすることを先に警告できる。 */
 let edId = null, edIdx = 0;
 function renderEdItems(list){
-  document.getElementById('edItems').innerHTML = list.map(it => `<div class="edIt">
+  // ⚠ 単価（unit_price）は欄を出さない代わりに data- で持ち回る＝手で直しても消えない
+  document.getElementById('edItems').innerHTML = list.map(it => `<div class="edIt" data-unit="${it.unit_price == null ? '' : it.unit_price}">
     <input class="nm" placeholder="品目" value="${esc(it.name)}" autocomplete="off">
     <input class="pr" type="number" inputmode="numeric" placeholder="金額" value="${it.price == null ? '' : it.price}">
     <input class="qt" type="number" inputmode="numeric" placeholder="個" value="${it.qty == null ? '' : it.qty}">
+    <select class="tx" title="消費税率"><option value="">税</option>
+      <option value="8"${it.tax_rate === 8 ? ' selected' : ''}>8%</option>
+      <option value="10"${it.tax_rate === 10 ? ' selected' : ''}>10%</option></select>
     <button type="button" class="rm" title="この行を消す">✕</button></div>`).join('');
 }
 // 画面に出ている値をそのまま読む（配列と DOM を二重に持つと必ずずれる）
 const readEdItems = () => [...document.querySelectorAll('#edItems .edIt')].map(el => {
   const num = v => { const n = Math.round(+v); return v === '' || !Number.isFinite(n) ? null : n; };
-  return { name: el.querySelector('.nm').value.trim(), price: num(el.querySelector('.pr').value), qty: num(el.querySelector('.qt').value) };
+  return { name: el.querySelector('.nm').value.trim(), price: num(el.querySelector('.pr').value),
+           qty: num(el.querySelector('.qt').value), tax_rate: num(el.querySelector('.tx').value),
+           unit_price: num(el.dataset.unit) };
 });
-document.getElementById('edAddItem').onclick = () => renderEdItems(readEdItems().concat([{ name: '', price: null, qty: null }]));
+document.getElementById('edAddItem').onclick = () =>
+  renderEdItems(readEdItems().concat([{ name: '', price: null, qty: null, tax_rate: null, unit_price: null }]));
 document.getElementById('edItems').onclick = e => {
   const b = e.target.closest('.rm'); if (!b) return;
   const i = [...document.querySelectorAll('#edItems .edIt')].indexOf(b.parentElement);
@@ -957,11 +1044,14 @@ async function openEdit(id, i){
   const v = (k, val) => { document.getElementById(k).value = val == null ? '' : val; };
   v('edStore', d.store); v('edBranch', d.branch); v('edDate', d.date || capDate(r)); v('edTime', d.time);
   v('edTotal', d.total); v('edAddr', d.address); v('edRegno', d.regno); v('edPay', d.payment);
+  v('edEx', d.total_excl_tax); v('edTax', d.tax); v('edDisc', d.discount);
+  document.getElementById('edIncl').value = d.price_incl_tax == null ? '' : d.price_incl_tax ? '1' : '0';
   document.getElementById('edKind').value = d.kind === 'income' ? 'income' : 'expense';
   const cat = document.getElementById('edCat');
   cat.innerHTML = CATS.map(c => `<option value="${c}">${c}</option>`).join('');
   cat.value = CATS.includes(d.category) ? d.category : 'その他';
-  renderEdItems((d.items || []).map(it => ({ name: it.name || '', price: it.price ?? null, qty: it.qty ?? null })));
+  renderEdItems((d.items || []).map(it => ({ name: it.name || '', price: it.price ?? null, qty: it.qty ?? null,
+                                             tax_rate: it.tax_rate ?? null, unit_price: it.unit_price ?? null })));
   show('ovEdit');
 }
 document.getElementById('edSave').onclick = async () => {
@@ -975,6 +1065,8 @@ document.getElementById('edSave').onclick = async () => {
     total: num('edTotal'), kind: document.getElementById('edKind').value,
     category: document.getElementById('edCat').value, payment: g('edPay') || null,
     address: g('edAddr') || null, regno: g('edRegno') || null,
+    total_excl_tax: num('edEx'), tax: num('edTax'), discount: num('edDisc'),
+    price_incl_tax: g('edIncl') === '' ? null : g('edIncl') === '1',
     items: readEdItems().filter(it => it.name),              // 名前が空の行は捨てる
   };
   r.data = { receipts: rcs };                                // 形を receipts 配列に揃える（r2 以前の形も吸収）
@@ -1002,8 +1094,10 @@ async function exportTargets(){
 function exportJson(rows, from, to){
   // 統計は入れない＝生データからAI/表計算が自分で計算する（ライフログの交換フォーマットと同方針）
   return JSON.stringify({
+    // v5（r22）＝税と数量（total_excl_tax / tax / discount / price_incl_tax、品目の unit_price / tax_rate）を追加。
+    //   ⚠ price は「その行の合計」＝ qty を掛けたあとの数字（掛け直さないこと）。
     // v4（r21）＝ receipt_id（一意な鍵）を追加・時刻をローカル時刻＋オフセットに。v3 は regno 追加、v2 はフラット化
-    format: 'receipt-spike-export', version: 4,
+    format: 'receipt-spike-export', version: 5,
     exported_at: isoLocal(new Date()),
     timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone || null),  // date/time（レシートの印字）が指す地域
     period: { from: from || null, to: to || null },
@@ -1018,10 +1112,12 @@ function exportJson(rows, from, to){
 function exportCsv(rows){
   const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
   // ⚠ 先頭は レシートID（写真の id ＋ 何枚目）＝表計算で主キーにできる。photo_id だけだと重複する
-  const out = [['レシートID', '日付', '時刻', '店名', '支店', '金額', '種別', 'カテゴリ', '支払', '住所', '登録番号', '品目'].join(',')];
+  const out = [['レシートID', '日付', '時刻', '店名', '支店', '金額(税込)', '税抜合計', '消費税', '値引き',
+                '種別', 'カテゴリ', '支払', '住所', '登録番号', '品目'].join(',')];
   for (const x of rows) {
     const d = x.rc;
-    out.push([`${x.rec.id}-${x.i + 1}`, x.date, d.time, d.store, d.branch, d.total, d.kind === 'income' ? '収入' : '支出',
+    out.push([`${x.rec.id}-${x.i + 1}`, x.date, d.time, d.store, d.branch, d.total,
+              d.total_excl_tax, d.tax, d.discount, d.kind === 'income' ? '収入' : '支出',
               d.category, d.payment, d.address, d.regno, (d.items || []).map(i => i.name).join('、')].map(esc).join(','));
   }
   return '﻿' + out.join('\n'); // BOM: Excel の文字化け対策
