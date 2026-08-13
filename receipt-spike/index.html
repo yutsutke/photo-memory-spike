@@ -425,7 +425,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r27 📡分析をストリーミングに＝返事が届いた端から出る（1年分を賢いモデルに読ませても待ちが見える・長い沈黙で接続が切られにくい）。上限は「全体で何分」ではなく「何も届かない時間が3分」に変更・生成中は⏹だけ出す（未完成をコピー/共有させない）｜r26 ⏱待ち時間の扱いを直す＝これまでアプリ側に制限時間が無く固まっても分からなかった。固定の「30秒ほど」をやめ経過秒を出す／⏹やめるを置く／読み取り3分・分析5分で打ち切り（理由の分かる文言で）｜r25 🗾住所の検索を国土地理院優先に（日本の住所は丁目・番＝街区まで座標が出る。見つからなければOpenStreetMapへ）＋▶の下の説明を送信内容に合わせて出し分け（📎を選んでいる時は「レシートの文字データ＋選んだN件」と書く）｜r24 🧾税込・税抜が混ざる問題＝AIの判定に頼らず「数字の方から」見分ける（考えられる読み方を全部試して合計に合うものを採る・どれも合わなければ⚠）＋📎の言い方を「AIにいっしょに読ませるもの」に直しPDFは選んだ時点で可否が分かるように｜r23 📍場所が入らない時に理由が分かるように＝番地で駄目なら町名まで落として探す・全角ハイフンの取りこぼしを修正・見つからなかった店は💴に理由を表示・🔎は覚えている結果を無視して探し直す・届かない時は黙らず知らせる｜🗂分析の履歴を選んで（またはすべて）まとめて書き出せる · 2026-08-13';
+const BUILD = 'r28 🧾1枚の写真に2枚のレシートが写っていても、詳細はタップした1枚だけを出す（写真の下の 🧾 で隣の1枚へ・✏️と🗑もその1枚に効く・🗑は残りと写真を消さない・🔁は写真ごと読み直すと先に断る）｜r27 📡分析をストリーミングに＝返事が届いた端から出る（1年分を賢いモデルに読ませても待ちが見える・長い沈黙で接続が切られにくい）。上限は「全体で何分」ではなく「何も届かない時間が3分」に変更・生成中は⏹だけ出す（未完成をコピー/共有させない）｜r26 ⏱待ち時間の扱いを直す＝これまでアプリ側に制限時間が無く固まっても分からなかった。固定の「30秒ほど」をやめ経過秒を出す／⏹やめるを置く／読み取り3分・分析5分で打ち切り（理由の分かる文言で）｜r25 🗾住所の検索を国土地理院優先に（日本の住所は丁目・番＝街区まで座標が出る。見つからなければOpenStreetMapへ）＋▶の下の説明を送信内容に合わせて出し分け（📎を選んでいる時は「レシートの文字データ＋選んだN件」と書く）｜r24 🧾税込・税抜が混ざる問題＝AIの判定に頼らず「数字の方から」見分ける（考えられる読み方を全部試して合計に合うものを採る・どれも合わなければ⚠）＋📎の言い方を「AIにいっしょに読ませるもの」に直しPDFは選んだ時点で可否が分かるように · 2026-08-13';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1106,7 +1106,8 @@ async function renderList(){
             : rc.kind === 'income' ? `<div class="amt inc">+${yen(rc.total)}</div>` : `<div class="amt">${yen(rc.total)}</div>`;
     } else if (r.status === 'pending') { title = '<span class="pend">🤖 読み取り中…</span>'; right = ''; }
     else { title = `<span class="errt">${r.status === 'error' ? '読み取り失敗' : 'レシートを検出できず'}</span>`; right = `<button data-retry="${r.id}">🔁</button>`; }
-    html += `<div class="rec" data-id="${r.id}">
+    // data-i ＝ この行が「写真の中の何枚目」か。詳細をその1枚だけで開くために持ち回る（r28）
+    html += `<div class="rec" data-id="${r.id}" data-i="${row.i}">
       <img src="${turl}" alt="">
       <div class="mid"><div class="st">${title}</div>
       <div class="sub">${row.date}${rc?.time ? ' ' + rc.time : ''}${row.n > 1 ? ` ・📷内 ${row.i + 1}/${row.n}` : ''}</div></div>
@@ -1119,58 +1120,80 @@ document.getElementById('list').addEventListener('click', e => {
   const retry = e.target.closest('[data-retry]');
   if (retry) { runAnalysis(retry.dataset.retry); return; }
   const row = e.target.closest('.rec');
-  if (row) openDetail(row.dataset.id);
+  if (row) openDetail(row.dataset.id, +row.dataset.i || 0);
 });
 
-/* ---------- 詳細 ---------- */
-let detailId = null, detailUrl = null;
-async function openDetail(id){
+/* ---------- 詳細 ----------
+   ⚠ 詳細は**タップした1枚だけ**を出す（r28）。1枚の写真に2枚のレシートが写っていると、
+      一覧は2行に分かれているのに、詳細を開くと 🧾1/2・🧾2/2 が縦に並んで**1つに戻って**いた
+      （実機の声「1件に詳細が二枚分出ちゃう。1つずつ出るようにしたい」）。
+   ⚠ 記録そのものは写真ごとに1件のまま（**写真は1枚しか無い**＝原本を複製したくない）。
+      分けるのは**人が触るところ**＝詳細・✏️手で直す・🗑削除。他の写真に写っている
+      レシートへは、写真の下の 🧾 で移る。 */
+let detailId = null, detailIdx = 0, detailUrl = null;
+async function openDetail(id, i = 0){
   const r = await dbGet(id); if (!r) return;
+  const rcs = receiptsOf(r);
   detailId = id;
+  // 範囲外の番号で開かれても落とさない（削除やり直しで枚数が減ることがある）
+  detailIdx = Math.min(Math.max(0, Math.round(+i) || 0), Math.max(0, rcs.length - 1));
+  const d = rcs[detailIdx];
   if (detailUrl) URL.revokeObjectURL(detailUrl);
   detailUrl = URL.createObjectURL(r.img);
   document.getElementById('dImg').src = detailUrl;
-  const rcs = receiptsOf(r);
-  document.getElementById('dTitle').textContent = rcs.length
-    ? (rcs[0].store || 'レシート') + (rcs.length > 1 ? ` ほか${rcs.length - 1}件` : '') : 'レシート';
+  document.getElementById('dTitle').textContent =
+    d ? (d.store || 'レシート') + (d.branch ? ' ' + d.branch : '') : 'レシート';
   // ⚠ 値は必ずエスケープする（AI の出力も手入力も、そのまま HTML にしない）
   const kv = (k, v) => v == null || v === '' ? '' : `<div class="kv"><span>${k}</span><span>${esc(v)}</span></div>`;
-  const editBtn = (i, label) => `<button class="btn" data-edit="${i}" style="margin-top:10px">✏️ ${label}</button>`;
-  document.getElementById('dBody').innerHTML = (!rcs.length
+  const editBtn = label => `<button class="btn" data-edit="${detailIdx}" style="margin-top:10px">✏️ ${label}</button>`;
+  // 同じ写真に他のレシートが写っている時だけ、切り替えを出す（1枚なら何も足さない＝画面は今までどおり）
+  const nav = rcs.length < 2 ? '' :
+    `<div class="note" style="margin-top:10px">📷 この写真には ${rcs.length} 枚のレシートが写っています（1枚ずつ表示中）</div>
+     <div class="seg wrap" style="margin-bottom:6px">` + rcs.map((x, k) =>
+      `<button data-go="${k}"${k === detailIdx ? ' class="on"' : ''}>🧾 ${k + 1}枚目`
+      + `<small>${esc(x.store || '店名不明')}${x.total != null ? ' ' + yen(x.total) : ''}</small></button>`).join('')
+    + '</div>';
+  document.getElementById('dBody').innerHTML = nav + (!d
     ? `<div class="note">${r.status === 'pending' ? '🤖 読み取り中…' : '❌ ' + esc(r.error || 'レシートを検出できませんでした')}</div>`
-      + (r.status === 'pending' ? '' : editBtn(0, '手で入力する'))
-    : rcs.map((d, i) =>
-        (rcs.length > 1 ? `<h2 style="margin:14px 0 4px">🧾 ${i + 1}/${rcs.length}</h2>` : '')
-        + kv('店名', d.store && d.branch ? `${d.store} ${d.branch}` : d.store)
-        + kv('日付', d.date) + kv('時刻', d.time)
-        + kv(d.kind === 'income' ? '受取' : '合計', d.total != null ? yen(d.total) : null)
-        + kv('うち税抜', d.total_excl_tax != null ? yen(d.total_excl_tax) : null)
-        + kv('消費税', d.tax != null ? yen(d.tax) : null)
-        + kv('値引き', d.discount != null ? '−' + yen(d.discount) : null)
-        + kv('明細の金額', (() => { const t = inclTaxOf(d);   // 数字で見分けた結果と、その判断の根拠を出す（r24）
-              return t ? `${t.v ? '税込' : '税抜（本体価格）'}（${t.by}）` : null; })())
-        + kv('カテゴリ', d.category) + kv('支払', d.payment) + kv('住所', d.address)
-        + kv('登録番号', d.regno)
-        + (d.items?.length ? '<table class="items">' + d.items.map(it =>
-            `<tr><td>${esc(it.name)}${it.qty > 1 ? ' ×' + esc(it.qty) : ''}`
-            + `${it.unit_price != null ? ` <small>@${yen(it.unit_price)}</small>` : ''}`
-            + `${it.tax_rate ? ` <small>${it.tax_rate}%</small>` : ''}</td>`
-            + `<td>${it.price != null ? yen(it.price) : ''}</td></tr>`).join('') + '</table>' : '')
-        + (receiptIssues(d).length
-            ? `<div class="note warn">⚠ 数字が合いません（読み違いの可能性）<br>${receiptIssues(d).map(esc).join('<br>')}<br>✏️ で直せます。</div>` : '')
-        + editBtn(i, (rcs.length > 1 ? `🧾 ${i + 1} を` : '') + '手で直す')
-      ).join(''))
+      + (r.status === 'pending' ? '' : editBtn('手で入力する'))
+    : kv('店名', d.store && d.branch ? `${d.store} ${d.branch}` : d.store)
+      + kv('日付', d.date) + kv('時刻', d.time)
+      + kv(d.kind === 'income' ? '受取' : '合計', d.total != null ? yen(d.total) : null)
+      + kv('うち税抜', d.total_excl_tax != null ? yen(d.total_excl_tax) : null)
+      + kv('消費税', d.tax != null ? yen(d.tax) : null)
+      + kv('値引き', d.discount != null ? '−' + yen(d.discount) : null)
+      + kv('明細の金額', (() => { const t = inclTaxOf(d);   // 数字で見分けた結果と、その判断の根拠を出す（r24）
+            return t ? `${t.v ? '税込' : '税抜（本体価格）'}（${t.by}）` : null; })())
+      + kv('カテゴリ', d.category) + kv('支払', d.payment) + kv('住所', d.address)
+      + kv('登録番号', d.regno)
+      + (d.items?.length ? '<table class="items">' + d.items.map(it =>
+          `<tr><td>${esc(it.name)}${it.qty > 1 ? ' ×' + esc(it.qty) : ''}`
+          + `${it.unit_price != null ? ` <small>@${yen(it.unit_price)}</small>` : ''}`
+          + `${it.tax_rate ? ` <small>${it.tax_rate}%</small>` : ''}</td>`
+          + `<td>${it.price != null ? yen(it.price) : ''}</td></tr>`).join('') + '</table>' : '')
+      + (receiptIssues(d).length
+          ? `<div class="note warn">⚠ 数字が合いません（読み違いの可能性）<br>${receiptIssues(d).map(esc).join('<br>')}<br>✏️ で直せます。</div>` : '')
+      + editBtn(rcs.length > 1 ? `この 🧾 ${detailIdx + 1}枚目 を手で直す` : '手で直す'))
       + (r.edited ? '<div class="note">✏️ 手で直したレシートです（🔁 再分析すると AI の読み取りで上書きされます）</div>' : '')
       + (r.meta ? `<div class="note">${esc(r.meta.model)} / in ${r.meta.in} · out ${r.meta.out} tokens</div>` : '');
+  // ボタンの名前も「いま何に効くのか」に合わせる（🗑 が写真ごと消すのか1枚だけかは、押す前に分かる必要がある）
+  document.getElementById('btnReanalyze').textContent = rcs.length > 1 ? '🔁 写真ごと再分析' : '🔁 再分析';
+  document.getElementById('btnDelete').textContent = rcs.length > 1 ? '🗑 この1枚を削除' : '🗑 削除';
   show('ovDetail');
 }
 document.getElementById('dBody').onclick = e => {
+  const go = e.target.closest('[data-go]');
+  if (go) { openDetail(detailId, +go.dataset.go); return; }   // 同じ写真の別のレシートへ（r28）
   const b = e.target.closest('[data-edit]'); if (b) openEdit(detailId, +b.dataset.edit);
 };
 document.getElementById('btnReanalyze').onclick = async () => {
-  const r = await dbGet(detailId);
+  const r = await dbGet(detailId); if (!r) { hide('ovDetail'); return; }
+  const n = receiptsOf(r).length;
   // 手直しは黙って捨てない（もう一度読ませれば AI の結果で上書きされる）
-  if (r?.edited && !confirm('もう一度 AI に読ませると、手で直した内容は上書きされます。よろしいですか？')) return;
+  // ⚠ 読み直す単位は**写真**＝同じ写真に写っている他のレシートも一緒に読み直される（r28）
+  const warn = [n > 1 ? `この写真には ${n} 枚写っています。読み直すと ${n} 枚すべてが AI の読み取りに置き換わります。` : '',
+                r.edited ? '手で直した内容も上書きされます。' : ''].filter(Boolean).join('\n');
+  if (warn && !confirm(warn + '\nよろしいですか？')) return;
   hide('ovDetail'); runAnalysis(detailId);
 };
 
@@ -1243,14 +1266,31 @@ document.getElementById('edSave').onclick = async () => {
   await dbPut(r);
   hide('ovEdit'); toast('✏️ 直しました');
   await renderList();
-  if (isOpen('ovDetail')) await openDetail(edId);
+  if (isOpen('ovDetail')) await openDetail(edId, edIdx); // 直した本人の1枚に戻る（r28）
   if (isOpen('ovStats')) renderTab();
   autoGeoSweep();   // 住所を直したなら、その住所で場所も探し直す（r20・待たない）
 };
+/* 🗑 は「いま見ている1枚」を消す（r28）。
+   ⚠ 同じ写真に他のレシートが写っている間は**写真を消さない**＝写真は原本（紙を捨てたら唯一のコピー）で、
+      残る側がそれを使っている。1枚だけ減らした時は edited を立てる＝🔁 で戻ることを先に警告できる
+      （AI が1枚を2枚と読み違えた時に、片方を消す使い方ができる）。 */
 document.getElementById('btnDelete').onclick = async () => {
-  if (!confirm('このレシートを削除しますか？')) return;
-  await dbDel(detailId); hide('ovDetail'); renderList();
-  if (isOpen('ovStats')) renderStats(); // 開いたままの統計も数字を合わせる
+  const r = await dbGet(detailId); if (!r) { hide('ovDetail'); return; }
+  const rcs = receiptsOf(r);
+  if (rcs.length > 1) {
+    const d = rcs[detailIdx] || {};
+    if (!confirm(`「${d.store || '店名不明'}」の1枚だけを削除しますか？\n同じ写真に写っている残り ${rcs.length - 1} 枚と、写真そのものは残ります。`)) return;
+    r.data = { receipts: rcs.filter((_, k) => k !== detailIdx) };
+    r.edited = Date.now();
+    await dbPut(r);
+    toast('🗑 この1枚だけ削除しました');
+  } else {
+    if (!confirm('このレシートを削除しますか？（写真もいっしょに消えます）')) return;
+    await dbDel(detailId);
+  }
+  hide('ovDetail');
+  await renderList();
+  if (isOpen('ovStats')) renderTab(); // 開いたままの 📊 統計・💴 マップも数字を合わせる
 };
 
 /* ---------- 書き出し（期間指定 → JSON / CSV / OS共有シート） ---------- */
@@ -1639,7 +1679,7 @@ function stackHtml(rows, max, order){
 // 内訳（1行タップで開く明細）。行タップで元のレシート（詳細）へ飛べる
 function itemsHtml(rows){
   return '<div class="stItems">' + rows.slice().sort((a, b) => b.date.localeCompare(a.date)).map(x =>
-    `<div class="stItem" data-open="${x.rec.id}"><span>${x.date.slice(5)}</span>` +
+    `<div class="stItem" data-open="${x.rec.id}" data-i="${x.i}"><span>${x.date.slice(5)}</span>` +
     `<span class="s">${esc(x.rc.store || '店名不明')}${x.rc.branch ? ' ' + esc(x.rc.branch) : ''}</span>` +
     `<span class="a">${x.rc.total == null ? '—' : yen(x.rc.total)}</span></div>`).join('') + '</div>';
 }
@@ -1723,7 +1763,7 @@ async function renderStats(){
 document.getElementById('stBody').addEventListener('click', e => {
   if (e.target.id === 'stSortBtn') { stSort = stSort === 'yen' ? 'count' : 'yen'; renderStats(); return; }
   const open = e.target.closest('[data-open]');
-  if (open) { openDetail(open.dataset.open); return; }        // 明細 → 元のレシートへ
+  if (open) { openDetail(open.dataset.open, +open.dataset.i || 0); return; } // 明細 → その1枚の詳細へ（r28）
   const row = e.target.closest('[data-cat],[data-store]');
   if (!row) return;
   const k = row.dataset.cat ? 'c:' + row.dataset.cat : 's:' + row.dataset.store;
