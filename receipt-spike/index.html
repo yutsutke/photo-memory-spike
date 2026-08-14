@@ -696,7 +696,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r49 🍽書き起こせたあとも「前に失敗した記録」を読めるようにした＝r30で「やり直しても消さない」と決めたのに成功すると画面から消えていた（残す意味が半分無かった）。実機で3回目が失敗→4回目は同じ画像で成功したのに、その3回目の理由が読めなくなっていた。⚠この文はレシートには在って🍽食事に無かった＝r46(案内文の表)・r47(考える量)・r48(Anthropic側)に続いて4度目の「片方の道にしか実装されていない」→今回は共通の部品にして両方から呼ぶ＝注意書きでなく構造で防ぐ。実測4回で天井の効きも確認（1回目3323tokは旧上限3000なら必ず失敗していた数字）｜r48 🍽料理は考える量を絞らない＝r47で読み取り全部をeffort:lowにしたら実機で「精度がおちますね」。⚠同じ「写真を読む」でも、読むものが「書いてある文字」か「写っているもの」かで考えることの値打ちが逆＝📷レシートは印字を型に嵌めるだけなのでlowで足りるが、🍽料理は写真から見分ける仕事なので考えた分だけ当たる。effort/上限/待ち時間を仕事ごとの表に移した（🍽=絞らない・12000・300秒 ／ 📷=low・6000・180秒）。⚠Anthropic側も「low」を直接書いていて🍽まで絞っていたので同時に直した（明細で見えたのはOpenRouterだけ＝見えない方も同じ穴）。⚠元の失敗は天井が足りなかっただけで精度は出ていた（成功時2338/2524、失敗3001）＝r47は直しすぎ｜r47 🤖考えてから答えるモデルが、考えるだけでmax_tokensを使い切っていた＝OpenRouter経由の読み取りに reasoning:{effort:low} を送る（Anthropic側は最初からeffort:lowを送っていたのに、OpenAI互換側だけ絞る指定が無かった＝実測でQwen3.8 Maxの出力が3000の上限に張り付き・180秒切れ）。⚠📈分析には付けない＝あちらは考えさせる用途。⚠断られたらreasoningだけ外してもう一度（stream_optionsと同じ作法）。🍽のmax_tokensも3000→6000＝上限は「買う量」でなく「足りない方だけが事故」（考えた分も同じ上限を食うことを見積もりに入れていなかった）｜r46 🍽の失敗画面が行き止まりだった＝①📋この失敗の記録をコピーがr35から出ていたのに押しても何も起きなかった（受け手がレシートの詳細にしか無い＝出ているのに効かないボタンは無いより悪い）②案内が🍽に無い「一覧の🔁」「✏️手で入力」を指していた（r34の注意書き「画面ごとに次の手を分ける」に食事を足し忘れ＝自分の警告を後から踏んだ）③失敗した写真にやり直すボタンが無く一覧まで戻る必要があった→その場に「📝もう一度 書き起こす」（⚠r29で撤去した🔁と違い、error＝壊せる中身がまだ無い）｜r45 ❌「返事を読めませんでした（途中で切れた可能性）」の正体を追えるようにした＝アプリが実際に返ってきた本文を捨てていたので推測しか言えなかった（res.json()を直に呼ぶと中身が消える）。text()で受けてから自分で読む＝空／JSONで始まって終わっていない（＝届く途中で切れた・trunc）／そもそもJSONでない（＝AIが説明文を返した・parse）を見分け、本文の抜粋を📋の記録に載せる（画面には出さない＝押した人だけ）。⚠truncはcut（AIが上限で書き切れなかった）と別物＝AIは書けているので同じモデルの🔁でやり直す価値がある。中継ぎが待たせている間に送る空行や「:処理中」の詰め物も捨ててから読む · 2026-08-14';
+const BUILD = 'r50 ❌失敗の種類を「文言から当てる」のをやめ、投げる側が名乗るようにした＝r45で書いた「返事が通信の途中で途切れました（本文が最後まで届きませんでした）」の中の「届きませんでした」が、net(CORS疑い)の規則に先に当たり、実機で見当違いの案内（通信を確認・CORSの可能性）が出た。2枚は成功していたのでCORSではない。⚠一度決めた分類を保存して表示でも使い回す（今までは画面に出すたび文言から当て直していた＝誤りが再生産される）。⚠規則の順番も狭い方を先に。🩹途中で切れた時も「そこまで届いた分」を残す＝res.text()は失敗すると全部消えるので自分で受ける（いちばん知りたい失敗なのに現物が丸ごと無かった）｜r49 🍽書き起こせたあとも「前に失敗した記録」を読めるようにした＝r30で「やり直しても消さない」と決めたのに成功すると画面から消えていた（残す意味が半分無かった）。実機で3回目が失敗→4回目は同じ画像で成功したのに、その3回目の理由が読めなくなっていた。⚠この文はレシートには在って🍽食事に無かった＝r46(案内文の表)・r47(考える量)・r48(Anthropic側)に続いて4度目の「片方の道にしか実装されていない」→今回は共通の部品にして両方から呼ぶ＝注意書きでなく構造で防ぐ。実測4回で天井の効きも確認（1回目3323tokは旧上限3000なら必ず失敗していた数字）｜r48 🍽料理は考える量を絞らない＝r47で読み取り全部をeffort:lowにしたら実機で「精度がおちますね」。⚠同じ「写真を読む」でも、読むものが「書いてある文字」か「写っているもの」かで考えることの値打ちが逆＝📷レシートは印字を型に嵌めるだけなのでlowで足りるが、🍽料理は写真から見分ける仕事なので考えた分だけ当たる。effort/上限/待ち時間を仕事ごとの表に移した（🍽=絞らない・12000・300秒 ／ 📷=low・6000・180秒）。⚠Anthropic側も「low」を直接書いていて🍽まで絞っていたので同時に直した（明細で見えたのはOpenRouterだけ＝見えない方も同じ穴）。⚠元の失敗は天井が足りなかっただけで精度は出ていた（成功時2338/2524、失敗3001）＝r47は直しすぎ｜r47 🤖考えてから答えるモデルが、考えるだけでmax_tokensを使い切っていた＝OpenRouter経由の読み取りに reasoning:{effort:low} を送る（Anthropic側は最初からeffort:lowを送っていたのに、OpenAI互換側だけ絞る指定が無かった＝実測でQwen3.8 Maxの出力が3000の上限に張り付き・180秒切れ）。⚠📈分析には付けない＝あちらは考えさせる用途。⚠断られたらreasoningだけ外してもう一度（stream_optionsと同じ作法）。🍽のmax_tokensも3000→6000＝上限は「買う量」でなく「足りない方だけが事故」（考えた分も同じ上限を食うことを見積もりに入れていなかった）｜r46 🍽の失敗画面が行き止まりだった＝①📋この失敗の記録をコピーがr35から出ていたのに押しても何も起きなかった（受け手がレシートの詳細にしか無い＝出ているのに効かないボタンは無いより悪い）②案内が🍽に無い「一覧の🔁」「✏️手で入力」を指していた（r34の注意書き「画面ごとに次の手を分ける」に食事を足し忘れ＝自分の警告を後から踏んだ）③失敗した写真にやり直すボタンが無く一覧まで戻る必要があった→その場に「📝もう一度 書き起こす」（⚠r29で撤去した🔁と違い、error＝壊せる中身がまだ無い） · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1000,29 +1000,57 @@ async function apiFetch(ctx, path, { method = 'GET', body = null, timeoutMs = T_
   }
   if (!res.ok) { const e = await httpErr(res); cleanup(); throw e; }
   // ⚠ 本文の読み込みも同じ signal で切れる（見出しだけ返って本文が来ない時に固まらない）
-  let raw;
-  try { raw = await res.text(); }
-  catch (_) {
-    cleanup();
-    if (stopped)  throw new Error('やめました');
-    if (timedOut) throw new Error(`時間がかかりすぎたので止めました（${Math.round(timeoutMs / 1000)}秒）。期間を短くするか、軽いモデルをお試しください`);
-    throw new Error('返事が通信の途中で途切れました（本文が最後まで届きませんでした）');
-  }
-  finally { cleanup(); }
+  const { text: raw, partial } = await readBody(res);
+  cleanup();
   const s = stripPad(raw);
+  const cut = () => {
+    if (stopped)  return tagged('やめました', 'stop');
+    if (timedOut) return tagged(`時間がかかりすぎたので止めました（${Math.round(timeoutMs / 1000)}秒）。期間を短くするか、軽いモデルをお試しください`, 'timeout');
+    return null;
+  };
+  /* ⚠ 途中で切れた時も「そこまで届いた分」を残す（r50）＝r45 は res.text() を使っていたので、
+     この失敗だけ**現物が丸ごと消えて**いた（いちばん知りたい失敗なのに、いちばん手がかりが無かった）。 */
+  if (partial) {
+    const err = cut() || tagged('返事が最後まで届きませんでした（通信が途中で切れた）', 'trunc');
+    err.body = bodySnippet(raw); throw err;
+  }
   try { return JSON.parse(s); }
   catch (_) {
-    if (stopped)  throw new Error('やめました');
-    if (timedOut) throw new Error(`時間がかかりすぎたので止めました（${Math.round(timeoutMs / 1000)}秒）。期間を短くするか、軽いモデルをお試しください`);
     /* ⚠ ここで「実際に返ってきた本文」を捨てない（r45）＝捨てると推測しか言えない。
        始まり方で3つを見分ける＝JSON の形で始まって終わっていない＝通信の途中切れ／
        そもそも JSON でない＝AI が説明文を返した／空＝何も返っていない。 */
-    const err = new Error(
-      !s                        ? 'AIから空の返事が返りました（本文がありません）'
-      : /^[[{]/.test(s)         ? '返事が通信の途中で途切れました（JSONが最後まで届いていません）'
-      :                           '返事を JSON として読めません（AIが説明文を返した可能性）');
+    const err = cut() || (
+      !s                ? tagged('AIから空の返事が返りました（本文がありません）', 'empty')
+      : /^[[{]/.test(s) ? tagged('返事が最後まで届きませんでした（JSONが途中で終わっている）', 'trunc')
+      :                   tagged('返事を JSON として読めません（AIが説明文を返した可能性）', 'parse'));
     err.body = bodySnippet(raw);   // 📋 に載せる＝次に同じことが起きた時、推測でなく現物で追える
     throw err;
+  }
+}
+/* ⚠ 失敗の種類は**投げる側が名乗る**（r50）。文言から当てるのをやめた＝r45 で
+   「返事が通信の途中で途切れました（本文が最後まで**届きませんでした**）」と書いたら、
+   その中の「届きませんでした」が **net（CORS 疑い）の規則に先に当たり**、実機で
+   「通信を確認してください／CORS の可能性」という**まるで見当違いの案内**が出た（2枚は成功していたのに）。
+   文言を足すたびに、既にある規則に当たらないか気を配るのは無理＝**名乗らせる**。 */
+function tagged(msg, tag){ const e = new Error(msg); e.tag = tag; return e; }
+/* 本文を読む。⚠ res.text() は途中で切れると**全部**失う＝そこまで届いた分を残すため自分で受ける。
+   ⚠ 読み出しの仕組みが無い環境では今までどおり（間口を狭めない・r10 と同じ考え）。 */
+async function readBody(res){
+  if (!res.body || typeof res.body.getReader !== 'function') {
+    try { return { text: await res.text(), partial: false }; }
+    catch (_) { return { text: '', partial: true }; }
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let text = '';
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += dec.decode(value, { stream: true });
+    }
+    return { text: text + dec.decode(), partial: false };
+  } catch (_) {
+    return { text, partial: true };   // ここまで届いた分だけ返す
   }
 }
 /* 返事の前に付いてくる詰め物を捨てる（r45）。中継ぎのサービスは、待たせている間に
@@ -2063,25 +2091,30 @@ const ERR_LABEL = {
   net: '届きませんでした', timeout: '時間切れ', cut: '返事が途中で切れました', parse: '返事の形が読めません',
   trunc: '返事が届く途中で途切れました', empty: '空の返事が返りました', stop: '中止しました',
 };
-function errTag(msg, status){
+/* ⚠ 文言から種類を当てるのは**最後の手段**（r50）。投げる側が名乗っていればそれを使う。
+   名乗りが無いのは、こちらが作っていないエラー（fetch の失敗・HTTP の応答・想定外）だけ。 */
+function errTag(msg, status, tag){
+  if (tag) return tag;
   const m = String(msg || '');
   if (status === 429 || /レート制限/.test(m)) return 'rate';
   if (status === 401 || status === 403 || /APIキー/.test(m)) return 'key';
   if (status === 404 || /モデルかURLが見つかりません|モデルが未選択/.test(m)) return 'model';
   if (status >= 500) return 'server';
+  /* ⚠ **狭い規則を先に**（r50）。ここは上から順に当たるので、広い言葉（「届きませんでした」）を
+     先に置くと、それを含む別の文言（「本文が最後まで届きませんでした」＝通信の途中切れ）を
+     横取りする＝実機で CORS の案内が出た。名乗りがある今は保険だが、順番は正しくしておく。 */
+  if (/最後まで届きません|途中で途切れ/.test(m)) return 'trunc';
   if (/届きませんでした/.test(m)) return 'net';
   if (/時間がかかりすぎた|何も届かなかった/.test(m)) return 'timeout';
   // ⚠ 「上限に達しました」だけを見ていると、分析側の「上限に達して返事が返りませんでした」を取りこぼす（r34）
   if (/上限に達し/.test(m)) return 'cut';
-  // ⚠ trunc を parse より先に見る（どちらも「読めなかった」だが、原因＝AI か 通信 かが違う・r45）
-  if (/途中で途切れ/.test(m)) return 'trunc';
   if (/JSON として読めません|返事を読めません/.test(m)) return 'parse';
   if (/空の返事/.test(m)) return 'empty';
   if (/やめました/.test(m)) return 'stop';
   return 'other';
 }
-function classifyErr(msg, status, where = 'ocr'){
-  const tag = errTag(msg, status);
+function classifyErr(msg, status, where = 'ocr', known){
+  const tag = errTag(msg, status, known);
   return { tag,
            label: ERR_LABEL[tag] || (where === 'an' ? '分析に失敗しました' : '読み取り失敗'),
            next: nextOf(tag, where) };
@@ -2093,7 +2126,7 @@ const errWhen = at => { const d = new Date(at);
 // 失敗した時に、後から読める形で控える（人が控えなくてよくする）
 function noteFailure(rec, err, ctx){
   const msg = String(err?.message || err);
-  const c = classifyErr(msg, err?.status || 0);
+  const c = classifyErr(msg, err?.status || 0, 'ocr', err?.tag);
   const e = { at: Date.now(), msg, tag: c.tag, status: err?.status || null,
               prov: ctx?.prov || null, model: ctx?.model || null, build: BUILD.split('（')[0].trim().split(' ')[0],
               body: err?.body || null };   // 実際に返ってきた本文の抜粋（読めなかった時だけ入る・r45）
@@ -2106,7 +2139,7 @@ function failureReport(rec, where = 'ocr'){
   const what = where === 'meal' ? '🍽 食事の書き起こし' : '🧾 レシート読み取り';
   const head = `${what}に失敗した記録\n写真を取り込んだ時刻: ${errWhen(rec.ts)}\nアプリ: ${BUILD.split('｜')[0].slice(0, 60)}\n失敗 ${es.length} 回`;
   const body = es.map((e, i) => {
-    const c = classifyErr(e.msg, e.status, where);
+    const c = classifyErr(e.msg, e.status, where, e.tag);
     return `\n\n${i + 1}) ${errWhen(e.at)}\n  文言: ${e.msg}\n  分類: ${c.label}（${e.tag}）`
          + `${e.status ? ' / HTTP ' + e.status : ''}\n  AI: ${e.prov || '不明'} ${e.model || ''}`.trimEnd()
          + (e.body ? `\n  返ってきた本文: ${e.body}` : '')
@@ -2119,10 +2152,10 @@ function failureBlock(r, where = 'ocr'){
   const es = errsOf(r), le = es.slice(-1)[0];
   if (!le) return `<div class="note">❌ ${esc(r.error || (where === 'meal' ? '書き起こせませんでした' : 'レシートを検出できませんでした'))}</div>`
                 + (r.error ? errCopyBtn() : '');
-  const c = classifyErr(le.msg, le.status, where);
+  const c = classifyErr(le.msg, le.status, where, le.tag);
   const past = es.length < 2 ? '' :
     `<div class="note">これまでに ${es.length} 回失敗しています<br>`
-    + es.slice(0, -1).map(e => `${errWhen(e.at)}　${esc(classifyErr(e.msg, e.status, where).label)}`).join('<br>') + '</div>';
+    + es.slice(0, -1).map(e => `${errWhen(e.at)}　${esc(classifyErr(e.msg, e.status, where, e.tag).label)}`).join('<br>') + '</div>';
   return `<div class="note warn">❌ ${esc(le.msg)}<br><b>${esc(c.label)}</b>`
        + `（${errWhen(le.at)}${le.status ? ' ・ HTTP ' + le.status : ''}${le.prov ? ' ・ ' + esc(le.prov) : ''}`
        + `${le.model ? ' ' + esc(le.model) : ''}）<br>▶ ${esc(c.next)}</div>` + past + errCopyBtn();
@@ -2137,7 +2170,7 @@ function recoveredNote(r, where = 'ocr'){
   const es = errsOf(r); if (!es.length) return '';
   const le = es[es.length - 1];
   return `<div class="note">⚠ この写真は ${es.length} 回${where === 'meal' ? '書き起こし' : '読み取り'}に失敗してから読めました<br>`
-       + `最後の理由: ${esc(classifyErr(le.msg, le.status, where).label)}（${errWhen(le.at)}）</div>` + errCopyBtn();
+       + `最後の理由: ${esc(classifyErr(le.msg, le.status, where, le.tag).label)}（${errWhen(le.at)}）</div>` + errCopyBtn();
 }
 
 async function runAnalysis(id){
@@ -2400,7 +2433,7 @@ async function renderList(){
     else {
       // ⚠ 「読み取り失敗」だけでは次に何をすればいいか分からない＝短い理由を並べて出す（r30）
       const le = r.status === 'error' ? lastErr(r) : null;
-      const why = le ? classifyErr(le.msg, le.status).label : '';
+      const why = le ? classifyErr(le.msg, le.status, 'ocr', le.tag).label : '';
       title = `<span class="errt">${r.status === 'error' ? '読み取り失敗' : 'レシートを検出できず'}</span>`
             + (why && why !== '読み取り失敗' ? `<span class="chip">${esc(why)}</span>` : '');
       right = `<button data-retry="${r.id}">🔁</button>`;
@@ -3799,7 +3832,7 @@ const anLastOk = () => +localStorage.getItem(AN.okAt) || 0;
 const anNoteOk = () => localStorage.setItem(AN.okAt, String(Date.now()));
 function noteAnFailure(err, ctx, info){
   const msg = String(err?.message || err);
-  const e = { at: Date.now(), msg, tag: errTag(msg, err?.status || 0), status: err?.status || null,
+  const e = { at: Date.now(), msg, tag: errTag(msg, err?.status || 0, err?.tag), status: err?.status || null,
               prov: ctx?.prov || null, model: ctx?.model || null,
               build: BUILD.split('（')[0].trim().split(' ')[0],
               body: err?.body || null, ...info };   // 返ってきた本文の抜粋（読めなかった時だけ・r45）
@@ -3810,7 +3843,7 @@ function noteAnFailure(err, ctx, info){
 const anErrWhen = at => errWhen(at);   // 読み取り側と同じ書き方（並べて読むので揃える）
 // 1件ぶんの見出し行（いつ・何を頼んで・どのAIで失敗したか）
 function anErrHead(e){
-  return `${anErrWhen(e.at)}　${esc(classifyErr(e.msg, e.status, 'an').label)}`
+  return `${anErrWhen(e.at)}　${esc(classifyErr(e.msg, e.status, 'an', e.tag).label)}`
        + (e.periodLabel ? `（${esc(e.periodLabel)}` + (e.count != null ? `・${e.count}件` : '') + '）' : '');
 }
 // 📋 に載せる文章。⚠ キー・依頼文の中身は載せない（依頼文は個人的な事情を書く欄なので、型の名前まで）
@@ -3818,7 +3851,7 @@ function anFailureReport(){
   const es = anErrs();
   const head = `📈 レシートの分析に失敗した記録\nアプリ: ${BUILD.split('｜')[0].slice(0, 60)}\n失敗 ${es.length} 回`;
   return head + es.map((e, i) => {
-    const c = classifyErr(e.msg, e.status, 'an');
+    const c = classifyErr(e.msg, e.status, 'an', e.tag);
     return `\n\n${i + 1}) ${anErrWhen(e.at)}\n  文言: ${e.msg}\n  分類: ${c.label}（${e.tag}）`
          + `${e.status ? ' / HTTP ' + e.status : ''}\n  AI: ${e.prov || '不明'} ${e.model || ''}`.trimEnd()
          + `\n  依頼: ${e.presetLabel || '不明'} / ${e.periodLabel || '期間不明'}`
@@ -3833,7 +3866,7 @@ function renderAnErrs(){
   const box = document.getElementById('anErrBox'), es = anErrs();
   box.hidden = !es.length;
   if (!es.length) { box.innerHTML = ''; return; }
-  const le = es[es.length - 1], c = classifyErr(le.msg, le.status, 'an');
+  const le = es[es.length - 1], c = classifyErr(le.msg, le.status, 'an', le.tag);
   const copy = '<button class="btn" data-anerrcopy="1" style="margin-top:10px">📋 この失敗の記録をコピー</button>';
   const past = es.length < 2 ? ''
     : `<div class="note">これまでに ${es.length} 回失敗しています<br>`
