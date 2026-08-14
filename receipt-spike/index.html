@@ -87,6 +87,10 @@ main{padding:10px 14px;}
 .seg button{flex:1; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:12px; padding:10px; font-size:15.5px; line-height:1.3;}
 .seg button.on{background:var(--acc); color:#04121f; font-weight:700; border-color:var(--acc);}
 .seg.wrap{flex-wrap:wrap;} .seg.wrap button{flex:1 1 28%; padding:9px 4px; font-size:14.5px;}
+/* r34: 型（プリセット）は1行に3つだと「💡 節約のヒント」「🩺 健康の面から」が2行に折り返していた
+   （390px の実測。⚠ 実機の iOS Safari は文字がもっと大きいので、そこではさらに苦しい）。
+   ⚠ 収まるかに賭けない＝**1行に2つ**にして、いちばん長い名前でも余白が残る形にする（r33 の教訓）。 */
+#anPresetSeg button{flex:1 1 45%;}
 .seg small{display:block; font-size:11.5px; opacity:.75; font-weight:400;}
 details.adv{border-top:1px solid var(--line); margin-top:12px; padding-top:10px;}
 details.adv summary{color:var(--dim); font-size:13.5px; margin-bottom:10px; cursor:pointer;}
@@ -157,6 +161,9 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 .edIt select{flex:none; width:62px; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px 4px; font-size:14px;}
 /* ⚠ 数字が合わない印（r22）＝直す価値がある場所だけに出す */
 .note.warn{color:var(--err); border-left:3px solid var(--err); padding-left:8px;}
+/* r34: 分析の失敗。そのあと成功していれば畳んでおく（記録は消さないが、画面を占め続けない） */
+#anErrBox{margin:0 0 12px;}
+details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padding:4px 0;}
 .chip.warn{background:var(--err); color:#fff;}
 .anChk{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--dim); margin:8px 0 12px;}
 .anChk input{width:18px; height:18px; accent-color:var(--acc); flex:none;}
@@ -368,6 +375,8 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
     <div class="anAi" id="anAiLine"></div>
     <label class="anChk"><input type="checkbox" id="anSaveChk"><span>結果を自動で保存する（🗂 履歴に貯まります）</span></label>
+    <!-- ⚠ 失敗の記録は ▶ の**上**（r34）＝押す前に「次に何をすればいいか」が読める位置に置く -->
+    <div id="anErrBox" hidden></div>
     <button class="btn pri" id="btnAnRun">▶ 分析する</button>
     <!-- ⏹ 待っている間に人がやめられる手（r26）＝上限で勝手に切るより、こちらを先に用意する -->
     <button class="btn" id="btnAnStop" hidden>⏹ やめる</button>
@@ -507,7 +516,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r33 🔎詳細検索を開くと条件で画面が埋まり結果が見えなかった（実機の指摘）＝条件欄は画面の4割までにして中でスクロール・「🔍結果を見る（N件）」で畳んで結果へ・効いている条件はチップで見え1つずつ外せる。実機でヘッダの「レシート」が切れていたので狭い幅では🧾だけにする｜r32 🔍トップにレシートの横断検索＝ヘッダの🔍で開き、簡易検索（店名・品目・分類・住所・金額をまとめて／空白区切りは全部を含む）と、🔎項目を決めての詳細検索（期間・分類・店名・品目・金額の範囲・支払・種別）。件数と合計が出る・📷で撮ると検索は畳む｜r31 🏷分類（カテゴリ）を自分で足せる＝⚙で追加・削除（既定の8つはライフログ互換なので消せない）。足した分類は読み取りのスキーマにも入れてAIに渡す（次に撮ったレシートから使われる）。消しても既存レシートは書き換えない・✏️の選択肢にも残す｜r30 🧾読み取りに失敗した理由をアプリが控える＝失敗の履歴（時刻・文言・分類・HTTP・どのAI/モデル）を写真ごとに残す。一覧には短い理由・詳細には「次の手」を出し、📋この失敗の記録をコピーで丸ごと持ち出せる（🔁でやり直しても消えない）｜r29 🔁詳細の再分析を撤去（実機で失敗するうえ、失敗すると読めていた店名・金額が一覧や📊から消えて見えた＝読めているレシートを壊せるボタンだった）。読み直しは「読み取りに失敗した写真」だけ＝一覧の🔁に残す・直すのは✏️手で直す · 2026-08-14';
+const BUILD = 'r34 📈分析の失敗もアプリが控える＝これまで toast が4秒で消えるだけで、失敗すると記録が1件も残らなかった（分析は成功した時にしか記録が生まれない）。時刻・文言・分類・HTTP・どのAI/モデル・期間・件数・待ち秒を直近5件残し、▶の上に「次の手」を出す（📋でまとめてコピー・やり直しても消えない）。次の手は読み取りと分析で言い分ける＝「一覧の🔁」は📈に無いボタン。型ボタンが2行に折り返していたので1行2つに｜r33 🔎詳細検索を開くと条件で画面が埋まり結果が見えなかった（実機の指摘）＝条件欄は画面の4割までにして中でスクロール・「🔍結果を見る（N件）」で畳んで結果へ・効いている条件はチップで見え1つずつ外せる。実機でヘッダの「レシート」が切れていたので狭い幅では🧾だけにする｜r32 🔍トップにレシートの横断検索＝ヘッダの🔍で開き、簡易検索（店名・品目・分類・住所・金額をまとめて／空白区切りは全部を含む）と、🔎項目を決めての詳細検索（期間・分類・店名・品目・金額の範囲・支払・種別）。件数と合計が出る・📷で撮ると検索は畳む｜r31 🏷分類（カテゴリ）を自分で足せる＝⚙で追加・削除（既定の8つはライフログ互換なので消せない）。足した分類は読み取りのスキーマにも入れてAIに渡す（次に撮ったレシートから使われる）。消しても既存レシートは書き換えない・✏️の選択肢にも残す｜r30 🧾読み取りに失敗した理由をアプリが控える＝失敗の履歴（時刻・文言・分類・HTTP・どのAI/モデル）を写真ごとに残す。一覧には短い理由・詳細には「次の手」を出し、📋この失敗の記録をコピーで丸ごと持ち出せる（🔁でやり直しても消えない） · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -533,6 +542,8 @@ const AN = {
   model:  p => `rcpt.an.model.${p}`, // 空 = 読み取りと同じモデル
   period: 'rcpt.an.period', from: 'rcpt.an.from', to: 'rcpt.an.to',
   preset: 'rcpt.an.preset', prompt: 'rcpt.an.prompt', save: 'rcpt.an.save',
+  // r34: 分析の失敗の記録と、最後に成功した時刻（成功していれば失敗は畳んで出す）
+  errors: 'rcpt.an.errors', okAt: 'rcpt.an.okAt',
 };
 // r8 以前は Anthropic 決め打ち（rcpt.apiKey / rcpt.model）だった → 一度だけ引っ越す
 (function migrateSettings(){
@@ -638,7 +649,10 @@ async function httpErr(res){
   try { msg = (await res.json()).error?.message || msg; } catch (_) {}
   if (res.status === 401) msg = 'APIキーが無効です（⚙ で確認を）';
   if (res.status === 404) msg = 'モデルかURLが見つかりません（⚙ の詳細設定で確認を）: ' + msg;
-  if (res.status === 429) msg = 'レート制限中。少し待ってから一覧の 🔁 でやり直してください';
+  // ⚠ ここは読み取りと分析で共有する文言＝**押すボタンの名前を書かない**（r34）。
+  //    「一覧の 🔁」と書いてあると、📈 分析の失敗で**その画面に無いボタン**を案内することになる。
+  //    どこを押すかは、失敗した場所ごとの「▶ 次の手」（ERR_NEXT）が言う。
+  if (res.status === 429) msg = 'レート制限中です（少し待ってからやり直してください）';
   // ⚠ 数字（HTTP ステータス）も持たせる＝日本語に直した時点で「何が起きたか」の手がかりが消えていた（r30）
   const e = new Error(msg); e.status = res.status; return e;
 }
@@ -1086,26 +1100,57 @@ const onPhotoPicked = async e => {
    ⚠ 分類の目的は「次に何をすればいいか」を出すこと。レート制限（待てば直る）・届かない（回線かCORS）・
       時間切れ（軽いモデルへ）・キー（⚙）は**次の手がまったく違う**ので、混ぜて「失敗しました」と出さない。 */
 const ERR_KEEP = 5;   // 失敗の記録は直近5件（原因を追うのに十分・写真1件が肥え続けない）
-function classifyErr(msg, status){
+/* ⚠ 分類（tag）は読み取りと分析で共通、**次の手（next）は別**（r34）。
+   同じ「混み合っています」でも、読み取りは「一覧の 🔁」・分析は「▶ をもう一度」＝押す場所が違う。
+   ここを共通の文にすると、どちらかの画面に**存在しないボタンを案内する**ことになる。 */
+const ERR_NEXT = {
+  rate:    { ocr: '数分おいてから、一覧の 🔁 でやり直してください（待てば直る種類です）',
+             an:  '数分おいてから ▶ をもう一度押してください（待てば直る種類です）' },
+  key:     { ocr: '⚙ でキーを登録し直し、🔌 接続テストが通るか確かめてください',
+             an:  '⚙ でキーを登録し直し、🔌 接続テストが通るか確かめてください（分析に別の AI を選んでいる場合は、そちらのキーです）' },
+  model:   { ocr: '⚙ の詳細設定で、モデルIDと APIのURL を確認してください',
+             an:  '⚙ の「分析モデル」で、モデルIDと APIのURL を確認してください' },
+  server:  { ocr: '相手の障害の可能性。時間をおいて一覧の 🔁 でやり直してください',
+             an:  '相手の障害の可能性。時間をおいて ▶ をもう一度押してください' },
+  net:     { ocr: '通信を確認。回線が生きているのに続くなら、そのサービスが端末からの直接呼び出しを許していない（CORS）可能性があります',
+             an:  '通信を確認。回線が生きているのに続くなら、そのサービスが端末からの直接呼び出しを許していない（CORS）可能性があります' },
+  timeout: { ocr: '⚙ で軽いモデルを試すか、写真を1枚ずつ撮ってください',
+             an:  '期間を短くする（今月・直近30日）か、⚙ で軽い分析モデルを試してください' },
+  cut:     { ocr: 'レシートが長い／明細が多い可能性。⚙ の詳細設定で別のモデルをお試しください',
+             an:  '渡したレシートが多すぎる可能性。期間を短くするか、別のモデルをお試しください' },
+  parse:   { ocr: '別のモデルを試すか、✏️ 手で入力してください',
+             an:  '別のモデルをお試しください' },
+  empty:   { ocr: '別のモデルを試すか、✏️ 手で入力してください',
+             an:  '依頼文を短く具体的にするか、別のモデルをお試しください' },
+  stop:    { ocr: '一覧の 🔁 でやり直せます', an: '▶ でやり直せます' },
+  other:   { ocr: '同じ文言が続くようなら、📋 この記録をコピーして相談してください',
+             an:  '同じ文言が続くようなら、📋 この記録をコピーして相談してください' },
+};
+const ERR_LABEL = {
+  rate: '混み合っています', key: 'APIキーの問題', model: 'モデルかURLの問題', server: 'AI側の不調',
+  net: '届きませんでした', timeout: '時間切れ', cut: '返事が途中で切れました', parse: '返事の形が読めません',
+  empty: '空の返事が返りました', stop: '中止しました',
+};
+function errTag(msg, status){
   const m = String(msg || '');
-  if (status === 429 || /レート制限/.test(m))
-    return { tag: 'rate', label: '混み合っています', next: '数分おいてから、一覧の 🔁 でやり直してください（待てば直る種類です）' };
-  if (status === 401 || status === 403 || /APIキー/.test(m))
-    return { tag: 'key', label: 'APIキーの問題', next: '⚙ でキーを登録し直し、🔌 接続テストが通るか確かめてください' };
-  if (status === 404 || /モデルかURLが見つかりません|モデルが未選択/.test(m))
-    return { tag: 'model', label: 'モデルかURLの問題', next: '⚙ の詳細設定で、モデルIDと APIのURL を確認してください' };
-  if (status >= 500)
-    return { tag: 'server', label: 'AI側の不調', next: '相手の障害の可能性。時間をおいて一覧の 🔁 でやり直してください' };
-  if (/届きませんでした/.test(m))
-    return { tag: 'net', label: '届きませんでした', next: '通信を確認。回線が生きているのに続くなら、そのサービスが端末からの直接呼び出しを許していない（CORS）可能性があります' };
-  if (/時間がかかりすぎた|何も届かなかった/.test(m))
-    return { tag: 'timeout', label: '時間切れ', next: '⚙ で軽いモデルを試すか、写真を1枚ずつ撮ってください' };
-  if (/上限に達しました/.test(m))
-    return { tag: 'cut', label: '返事が途中で切れました', next: 'レシートが長い／明細が多い可能性。⚙ の詳細設定で別のモデルをお試しください' };
-  if (/JSON として読めません|返事を読めません/.test(m))
-    return { tag: 'parse', label: '返事の形が読めません', next: '別のモデルを試すか、✏️ 手で入力してください' };
-  if (/やめました/.test(m)) return { tag: 'stop', label: '中止しました', next: '一覧の 🔁 でやり直せます' };
-  return { tag: 'other', label: '読み取り失敗', next: '同じ文言が続くようなら、📋 この記録をコピーして相談してください' };
+  if (status === 429 || /レート制限/.test(m)) return 'rate';
+  if (status === 401 || status === 403 || /APIキー/.test(m)) return 'key';
+  if (status === 404 || /モデルかURLが見つかりません|モデルが未選択/.test(m)) return 'model';
+  if (status >= 500) return 'server';
+  if (/届きませんでした/.test(m)) return 'net';
+  if (/時間がかかりすぎた|何も届かなかった/.test(m)) return 'timeout';
+  // ⚠ 「上限に達しました」だけを見ていると、分析側の「上限に達して返事が返りませんでした」を取りこぼす（r34）
+  if (/上限に達し/.test(m)) return 'cut';
+  if (/JSON として読めません|返事を読めません/.test(m)) return 'parse';
+  if (/空の返事/.test(m)) return 'empty';
+  if (/やめました/.test(m)) return 'stop';
+  return 'other';
+}
+function classifyErr(msg, status, where = 'ocr'){
+  const tag = errTag(msg, status);
+  return { tag,
+           label: ERR_LABEL[tag] || (where === 'an' ? '分析に失敗しました' : '読み取り失敗'),
+           next: (ERR_NEXT[tag] || ERR_NEXT.other)[where] };
 }
 const errsOf = r => Array.isArray(r?.errors) ? r.errors : [];
 const lastErr = r => errsOf(r).slice(-1)[0] || null;
@@ -2623,6 +2668,79 @@ let anStartedAt = 0, anTick = null, anAbort = null, anChars = 0;   // 経過秒�
 let arCur    = null;   // いま結果画面に出している分析（履歴から開いた / いま実行した）
 const anSaveOn = () => localStorage.getItem(AN.save) !== '0'; // 既定＝保存する
 
+/* ---------- 📈 分析の失敗も、アプリの側が控える（r34） ----------
+   r30 で読み取りの失敗は残るようになったが、**分析の失敗は toast だけ**だった＝4秒で消える。
+   ⚠ 分析は読み取りより取り返しが利かない＝失敗しても**記録が1件も残らない**。
+      読み取りは写真という原本が手元にあり `rec.errors` に書ける場所があるが、
+      分析は**成功した時にしか記録が生まれない**（失敗＝何も無かったことになる）。
+      しかも1回が数分・1年分なら課金も乗る＝「さっきの失敗は何だったか」が最も知りたい種類。
+   → 失敗は localStorage に直近5件残す（時刻・文言・分類・HTTP・どのAI/モデル・期間・件数・
+     何秒待って何文字届いたか）。⚠ 成功しても消さない（r30 と同じ理由＝「やり直したら通った」が手がかり）。
+   ⚠ 出し方は成功しているかで変える＝**最後の実行が失敗なら開いて出す**（次の手が要る状態）／
+     そのあと成功していれば**1行に畳む**。ずっと赤いままだと、いずれ誰も読まなくなる。 */
+const AN_ERR_KEEP = 5;
+const anErrs = () => { try { const a = JSON.parse(localStorage.getItem(AN.errors) || '[]');
+                             return Array.isArray(a) ? a : []; } catch { return []; } };
+const anLastOk = () => +localStorage.getItem(AN.okAt) || 0;
+// ⚠ 「保存する」がオフでも成功は覚える＝履歴が空でも「そのあと通った」ことは分かる
+const anNoteOk = () => localStorage.setItem(AN.okAt, String(Date.now()));
+function noteAnFailure(err, ctx, info){
+  const msg = String(err?.message || err);
+  const e = { at: Date.now(), msg, tag: errTag(msg, err?.status || 0), status: err?.status || null,
+              prov: ctx?.prov || null, model: ctx?.model || null,
+              build: BUILD.split('（')[0].trim().split(' ')[0], ...info };
+  const list = anErrs().concat([e]).slice(-AN_ERR_KEEP);
+  localStorage.setItem(AN.errors, JSON.stringify(list));
+  return e;
+}
+const anErrWhen = at => errWhen(at);   // 読み取り側と同じ書き方（並べて読むので揃える）
+// 1件ぶんの見出し行（いつ・何を頼んで・どのAIで失敗したか）
+function anErrHead(e){
+  return `${anErrWhen(e.at)}　${esc(classifyErr(e.msg, e.status, 'an').label)}`
+       + (e.periodLabel ? `（${esc(e.periodLabel)}` + (e.count != null ? `・${e.count}件` : '') + '）' : '');
+}
+// 📋 に載せる文章。⚠ キー・依頼文の中身は載せない（依頼文は個人的な事情を書く欄なので、型の名前まで）
+function anFailureReport(){
+  const es = anErrs();
+  const head = `📈 レシートの分析に失敗した記録\nアプリ: ${BUILD.split('｜')[0].slice(0, 60)}\n失敗 ${es.length} 回`;
+  return head + es.map((e, i) => {
+    const c = classifyErr(e.msg, e.status, 'an');
+    return `\n\n${i + 1}) ${anErrWhen(e.at)}\n  文言: ${e.msg}\n  分類: ${c.label}（${e.tag}）`
+         + `${e.status ? ' / HTTP ' + e.status : ''}\n  AI: ${e.prov || '不明'} ${e.model || ''}`.trimEnd()
+         + `\n  依頼: ${e.presetLabel || '不明'} / ${e.periodLabel || '期間不明'}`
+         + `${e.count != null ? ` / ${e.count}件` : ''}${e.att ? ` / 📎${e.att}件` : ''}`
+         + `\n  待ち: ${e.secs != null ? e.secs + '秒' : '不明'}`
+         + `${e.chars != null ? ` / ${e.chars}文字 届いた` : ''}`
+         + `\n  次の手: ${c.next}`;
+  }).join('');
+}
+function renderAnErrs(){
+  const box = document.getElementById('anErrBox'), es = anErrs();
+  box.hidden = !es.length;
+  if (!es.length) { box.innerHTML = ''; return; }
+  const le = es[es.length - 1], c = classifyErr(le.msg, le.status, 'an');
+  const copy = '<button class="btn" data-anerrcopy="1" style="margin-top:10px">📋 この失敗の記録をコピー</button>';
+  const past = es.length < 2 ? ''
+    : `<div class="note">これまでに ${es.length} 回失敗しています<br>`
+      + es.slice(0, -1).map(anErrHead).join('<br>') + '</div>';
+  // 最後の実行が失敗のまま＝いま次の手が要る。開いて出す
+  if (le.at > anLastOk()) {
+    box.innerHTML = `<div class="note warn">❌ ${esc(le.msg)}<br><b>${esc(c.label)}</b>`
+      + `（${anErrWhen(le.at)}${le.status ? ' ・ HTTP ' + le.status : ''}${le.prov ? ' ・ ' + esc(le.prov) : ''}`
+      + `${le.model ? ' ' + esc(le.model) : ''}）<br>▶ ${esc(c.next)}</div>` + past + copy;
+    return;
+  }
+  // そのあと成功している＝畳む（記録は消さないが、画面を占め続けない）
+  box.innerHTML = `<details class="anErrFold"><summary>⚠ 過去に ${es.length} 回、分析に失敗しています（そのあと成功しました）</summary>`
+    + `<div class="note">${es.map(anErrHead).join('<br>')}</div>`
+    + `<div class="note">最後の失敗: ${esc(le.msg)}<br>▶ ${esc(c.next)}</div>` + copy + '</details>';
+}
+document.getElementById('anErrBox').addEventListener('click', async e => {
+  if (!e.target.closest('[data-anerrcopy]')) return;
+  try { await navigator.clipboard.writeText(anFailureReport()); toast('📋 コピーしました'); }
+  catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
+});
+
 function anPeriod(){
   const t = todayStr(), y = +t.slice(0, 4), m = +t.slice(5, 7);
   const lastDay = (yy, mm) => pad2(new Date(yy, mm, 0).getDate()); // mm は 1-12（Date の 0 日＝前月末日）
@@ -2780,6 +2898,7 @@ async function renderAnalyze(){
   document.getElementById('anGoSettings').onclick = () => { openSettings(); };
 
   document.getElementById('anSaveChk').checked = anSaveOn();
+  renderAnErrs();   // r34: 押す前に「前回なぜ失敗したか・次に何をすればいいか」が読める
   const run = document.getElementById('btnAnRun');
   run.disabled = anBusy;
   // ⚠ 固定の「30秒ほど」はやめた（データ量で変わるのに変わらない数字は嘘になる）。
@@ -2961,10 +3080,20 @@ async function anRun(){
     // 「設定すれば自動で貯まる」＝保存ボタンは置かない。オフの時だけ、その場限りだと明示する
     if (anSaveOn()) { rec.saved = true; await anPut(rec); await renderAnHistory(); }
     else rec.saved = false;
+    anNoteOk();   // r34: 通ったことを覚える＝過去の失敗はここから畳んで出す
     openAnResult(rec);
   } catch (err) {
     const m = String(err.message || err);
-    toast(m === 'やめました' ? '⏹ やめました' : '❌ ' + m);   // 自分で止めた時は失敗のように見せない
+    if (m === 'やめました') toast('⏹ やめました');   // 自分で止めた時は失敗のように見せない（記録もしない）
+    else {
+      /* r34: 失敗は控える。⚠ 依頼文そのものは残さない（型の名前まで）＝分析の依頼文には
+         健康のことなど個人的な事情を書く欄で、📋 で外に出す前提の記録に丸ごと載せない。 */
+      noteAnFailure(err, ctx, {
+        presetLabel: AN_PRESET_LABEL(anPreset), periodLabel: per.label, count: rows.length,
+        att: anAtt.length, chars: anChars, secs: Math.round((Date.now() - anStartedAt) / 1000),
+      });
+      toast('❌ ' + m + '（理由は 📈 の画面に残しました）');
+    }
   }
   finally {
     clearInterval(anTick); anTick = null; anAbort = null; anBusy = false;
