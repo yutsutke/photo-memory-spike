@@ -696,7 +696,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r44 🍽詳細の書き起こしを「食べ物と量のことだけ」に絞った＝実キーの実測で、皿の色・箸・敷物・袋が未開封か、まで書いていた（プロンプトが「見えたものを・盛り付け・器まで」と自分で頼んでいた）。detail の使い道は健康面の深掘り（📈）と献立の読み返しなので、器や背景の見た目描写は雑音（器は「茶碗1杯」のような量の物差しの時だけ登場してよい）。⚠直るのはこれから書き起こす分だけ＝書き起こし済みの詳細はそのまま｜r43 ⚙キー未登録なら起動時にトーストで設定へ誘う（⚠タップした人だけ開く＝最初の画面を塞がない・文言も「登録しろ」と言わない＝r38「まず撮るだけで大丈夫」を壊さない）。トップの🖼もレシート／料理に分けた＝⚠4つを横並びにすると同じ🖼が2つになってどちらか分からないので、主語ごとの塊（📷レシート＋🖼 ／ 🍽料理＋🖼）にして近さで意味を作る。🖼から選んだ料理も🍽の画面を開く（入る場所が同じなら見せ方も同じ）。🩹トーストが画面の半分でしか広がらなかった昔からのバグを直した（left:50%だけだと max-width:86vw が効かない）｜r42 🔍横断検索に食事も入れた＝レシートの一覧の下に「🍽食事 N件」を別の塊で出す（⚠混ぜない＝食事には金額の列が無く、同じ並びだとどちらの行か分からない）。当たるのは言葉（要約・書き起こし・料理名・🗒ひとこと・区分）と日付だけで、⚠店名・品目・金額・支払・種別・分類が入っている時は食事を探さず「探していない」と言う（0件と探していないは別のこと）。まだ書き起こしていない食事の件数も言う。タップすると書き起こしが読める｜r40-41 ⚙AIを3種類に＝📷レシートの読み取り／🍽料理の読み取り／📈分析 を別々に選べる（キーはAIごとに1本を共有・既定は全部「レシートと同じ」・🍽の画面にどのAIが読むか出す）。📤書き出しで料理の要約/詳細を選べる＝既定はこれまでどおり詳細つき・外すと要約だけ。⚠.jsonでは料理を meal_log という別キーで中に入れる（文章の後ろに足すとJSONとして壊れる＝場所が違えば正しい形も違う）。🍽料理のCSVを別ファイルで出せる。トップに「🍽料理」を足して3つ並べた（狭い画面では絵文字だけにする）｜r38-39 🍽似たサービス（Ate/YouAte/Shutterbite・あすけん/カロミル）を調べて2点。①写真だけで残る＝APIキーが無くても撮った写真は❌にせず「まだ書き起こしていない」として残し、あとから📝まとめて書き起こせる（⚠同じ理由で2回続けて失敗したら止める）。撮り方のコツ（大きさの分かるものを一緒に写す）も出す。②🗒ひとこと＝気分・誰と・なぜを1行残せる（AIが写真から絶対に取れない唯一の情報なので、深掘りでなくても📈に常に渡す）。週の下に「この週は N食（M日ぶん）」＝⚠連続日数や達成率にはしない（途切れた人を責めない） · 2026-08-14';
+const BUILD = 'r45 ❌「返事を読めませんでした（途中で切れた可能性）」の正体を追えるようにした＝アプリが実際に返ってきた本文を捨てていたので推測しか言えなかった（res.json()を直に呼ぶと中身が消える）。text()で受けてから自分で読む＝空／JSONで始まって終わっていない（＝届く途中で切れた・trunc）／そもそもJSONでない（＝AIが説明文を返した・parse）を見分け、本文の抜粋を📋の記録に載せる（画面には出さない＝押した人だけ）。⚠truncはcut（AIが上限で書き切れなかった）と別物＝AIは書けているので同じモデルの🔁でやり直す価値がある。中継ぎが待たせている間に送る空行や「:処理中」の詰め物も捨ててから読む｜r44 🍽詳細の書き起こしを「食べ物と量のことだけ」に絞った＝実キーの実測で、皿の色・箸・敷物・袋が未開封か、まで書いていた（プロンプトが「見えたものを・盛り付け・器まで」と自分で頼んでいた）。detail の使い道は健康面の深掘り（📈）と献立の読み返しなので、器や背景の見た目描写は雑音（器は「茶碗1杯」のような量の物差しの時だけ登場してよい）。⚠直るのはこれから書き起こす分だけ＝書き起こし済みの詳細はそのまま｜r43 ⚙キー未登録なら起動時にトーストで設定へ誘う（⚠タップした人だけ開く＝最初の画面を塞がない・文言も「登録しろ」と言わない＝r38「まず撮るだけで大丈夫」を壊さない）。トップの🖼もレシート／料理に分けた＝⚠4つを横並びにすると同じ🖼が2つになってどちらか分からないので、主語ごとの塊（📷レシート＋🖼 ／ 🍽料理＋🖼）にして近さで意味を作る。🖼から選んだ料理も🍽の画面を開く（入る場所が同じなら見せ方も同じ）。🩹トーストが画面の半分でしか広がらなかった昔からのバグを直した（left:50%だけだと max-width:86vw が効かない）｜r42 🔍横断検索に食事も入れた＝レシートの一覧の下に「🍽食事 N件」を別の塊で出す（⚠混ぜない＝食事には金額の列が無く、同じ並びだとどちらの行か分からない）。当たるのは言葉（要約・書き起こし・料理名・🗒ひとこと・区分）と日付だけで、⚠店名・品目・金額・支払・種別・分類が入っている時は食事を探さず「探していない」と言う（0件と探していないは別のこと）。まだ書き起こしていない食事の件数も言う。タップすると書き起こしが読める｜r40-41 ⚙AIを3種類に＝📷レシートの読み取り／🍽料理の読み取り／📈分析 を別々に選べる（キーはAIごとに1本を共有・既定は全部「レシートと同じ」・🍽の画面にどのAIが読むか出す）。📤書き出しで料理の要約/詳細を選べる＝既定はこれまでどおり詳細つき・外すと要約だけ。⚠.jsonでは料理を meal_log という別キーで中に入れる（文章の後ろに足すとJSONとして壊れる＝場所が違えば正しい形も違う）。🍽料理のCSVを別ファイルで出せる。トップに「🍽料理」を足して3つ並べた（狭い画面では絵文字だけにする） · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1000,13 +1000,44 @@ async function apiFetch(ctx, path, { method = 'GET', body = null, timeoutMs = T_
   }
   if (!res.ok) { const e = await httpErr(res); cleanup(); throw e; }
   // ⚠ 本文の読み込みも同じ signal で切れる（見出しだけ返って本文が来ない時に固まらない）
-  try { return await res.json(); }
+  let raw;
+  try { raw = await res.text(); }
+  catch (_) {
+    cleanup();
+    if (stopped)  throw new Error('やめました');
+    if (timedOut) throw new Error(`時間がかかりすぎたので止めました（${Math.round(timeoutMs / 1000)}秒）。期間を短くするか、軽いモデルをお試しください`);
+    throw new Error('返事が通信の途中で途切れました（本文が最後まで届きませんでした）');
+  }
+  finally { cleanup(); }
+  const s = stripPad(raw);
+  try { return JSON.parse(s); }
   catch (_) {
     if (stopped)  throw new Error('やめました');
     if (timedOut) throw new Error(`時間がかかりすぎたので止めました（${Math.round(timeoutMs / 1000)}秒）。期間を短くするか、軽いモデルをお試しください`);
-    throw new Error('返事を読めませんでした（途中で切れた可能性）');
+    /* ⚠ ここで「実際に返ってきた本文」を捨てない（r45）＝捨てると推測しか言えない。
+       始まり方で3つを見分ける＝JSON の形で始まって終わっていない＝通信の途中切れ／
+       そもそも JSON でない＝AI が説明文を返した／空＝何も返っていない。 */
+    const err = new Error(
+      !s                        ? 'AIから空の返事が返りました（本文がありません）'
+      : /^[[{]/.test(s)         ? '返事が通信の途中で途切れました（JSONが最後まで届いていません）'
+      :                           '返事を JSON として読めません（AIが説明文を返した可能性）');
+    err.body = bodySnippet(raw);   // 📋 に載せる＝次に同じことが起きた時、推測でなく現物で追える
+    throw err;
   }
-  finally { cleanup(); }
+}
+/* 返事の前に付いてくる詰め物を捨てる（r45）。中継ぎのサービスは、待たせている間に
+   空行や「: 処理中」のような行を先に送ってくることがある。⚠ JSON は空行や `:` では始まらないので捨てて安全。 */
+function stripPad(t){
+  const lines = String(t ?? '').split('\n');
+  let i = 0;
+  while (i < lines.length && (lines[i].trim() === '' || lines[i].startsWith(':'))) i++;
+  return lines.slice(i).join('\n').trim();
+}
+/* 📋 に載せる本文の抜粋。⚠ 長い時は頭と尻の両方を残す＝途中で切れたかは**終わり方**を見ないと分からない。 */
+function bodySnippet(t){
+  const s = String(t ?? '').replace(/\s+/g, ' ').trim();
+  if (!s) return '（空）';
+  return `${s.length} 文字: ` + (s.length > 500 ? `${s.slice(0, 300)} …〔中略〕… ${s.slice(-200)}` : s);
 }
 
 /* 返事が「上限で途中で切れた」か（r17）。
@@ -1958,6 +1989,9 @@ const ERR_NEXT = {
              an:  '期間を短くする（今月・直近30日）か、⚙ で軽い分析モデルを試してください' },
   cut:     { ocr: 'レシートが長い／明細が多い可能性。⚙ の詳細設定で別のモデルをお試しください',
              an:  '渡したレシートが多すぎる可能性。期間を短くするか、別のモデルをお試しください' },
+  // ⚠ cut（AIが上限で書き切れなかった）と別物＝AIは書けていて、届く途中で切れた。だから同じモデルでやり直す価値がある
+  trunc:   { ocr: '一覧の 🔁 でやり直してください（届く途中で切れただけなら、次は通ります）。続くようなら 📋 の記録を見てください',
+             an:  '▶ でやり直してください（届く途中で切れただけなら、次は通ります）。続くようなら 📋 の記録を見てください' },
   parse:   { ocr: '別のモデルを試すか、✏️ 手で入力してください',
              an:  '別のモデルをお試しください' },
   empty:   { ocr: '別のモデルを試すか、✏️ 手で入力してください',
@@ -1969,7 +2003,7 @@ const ERR_NEXT = {
 const ERR_LABEL = {
   rate: '混み合っています', key: 'APIキーの問題', model: 'モデルかURLの問題', server: 'AI側の不調',
   net: '届きませんでした', timeout: '時間切れ', cut: '返事が途中で切れました', parse: '返事の形が読めません',
-  empty: '空の返事が返りました', stop: '中止しました',
+  trunc: '返事が届く途中で途切れました', empty: '空の返事が返りました', stop: '中止しました',
 };
 function errTag(msg, status){
   const m = String(msg || '');
@@ -1981,6 +2015,8 @@ function errTag(msg, status){
   if (/時間がかかりすぎた|何も届かなかった/.test(m)) return 'timeout';
   // ⚠ 「上限に達しました」だけを見ていると、分析側の「上限に達して返事が返りませんでした」を取りこぼす（r34）
   if (/上限に達し/.test(m)) return 'cut';
+  // ⚠ trunc を parse より先に見る（どちらも「読めなかった」だが、原因＝AI か 通信 かが違う・r45）
+  if (/途中で途切れ/.test(m)) return 'trunc';
   if (/JSON として読めません|返事を読めません/.test(m)) return 'parse';
   if (/空の返事/.test(m)) return 'empty';
   if (/やめました/.test(m)) return 'stop';
@@ -2001,7 +2037,8 @@ function noteFailure(rec, err, ctx){
   const msg = String(err?.message || err);
   const c = classifyErr(msg, err?.status || 0);
   const e = { at: Date.now(), msg, tag: c.tag, status: err?.status || null,
-              prov: ctx?.prov || null, model: ctx?.model || null, build: BUILD.split('（')[0].trim().split(' ')[0] };
+              prov: ctx?.prov || null, model: ctx?.model || null, build: BUILD.split('（')[0].trim().split(' ')[0],
+              body: err?.body || null };   // 実際に返ってきた本文の抜粋（読めなかった時だけ入る・r45）
   rec.errors = errsOf(rec).concat([e]).slice(-ERR_KEEP);   // ⚠ 古いものから捨てる（消すのは上限を超えた分だけ）
   return e;
 }
@@ -2013,6 +2050,7 @@ function failureReport(rec){
     const c = classifyErr(e.msg, e.status);
     return `\n\n${i + 1}) ${errWhen(e.at)}\n  文言: ${e.msg}\n  分類: ${c.label}（${e.tag}）`
          + `${e.status ? ' / HTTP ' + e.status : ''}\n  AI: ${e.prov || '不明'} ${e.model || ''}`.trimEnd()
+         + (e.body ? `\n  返ってきた本文: ${e.body}` : '')
          + `\n  次の手: ${c.next}`;
   }).join('');
   return head + body;
@@ -3695,7 +3733,8 @@ function noteAnFailure(err, ctx, info){
   const msg = String(err?.message || err);
   const e = { at: Date.now(), msg, tag: errTag(msg, err?.status || 0), status: err?.status || null,
               prov: ctx?.prov || null, model: ctx?.model || null,
-              build: BUILD.split('（')[0].trim().split(' ')[0], ...info };
+              build: BUILD.split('（')[0].trim().split(' ')[0],
+              body: err?.body || null, ...info };   // 返ってきた本文の抜粋（読めなかった時だけ・r45）
   const list = anErrs().concat([e]).slice(-AN_ERR_KEEP);
   localStorage.setItem(AN.errors, JSON.stringify(list));
   return e;
@@ -3718,6 +3757,7 @@ function anFailureReport(){
          + `${e.count != null ? ` / ${e.count}件` : ''}${e.att ? ` / 📎${e.att}件` : ''}`
          + `\n  待ち: ${e.secs != null ? e.secs + '秒' : '不明'}`
          + `${e.chars != null ? ` / ${e.chars}文字 届いた` : ''}`
+         + (e.body ? `\n  返ってきた本文: ${e.body}` : '')
          + `\n  次の手: ${c.next}`;
   }).join('');
 }
