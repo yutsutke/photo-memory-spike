@@ -31,12 +31,22 @@ header .sp{flex:1;}
 /* left:50%+translate だと使える幅が画面の半分になり、ボタン2つで文字が折り返す。左右0＋中央寄せにする（帯はタップを通さない） */
 #shoot{position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 14px); z-index:5; display:flex; justify-content:center; align-items:center; gap:10px; pointer-events:none;}
 #shoot label{pointer-events:auto; white-space:nowrap; display:flex; align-items:center; gap:8px; background:var(--acc); color:#04121f; font-weight:700; font-size:17px; border-radius:28px; padding:14px 26px; box-shadow:0 4px 16px rgba(0,0,0,.5);}
-#shoot label.pick{background:var(--card); color:var(--fg); border:1px solid var(--line); padding:14px 18px;}
 /* r41: 3つ並べる＝1つあたりを詰める。⚠ 料理はレシートと同じ重さで置く（片方だけ弱くしない）
    ⚠ 狭い画面では絵文字だけにする（切れた文字を出すくらいなら出さない・r33） */
-#shoot label{padding:13px 18px; font-size:16px;}
+/* ⚠ 絵文字だけになった時に細くなりすぎない＝指で当たる幅を確保する（r33: 細いものは実機で当たらない） */
+#shoot label{padding:13px 16px; font-size:16px; min-width:48px; justify-content:center;}
 #shoot label.meal{background:var(--acc);}
-@media (max-width:360px){ #shoot label{padding:13px 14px; gap:5px;} #shoot label span{display:none;} }
+/* r43: 主語ごとの塊（撮る＋選ぶ）。⚠ 4つを等しく並べない＝**同じ 🖼 が2つ**あるので、
+   どちらの主語の 🖼 かは「隣にある撮るボタン」でしか分からない → 塊の中は隙間なしで繋げ、
+   塊どうしは離す（近さで意味を作る）。⚠ 塊の中に境目を1本入れて、2つのボタンだと分かるようにする。 */
+#shoot .grp{pointer-events:auto; display:flex; align-items:stretch; border-radius:28px;
+  box-shadow:0 4px 16px rgba(0,0,0,.5); overflow:hidden;}
+#shoot .grp label{box-shadow:none; border-radius:0;}
+#shoot .grp .pick{background:var(--acc); color:#04121f; border:0; border-left:1px solid rgba(0,0,0,.28); padding:13px 15px;}
+/* ⚠ 境目は「入る幅」で決める＝4つに増えて、ラベル付きだと 321px 要る（Chromium 実測）。
+   360px でも入るが、**実機の iOS は文字も絵文字も大きい**（r33）ので余裕を取って 380px 未満で絵文字だけにする。 */
+@media (max-width:379px){ #shoot label{padding:13px 12px; gap:5px;} #shoot label span{display:none;}
+  #shoot .grp .pick{padding:13px 12px;} }
 #shoot input{display:none;}
 main{padding:10px 14px;}
 .empty{color:var(--dim); text-align:center; padding:48px 20px;}
@@ -119,7 +129,12 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 /* ⚠ flex の子は既定で「中身より狭くならない」（min-width:auto）＝日付・時刻の入力は
    中身の幅を持っているので、320px では横にはみ出す（r39 の実測で発覚。r35 から入っていた）。 */
 .dual > *{min-width:0;} .dual input{min-width:0;}
-#toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom) + 80px); background:#2c2c2e; color:var(--fg); border-radius:12px; padding:10px 16px; font-size:14px; z-index:30; display:none; max-width:86vw;}
+/* ⚠ r43 で直した昔からのバグ: `left:50%` だけを置くと、幅の取りうる上限が**残り半分（50vw）**になり、
+   `max-width:86vw` は一度も効いていなかった（長い知らせが画面の半分で折り返され、5行になっていた）。
+   左右を 0 にして `margin:auto` で中央に置く＝中身なりの幅で、必要なら 86vw まで広がる。 */
+#toast{position:fixed; left:0; right:0; margin:0 auto; width:fit-content; bottom:calc(env(safe-area-inset-bottom) + 80px); background:#2c2c2e; color:var(--fg); border-radius:12px; padding:10px 16px; font-size:14px; z-index:30; display:none; max-width:86vw;}
+/* 押せるトースト（r43）＝押せると分かる見た目にする。⚠ 指で当たる高さを確保する（細い帯だと外す） */
+#toast.tap{border:1px solid var(--acc); color:var(--fg); padding:12px 16px; min-height:44px; cursor:pointer;}
 /* 📊 統計 */
 .sheet.tall{max-height:94vh;}
 .stnav{display:flex; align-items:center; gap:10px; margin:10px 0 2px;}
@@ -329,9 +344,17 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
        Capacitor の onShowFileChooser が isCaptureEnabled()=false でカメラ分岐に入らない（r5・Pixel 7a 実機で確認） -->
   <!-- r41: 料理も**トップから直に撮れる**ようにした。⚠ 3つ並べると「レシートを撮る」が入らないので
        言葉を短くする（切れる・折り返すくらいなら短くする＝r33 の教訓） -->
-  <label class="cam">📷<span>レシート</span><input type="file" accept="image/*" capture="environment" id="photoInput"></label>
-  <label class="cam meal">🍽<span>料理</span><input type="file" accept="image/*" capture="environment" id="mealShootTop"></label>
-  <label class="pick" title="レシートを写真から選ぶ（複数可）" aria-label="レシートを写真から選ぶ">🖼<input type="file" accept="image/*" multiple id="pickInput"></label>
+  <!-- r43: 🖼 も レシート／料理 に分けた（要望）。⚠ 4つを横に並べると、**同じ 🖼 が2つ**になって
+       どちらがどちらか分からない → **主語ごとに1つの塊**にして、撮る（📷/🍽）と選ぶ（🖼）を繋げる。
+       ⚠ capture と multiple は同じ input に付けない（r5）ので、塊の中でも input は別々のまま。 -->
+  <div class="grp">
+    <label class="cam">📷<span>レシート</span><input type="file" accept="image/*" capture="environment" id="photoInput"></label>
+    <label class="pick" title="レシートを写真から選ぶ（複数可）" aria-label="レシートを写真から選ぶ">🖼<input type="file" accept="image/*" multiple id="pickInput"></label>
+  </div>
+  <div class="grp">
+    <label class="cam meal">🍽<span>料理</span><input type="file" accept="image/*" capture="environment" id="mealShootTop"></label>
+    <label class="pick" title="料理を写真から選ぶ（複数可）" aria-label="料理を写真から選ぶ">🖼<input type="file" accept="image/*" multiple id="mealPickTop"></label>
+  </div>
 </div>
 
 <!-- ⚙ 設定 -->
@@ -673,7 +696,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r42 🔍横断検索に食事も入れた＝レシートの一覧の下に「🍽食事 N件」を別の塊で出す（⚠混ぜない＝食事には金額の列が無く、同じ並びだとどちらの行か分からない）。当たるのは言葉（要約・書き起こし・料理名・🗒ひとこと・区分）と日付だけで、⚠店名・品目・金額・支払・種別・分類が入っている時は食事を探さず「探していない」と言う（0件と探していないは別のこと）。まだ書き起こしていない食事の件数も言う。タップすると書き起こしが読める｜r40-41 ⚙AIを3種類に＝📷レシートの読み取り／🍽料理の読み取り／📈分析 を別々に選べる（キーはAIごとに1本を共有・既定は全部「レシートと同じ」・🍽の画面にどのAIが読むか出す）。📤書き出しで料理の要約/詳細を選べる＝既定はこれまでどおり詳細つき・外すと要約だけ。⚠.jsonでは料理を meal_log という別キーで中に入れる（文章の後ろに足すとJSONとして壊れる＝場所が違えば正しい形も違う）。🍽料理のCSVを別ファイルで出せる。トップに「🍽料理」を足して3つ並べた（狭い画面では絵文字だけにする）｜r38-39 🍽似たサービス（Ate/YouAte/Shutterbite・あすけん/カロミル）を調べて2点。①写真だけで残る＝APIキーが無くても撮った写真は❌にせず「まだ書き起こしていない」として残し、あとから📝まとめて書き起こせる（⚠同じ理由で2回続けて失敗したら止める）。撮り方のコツ（大きさの分かるものを一緒に写す）も出す。②🗒ひとこと＝気分・誰と・なぜを1行残せる（AIが写真から絶対に取れない唯一の情報なので、深掘りでなくても📈に常に渡す）。週の下に「この週は N食（M日ぶん）」＝⚠連続日数や達成率にはしない（途切れた人を責めない）｜r37 📈分析に食事も渡す＝既定は要約だけ・「🔬詳細な書き起こしまで渡す」を入れた時だけ深掘り（毎回自動で乗るものと、押した時だけ払うものを分ける）。レシートが無くても食事だけで通る・書き起こせたものだけ渡す・何件どこまで渡したかを結果と一緒に残す。AIには「カロリーや栄養素の数値は入っていない（推定を事実のように書くな）」「買った物と食べた物は別なので無理に対応づけるな」と伝える。📤書き出しは詳細つき（押した時だけなので事情が違う）｜r36 📅食事の週カレンダー＋ドラッグ＝縦が日・横が朝/昼/夕/間食の7×4。写真を長押しして別の枠へ動かせる（別の日にも移せるが、その時は写真の日付も変わると言う・時刻は動かさない）。⚠<img>はブラウザが自前でドラッグを始めてpointercancelでポインタを取り上げるのでdraggable=falseで止める・⚠touch-action:noneは指が触れた瞬間に見られるので掴んだ後では遅い（掴んでいる間のtouchmoveを止める）・長押し250msの前に指が8px動いたらスクロールのつもりとみなす · 2026-08-14';
+const BUILD = 'r43 ⚙キー未登録なら起動時にトーストで設定へ誘う（⚠タップした人だけ開く＝最初の画面を塞がない・文言も「登録しろ」と言わない＝r38「まず撮るだけで大丈夫」を壊さない）。トップの🖼もレシート／料理に分けた＝⚠4つを横並びにすると同じ🖼が2つになってどちらか分からないので、主語ごとの塊（📷レシート＋🖼 ／ 🍽料理＋🖼）にして近さで意味を作る。🖼から選んだ料理も🍽の画面を開く（入る場所が同じなら見せ方も同じ）。🩹トーストが画面の半分でしか広がらなかった昔からのバグを直した（left:50%だけだと max-width:86vw が効かない）｜r42 🔍横断検索に食事も入れた＝レシートの一覧の下に「🍽食事 N件」を別の塊で出す（⚠混ぜない＝食事には金額の列が無く、同じ並びだとどちらの行か分からない）。当たるのは言葉（要約・書き起こし・料理名・🗒ひとこと・区分）と日付だけで、⚠店名・品目・金額・支払・種別・分類が入っている時は食事を探さず「探していない」と言う（0件と探していないは別のこと）。まだ書き起こしていない食事の件数も言う。タップすると書き起こしが読める｜r40-41 ⚙AIを3種類に＝📷レシートの読み取り／🍽料理の読み取り／📈分析 を別々に選べる（キーはAIごとに1本を共有・既定は全部「レシートと同じ」・🍽の画面にどのAIが読むか出す）。📤書き出しで料理の要約/詳細を選べる＝既定はこれまでどおり詳細つき・外すと要約だけ。⚠.jsonでは料理を meal_log という別キーで中に入れる（文章の後ろに足すとJSONとして壊れる＝場所が違えば正しい形も違う）。🍽料理のCSVを別ファイルで出せる。トップに「🍽料理」を足して3つ並べた（狭い画面では絵文字だけにする）｜r38-39 🍽似たサービス（Ate/YouAte/Shutterbite・あすけん/カロミル）を調べて2点。①写真だけで残る＝APIキーが無くても撮った写真は❌にせず「まだ書き起こしていない」として残し、あとから📝まとめて書き起こせる（⚠同じ理由で2回続けて失敗したら止める）。撮り方のコツ（大きさの分かるものを一緒に写す）も出す。②🗒ひとこと＝気分・誰と・なぜを1行残せる（AIが写真から絶対に取れない唯一の情報なので、深掘りでなくても📈に常に渡す）。週の下に「この週は N食（M日ぶん）」＝⚠連続日数や達成率にはしない（途切れた人を責めない）｜r37 📈分析に食事も渡す＝既定は要約だけ・「🔬詳細な書き起こしまで渡す」を入れた時だけ深掘り（毎回自動で乗るものと、押した時だけ払うものを分ける）。レシートが無くても食事だけで通る・書き起こせたものだけ渡す・何件どこまで渡したかを結果と一緒に残す。AIには「カロリーや栄養素の数値は入っていない（推定を事実のように書くな）」「買った物と食べた物は別なので無理に対応づけるな」と伝える。📤書き出しは詳細つき（押した時だけなので事情が違う） · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1756,13 +1779,14 @@ document.getElementById('mlBody').addEventListener('click', async e => {
 });
 ['mealPick', 'mealShoot'].forEach(id => document.getElementById(id).addEventListener('change', onMealPicked));
 /* トップの 🍽 料理（r41）。⚠ 撮ったあと **🍽 の画面を開く**＝どこに入ったかが見えないと、
-   撮れたのかどうか分からない（レシートは一覧がその場にあるので開く必要がない）。 */
-document.getElementById('mealShootTop').addEventListener('change', async e => {
+   撮れたのかどうか分からない（レシートは一覧がその場にあるので開く必要がない）。
+   r43: 🖼 から選んだ時も同じ（入る場所が同じなら、見せ方も同じにする）。 */
+['mealShootTop', 'mealPickTop'].forEach(id => document.getElementById(id).addEventListener('change', async e => {
   if (!e.target.files.length) return;
   show('ovMeals');
   await onMealPicked(e);
   await setMlView(mlView);
-});
+}));
 
 /* 詳細＝書き起こしを読む場所であり、区分を**項目から**直す場所（r36 でドラッグの道も足す）。
    ⚠ 区分を手で変えたら `slotAuto=false` を立てる＝あとで時間帯の設定を変えても、
@@ -4308,16 +4332,31 @@ document.getElementById('btnExport').onclick = () => {
   refreshExpCount(); show('ovExport');
 };
 let toastTimer = null;
-function toast(msg){
+/* r43: 押せるトーストを足した（`onTap` を渡した時だけ）。
+   ⚠ 押せる時は**長めに出す**（4秒は読んで押すには短い）。
+   ⚠ **毎回 onclick を消す**＝次の普通のトーストが押せるまま残ると、関係ない文言で設定が開く。 */
+function toast(msg, onTap){
   const t = document.getElementById('toast');
   t.textContent = msg; t.style.display = 'block';
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.style.display = 'none'; }, 4000);
+  t.classList.toggle('tap', !!onTap);
+  t.onclick = onTap ? () => { t.style.display = 'none'; onTap(); } : null;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.style.display = 'none'; }, onTap ? 9000 : 4000);
 }
 
 /* ---------- 起動: 中断されていた分析を再開 ---------- */
+/* r43: **キーが未登録なら、起動した時にトーストで ⚙ へ誘う**（要望）。
+   ⚠ 文言で「登録しろ」と言わない＝r38 で決めた「**まず撮るだけで大丈夫**」を、この一言で壊さない。
+      キーが要るのは AI に読ませる時だけで、写真と時刻はキーが無くても残る。
+   ⚠ 設定を**勝手に開かない**＝最初の画面を塞ぐと、撮る前に設定を触らされる（r38 の逆）。押した人だけ開く。
+   ⚠ 出すのは1回だけ（毎回の起動では出るが、1回の起動の中で繰り返さない）。キーを入れれば二度と出ない。 */
 (async () => {
   await renderList();
   if (getKey()) (await dbAll()).filter(r => r.status === 'pending').forEach(r => runAnalysis(r.id));
+  /* ⚠ 「撮るだけで大丈夫」と丸めない＝r38 で**レシートと料理は事情が違う**と決めている。
+        レシートの写真は読めなければほぼ無価値（数字を取り出すための写真）／料理の写真はそれ自体が記録。
+        丸めると、一覧の「まず ⚙ で APIキーを登録してください」と正面から食い違う。 */
+  else toast('⚙ APIキーは未登録です（タップで設定へ）。🍽 料理は撮るだけでも残ります', openSettings);
 })();
 </script>
 </body>
