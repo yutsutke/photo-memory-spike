@@ -14,8 +14,12 @@
 body{margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 -apple-system,"Hiragino Sans",sans-serif; padding-bottom:90px;}
 header{position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:8px; padding:calc(env(safe-area-inset-top) + 10px) 14px 10px; background:rgba(17,17,17,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
 /* ⚠ ボタンが増えるとタイトルが折り返す（r5 で一度踏んだ・r32 で 🔍 を足して再発）。
-   nowrap で折り返しを禁じ、ボタンの横 padding を詰めて 5個 + タイトルが 360px でも1行に収まるようにする。 */
-header h1{font-size:18px; margin:0; flex:1; white-space:nowrap; min-width:0;}
+   ⚠ さらに実機（iOS Safari）では文字も絵文字も CSS の見積もりより大きく、r32 の nowrap では
+      「レシート」が「レ」で**切れた**（Chromium 390px では収まっていた）。
+   → 幅が足りない時は**アプリ名を隠して 🧾 だけ**にする（切れた文字より、出さない方がまし）。 */
+header h1{font-size:18px; margin:0; flex:0 1 auto; white-space:nowrap; min-width:0; overflow:hidden;}
+header .sp{flex:1;}
+@media (max-width:430px){ header h1 .ttl{display:none;} }
 .hbtn{background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:8px 9px; font-size:16px; flex:0 0 auto;}
 /* left:50%+translate だと使える幅が画面の半分になり、ボタン2つで文字が折り返す。左右0＋中央寄せにする（帯はタップを通さない） */
 #shoot{position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 14px); z-index:5; display:flex; justify-content:center; align-items:center; gap:10px; pointer-events:none;}
@@ -46,9 +50,18 @@ main{padding:10px 14px;}
   font-size:16px; padding:0 12px; min-width:44px; min-height:44px;}
 #sAdv{margin-top:8px;} #sAdv summary{font-size:13px; color:var(--acc); cursor:pointer; padding:6px 0;}
 #sAdv .row{margin-bottom:8px;} #sAdv label{font-size:12px;}
+/* ⚠ 詳細を開くと画面が条件で埋まり、結果が下に押し出される（実機の指摘・r33）。
+      条件の欄だけを画面の 4割 に収めて中でスクロールさせ、結果が必ず見えるようにする。 */
+#sAdv .sAdvBody{max-height:min(40vh, 320px); overflow-y:auto; -webkit-overflow-scrolling:touch; padding-right:2px;}
 #sCats button.on{background:var(--acc); color:#fff;}
+#sApply{white-space:nowrap;}
 #sHits{font-size:12.5px; color:var(--dim); margin-top:8px;}
 #sHits b{color:var(--fg);}
+/* いま効いている条件（詳細を畳んでも見えている・1つずつ外せる） */
+#sConds{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
+.sCond{display:inline-flex; align-items:center; font-size:12px; color:var(--fg); background:#1c1c1e;
+  border:1px solid var(--line); border-radius:999px; padding:0 0 0 10px;}
+.sCond button{background:none; border:0; color:var(--dim); font-size:14px; line-height:1; padding:7px 9px; min-width:32px; min-height:32px;}
 /* 🏷 分類の管理（r31）。⚠ ✕ は指で当たる大きさにする（細いものは preview で当たっても実機で当たらない） */
 #catTags{display:flex; flex-wrap:wrap; gap:6px;}
 .catTag{display:inline-flex; align-items:center; gap:5px; font-size:13px; border:1px solid var(--line);
@@ -187,7 +200,8 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 </head>
 <body>
 <header>
-  <h1>🧾 レシート</h1>
+  <h1>🧾&nbsp;<span class="ttl">レシート</span></h1>
+  <span class="sp"></span>
   <button class="hbtn" id="btnSearch" title="検索（店名・品目・分類・期間・金額）">🔍</button>
   <button class="hbtn" id="btnAnalyze" title="分析（期間を決めてAIに読ませる）">📈</button>
   <button class="hbtn" id="btnStats" title="統計（期間・分類・お店・推移）">📊</button>
@@ -202,6 +216,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <button id="sClose" title="検索をやめる" aria-label="検索をやめる">✕</button>
   </div>
   <details id="sAdv"><summary>🔎 項目を決めて探す</summary>
+    <div class="sAdvBody">
     <div class="dual">
       <div class="row"><label>日付 から</label><input type="date" id="sFrom"></div>
       <div class="row"><label>まで</label><input type="date" id="sTo"></div>
@@ -220,9 +235,15 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
       <div class="row"><label>種別</label><select id="sKind">
         <option value="">すべて</option><option value="expense">支出</option><option value="income">収入</option></select></div>
     </div>
-    <button class="btn" id="sReset">条件をぜんぶ消す</button>
+    </div>
+    <!-- ⚠ 条件を入れたら「結果を見る」まで1手で戻れるようにする（詳細を開いたままだと結果が下に押し出される） -->
+    <div class="dual" style="margin-top:8px">
+      <button class="btn" id="sReset">条件をぜんぶ消す</button>
+      <button class="btn pri" id="sApply">🔍 結果を見る</button>
+    </div>
   </details>
   <div id="sHits"></div>
+  <div id="sConds"></div>
 </div>
 
 <main><div id="list"></div></main>
@@ -486,7 +507,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r32 🔍トップにレシートの横断検索＝ヘッダの🔍で開き、簡易検索（店名・品目・分類・住所・金額をまとめて／空白区切りは全部を含む）と、🔎項目を決めての詳細検索（期間・分類・店名・品目・金額の範囲・支払・種別）。件数と合計が出る・📷で撮ると検索は畳む｜r31 🏷分類（カテゴリ）を自分で足せる＝⚙で追加・削除（既定の8つはライフログ互換なので消せない）。足した分類は読み取りのスキーマにも入れてAIに渡す（次に撮ったレシートから使われる）。消しても既存レシートは書き換えない・✏️の選択肢にも残す｜r30 🧾読み取りに失敗した理由をアプリが控える＝失敗の履歴（時刻・文言・分類・HTTP・どのAI/モデル）を写真ごとに残す。一覧には短い理由・詳細には「次の手」を出し、📋この失敗の記録をコピーで丸ごと持ち出せる（🔁でやり直しても消えない）｜r29 🔁詳細の再分析を撤去（実機で失敗するうえ、失敗すると読めていた店名・金額が一覧や📊から消えて見えた＝読めているレシートを壊せるボタンだった）。読み直しは「読み取りに失敗した写真」だけ＝一覧の🔁に残す・直すのは✏️手で直す｜r28 🧾1枚の写真に2枚のレシートが写っていても、詳細はタップした1枚だけを出す（写真の下の 🧾 で隣の1枚へ・✏️と🗑もその1枚に効く・🗑は残りと写真を消さない） · 2026-08-14';
+const BUILD = 'r33 🔎詳細検索を開くと条件で画面が埋まり結果が見えなかった（実機の指摘）＝条件欄は画面の4割までにして中でスクロール・「🔍結果を見る（N件）」で畳んで結果へ・効いている条件はチップで見え1つずつ外せる。実機でヘッダの「レシート」が切れていたので狭い幅では🧾だけにする｜r32 🔍トップにレシートの横断検索＝ヘッダの🔍で開き、簡易検索（店名・品目・分類・住所・金額をまとめて／空白区切りは全部を含む）と、🔎項目を決めての詳細検索（期間・分類・店名・品目・金額の範囲・支払・種別）。件数と合計が出る・📷で撮ると検索は畳む｜r31 🏷分類（カテゴリ）を自分で足せる＝⚙で追加・削除（既定の8つはライフログ互換なので消せない）。足した分類は読み取りのスキーマにも入れてAIに渡す（次に撮ったレシートから使われる）。消しても既存レシートは書き換えない・✏️の選択肢にも残す｜r30 🧾読み取りに失敗した理由をアプリが控える＝失敗の履歴（時刻・文言・分類・HTTP・どのAI/モデル）を写真ごとに残す。一覧には短い理由・詳細には「次の手」を出し、📋この失敗の記録をコピーで丸ごと持ち出せる（🔁でやり直しても消えない）｜r29 🔁詳細の再分析を撤去（実機で失敗するうえ、失敗すると読めていた店名・金額が一覧や📊から消えて見えた＝読めているレシートを壊せるボタンだった）。読み直しは「読み取りに失敗した写真」だけ＝一覧の🔁に残す・直すのは✏️手で直す · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1339,7 +1360,10 @@ document.getElementById('list').addEventListener('click', e => {
 // 件数と合計を出す。⚠ 支出と収入は混ぜない（引き算した数字は、どちらでもない数字になる）
 function renderHits(all, rows, on){
   const el = document.getElementById('sHits');
-  if (document.getElementById('search').hidden) { el.innerHTML = ''; return; }
+  if (document.getElementById('search').hidden) { el.innerHTML = ''; renderConds(false); return; }
+  // ⚠ 短く保つ（このボタンは横半分しか無い＝長いと2行に折り返す。r5 以来の折り返しの罠）
+  document.getElementById('sApply').textContent = on ? `🔍 ${rows.length}件を見る` : '🔍 結果を見る';
+  renderConds(on);
   if (!on) { el.innerHTML = '店名・品目・分類・住所・金額のどこかに当たります（空白で区切ると「全部を含む」）。'; return; }
   const sum = k => rows.filter(x => (x.rc.kind === 'income') === k && x.rc.total != null).reduce((s, x) => s + x.rc.total, 0);
   const spend = sum(false), inc = sum(true), skipped = all.filter(x => !x.rc).length;
@@ -1348,6 +1372,43 @@ function renderHits(all, rows, on){
     // ⚠ 出していないものは黙って消さずに数を言う（失敗が視界から消えると直す機会も消える）
     + (skipped ? `<br>⚠ まだ読めていない写真 ${skipped}件 は、絞り込み中は出していません` : '');
 }
+/* いま効いている条件を、詳細を畳んでも見えるところに出す（r33）。
+   ⚠ 畳んだ条件は「無かったこと」になりやすい＝結果だけ見て「なぜこれだけ？」となる。
+   ⚠ 1つずつ外せるようにする（全部消してやり直す、しか無いと、条件を試す気が失せる）。 */
+function activeConds(){
+  const out = [];
+  if (SQ.text) out.push({ k: 'text',  label: `「${SQ.text}」` });
+  if (SQ.from) out.push({ k: 'from',  label: `${SQ.from} から` });
+  if (SQ.to)   out.push({ k: 'to',    label: `${SQ.to} まで` });
+  SQ.cats.forEach(c => out.push({ k: 'cat:' + c, label: `🏷 ${c}` }));
+  if (SQ.store) out.push({ k: 'store', label: `店名「${SQ.store}」` });
+  if (SQ.item)  out.push({ k: 'item',  label: `品目「${SQ.item}」` });
+  if (SQ.min != null) out.push({ k: 'min', label: `${yen(SQ.min)} 以上` });
+  if (SQ.max != null) out.push({ k: 'max', label: `${yen(SQ.max)} 以下` });
+  if (SQ.pay)  out.push({ k: 'pay',  label: `支払「${SQ.pay}」` });
+  if (SQ.kind) out.push({ k: 'kind', label: SQ.kind === 'income' ? '収入だけ' : '支出だけ' });
+  return out;
+}
+function renderConds(on){
+  document.getElementById('sConds').innerHTML = !on ? '' : activeConds().map(c =>
+    `<span class="sCond">${esc(c.label)}<button data-cond="${esc(c.k)}" title="この条件を外す" aria-label="${esc(c.label)} を外す">✕</button></span>`).join('');
+}
+const COND_EL = { text: 'sText', from: 'sFrom', to: 'sTo', store: 'sStore', item: 'sItem',
+                  min: 'sMin', max: 'sMax', pay: 'sPay', kind: 'sKind' };
+document.getElementById('sConds').onclick = async e => {
+  const b = e.target.closest('[data-cond]'); if (!b) return;
+  const k = b.dataset.cond;
+  if (k.startsWith('cat:')) {
+    const c = k.slice(4);
+    SQ.cats.delete(c);
+    const chip = document.querySelector(`[data-scat="${CSS.escape(c)}"]`);
+    if (chip) chip.classList.remove('on');
+  } else {
+    document.getElementById(COND_EL[k]).value = '';
+    readSearchInputs();
+  }
+  await renderList();
+};
 const S_IN = { sText: 'text', sFrom: 'from', sTo: 'to', sStore: 'store', sItem: 'item', sPay: 'pay', sKind: 'kind' };
 function readSearchInputs(){
   Object.entries(S_IN).forEach(([id, k]) => { SQ[k] = document.getElementById(id).value.trim(); });
@@ -1402,6 +1463,11 @@ document.getElementById('btnSearch').onclick = async () => {
 document.getElementById('sClose').onclick = closeSearch;
 document.getElementById('sReset').onclick = async () => {   // 閉じずに条件だけ消す
   clearSearch(); await renderSearchCats(); await renderList();
+};
+// 詳細を畳んで結果へ戻る（条件は効いたまま・何が効いているかは条件チップに出る）
+document.getElementById('sApply').onclick = () => {
+  document.getElementById('sAdv').open = false;
+  document.getElementById('list').scrollIntoView({ block: 'start', behavior: 'smooth' });
 };
 
 /* ---------- 詳細 ----------
