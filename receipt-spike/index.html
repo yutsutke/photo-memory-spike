@@ -287,7 +287,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 <!-- 🔍 横断検索（r32）＝既定は 🔍 ボタンだけ。開いた時だけ広がり、閉じれば元の一覧に戻る -->
 <div id="search" hidden>
   <div class="sTop">
-    <input id="sText" placeholder="店名・品目・分類・住所・金額…" autocomplete="off" enterkeyhint="search">
+    <input id="sText" placeholder="店名・品目・分類・金額・料理…" autocomplete="off" enterkeyhint="search">
     <button id="sClose" title="検索をやめる" aria-label="検索をやめる">✕</button>
   </div>
   <details id="sAdv"><summary>🔎 項目を決めて探す</summary>
@@ -321,7 +321,8 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
   <div id="sConds"></div>
 </div>
 
-<main><div id="list"></div></main>
+<!-- r42: 🍽 食事の結果は**レシートの一覧の下に別の塊**で出す（混ぜない＝食事には金額の列が無い） -->
+<main><div id="list"></div><div id="sMeals" hidden></div></main>
 
 <div id="shoot">
   <!-- ⚠ capture と multiple は同居させない: multiple が付くと Chromium が capture を無視し、
@@ -672,7 +673,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r40-41 ⚙AIを3種類に＝📷レシートの読み取り／🍽料理の読み取り／📈分析 を別々に選べる（キーはAIごとに1本を共有・既定は全部「レシートと同じ」・🍽の画面にどのAIが読むか出す）。📤書き出しで料理の要約/詳細を選べる＝既定はこれまでどおり詳細つき・外すと要約だけ。⚠.jsonでは料理を meal_log という別キーで中に入れる（文章の後ろに足すとJSONとして壊れる＝場所が違えば正しい形も違う）。🍽料理のCSVを別ファイルで出せる。トップに「🍽料理」を足して3つ並べた（狭い画面では絵文字だけにする）｜r38-39 🍽似たサービス（Ate/YouAte/Shutterbite・あすけん/カロミル）を調べて2点。①写真だけで残る＝APIキーが無くても撮った写真は❌にせず「まだ書き起こしていない」として残し、あとから📝まとめて書き起こせる（⚠同じ理由で2回続けて失敗したら止める）。撮り方のコツ（大きさの分かるものを一緒に写す）も出す。②🗒ひとこと＝気分・誰と・なぜを1行残せる（AIが写真から絶対に取れない唯一の情報なので、深掘りでなくても📈に常に渡す）。週の下に「この週は N食（M日ぶん）」＝⚠連続日数や達成率にはしない（途切れた人を責めない）｜r37 📈分析に食事も渡す＝既定は要約だけ・「🔬詳細な書き起こしまで渡す」を入れた時だけ深掘り（毎回自動で乗るものと、押した時だけ払うものを分ける）。レシートが無くても食事だけで通る・書き起こせたものだけ渡す・何件どこまで渡したかを結果と一緒に残す。AIには「カロリーや栄養素の数値は入っていない（推定を事実のように書くな）」「買った物と食べた物は別なので無理に対応づけるな」と伝える。📤書き出しは詳細つき（押した時だけなので事情が違う）｜r36 📅食事の週カレンダー＋ドラッグ＝縦が日・横が朝/昼/夕/間食の7×4。写真を長押しして別の枠へ動かせる（別の日にも移せるが、その時は写真の日付も変わると言う・時刻は動かさない）。⚠<img>はブラウザが自前でドラッグを始めてpointercancelでポインタを取り上げるのでdraggable=falseで止める・⚠touch-action:noneは指が触れた瞬間に見られるので掴んだ後では遅い（掴んでいる間のtouchmoveを止める）・長押し250msの前に指が8px動いたらスクロールのつもりとみなす｜r35 🍽食事の記録を足した＝食事の写真をあげるとAIが「要約（1行）」と「詳細な書き起こし」を分けて保存し（あとで複数日をAIに読ませる基礎資料）、写真のEXIF撮影時刻から朝食/昼食/夕食/間食に自動で振り分ける。時間帯は⚙で登録・区分は詳細で選び直せる（手で直したものは設定を変えても上書きしない）。⚠EXIFは縮小前の元ファイルから読む・「いま」に近いファイル時刻は信じない（HEIC変換の疑い） · 2026-08-14';
+const BUILD = 'r42 🔍横断検索に食事も入れた＝レシートの一覧の下に「🍽食事 N件」を別の塊で出す（⚠混ぜない＝食事には金額の列が無く、同じ並びだとどちらの行か分からない）。当たるのは言葉（要約・書き起こし・料理名・🗒ひとこと・区分）と日付だけで、⚠店名・品目・金額・支払・種別・分類が入っている時は食事を探さず「探していない」と言う（0件と探していないは別のこと）。まだ書き起こしていない食事の件数も言う。タップすると書き起こしが読める｜r40-41 ⚙AIを3種類に＝📷レシートの読み取り／🍽料理の読み取り／📈分析 を別々に選べる（キーはAIごとに1本を共有・既定は全部「レシートと同じ」・🍽の画面にどのAIが読むか出す）。📤書き出しで料理の要約/詳細を選べる＝既定はこれまでどおり詳細つき・外すと要約だけ。⚠.jsonでは料理を meal_log という別キーで中に入れる（文章の後ろに足すとJSONとして壊れる＝場所が違えば正しい形も違う）。🍽料理のCSVを別ファイルで出せる。トップに「🍽料理」を足して3つ並べた（狭い画面では絵文字だけにする）｜r38-39 🍽似たサービス（Ate/YouAte/Shutterbite・あすけん/カロミル）を調べて2点。①写真だけで残る＝APIキーが無くても撮った写真は❌にせず「まだ書き起こしていない」として残し、あとから📝まとめて書き起こせる（⚠同じ理由で2回続けて失敗したら止める）。撮り方のコツ（大きさの分かるものを一緒に写す）も出す。②🗒ひとこと＝気分・誰と・なぜを1行残せる（AIが写真から絶対に取れない唯一の情報なので、深掘りでなくても📈に常に渡す）。週の下に「この週は N食（M日ぶん）」＝⚠連続日数や達成率にはしない（途切れた人を責めない）｜r37 📈分析に食事も渡す＝既定は要約だけ・「🔬詳細な書き起こしまで渡す」を入れた時だけ深掘り（毎回自動で乗るものと、押した時だけ払うものを分ける）。レシートが無くても食事だけで通る・書き起こせたものだけ渡す・何件どこまで渡したかを結果と一緒に残す。AIには「カロリーや栄養素の数値は入っていない（推定を事実のように書くな）」「買った物と食べた物は別なので無理に対応づけるな」と伝える。📤書き出しは詳細つき（押した時だけなので事情が違う）｜r36 📅食事の週カレンダー＋ドラッグ＝縦が日・横が朝/昼/夕/間食の7×4。写真を長押しして別の枠へ動かせる（別の日にも移せるが、その時は写真の日付も変わると言う・時刻は動かさない）。⚠<img>はブラウザが自前でドラッグを始めてpointercancelでポインタを取り上げるのでdraggable=falseで止める・⚠touch-action:noneは指が触れた瞬間に見られるので掴んだ後では遅い（掴んでいる間のtouchmoveを止める）・長押し250msの前に指が8px動いたらスクロールのつもりとみなす · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1505,6 +1506,10 @@ const MEAL_TIP = () =>
   + '<b>まず撮るだけで大丈夫</b>です（書き起こしはあとからまとめてできます）。';
 
 async function renderMeals(){
+  /* r42: 🔍 の結果から開いた食事を直した時も、その場で反映する。
+     ⚠ 🍽 の画面が**閉じていても**、検索結果に出ているなら描き直しが要る
+        （区分や 🗒ひとことを直したのに、下の1行が古いまま残る）。 */
+  if (!document.getElementById('sMeals').hidden) await renderList();
   if (!isOpen('ovMeals')) return;                          // 開いていない画面は描かない（撮る途中で毎回呼ばれる）
   renderMlAi();
   await renderMlTodo();
@@ -2154,18 +2159,91 @@ function matchRow(row){
   return true;
 }
 
+/* ---------- 🍽 食事も探す（r42） ----------
+   Ate の「日記を横断検索」に相当。r38-39 で park していたのを、材料（要約・詳細・品目・🗒ひとこと）が
+   揃ったので開けた。
+   ⚠ **レシートの一覧に混ぜない**＝食事には金額が無く、同じ並びに置くと「どちらの行か」が分からなくなる
+      （r41 で 🍽 の CSV を別ファイルにしたのと同じ理由＝**列が違うものは同じ表に並べない**）。
+      → レシートの一覧はそのまま・その**下に別の塊**として出す。
+   ⚠ **食事に当たる条件は「言葉」と「日付」だけ**。店名・品目・金額・支払・種別・分類は**レシートにしかない**＝
+      それらが入っている時は食事を探さず、**探していないと言う**（「0件」と「探していない」は別のこと）。
+      黙って 0 件にすると「食事には無かった」と読まれる＝嘘になる。
+   ⚠ 品目（買った物）を料理名に当てない＝r37 で AI に伝えた「**買った物と食べた物は別**」と同じ線引き。 */
+const sMealUrls = [];
+// 食事の側にしか無い条件は作らない（増やすほど、どちらを探しているのか分からなくなる）
+function receiptOnlyConds(){
+  const out = [];
+  if (SQ.store) out.push('店名');
+  if (SQ.item)  out.push('品目');
+  if (SQ.min != null || SQ.max != null) out.push('金額');
+  if (SQ.pay)   out.push('支払');
+  if (SQ.kind)  out.push('種別');
+  if (SQ.cats.size) out.push('分類');
+  return out;
+}
+// 簡易検索が見に行く文字＝その記録に書いてあるものを全部混ぜる（レシートの rowText と同じ考え）
+const mealText = m => sNorm([m.data?.summary, m.data?.detail,
+  (m.data?.items || []).map(i => [i.name, i.kind, i.amount, i.note].join(' ')).join(' '),
+  m.memo, SLOT_LABEL(m.slot), mealDate(m), mealHM(m)].join(' '));
+const mealInRange = m => { const d = mealDate(m);
+  return !(SQ.from && d < SQ.from) && !(SQ.to && d > SQ.to); };
+function matchMeal(m){
+  if (!mealInRange(m)) return false;
+  if (SQ.text) {
+    const t = mealText(m);
+    if (!sNorm(SQ.text).split(/\s+/).filter(Boolean).every(w => t.includes(w))) return false;
+  }
+  return true;
+}
+/* 🍽 の結果を描いて、件数を返す（上の #sHits に出すため）。
+   ⚠ 返すのは「何件当たったか」だけでなく「**なぜ探していないか / 何を探せなかったか**」も。 */
+async function renderMealHits(on){
+  const box = document.getElementById('sMeals');
+  sMealUrls.splice(0).forEach(u => URL.revokeObjectURL(u));   // ⚠ 描き直すたびに revoke（iOS の Blob URL の教訓）
+  const off = receiptOnlyConds();
+  const none = { hits: 0, off, skipped: 0 };
+  if (document.getElementById('search').hidden || !on || off.length) { box.hidden = true; box.innerHTML = ''; return none; }
+  const all = await mlAll();
+  const hits = all.filter(matchMeal).sort((a, b) => b.ts - a.ts);   // 新しい食事から（レシートの一覧と同じ向き）
+  /* ⚠ まだ書き起こしていない写真は**言葉では当たらない**（探せる文字がそもそも無い）＝件数を言う。
+     r38 の「写真そのものが記録」＝消してはいけないが、言葉で探せないことは正直に言う。 */
+  const hitIds = new Set(hits.map(m => m.id));
+  const skipped = SQ.text ? all.filter(m => mealInRange(m) && m.status !== 'done' && !hitIds.has(m.id)).length : 0;
+  if (!hits.length) { box.hidden = true; box.innerHTML = ''; return { hits: 0, off, skipped }; }
+  box.innerHTML = `<div class="mon"><b>🍽 食事 ${hits.length}件</b><span>タップで書き起こしを読む</span></div>`
+    + hits.map(m => {
+        const u = URL.createObjectURL(m.thumb); sMealUrls.push(u);
+        return `<div class="rec" data-mealhit="${esc(m.id)}">
+          <img src="${u}" alt="">
+          <div class="mid"><div class="st">${SLOT_ICON(m.slot)} ${esc(mealLine(m))}</div>
+          <div class="sub">${mealDate(m)} ${mealHM(m)} ・ ${esc(SLOT_LABEL(m.slot))}${m.memo ? ' ・ 🗒 ' + esc(m.memo) : ''}</div></div>
+        </div>`;
+      }).join('');
+  box.hidden = false;
+  return { hits: hits.length, off, skipped };
+}
+/* ⚠ 開くのは 🍽 の画面ではなく**その食事の詳細**（ovMeal）＝探している人が見たいのは、当たった1件の中身。
+   閉じれば検索結果に戻る（overlay は押した画面だけ閉じる＝r11）。 */
+document.getElementById('sMeals').addEventListener('click', async e => {
+  const row = e.target.closest('[data-mealhit]'); if (!row) return;
+  const m = await mlGet(row.dataset.mealhit); if (m) openMeal(m);
+});
+
 async function renderList(){
   const all = await listRows();
   const on = searchOn();
   const rows = on ? all.filter(matchRow) : all;
-  renderHits(all, rows, on);
+  const ml = await renderMealHits(on);   // ⚠ 🍽 を先に描く＝レシートが 0 件の時の言い方が変わる
+  renderHits(all, rows, on, ml);
   const list = document.getElementById('list');
   thumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
   if (!rows.length) {
     list.innerHTML = on
-      ? '<div class="empty">🔍 条件に合うレシートがありません。<br>言葉を減らすか、🔎 の条件を消してみてください。</div>'
+      // ⚠ 食事が当たっている時に「条件を消してみて」と言わない＝**見つかっている**のに空振りに見える
+      ? (ml.hits ? '<div class="empty">🔍 条件に合うレシートはありません。<br>🍽 食事は下に出ています。</div>'
+                 : '<div class="empty">🔍 条件に合うレシートがありません。<br>言葉を減らすか、🔎 の条件を消してみてください。</div>')
       : '<div class="empty">📷 でレシートを撮ると、自動で読み取りが始まります。<br>まず ⚙ で APIキーを登録してください。</div>';
-    return;
+    return;   // ⚠ ここで return しても 🍽 はもう描いてある
   }
   let html = '', curMonth = '';
   for (const row of rows) {
@@ -2213,19 +2291,26 @@ document.getElementById('list').addEventListener('click', e => {
 
 /* --- 🔍 検索の画面まわり（r32） --- */
 // 件数と合計を出す。⚠ 支出と収入は混ぜない（引き算した数字は、どちらでもない数字になる）
-function renderHits(all, rows, on){
+function renderHits(all, rows, on, ml){
   const el = document.getElementById('sHits');
+  ml = ml || { hits: 0, off: [], skipped: 0 };
   if (document.getElementById('search').hidden) { el.innerHTML = ''; renderConds(false); return; }
   // ⚠ 短く保つ（このボタンは横半分しか無い＝長いと2行に折り返す。r5 以来の折り返しの罠）
-  document.getElementById('sApply').textContent = on ? `🔍 ${rows.length}件を見る` : '🔍 結果を見る';
+  // ⚠ 食事も数に入れる（r42）＝レシート 0・食事 3 の時に「0件を見る」だと、見つかっているのに空振りに見える
+  document.getElementById('sApply').textContent = on ? `🔍 ${rows.length + ml.hits}件を見る` : '🔍 結果を見る';
   renderConds(on);
-  if (!on) { el.innerHTML = '店名・品目・分類・住所・金額のどこかに当たります（空白で区切ると「全部を含む」）。'; return; }
+  if (!on) { el.innerHTML = '店名・品目・分類・金額のどこかに当たります（空白で区切ると「全部を含む」）。'
+                          + '<br>🍽 食事は<b>言葉と日付</b>で探せます（要約・書き起こし・料理名・🗒ひとこと）。'; return; }
   const sum = k => rows.filter(x => (x.rc.kind === 'income') === k && x.rc.total != null).reduce((s, x) => s + x.rc.total, 0);
   const spend = sum(false), inc = sum(true), skipped = all.filter(x => !x.rc).length;
-  el.innerHTML = `🔍 <b>${rows.length}件</b>`
+  el.innerHTML = `🧾 レシート <b>${rows.length}件</b>`
     + (spend ? ` ・ 支出 <b>${yen(spend)}</b>` : '') + (inc ? ` ・ 収入 <b>+${yen(inc)}</b>` : '')
+    + (ml.hits ? ` ・ 🍽 食事 <b>${ml.hits}件</b>` : '')
     // ⚠ 出していないものは黙って消さずに数を言う（失敗が視界から消えると直す機会も消える）
-    + (skipped ? `<br>⚠ まだ読めていない写真 ${skipped}件 は、絞り込み中は出していません` : '');
+    + (skipped ? `<br>⚠ まだ読めていない写真 ${skipped}件 は、絞り込み中は出していません` : '')
+    // ⚠ 「0件」ではなく「探していない」と言う＝食事に無かったのではなく、当てられない条件が入っている
+    + (ml.off.length ? `<br>🍽 食事は探していません（<b>${esc(ml.off.join('・'))}</b>は レシートにしかない条件です）` : '')
+    + (ml.skipped ? `<br>⚠ まだ書き起こしていない食事 ${ml.skipped}件 は、言葉では探せません（🍽 の 📝 で書き起こせます）` : '');
 }
 /* いま効いている条件を、詳細を畳んでも見えるところに出す（r33）。
    ⚠ 畳んだ条件は「無かったこと」になりやすい＝結果だけ見て「なぜこれだけ？」となる。
@@ -2305,6 +2390,10 @@ function resetSearchUI(){
   clearSearch();
   document.getElementById('search').hidden = true;
   document.getElementById('sAdv').open = false;
+  // ⚠ 🍽 の結果もここで畳む（r42）＝📷 の取り込みは await 無しで呼ぶので、描き直しを待つと一瞬残る
+  const box = document.getElementById('sMeals');
+  box.hidden = true; box.innerHTML = '';
+  sMealUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
 }
 async function closeSearch(){ resetSearchUI(); await renderList(); }
 document.getElementById('btnSearch').onclick = async () => {
