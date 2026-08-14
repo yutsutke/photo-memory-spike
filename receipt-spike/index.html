@@ -35,6 +35,13 @@ main{padding:10px 14px;}
 .rec .amt.inc{color:var(--ok);}
 .rec .st small{color:var(--dim); font-weight:400;}
 .chip{display:inline-block; font-size:11px; color:var(--dim); border:1px solid var(--line); border-radius:8px; padding:0 6px; margin-left:6px;}
+/* 🏷 分類の管理（r31）。⚠ ✕ は指で当たる大きさにする（細いものは preview で当たっても実機で当たらない） */
+#catTags{display:flex; flex-wrap:wrap; gap:6px;}
+.catTag{display:inline-flex; align-items:center; gap:5px; font-size:13px; border:1px solid var(--line);
+  border-radius:999px; padding:5px 6px 5px 11px; background:#1c1c1e;}
+.catTag small{color:var(--dim); font-size:11px;}
+.catTag button{background:none; border:0; color:var(--dim); font-size:15px; line-height:1; padding:4px 7px; min-width:32px; min-height:32px;}
+.catTag.gone{opacity:.55; border-style:dashed;}   /* もう選べないが、既存のレシートには付いている分類 */
 .rec button{background:none; border:1px solid var(--line); color:var(--acc); border-radius:8px; padding:6px 10px; font-size:14px;}
 .pend{color:var(--acc);} .errt{color:var(--err);}
 .overlay{position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.75); display:none; align-items:flex-end; justify-content:center;}
@@ -225,6 +232,16 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
     <label class="anChk"><input type="checkbox" id="autoGeoChk"><span>レシートの<b>印字住所から自動で場所を決める</b></span></label>
   </div>
   <div class="note">🌏 オンの間は、読み取りが終わるたびに<b>住所の文字だけ</b>を <b>国土地理院</b>（日本の住所に強い）へ送り、見つからなければ <b>OpenStreetMap</b> にも送って座標を返してもらいます（<b>写真・金額・品目は送りません</b>）。決まった位置は<b>この端末の中だけ</b>に保存されます。オフにすると、💴 の 🔎 ボタンを押した時だけ送ります。<b>見つからなかった住所・ずれている店は、💴 からタップして手で置けます</b>（手で置いた位置が優先されます）。⚠ 地理院でも<b>号（建物単位）までは出ません</b>＝同じ番地に複数の店があると重なります。</div>
+  <!-- 🏷 分類（r31）＝自分で足せる。足したものは読み取りの選択肢として AI にも渡す -->
+  <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
+    <label>🏷 分類（カテゴリ）</label>
+    <div id="catTags"></div>
+    <div class="dual" style="margin-top:8px">
+      <input id="inCat" placeholder="足したい分類（例: 書籍）" autocomplete="off" maxlength="12" style="flex:1">
+      <button class="btn" id="btnAddCat" style="flex:0 0 auto; width:auto; padding:0 14px">➕ 足す</button>
+    </div>
+  </div>
+  <div class="note">足した分類は<b>読み取りの選択肢として AI にも渡します</b>（次に撮ったレシートから使われます）。数字は<b>いま使われている件数</b>です。既定の8つ（食費〜その他）は消せません。⚠ 消しても<b>その分類が付いた既存のレシートはそのまま</b>です（一覧にも検索にも出ます）。</div>
   <div class="note" id="noteStore"></div>
   <div class="note" id="buildLine"></div>
 </div></div>
@@ -424,7 +441,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r30 🧾読み取りに失敗した理由をアプリが控える＝失敗の履歴（時刻・文言・分類・HTTP・どのAI/モデル）を写真ごとに残す。一覧には短い理由・詳細には「次の手」を出し、📋この失敗の記録をコピーで丸ごと持ち出せる（🔁でやり直しても消えない）｜r29 🔁詳細の再分析を撤去（実機で失敗するうえ、失敗すると読めていた店名・金額が一覧や📊から消えて見えた＝読めているレシートを壊せるボタンだった）。読み直しは「読み取りに失敗した写真」だけ＝一覧の🔁に残す・直すのは✏️手で直す｜r28 🧾1枚の写真に2枚のレシートが写っていても、詳細はタップした1枚だけを出す（写真の下の 🧾 で隣の1枚へ・✏️と🗑もその1枚に効く・🗑は残りと写真を消さない）｜r27 📡分析をストリーミングに＝返事が届いた端から出る（1年分を賢いモデルに読ませても待ちが見える・長い沈黙で接続が切られにくい）。上限は「全体で何分」ではなく「何も届かない時間が3分」に変更・生成中は⏹だけ出す（未完成をコピー/共有させない）｜r26 ⏱待ち時間の扱いを直す＝これまでアプリ側に制限時間が無く固まっても分からなかった。固定の「30秒ほど」をやめ経過秒を出す／⏹やめるを置く／読み取り3分・分析5分で打ち切り（理由の分かる文言で） · 2026-08-14';
+const BUILD = 'r31 🏷分類（カテゴリ）を自分で足せる＝⚙で追加・削除（既定の8つはライフログ互換なので消せない）。足した分類は読み取りのスキーマにも入れてAIに渡す（次に撮ったレシートから使われる）。消しても既存レシートは書き換えない・✏️の選択肢にも残す｜r30 🧾読み取りに失敗した理由をアプリが控える＝失敗の履歴（時刻・文言・分類・HTTP・どのAI/モデル）を写真ごとに残す。一覧には短い理由・詳細には「次の手」を出し、📋この失敗の記録をコピーで丸ごと持ち出せる（🔁でやり直しても消えない）｜r29 🔁詳細の再分析を撤去（実機で失敗するうえ、失敗すると読めていた店名・金額が一覧や📊から消えて見えた＝読めているレシートを壊せるボタンだった）。読み直しは「読み取りに失敗した写真」だけ＝一覧の🔁に残す・直すのは✏️手で直す｜r28 🧾1枚の写真に2枚のレシートが写っていても、詳細はタップした1枚だけを出す（写真の下の 🧾 で隣の1枚へ・✏️と🗑もその1枚に効く・🗑は残りと写真を消さない）｜r27 📡分析をストリーミングに＝返事が届いた端から出る（1年分を賢いモデルに読ませても待ちが見える・長い沈黙で接続が切られにくい）。上限は「全体で何分」ではなく「何も届かない時間が3分」に変更・生成中は⏹だけ出す（未完成をコピー/共有させない） · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -440,6 +457,7 @@ const LS = {
   base:  p => `rcpt.base.${p}`,
   list:  p => `rcpt.models.${p}`, // API から取ってきたモデル一覧のキャッシュ
   fmt:   p => `rcpt.fmt.${p}`,    // そのサービスで通った「JSONの頼み方」を覚えておく（r10）
+  cats:  'rcpt.cats',             // 自分で足した分類（r31）
 };
 /* 📈 分析（r15）の設定。⚠ 写真の読み取りとは別の用途＝別の AI・別のモデルを選べる。
    キー（rcpt.key.*）と APIのURL は AI ごとに1本を読み取りと共有する＝同じ鍵を2回貼らせない。
@@ -640,10 +658,26 @@ async function apiFetch(ctx, path, { method = 'GET', body = null, timeoutMs = T_
 const isCut = s => s === 'max_tokens' || s === 'length';
 
 const NULLABLE = t => ({ anyOf: [{ type: t }, { type: 'null' }] });
-// カテゴリはライフログ(owntracks-supabase-notion)の transactions と同一セット＝将来のデータ受け渡しでマッピング不要
-const CATS = ['食費','外食','日用品','交通','医療','衣類','娯楽','その他'];
+/* ---------- 分類（カテゴリ） ----------
+   既定の8つはライフログ(owntracks-supabase-notion)の transactions と同一セット＝将来のデータ受け渡しでマッピング不要。
+   r31 で**自分で足せる**ようにした。⚠ 足したものは AI に渡すスキーマ（enum）にも入れる＝
+      入れないと、足した分類は「手で直す時だけ選べて、AI は絶対に選ばない」半端なものになる。
+   ⚠ そのため RECEIPT_SCHEMA は**定数をやめて、呼ぶたびに作る**（起動時に固めると、足した分類が次の起動まで効かない）。
+   ⚠ 既定の8つは消せない＝ライフログとの互換の土台。消せるのは自分で足したものだけ。
+   ⚠ 分類を消しても、**その分類が付いた既存のレシートは書き換えない**（原本はレシート側・勝手に付け替えない）。 */
+const CATS_BASE = ['食費','外食','日用品','交通','医療','衣類','娯楽','その他'];
+const CAT_ETC = 'その他';                 // 受け皿＝並びの最後に固定する
+const CAT_MAX = 32, CAT_LEN = 12;         // 増やしすぎると AI に渡す enum と選択肢が読めなくなる
+const customCats = () => {
+  try { const a = JSON.parse(localStorage.getItem(LS.cats) || '[]');
+        return Array.isArray(a) ? a.map(c => String(c).trim()).filter(Boolean) : []; }
+  catch (_) { return []; }
+};
+const setCustomCats = a => localStorage.setItem(LS.cats, JSON.stringify(a));
+// 選べる分類＝既定 ＋ 自分で足したもの（その他 は必ず最後）
+const catList = () => [...new Set([...CATS_BASE.filter(c => c !== CAT_ETC), ...customCats(), CAT_ETC])];
 // 1枚の写真に複数レシート対応（ライフログ実運用の教訓＝レシートは後でまとめて撮る）
-const RECEIPT_SCHEMA = {
+const receiptSchema = () => ({
   type: 'object', additionalProperties: false,
   properties: { receipts: { type: 'array', items: {
     type: 'object', additionalProperties: false,
@@ -661,7 +695,7 @@ const RECEIPT_SCHEMA = {
       discount:       NULLABLE('integer'),    // 値引き・割引の合計（正の数）
       price_incl_tax: NULLABLE('boolean'),    // 明細の金額が税込か（日本は 8% と 10% が混在するので税率は品目ごとに持つ）
       kind:     { type: 'string', enum: ['expense', 'income'] },
-      category: { type: 'string', enum: CATS },
+      category: { type: 'string', enum: catList() },   // ⚠ 呼ぶたびに今の分類で作る（r31）
       payment:  NULLABLE('string'),
       items: { type: 'array', items: {
         type: 'object', additionalProperties: false,
@@ -677,7 +711,7 @@ const RECEIPT_SCHEMA = {
                'total_excl_tax', 'tax', 'discount', 'price_incl_tax', 'kind', 'category', 'payment', 'items'],
   } } },
   required: ['receipts'],
-};
+});
 
 // OCRルール＝ライフログ(receipt関数のOCR_SYSTEM)の実運用で磨かれた規則を移植（布石フィールド分は除く）
 const OCR_RULES = `あなたはレシート読み取りの専門家。写真に写っているレシートから情報を抽出する。
@@ -757,7 +791,7 @@ const PROVIDERS = {
     headers: ctx => ({ 'content-type': 'application/json', 'x-api-key': ctx.key,
                        'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }),
     async analyze(ctx, b64){
-      const output_config = { format: { type: 'json_schema', schema: RECEIPT_SCHEMA } };
+      const output_config = { format: { type: 'json_schema', schema: receiptSchema() } };
       if (ctx.model !== 'claude-haiku-4-5') output_config.effort = 'low'; // effort は Haiku 4.5 非対応
       const res = await apiFetch(ctx, '/messages', { method: 'POST', timeoutMs: T_OCR, body: {
         model: ctx.model, max_tokens: 6000, output_config, system: OCR_RULES,
@@ -826,9 +860,9 @@ function openAICompatible(o){
       /* JSONの頼み方は3段構え（r10）。厳密な型指定に対応していないサービスがあるため、
          断られたら緩い指定＋指示文に落とし、それも駄目なら指示文だけで頼む。通った形は覚えて次から一発。 */
       const withSchemaText = OCR_RULES +
-        '\n\n出力は次の JSON スキーマに厳密に従った JSON だけを返す（説明文・コードブロックを付けない）:\n' + JSON.stringify(RECEIPT_SCHEMA);
+        '\n\n出力は次の JSON スキーマに厳密に従った JSON だけを返す（説明文・コードブロックを付けない）:\n' + JSON.stringify(receiptSchema());
       const FORMATS = [
-        ['json_schema', { type: 'json_schema', json_schema: { name: 'receipts', strict: true, schema: RECEIPT_SCHEMA } }],
+        ['json_schema', { type: 'json_schema', json_schema: { name: 'receipts', strict: true, schema: receiptSchema() } }],
         ['json_object', { type: 'json_object' }],
         ['none', null],
       ];
@@ -1328,8 +1362,11 @@ async function openEdit(id, i){
   document.getElementById('edIncl').value = d.price_incl_tax == null ? '' : d.price_incl_tax ? '1' : '0';
   document.getElementById('edKind').value = d.kind === 'income' ? 'income' : 'expense';
   const cat = document.getElementById('edCat');
-  cat.innerHTML = CATS.map(c => `<option value="${c}">${c}</option>`).join('');
-  cat.value = CATS.includes(d.category) ? d.category : 'その他';
+  /* ⚠ いま選べる分類に無くても、そのレシートに付いている分類は選択肢に残す（r31）。
+        消した分類・別の端末で付けた分類が、開いて保存しただけで「その他」に化けるのを防ぐ。 */
+  const cats = catList().concat(d.category && !catList().includes(d.category) ? [d.category] : []);
+  cat.innerHTML = cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  cat.value = cats.includes(d.category) ? d.category : CAT_ETC;
   renderEdItems((d.items || []).map(it => ({ name: it.name || '', price: it.price ?? null, qty: it.qty ?? null,
                                              tax_rate: it.tax_rate ?? null, unit_price: it.unit_price ?? null })));
   show('ovEdit');
@@ -2770,8 +2807,51 @@ const isOpen = id => document.getElementById(id).classList.contains('on');
 // ⚠ 閉じるのは「いま押した画面だけ」（r11）＝統計の内訳からレシートを開いて閉じたとき、下の統計が残る
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.overlay').classList.remove('on'));
 document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('on'); }));
+/* ---------- 🏷 分類の管理（r31） ----------
+   ⚠ 「いま何件に使われているか」を出す＝消す前に、何を失う（選択肢から消える）かが分かる。
+   ⚠ 消えた分類が付いたレシートも、点線の枠で見えるようにする（黙って消さない）。 */
+async function renderCatTags(){
+  const rows = (await listRows()).filter(x => x.rc);
+  const used = {};
+  rows.forEach(x => { const c = x.rc.category || CAT_ETC; used[c] = (used[c] || 0) + 1; });
+  const now = catList(), custom = customCats();
+  const all = [...new Set([...now, ...Object.keys(used)])];
+  document.getElementById('catTags').innerHTML = all.map(c => {
+    const gone = !now.includes(c);                                   // もう選べない（消した分類が残っている）
+    const canDel = !CATS_BASE.includes(c) && custom.includes(c);     // 消せるのは自分で足したものだけ
+    return `<span class="catTag${gone ? ' gone' : ''}">${esc(c)}<small>${used[c] || 0}</small>`
+         + (canDel ? `<button data-delcat="${esc(c)}" title="この分類を消す" aria-label="${esc(c)} を消す">✕</button>` : '')
+         + '</span>';
+  }).join('');
+}
+document.getElementById('btnAddCat').onclick = async () => {
+  const el = document.getElementById('inCat'), name = el.value.trim();
+  if (!name) return;
+  if (name.length > CAT_LEN) return toast(`分類は ${CAT_LEN} 文字までにしてください`);
+  if (catList().includes(name)) return toast(`「${name}」はもうあります`);
+  if (catList().length >= CAT_MAX) return toast(`分類は ${CAT_MAX} 個までです（AI に渡す選択肢が長くなりすぎます）`);
+  setCustomCats(customCats().concat([name]));
+  el.value = '';
+  await renderCatTags();
+  toast(`🏷 「${name}」を足しました（次に撮ったレシートから AI も選べます）`);
+};
+document.getElementById('inCat').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnAddCat').click(); }
+});
+document.getElementById('catTags').onclick = async e => {
+  const b = e.target.closest('[data-delcat]'); if (!b) return;
+  const name = b.dataset.delcat;
+  const n = (await listRows()).filter(x => x.rc && (x.rc.category || CAT_ETC) === name).length;
+  // ⚠ 使われている分類を消す時は、何が起きる（起きない）かを先に言う＝レシートは書き換えない
+  if (n && !confirm(`「${name}」は ${n} 件のレシートに付いています。\n\n消すと選択肢から無くなりますが、${n} 件のレシートはそのままです（分類の表示も変わりません）。消しますか？`)) return;
+  setCustomCats(customCats().filter(c => c !== name));
+  await renderCatTags();
+  toast(`🏷 「${name}」を選択肢から外しました`);
+};
+
 function openSettings(){
   renderSettings();
+  renderCatTags();
   document.getElementById('noteStore').innerHTML = IS_NATIVE
     ? '📱 <b>アプリ版</b>で動作中＝データは端末のアプリ領域に保存され、ブラウザの自動削除の対象外です（消えるのはアプリを削除した時）。'
     : '⚠ <b>ブラウザ版</b>です。iPhone の Safari は<b>7日間サイトを開かないとデータ（キーとレシート）を消す</b>ことがあります。<b>ホーム画面に追加</b>するか、アプリ版を使ってください。';
