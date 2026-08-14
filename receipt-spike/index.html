@@ -32,6 +32,11 @@ header .sp{flex:1;}
 #shoot{position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 14px); z-index:5; display:flex; justify-content:center; align-items:center; gap:10px; pointer-events:none;}
 #shoot label{pointer-events:auto; white-space:nowrap; display:flex; align-items:center; gap:8px; background:var(--acc); color:#04121f; font-weight:700; font-size:17px; border-radius:28px; padding:14px 26px; box-shadow:0 4px 16px rgba(0,0,0,.5);}
 #shoot label.pick{background:var(--card); color:var(--fg); border:1px solid var(--line); padding:14px 18px;}
+/* r41: 3つ並べる＝1つあたりを詰める。⚠ 料理はレシートと同じ重さで置く（片方だけ弱くしない）
+   ⚠ 狭い画面では絵文字だけにする（切れた文字を出すくらいなら出さない・r33） */
+#shoot label{padding:13px 18px; font-size:16px;}
+#shoot label.meal{background:var(--acc);}
+@media (max-width:360px){ #shoot label{padding:13px 14px; gap:5px;} #shoot label span{display:none;} }
 #shoot input{display:none;}
 main{padding:10px 14px;}
 .empty{color:var(--dim); text-align:center; padding:48px 20px;}
@@ -229,6 +234,8 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 .mlDetail{white-space:pre-wrap; font-size:14px; line-height:1.7;}
 /* 区分は4つ＝1行に並べる（3+1 に折れると「間食だけ別物」に見える）。名前は2文字なので入る */
 #mlSlotSeg button{flex:1 1 20%;}
+/* r40: AI の選択（🍽 / 📈）は1行に2つ＝4つを 28% で並べると「レシートと同じ」が折り返す */
+#mlProvSeg button,#anProvSeg button{flex:1 1 45%;}
 /* 📅 週のカレンダー（r36）＝縦が日・横が 朝/昼/夕/間。1週間を一目で見て、枠から枠へ動かせる */
 .mlGrid{display:grid; grid-template-columns:2.9em repeat(4, 1fr); gap:4px;}
 .mlGrid .hd{font-size:11.5px; color:var(--dim); text-align:center; padding:2px 0;}
@@ -319,8 +326,11 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 <div id="shoot">
   <!-- ⚠ capture と multiple は同居させない: multiple が付くと Chromium が capture を無視し、
        Capacitor の onShowFileChooser が isCaptureEnabled()=false でカメラ分岐に入らない（r5・Pixel 7a 実機で確認） -->
-  <label class="cam">📷 レシートを撮る<input type="file" accept="image/*" capture="environment" id="photoInput"></label>
-  <label class="pick" title="写真から選ぶ（複数可）" aria-label="写真から選ぶ">🖼<input type="file" accept="image/*" multiple id="pickInput"></label>
+  <!-- r41: 料理も**トップから直に撮れる**ようにした。⚠ 3つ並べると「レシートを撮る」が入らないので
+       言葉を短くする（切れる・折り返すくらいなら短くする＝r33 の教訓） -->
+  <label class="cam">📷<span>レシート</span><input type="file" accept="image/*" capture="environment" id="photoInput"></label>
+  <label class="cam meal">🍽<span>料理</span><input type="file" accept="image/*" capture="environment" id="mealShootTop"></label>
+  <label class="pick" title="レシートを写真から選ぶ（複数可）" aria-label="レシートを写真から選ぶ">🖼<input type="file" accept="image/*" multiple id="pickInput"></label>
 </div>
 
 <!-- ⚙ 設定 -->
@@ -345,6 +355,21 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
     <div class="note">キーとモデルは <b>AI ごとに別々に保存</b>されます（両方登録しておけば、上のボタンで切り替えるだけ）。</div>
     <div class="note">🌏 <b>OpenRouter</b> なら鍵1本で色々なモデル（中国製を含む）を試せます。一覧は<b>画像を読めるモデルだけ</b>に絞って出します。ほかの OpenAI 互換サービスを使う時は、上の「APIのURL」を変えてください（<b>画像が読める・端末から直接呼べる</b>ことが条件）。</div>
   </details>
+  <!-- 🍽 食事の写真を読む AI（r40）＝レシートとは別に選べる。
+       ⚠ レシートは「数字を正確に写す」仕事、食事は「見えたものを言葉にする」仕事で、得意なモデルが違う -->
+  <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
+    <label>🍽 食事の写真の読み取りに使うAI（🍽 画面で使います）</label>
+    <div class="seg wrap" id="mlProvSeg">
+      <button type="button" data-mlprov="">レシートと同じ</button>
+      <button type="button" data-mlprov="anthropic">Claude</button>
+      <button type="button" data-mlprov="openai">ChatGPT</button>
+      <button type="button" data-mlprov="openrouter">OpenRouter</button>
+    </div></div>
+  <div class="row" id="mlKeyRow" hidden><label id="mlKeyLabel"></label>
+    <input type="password" id="mlKey" autocomplete="off"></div>
+  <div class="row"><label>食事の読み取りモデル</label><select id="mlModel"></select></div>
+  <div class="note">食事の写真は<b>数字を写す仕事ではなく、見えたものを言葉にする仕事</b>です（料理名・材料・量の見当）。レシートより<b>軽いモデルでも足りる</b>ことがあり、逆に<b>細かく書かせたいなら賢いモデル</b>が向きます。</div>
+
   <!-- 📈 分析用の AI＝写真の読み取りとは別に選べる（読み取りは安いモデル・分析は賢いモデル、が組める） -->
   <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
     <label>📈 データの分析に使うAI（📈 画面で使います）</label>
@@ -395,12 +420,18 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
     <div class="row" style="flex:1"><label>まで</label><input type="date" id="expTo"></div>
   </div>
   <div class="note" id="expCount" style="margin:0 0 10px"></div>
+  <!-- 🍽 食事をどこまで出すか（r41）。⚠ この期間に食事が無ければ、そもそも出さない -->
+  <div class="row" id="expMealRow" hidden><label>🍽 料理の記録</label>
+    <label class="anChk"><input type="checkbox" id="expMealChk"><span>この期間の<b>料理もいっしょに書き出す</b>（<span id="expMealN"></span>）</span></label>
+    <label class="anChk"><input type="checkbox" id="expMealDetailChk"><span>📄 <b>詳細な書き起こしも入れる</b>（外すと<b>要約だけ</b>になります）</span></label>
+  </div>
   <button class="btn pri" id="btnShareText">🤖 AIに渡す（Claude 等）<br><small>文字として共有＝AIアプリが共有先に出ます</small></button>
   <div class="dual">
     <button class="btn" id="btnJson">📄 JSON<br><small>ファイル保存</small></button>
     <button class="btn" id="btnCsv">📊 CSV<br><small>表計算向け</small></button>
     <button class="btn" id="btnCopy">📋 コピー<br><small>貼り付け</small></button>
   </div>
+  <button class="btn" id="btnMealCsv" hidden>🍽 料理のCSV<br><small>表計算向け（レシートとは列が違うので別ファイル）</small></button>
   <div class="note" id="expNote"></div>
   <div class="note">JSON は AI にそのまま渡せる形式（バージョン付き）。リンク共有したい場合は、共有シートから自分の Drive / iCloud に保存し、そのリンクを AI に渡してください（このアプリはリンクをホストしません）。</div>
 </div></div>
@@ -496,6 +527,8 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
     <input type="file" accept="image/*" multiple id="mealPick"></label>
   <label class="attBtn" style="margin-top:8px">📷 いま食べるものを撮る
     <input type="file" accept="image/*" capture="environment" id="mealShoot"></label>
+  <!-- どの AI が読むのかを、使う画面で言う（r40）＝⚙ に3つ並んだので、ここで分からないと迷う -->
+  <div class="anAi" id="mlAiLine"></div>
   <div class="note" id="mlNote"></div>
 </div></div>
 
@@ -639,7 +672,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r38-39 🍽似たサービス（Ate/YouAte/Shutterbite・あすけん/カロミル）を調べて2点。①写真だけで残る＝APIキーが無くても撮った写真は❌にせず「まだ書き起こしていない」として残し、あとから📝まとめて書き起こせる（⚠同じ理由で2回続けて失敗したら止める）。撮り方のコツ（大きさの分かるものを一緒に写す）も出す。②🗒ひとこと＝気分・誰と・なぜを1行残せる（AIが写真から絶対に取れない唯一の情報なので、深掘りでなくても📈に常に渡す）。週の下に「この週は N食（M日ぶん）」＝⚠連続日数や達成率にはしない（途切れた人を責めない）｜r37 📈分析に食事も渡す＝既定は要約だけ・「🔬詳細な書き起こしまで渡す」を入れた時だけ深掘り（毎回自動で乗るものと、押した時だけ払うものを分ける）。レシートが無くても食事だけで通る・書き起こせたものだけ渡す・何件どこまで渡したかを結果と一緒に残す。AIには「カロリーや栄養素の数値は入っていない（推定を事実のように書くな）」「買った物と食べた物は別なので無理に対応づけるな」と伝える。📤書き出しは詳細つき（押した時だけなので事情が違う）｜r36 📅食事の週カレンダー＋ドラッグ＝縦が日・横が朝/昼/夕/間食の7×4。写真を長押しして別の枠へ動かせる（別の日にも移せるが、その時は写真の日付も変わると言う・時刻は動かさない）。⚠<img>はブラウザが自前でドラッグを始めてpointercancelでポインタを取り上げるのでdraggable=falseで止める・⚠touch-action:noneは指が触れた瞬間に見られるので掴んだ後では遅い（掴んでいる間のtouchmoveを止める）・長押し250msの前に指が8px動いたらスクロールのつもりとみなす｜r35 🍽食事の記録を足した＝食事の写真をあげるとAIが「要約（1行）」と「詳細な書き起こし」を分けて保存し（あとで複数日をAIに読ませる基礎資料）、写真のEXIF撮影時刻から朝食/昼食/夕食/間食に自動で振り分ける。時間帯は⚙で登録・区分は詳細で選び直せる（手で直したものは設定を変えても上書きしない）。⚠EXIFは縮小前の元ファイルから読む・「いま」に近いファイル時刻は信じない（HEIC変換の疑い）｜r34 📈分析の失敗もアプリが控える＝これまで toast が4秒で消えるだけで、失敗すると記録が1件も残らなかった（分析は成功した時にしか記録が生まれない）。時刻・文言・分類・HTTP・どのAI/モデル・期間・件数・待ち秒を直近5件残し、▶の上に「次の手」を出す（📋でまとめてコピー・やり直しても消えない）。次の手は読み取りと分析で言い分ける＝「一覧の🔁」は📈に無いボタン。型ボタンが2行に折り返していたので1行2つに · 2026-08-14';
+const BUILD = 'r40-41 ⚙AIを3種類に＝📷レシートの読み取り／🍽料理の読み取り／📈分析 を別々に選べる（キーはAIごとに1本を共有・既定は全部「レシートと同じ」・🍽の画面にどのAIが読むか出す）。📤書き出しで料理の要約/詳細を選べる＝既定はこれまでどおり詳細つき・外すと要約だけ。⚠.jsonでは料理を meal_log という別キーで中に入れる（文章の後ろに足すとJSONとして壊れる＝場所が違えば正しい形も違う）。🍽料理のCSVを別ファイルで出せる。トップに「🍽料理」を足して3つ並べた（狭い画面では絵文字だけにする）｜r38-39 🍽似たサービス（Ate/YouAte/Shutterbite・あすけん/カロミル）を調べて2点。①写真だけで残る＝APIキーが無くても撮った写真は❌にせず「まだ書き起こしていない」として残し、あとから📝まとめて書き起こせる（⚠同じ理由で2回続けて失敗したら止める）。撮り方のコツ（大きさの分かるものを一緒に写す）も出す。②🗒ひとこと＝気分・誰と・なぜを1行残せる（AIが写真から絶対に取れない唯一の情報なので、深掘りでなくても📈に常に渡す）。週の下に「この週は N食（M日ぶん）」＝⚠連続日数や達成率にはしない（途切れた人を責めない）｜r37 📈分析に食事も渡す＝既定は要約だけ・「🔬詳細な書き起こしまで渡す」を入れた時だけ深掘り（毎回自動で乗るものと、押した時だけ払うものを分ける）。レシートが無くても食事だけで通る・書き起こせたものだけ渡す・何件どこまで渡したかを結果と一緒に残す。AIには「カロリーや栄養素の数値は入っていない（推定を事実のように書くな）」「買った物と食べた物は別なので無理に対応づけるな」と伝える。📤書き出しは詳細つき（押した時だけなので事情が違う）｜r36 📅食事の週カレンダー＋ドラッグ＝縦が日・横が朝/昼/夕/間食の7×4。写真を長押しして別の枠へ動かせる（別の日にも移せるが、その時は写真の日付も変わると言う・時刻は動かさない）。⚠<img>はブラウザが自前でドラッグを始めてpointercancelでポインタを取り上げるのでdraggable=falseで止める・⚠touch-action:noneは指が触れた瞬間に見られるので掴んだ後では遅い（掴んでいる間のtouchmoveを止める）・長押し250msの前に指が8px動いたらスクロールのつもりとみなす｜r35 🍽食事の記録を足した＝食事の写真をあげるとAIが「要約（1行）」と「詳細な書き起こし」を分けて保存し（あとで複数日をAIに読ませる基礎資料）、写真のEXIF撮影時刻から朝食/昼食/夕食/間食に自動で振り分ける。時間帯は⚙で登録・区分は詳細で選び直せる（手で直したものは設定を変えても上書きしない）。⚠EXIFは縮小前の元ファイルから読む・「いま」に近いファイル時刻は信じない（HEIC変換の疑い） · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -671,7 +704,22 @@ const AN = {
   meals: 'rcpt.an.meals', mealDetail: 'rcpt.an.mealdetail',
 };
 // 🍽 食事（r35）。⚠ あの日 web と同一オリジンなので rcpt. 接頭辞は外さない
-const ML = { slots: 'rcpt.meal.slots', day: 'rcpt.meal.day', view: 'rcpt.meal.view' };
+// r41: 📤 書き出しで食事をどこまで出すか（既定＝出す・詳細も入れる＝これまでと同じ結果）
+const EX = { meals: 'rcpt.exp.meals', mealDetail: 'rcpt.exp.mealdetail' };
+const ML = { slots: 'rcpt.meal.slots', day: 'rcpt.meal.day', view: 'rcpt.meal.view',
+             // r40: 食事の写真を読む AI（空 = レシートの読み取りと同じ）
+             prov: 'rcpt.meal.provider', model: p => `rcpt.meal.model.${p}` };
+/* ---------- AI の役割（r40） ----------
+   3つ＝ 📷 レシートを読む（ocr・基準）／🍽 食事の写真を読む（meal）／📈 データを分析する（an）。
+   ⚠ **ocr は表に持たない**＝あれは「選ばなかった時に落ちる先」で、他の2つとは意味が違う
+      （meal と an は「空＝読み取りと同じ」を選べるが、ocr には落ちる先が無い）。
+   ⚠ **キーは AI ごとに1本**を3つの役割で共有する（同じ鍵を3回貼らせない）。分かれるのは
+      「どの AI か」と「どのモデルか」だけ。 */
+const ROLES = {
+  meal: { label: '🍽 食事の写真の読み取り', store: ML, ui: 'ml' },
+  an:   { label: '📈 データの分析',          store: null, ui: 'an' },   // store は下の AN を使う（宣言順のため）
+};
+ROLES.an.store = AN;   // ⚠ AN はこの下で宣言されるので、ここでつなぐ（表を2つに割らない）
 // r8 以前は Anthropic 決め打ち（rcpt.apiKey / rcpt.model）だった → 一度だけ引っ越す
 (function migrateSettings(){
   const k = localStorage.getItem('rcpt.apiKey'), m = localStorage.getItem('rcpt.model');
@@ -685,15 +733,23 @@ const getKey   = () => localStorage.getItem(LS.key(getProv())) || '';
 const getModel = () => localStorage.getItem(LS.model(getProv())) || P().defaultModel || '';
 const getList  = p => { try { return JSON.parse(localStorage.getItem(LS.list(p)) || '[]'); } catch (_) { return []; } };
 // 分析用に選ばれている AI（未選択なら読み取りと同じ）
-const anProv = () => { const v = localStorage.getItem(AN.prov); return v && PROVIDERS[v] ? v : getProv(); };
+/* 役割ごとの「どの AI か」。⚠ 選んでいない（空）／知らない名前 なら、レシートの読み取りに落ちる。
+   ⚠ 落ちる先を getProv() 固定にする＝役割どうしを参照させない（meal が an を見に行く、のような輪を作らない）。 */
+const provForRole = role => {
+  const st = ROLES[role]?.store; if (!st) return getProv();
+  const v = localStorage.getItem(st.prov);
+  return v && PROVIDERS[v] ? v : getProv();
+};
+const anProv = () => provForRole('an');   // 既存の呼び出し（PDF の注意など）はそのまま使える
 
 /* 呼び出しの「文脈」＝どの AI に・どの鍵で・どのモデルで頼むか。
    ⚠ グローバル状態（getProv 等）を呼び出しの途中で参照しないこと。読み取りと分析は同時に走り得るので、
      途中で設定が切り替わると混線する（撮影しながら分析、が普通に起きる）。文脈は最初に固めて引数で渡す。 */
 function ctxFor(role){
-  const prov = role === 'an' ? anProv() : getProv();
+  const st = ROLES[role]?.store;                    // ⚠ 'ocr' は表に無い＝基準（落ちる先）
+  const prov = provForRole(role);
   const p = provOf(prov);
-  const model = (role === 'an' ? localStorage.getItem(AN.model(prov)) : '')
+  const model = (st ? localStorage.getItem(st.model(prov)) : '')
              || localStorage.getItem(LS.model(prov)) || p.defaultModel || '';
   return { role, prov, p, model,
            key:  localStorage.getItem(LS.key(prov)) || '',
@@ -1318,7 +1374,9 @@ PROVIDERS.openai = openAICompatible({
 });
 // OpenRouter＝鍵1本で色々なモデル（中国製も含む）に届く窓口。互換サービスを使う時の既定の道にする
 PROVIDERS.openrouter = openAICompatible({
-  label: 'OpenRouter', vendor: '色々なモデル',
+  // ⚠ vendor は「◯◯ の APIキー」「◯◯ のAPIキーが未設定です」として文章に出る＝発行元の名前を入れる
+  //    （'色々なモデル' だと「色々なモデル のAPIキーが未設定です」になる。r40 で3か所に出るようになり発覚）
+  label: 'OpenRouter', vendor: 'OpenRouter',
   base: 'https://openrouter.ai/api/v1',
   keyPage: 'https://openrouter.ai/keys', keyHint: 'sk-or-...',
   tokenParam: 'max_tokens',
@@ -1347,7 +1405,7 @@ async function analyzeReceipt(rec){
 }
 
 async function analyzeMeal(rec){
-  const ctx = ctxFor('ocr');   // 写真を読む仕事なので、読み取りと同じ AI・同じキーを使う
+  const ctx = ctxFor('meal');   // r40: 食事は別の AI を選べる（既定＝レシートの読み取りと同じ）
   if (!ctx.model) throw new Error('読み取りモデルが未選択です（⚙ の詳細設定から選んでください）');
   const r = await ctx.p.analyze(ctx, await blobToB64(rec.img), MEAL_JOB);
   if (isCut(r.stop)) throw new Error('書き起こしが上限に達しました（料理が多い可能性）。⚙ の詳細設定で別のモデルもお試しください');
@@ -1370,7 +1428,7 @@ const onMealPicked = async e => {
                     ts: shot.at, tsSrc: shot.src, addedAt: Date.now(),
                     slot: slotOfTime(shot.at), slotAuto: true,
                     // ⚠ キーが無い時に AI を呼びに行かない＝呼べば必ず失敗し、写真が ❌ で埋まる（r38）
-                    status: ctxFor('ocr').key ? 'pending' : 'todo',
+                    status: ctxFor('meal').key ? 'pending' : 'todo',
                     img, thumb, data: null, error: null, errors: [], meta: null };
       /* ⚠ 入る日は**写真の撮影時刻**で決まる＝見ている日と違うことがある（昨日の晩ごはんを今あげた等）。
          黙って別の日に入れると「撮ったのに出てこない」＝r32 で検索に踏んだのと同じ罠。
@@ -1389,7 +1447,7 @@ const onMealPicked = async e => {
 
 async function runMealAnalysis(id){
   let rec = await mlGet(id); if (!rec) return;
-  const ctx = ctxFor('ocr');
+  const ctx = ctxFor('meal');
   // ⚠ キーが無いのは「失敗」ではない＝写真は残し、あとで書き起こせる状態にして戻る
   if (!ctx.key) { rec.status = 'todo'; rec.error = null; await mlPut(rec); await renderMeals(); return 'nokey'; }
   rec.status = 'pending'; rec.error = null; await mlPut(rec); await renderMeals();
@@ -1434,12 +1492,21 @@ const WD = ['日', '月', '火', '水', '木', '金', '土'];
 /* 📷 撮る入口の一言（r38）。⚠ 画面（週／1日）で言うことが違っても、**撮り方の話は同じ**なので1か所に持つ。
    「大きさの分かるものを一緒に写す」は、似たサービスを調べて出てきた実用的な工夫＝
    AI が amount（茶碗1杯など）を書けるかは、比べられるものが一緒に写っているかで決まる。 */
+// 🍽 の画面に「いまどの AI が読むか」を出す（r40）。⚠ 📈 の anAiLine と同じ形にする（学び直させない）
+function renderMlAi(){
+  const ctx = ctxFor('meal'), el = document.getElementById('mlAiLine');
+  el.innerHTML = `食事の読み取りに使うAI: <b>${esc(ctx.p.label)}</b> / ${esc(ctx.model || '（未選択）')}`
+    + `${ctx.key ? '' : ' <span style="color:var(--err)">キー未登録</span>'}`
+    + `<button id="mlGoSettings">⚙ 変える</button>`;
+  document.getElementById('mlGoSettings').onclick = () => openSettings();
+}
 const MEAL_TIP = () =>
   '<br>📷 <b>撮り方のコツ</b>: 箸やスプーンなど<b>大きさの分かるものを一緒に写す</b>と、量まで書き起こせます。'
   + '<b>まず撮るだけで大丈夫</b>です（書き起こしはあとからまとめてできます）。';
 
 async function renderMeals(){
   if (!isOpen('ovMeals')) return;                          // 開いていない画面は描かない（撮る途中で毎回呼ばれる）
+  renderMlAi();
   await renderMlTodo();
   return mlView === 'week' ? renderWeek() : renderDay();
 }
@@ -1527,7 +1594,7 @@ async function renderMlTodo(){
   bar.hidden = !todos.length;
   document.getElementById('btnMlBatchStop').hidden = !mlBatch;
   if (!todos.length) return;
-  const hasKey = !!ctxFor('ocr').key;
+  const hasKey = !!ctxFor('meal').key;
   btn.disabled = !hasKey || !!mlBatch;
   btn.style.opacity = btn.disabled ? '.5' : '';
   btn.textContent = mlBatch ? `📝 書き起こし中… ${mlBatch.done}/${mlBatch.total}`
@@ -1683,6 +1750,14 @@ document.getElementById('mlBody').addEventListener('click', async e => {
   const m = await mlGet(c.dataset.meal); if (m) openMeal(m);
 });
 ['mealPick', 'mealShoot'].forEach(id => document.getElementById(id).addEventListener('change', onMealPicked));
+/* トップの 🍽 料理（r41）。⚠ 撮ったあと **🍽 の画面を開く**＝どこに入ったかが見えないと、
+   撮れたのかどうか分からない（レシートは一覧がその場にあるので開く必要がない）。 */
+document.getElementById('mealShootTop').addEventListener('change', async e => {
+  if (!e.target.files.length) return;
+  show('ovMeals');
+  await onMealPicked(e);
+  await setMlView(mlView);
+});
 
 /* 詳細＝書き起こしを読む場所であり、区分を**項目から**直す場所（r36 でドラッグの道も足す）。
    ⚠ 区分を手で変えたら `slotAuto=false` を立てる＝あとで時間帯の設定を変えても、
@@ -1710,10 +1785,10 @@ function openMeal(m){
   const body = document.getElementById('mlBodyDetail');
   if (m.status === 'error') body.innerHTML = failureBlock(m);
   else if (m.status === 'todo') body.innerHTML =
-    `<div class="note">📷 <b>写真だけ記録しています。</b>${ctxFor('ocr').key
+    `<div class="note">📷 <b>写真だけ記録しています。</b>${ctxFor('meal').key
       ? '下の「📝 書き起こす」を押すと、AI が写真の中身を書き起こします。'
       : '⚙ で APIキーを登録すると、書き起こせるようになります（<b>写真と時刻はもう残っています</b>）。'}</div>`
-    + `<button class="btn" id="btnMlRun"${ctxFor('ocr').key ? '' : ' disabled style="opacity:.5"'}>📝 この写真を書き起こす</button>`;
+    + `<button class="btn" id="btnMlRun"${ctxFor('meal').key ? '' : ' disabled style="opacity:.5"'}>📝 この写真を書き起こす</button>`;
   else if (m.status !== 'done') body.innerHTML = '<div class="note">🤖 書き起こし中です…</div>';
   else {
     const it = (m.data?.items || []).map(x =>
@@ -2496,7 +2571,14 @@ async function exportOut(name, text, mime){
 }
 document.getElementById('btnJson').onclick = async () => {
   const { from, to, rows } = await exportTargets();
-  await exportOut(expName(from, to, 'json'), exportJson(rows, from, to), 'application/json');
+  await exportOut(expName(from, to, 'json'), await exportPayload(rows, from, to), 'application/json');
+};
+document.getElementById('btnMealCsv').onclick = async () => {
+  const { from, to } = await exportTargets();
+  const meals = await exportMealsFor(from, to);
+  if (!meals.length) return toast('この期間に書き出せる料理がありません');
+  await exportOut(`meals_${from || 'all'}_${to || 'all'}.csv`,
+                  exportMealCsv(meals, expMealDetailOn()), 'text/csv');
 };
 document.getElementById('btnCsv').onclick = async () => {
   const { from, to, rows } = await exportTargets();
@@ -2506,7 +2588,7 @@ document.getElementById('btnCsv').onclick = async () => {
 document.getElementById('btnCopy').onclick = async () => {
   const { from, to, rows } = await exportTargets();
   try {
-    await navigator.clipboard.writeText(exportJson(rows, from, to));
+    await navigator.clipboard.writeText(await exportPayload(rows, from, to));
     toast('📋 コピーしました（AIアプリやメモに貼り付けできます）');
   } catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
 };
@@ -2534,34 +2616,81 @@ async function shareTextOut(title, text, fileName, dialogTitle){
     if (!/cancel|abort|dismiss/i.test(m)) toast('渡せませんでした: ' + m); // 共有シートを閉じただけの時は黙る
   }
 }
-/* 📤 から外へ出す時の食事（r37）。⚠ こちらは**詳細も入れる**＝行き先が本人の Drive・本人が
-   選んだ AI アプリで、量の心配は本人が持てる。📈 が要約だけなのは「毎回・自動で乗る」からで、
-   ここは押した時だけなので事情が違う。 */
+/* 📤 から外へ出す時の食事（r37→r41）。
+   ⚠ **既定は詳細つき**＝行き先が本人の Drive・本人が選んだ AI アプリで、量の心配は本人が持てる。
+      📈 が要約だけなのは「毎回・自動で乗る」からで、ここは押した時だけなので事情が違う。
+   ⚠ r41 で**選べる**ようにした（既定は今までどおり詳細つき＝押した人の結果を勝手に変えない）。 */
 async function exportMealsFor(from, to){
+  if (!expMealsOn()) return [];
   return (await mlAll()).filter(m => m.status === 'done' && m.data
       && (!from || mealDate(m) >= from) && (!to || mealDate(m) <= to))
     .sort((a, b) => a.ts - b.ts);
 }
-const withMealsText = (jsonText, meals, label) => jsonText + (meals.length
-  ? `\n\n--- 食事の記録（${label}・${meals.length}件・詳細つき） ---\n`
-    + JSON.stringify({ format: 'meal-log', version: 1, count: meals.length, detail_included: true,
-                       meals: exportMealsJson(meals, true) }, null, 1)
-  : '');
+const expMealsOn      = () => localStorage.getItem(EX.meals) !== '0';        // 既定＝出す
+const expMealDetailOn = () => localStorage.getItem(EX.mealDetail) !== '0';   // 既定＝詳細も入れる
+/* 📤 の出力ひとまとめ（r41）。
+   ⚠ **ここでは食事をレシートの JSON の中に入れる**（`meal_log` という別のキーとして）。
+      r37 で「交換形式に混ぜない」と決めたのは 📈 に渡す**文章**の話で、あちらは2つの塊を
+      並べて書ける。**.json ファイル**で同じことをすると **JSON として壊れる**＝
+      受け取る側が読めない。同じデータでも、置く場所（文章／ファイル）で正しい形は変わる。
+   ⚠ キーを足すだけ（version は上げない）＝ receipts を読んでいる既存の受け手は何も変わらない。 */
+async function exportPayload(rows, from, to){
+  const meals = await exportMealsFor(from, to);
+  if (!meals.length) return exportJson(rows, from, to);
+  const o = JSON.parse(exportJson(rows, from, to));
+  o.meal_log = { format: 'meal-log', version: 1, count: meals.length,
+                 detail_included: expMealDetailOn(),
+                 meals: exportMealsJson(meals, expMealDetailOn()) };
+  return JSON.stringify(o, null, 1);
+}
+/* 🍽 料理の CSV（r41）。⚠ レシートの CSV に混ぜない＝金額の列が無く、同じ表に並べると
+   どちらの行か分からなくなる（受け取るのは表計算ソフト＝列の意味が全て）。 */
+function exportMealCsv(meals, withDetail){
+  const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+  const head = ['食事ID', '日付', '時刻', '区分', '区分の決め方', '要約', 'ひとこと', '料理'];
+  if (withDetail) head.push('詳細な書き起こし');
+  const out = [head.join(',')];
+  for (const m of meals) {
+    const row = [m.id, mealDate(m), mealHM(m), SLOT_LABEL(m.slot), m.slotAuto ? '自動' : '手で直した',
+                 m.data.summary || '', m.memo || '',
+                 (m.data.items || []).map(x => x.name + (x.amount ? `（${x.amount}）` : '')).join('、')];
+    if (withDetail) row.push(m.data.detail || '');
+    out.push(row.map(esc).join(','));
+  }
+  return '\ufeff' + out.join('\n');   // BOM: Excel の文字化け対策
+}
 document.getElementById('btnShareText').onclick = async () => {
   const { from, to, rows } = await exportTargets();
-  const meals = await exportMealsFor(from, to);
-  await shareTextOut('レシートと食事のデータ',
-    withMealsText(exportJson(rows, from, to), meals, `${from || ''}〜${to || ''}`),
-    expName(from, to, 'txt'), 'AIに渡す');
+  await shareTextOut('レシートと料理のデータ', await exportPayload(rows, from, to),
+                     expName(from, to, 'txt'), 'AIに渡す');
 };
 async function refreshExpCount(){
   const { from, to, rows } = await exportTargets();
-  const meals = await exportMealsFor(from, to);
+  // ⚠ 「出す設定か」に関わらず、この期間に**何件あるか**は数える（オフの理由が分からないと戻せない）
+  const all = (await mlAll()).filter(m => m.status === 'done' && m.data
+      && (!from || mealDate(m) >= from) && (!to || mealDate(m) <= to));
+  const on = expMealsOn(), detail = expMealDetailOn();
   const spend = rows.filter(x => x.rc.kind !== 'income' && x.rc.total != null).reduce((s, x) => s + x.rc.total, 0);
   document.getElementById('expCount').textContent =
     `対象: レシート ${rows.length}件 ${spend ? '/ 支出合計 ' + yen(spend) + ' ' : ''}`
-    + (meals.length ? `/ 🍽 食事 ${meals.length}件` : '');
+    + (all.length ? `/ 🍽 料理 ${on ? `${all.length}件（${detail ? '詳細つき' : '要約のみ'}）` : '出しません'}` : '');
+  // 料理が1件も無い期間には、選択そのものを出さない（使わない設定を置かない）
+  document.getElementById('expMealRow').hidden = !all.length;
+  document.getElementById('btnMealCsv').hidden = !all.length || !on;
+  if (all.length) {
+    document.getElementById('expMealChk').checked = on;
+    const d = document.getElementById('expMealDetailChk');
+    d.checked = detail; d.disabled = !on;                       // 出さない時に「詳細も」は触れない
+    d.closest('label').style.opacity = on ? '' : '.45';
+    document.getElementById('expMealN').textContent = on ? `この期間に ${all.length}件` : 'いまは出しません';
+  }
 }
+document.getElementById('expMealChk').onchange = e => {
+  localStorage.setItem(EX.meals, e.target.checked ? '1' : '0'); refreshExpCount();
+};
+document.getElementById('expMealDetailChk').onchange = e => {
+  localStorage.setItem(EX.mealDetail, e.target.checked ? '1' : '0'); refreshExpCount();
+};
 document.getElementById('expFrom').onchange = refreshExpCount;
 document.getElementById('expTo').onchange = refreshExpCount;
 
@@ -2599,36 +2728,46 @@ document.getElementById('autoGeoChk').onchange = e => {
 /* 📈 分析に使う AI（r15）。⚠ キーは AI ごとに1本を読み取りと共有する＝同じ鍵を2回貼らせない。
    分析用に「読み取りとは別の AI」を選んだ時だけ、その AI のキー欄をここに出す
    （出さないと、鍵を登録するために上のボタンを一度切り替える必要があり、読み取り側の設定まで動いてしまう）。 */
-function renderAnSettings(){
-  const sel = localStorage.getItem(AN.prov) || '';     // '' = 読み取りと同じ
-  const prov = anProv(), p = provOf(prov);
-  document.querySelectorAll('#anProvSeg button').forEach(b => b.classList.toggle('on', b.dataset.anprov === sel));
+/* 役割ごとの AI 設定（r40）。⚠ **3つ目を足すのに同じコードを3度書かない**＝
+   ここを1本にしておかないと、次に「書き出し用のAI」などが増えた時に、直す場所が増え続ける。
+   ⚠ キーの欄は「レシートと違う AI を選んだ時だけ」出す（同じ AI なら鍵は1本で足りている）。 */
+function renderRoleSettings(role){
+  const st = ROLES[role].store, ui = ROLES[role].ui;
+  const sel = localStorage.getItem(st.prov) || '';     // '' = レシートの読み取りと同じ
+  const prov = provForRole(role), p = provOf(prov);
+  document.querySelectorAll(`#${ui}ProvSeg button`).forEach(b =>
+    b.classList.toggle('on', b.dataset[ui + 'prov'] === sel));
 
-  const keyRow = document.getElementById('anKeyRow'), needKey = sel && sel !== getProv();
-  keyRow.hidden = !needKey;
+  const needKey = sel && sel !== getProv();
+  document.getElementById(`${ui}KeyRow`).hidden = !needKey;
   if (needKey) {
-    document.getElementById('anKeyLabel').innerHTML =
+    document.getElementById(`${ui}KeyLabel`).innerHTML =
       `${p.vendor} の APIキー（<a href="${p.keyPage}" target="_blank" rel="noopener">発行ページを開く</a>）`;
-    const k = document.getElementById('anKey');
+    const k = document.getElementById(`${ui}Key`);
     k.value = localStorage.getItem(LS.key(prov)) || ''; k.placeholder = p.keyHint;
   }
-  // 分析モデル。空 = 読み取りと同じモデルを使う
+  // モデル。空 = レシートの読み取りと同じモデルを使う
   const ocrModel = localStorage.getItem(LS.model(prov)) || p.defaultModel || '（未選択）';
-  const cur = localStorage.getItem(AN.model(prov)) || '';
-  document.getElementById('anModel').innerHTML =
-    [[ '', `読み取りと同じ（${ocrModel}）` ], ...modelChoices(prov)]
+  const cur = localStorage.getItem(st.model(prov)) || '';
+  document.getElementById(`${ui}Model`).innerHTML =
+    [[ '', `レシートの読み取りと同じ（${ocrModel}）` ], ...modelChoices(prov)]
       .map(([id, label]) => `<option value="${esc(id)}"${id === cur ? ' selected' : ''}>${esc(label)}</option>`).join('');
 }
-document.querySelectorAll('#anProvSeg button').forEach(b => b.onclick = () => {
-  const v = b.dataset.anprov;
-  if (v) localStorage.setItem(AN.prov, v); else localStorage.removeItem(AN.prov);
-  renderAnSettings();
+const renderAnSettings = () => { renderRoleSettings('meal'); renderRoleSettings('an'); };
+Object.keys(ROLES).forEach(role => {
+  const st = ROLES[role].store, ui = ROLES[role].ui;
+  document.querySelectorAll(`#${ui}ProvSeg button`).forEach(b => b.onclick = () => {
+    const v = b.dataset[ui + 'prov'];
+    if (v) localStorage.setItem(st.prov, v); else localStorage.removeItem(st.prov);
+    renderRoleSettings(role);
+  });
+  document.getElementById(`${ui}Key`).onchange = e =>
+    localStorage.setItem(LS.key(provForRole(role)), e.target.value.trim());
+  document.getElementById(`${ui}Model`).onchange = e => {
+    const v = e.target.value, prov = provForRole(role);
+    if (v) localStorage.setItem(st.model(prov), v); else localStorage.removeItem(st.model(prov));
+  };
 });
-document.getElementById('anKey').onchange = e => localStorage.setItem(LS.key(anProv()), e.target.value.trim());
-document.getElementById('anModel').onchange = e => {
-  const v = e.target.value;
-  if (v) localStorage.setItem(AN.model(anProv()), v); else localStorage.removeItem(AN.model(anProv()));
-};
 document.querySelectorAll('#provSeg button').forEach(b => b.onclick = () => {
   localStorage.setItem(LS.prov, b.dataset.prov); renderSettings();
 });
