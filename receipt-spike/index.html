@@ -696,7 +696,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r47 🤖考えてから答えるモデルが、考えるだけでmax_tokensを使い切っていた＝OpenRouter経由の読み取りに reasoning:{effort:low} を送る（Anthropic側は最初からeffort:lowを送っていたのに、OpenAI互換側だけ絞る指定が無かった＝実測でQwen3.8 Maxの出力が3000の上限に張り付き・180秒切れ）。⚠📈分析には付けない＝あちらは考えさせる用途。⚠断られたらreasoningだけ外してもう一度（stream_optionsと同じ作法）。🍽のmax_tokensも3000→6000＝上限は「買う量」でなく「足りない方だけが事故」（考えた分も同じ上限を食うことを見積もりに入れていなかった）｜r46 🍽の失敗画面が行き止まりだった＝①📋この失敗の記録をコピーがr35から出ていたのに押しても何も起きなかった（受け手がレシートの詳細にしか無い＝出ているのに効かないボタンは無いより悪い）②案内が🍽に無い「一覧の🔁」「✏️手で入力」を指していた（r34の注意書き「画面ごとに次の手を分ける」に食事を足し忘れ＝自分の警告を後から踏んだ）③失敗した写真にやり直すボタンが無く一覧まで戻る必要があった→その場に「📝もう一度 書き起こす」（⚠r29で撤去した🔁と違い、error＝壊せる中身がまだ無い）｜r45 ❌「返事を読めませんでした（途中で切れた可能性）」の正体を追えるようにした＝アプリが実際に返ってきた本文を捨てていたので推測しか言えなかった（res.json()を直に呼ぶと中身が消える）。text()で受けてから自分で読む＝空／JSONで始まって終わっていない（＝届く途中で切れた・trunc）／そもそもJSONでない（＝AIが説明文を返した・parse）を見分け、本文の抜粋を📋の記録に載せる（画面には出さない＝押した人だけ）。⚠truncはcut（AIが上限で書き切れなかった）と別物＝AIは書けているので同じモデルの🔁でやり直す価値がある。中継ぎが待たせている間に送る空行や「:処理中」の詰め物も捨ててから読む｜r44 🍽詳細の書き起こしを「食べ物と量のことだけ」に絞った＝実キーの実測で、皿の色・箸・敷物・袋が未開封か、まで書いていた（プロンプトが「見えたものを・盛り付け・器まで」と自分で頼んでいた）。detail の使い道は健康面の深掘り（📈）と献立の読み返しなので、器や背景の見た目描写は雑音（器は「茶碗1杯」のような量の物差しの時だけ登場してよい）。⚠直るのはこれから書き起こす分だけ＝書き起こし済みの詳細はそのまま｜r43 ⚙キー未登録なら起動時にトーストで設定へ誘う（⚠タップした人だけ開く＝最初の画面を塞がない・文言も「登録しろ」と言わない＝r38「まず撮るだけで大丈夫」を壊さない）。トップの🖼もレシート／料理に分けた＝⚠4つを横並びにすると同じ🖼が2つになってどちらか分からないので、主語ごとの塊（📷レシート＋🖼 ／ 🍽料理＋🖼）にして近さで意味を作る。🖼から選んだ料理も🍽の画面を開く（入る場所が同じなら見せ方も同じ）。🩹トーストが画面の半分でしか広がらなかった昔からのバグを直した（left:50%だけだと max-width:86vw が効かない）｜r42 🔍横断検索に食事も入れた＝レシートの一覧の下に「🍽食事 N件」を別の塊で出す（⚠混ぜない＝食事には金額の列が無く、同じ並びだとどちらの行か分からない）。当たるのは言葉（要約・書き起こし・料理名・🗒ひとこと・区分）と日付だけで、⚠店名・品目・金額・支払・種別・分類が入っている時は食事を探さず「探していない」と言う（0件と探していないは別のこと）。まだ書き起こしていない食事の件数も言う · 2026-08-14';
+const BUILD = 'r48 🍽料理は考える量を絞らない＝r47で読み取り全部をeffort:lowにしたら実機で「精度がおちますね」。⚠同じ「写真を読む」でも、読むものが「書いてある文字」か「写っているもの」かで考えることの値打ちが逆＝📷レシートは印字を型に嵌めるだけなのでlowで足りるが、🍽料理は写真から見分ける仕事なので考えた分だけ当たる。effort/上限/待ち時間を仕事ごとの表に移した（🍽=絞らない・12000・300秒 ／ 📷=low・6000・180秒）。⚠Anthropic側も「low」を直接書いていて🍽まで絞っていたので同時に直した（明細で見えたのはOpenRouterだけ＝見えない方も同じ穴）。⚠元の失敗は天井が足りなかっただけで精度は出ていた（成功時2338/2524、失敗3001）＝r47は直しすぎ｜r47 🤖考えてから答えるモデルが、考えるだけでmax_tokensを使い切っていた＝OpenRouter経由の読み取りに reasoning:{effort:low} を送る（Anthropic側は最初からeffort:lowを送っていたのに、OpenAI互換側だけ絞る指定が無かった＝実測でQwen3.8 Maxの出力が3000の上限に張り付き・180秒切れ）。⚠📈分析には付けない＝あちらは考えさせる用途。⚠断られたらreasoningだけ外してもう一度（stream_optionsと同じ作法）。🍽のmax_tokensも3000→6000＝上限は「買う量」でなく「足りない方だけが事故」（考えた分も同じ上限を食うことを見積もりに入れていなかった）｜r46 🍽の失敗画面が行き止まりだった＝①📋この失敗の記録をコピーがr35から出ていたのに押しても何も起きなかった（受け手がレシートの詳細にしか無い＝出ているのに効かないボタンは無いより悪い）②案内が🍽に無い「一覧の🔁」「✏️手で入力」を指していた（r34の注意書き「画面ごとに次の手を分ける」に食事を足し忘れ＝自分の警告を後から踏んだ）③失敗した写真にやり直すボタンが無く一覧まで戻る必要があった→その場に「📝もう一度 書き起こす」（⚠r29で撤去した🔁と違い、error＝壊せる中身がまだ無い）｜r45 ❌「返事を読めませんでした（途中で切れた可能性）」の正体を追えるようにした＝アプリが実際に返ってきた本文を捨てていたので推測しか言えなかった（res.json()を直に呼ぶと中身が消える）。text()で受けてから自分で読む＝空／JSONで始まって終わっていない（＝届く途中で切れた・trunc）／そもそもJSONでない（＝AIが説明文を返した・parse）を見分け、本文の抜粋を📋の記録に載せる（画面には出さない＝押した人だけ）。⚠truncはcut（AIが上限で書き切れなかった）と別物＝AIは書けているので同じモデルの🔁でやり直す価値がある。中継ぎが待たせている間に送る空行や「:処理中」の詰め物も捨ててから読む｜r44 🍽詳細の書き起こしを「食べ物と量のことだけ」に絞った＝実キーの実測で、皿の色・箸・敷物・袋が未開封か、まで書いていた（プロンプトが「見えたものを・盛り付け・器まで」と自分で頼んでいた）。detail の使い道は健康面の深掘り（📈）と献立の読み返しなので、器や背景の見た目描写は雑音（器は「茶碗1杯」のような量の物差しの時だけ登場してよい）。⚠直るのはこれから書き起こす分だけ＝書き起こし済みの詳細はそのまま · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1195,12 +1195,19 @@ const OCR_RULES = `あなたはレシート読み取りの専門家。写真に�
 
 /* 写真から読む「仕事」の一覧（r35）。⚠ スキーマは**呼ぶたびに作る**（r31 の教訓＝分類を足しても効かなくなる）。
    ⚠ max_tokens は「上限」であって「買う量」ではない＝短く済めば課金は増えない。**足りない方だけが事故**になる。
-      r46 まで食事は 3000 で「文章だから短くて足りる」と見積もっていたが、⚠ この見積もりは
-      **考えてから答えるモデルを勘定に入れていなかった**（考えた分も同じ上限を食う）。
-      実測で出力が 3000 に張り付いていたので、レシートと同じ 6000 に揃えた（r47）。 */
+
+   ⚠ **effort（考える量）は仕事ごとに違う**（r48）＝ここを揃えてはいけない。
+     - 📷 レシート＝**印字された文字を型に嵌める**仕事。答えは紙に書いてあるので、考えても増えるものが無い → `low`（実績あり）
+     - 🍽 料理＝**写真から何が写っているかを見分ける**仕事。考えた分だけ当たる → **絞らない**
+     r47 で両方 `low` にしたら、実機で「**精度がおちますね**」（2026-08-14）。⚠ **同じ「写真を読む」でも、
+     読むものが「書いてある文字」か「写っているもの」かで、考えることの値打ちが逆になる**。
+   ⚠ 絞らない＝そのぶん長く考える＝**上限も待ち時間も余裕が要る**（両方この表で持つ）。 */
+const T_MEAL = 300000;   // 🍽 は絞らずに考えさせるので、レシート（180秒）より長く待つ
 const OCR_JOB  = { name: 'receipts', schema: receiptSchema, rules: OCR_RULES,  maxTokens: 6000,
+                   effort: 'low', timeoutMs: T_OCR,
                    ask: 'このレシート写真から情報を抽出して。' };
-const MEAL_JOB = { name: 'meal',     schema: mealSchema,    rules: MEAL_RULES, maxTokens: 6000,
+const MEAL_JOB = { name: 'meal',     schema: mealSchema,    rules: MEAL_RULES, maxTokens: 12000,
+                   effort: null,     timeoutMs: T_MEAL,
                    ask: 'この食事の写真を書き起こして。' };
 
 /* 📈 分析（r15）＝写真ではなく「溜まったレシートの文字データ」をまとめて読ませる時の頼み方。
@@ -1268,8 +1275,10 @@ const PROVIDERS = {
           上限で切れた時の扱い（r17）を、食事のためにもう一度書き直さなくて済む。 */
     async analyze(ctx, b64, job = OCR_JOB){
       const output_config = { format: { type: 'json_schema', schema: job.schema() } };
-      if (ctx.model !== 'claude-haiku-4-5') output_config.effort = 'low'; // effort は Haiku 4.5 非対応
-      const res = await apiFetch(ctx, '/messages', { method: 'POST', timeoutMs: T_OCR, body: {
+      /* ⚠ 考える量は**仕事から取る**（r48）＝ここに 'low' を直接書いていたので、🍽 料理まで絞られていた
+         （実機で「精度がおちますね」）。effort は Haiku 4.5 非対応なので、そこだけは今までどおり送らない。 */
+      if (job.effort && ctx.model !== 'claude-haiku-4-5') output_config.effort = job.effort;
+      const res = await apiFetch(ctx, '/messages', { method: 'POST', timeoutMs: job.timeoutMs || T_OCR, body: {
         model: ctx.model, max_tokens: job.maxTokens, output_config, system: job.rules,
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
@@ -1344,12 +1353,10 @@ function openAICompatible(o){
       ];
       const known = localStorage.getItem(LS.fmt(ctx.prov));
       const order = known ? [...FORMATS].sort((a, b) => (b[0] === known) - (a[0] === known)) : FORMATS;
-      /* ⚠ 考える量を絞る（r47）。読み取りは「見えたものを型に嵌める」仕事＝深く考える必要がない。
-         Anthropic 側は最初から effort:'low' を送っていたのに、**こちら（OpenAI互換）には絞る指定が無かった**。
-         結果、考えてから答えるモデル（Qwen3.8 Max 等）が **max_tokens を考えるだけで使い切り**、
-         返事が入らない／間に合わない（実測＝出力が 3000 の上限に張り付き・180秒切れ）。
-         ⚠ 📈 分析には付けない＝あちらは考えさせる用途（Anthropic 側と同じ判断）。 */
-      let useReasoning = !!o.reasoning, lastErr;
+      /* ⚠ 考える量は**仕事から取る**（r47 で導入 → r48 で仕事ごとに）。
+         📷 レシートは 'low'（印字を型に嵌めるだけ）／🍽 料理は絞らない（写真から見分ける＝考えた分だけ当たる）。
+         ⚠ 📈 分析にも付けない＝あちらは考えさせる用途（Anthropic 側と同じ判断）。 */
+      let useReasoning = !!(o.reasoning && job.effort), lastErr;
       for (const [name, response_format] of order) {
         // ⚠ 同じ頼み方で最大2回＝reasoning を知らないサービスに断られたら、**それだけ外して**もう一度
         //    （stream_options と同じ作法＝新しい指定のために、間口を狭めない）
@@ -1366,9 +1373,9 @@ function openAICompatible(o){
             ],
           };
           if (response_format) body.response_format = response_format;
-          if (useReasoning) body.reasoning = o.reasoning;
+          if (useReasoning) body.reasoning = { effort: job.effort };
           try {
-            const res = await apiFetch(ctx, '/chat/completions', { method: 'POST', timeoutMs: T_OCR, body });
+            const res = await apiFetch(ctx, '/chat/completions', { method: 'POST', timeoutMs: job.timeoutMs || T_OCR, body });
             const msg = res.choices?.[0]?.message || {};
             if (msg.refusal) throw new Error('AI が分析を拒否しました: ' + msg.refusal);
             localStorage.setItem(LS.fmt(ctx.prov), name);
@@ -1451,10 +1458,10 @@ PROVIDERS.openrouter = openAICompatible({
   base: 'https://openrouter.ai/api/v1',
   keyPage: 'https://openrouter.ai/keys', keyHint: 'sk-or-...',
   tokenParam: 'max_tokens',
-  /* ⚠ 読み取りの時だけ「考える量」を絞る（r47）＝OpenRouter は色々なモデルへの窓口で、
-     考えてから答えるモデル（Qwen3.8 Max 等）が混ざる。窓口が指定を各モデルの流儀に翻訳してくれる。
-     考えないモデルには無害（無視される）。 */
-  reasoning: { effort: 'low' },
+  /* ⚠ これは「考える量の指定を受け付ける窓口か」の宣言だけ（r48）＝**どれくらい絞るかは仕事が決める**。
+     OpenRouter は色々なモデルへの窓口で、考えてから答えるモデル（Qwen3.8 Max 等）が混ざる。
+     窓口が指定を各モデルの流儀に翻訳してくれる。考えないモデルには無害（無視される）。 */
+  reasoning: true,
   extraHeaders: { 'X-Title': 'receipt-spike' },
 });
 
