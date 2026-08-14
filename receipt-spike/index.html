@@ -222,6 +222,29 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 .mlDetail{white-space:pre-wrap; font-size:14px; line-height:1.7;}
 /* 区分は4つ＝1行に並べる（3+1 に折れると「間食だけ別物」に見える）。名前は2文字なので入る */
 #mlSlotSeg button{flex:1 1 20%;}
+/* 📅 週のカレンダー（r36）＝縦が日・横が 朝/昼/夕/間。1週間を一目で見て、枠から枠へ動かせる */
+.mlGrid{display:grid; grid-template-columns:2.9em repeat(4, 1fr); gap:4px;}
+.mlGrid .hd{font-size:11.5px; color:var(--dim); text-align:center; padding:2px 0;}
+.mlGrid .dl{font-size:11.5px; color:var(--dim); display:flex; flex-direction:column; justify-content:center; align-items:center; line-height:1.25;}
+.mlGrid .dl b{color:var(--fg); font-size:13px; font-weight:600;}
+.mlGrid .dl.today b{color:var(--acc);}
+.mlGrid .cell{min-height:46px; border:1px solid var(--line); border-radius:9px; background:var(--card);
+              display:flex; flex-wrap:wrap; gap:3px; padding:3px; align-content:flex-start;}
+.mlGrid .cell.drop{border-color:var(--acc); background:rgba(122,177,232,.16);}   /* 落とせる場所 */
+.mlGrid .cell.from{opacity:.5;}                                                   /* 元いた場所 */
+/* ⚠ 長押しで持ち上げる＝iOS の文字選択・コールアウトが出ると指が離れて掴めない */
+.mlThumb{width:38px; height:38px; border-radius:6px; object-fit:cover; background:#000;
+         -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;
+         /* ⚠ <img> はブラウザが**自前で**ドラッグを始める（ネイティブの画像ドラッグ）。
+            始まった瞬間に pointercancel が飛んで、こちらの長押しドラッグが指ごと取り上げられる。
+            HTML の draggable="false" と合わせて、両方から止める（片方だけでは環境によって残る）。 */
+         -webkit-user-drag:none; user-drag:none;}
+.mlThumb.pend{opacity:.45;}
+.mlThumb.err{outline:2px solid var(--err); outline-offset:-2px;}
+.mlThumb.lift{opacity:.3;}                                                        /* 持ち上げ中の元の位置 */
+#mlDragGhost{position:fixed; z-index:60; width:54px; height:54px; border-radius:8px; object-fit:cover;
+             pointer-events:none; box-shadow:0 6px 20px rgba(0,0,0,.6); transform:translate(-50%,-50%); opacity:.95;}
+.mlDragging{touch-action:none;}   /* 掴んでいる間だけ、指の動きをスクロールに取られない */
 /* 🔎 地図の拡大表示（全画面）。⚠ Leaflet は容器の大きさが変わったら invalidateSize() が要る */
 #mapWrap{position:relative;}
 #mapWrap.full{position:fixed; inset:0; z-index:25; background:var(--bg);}
@@ -437,11 +460,16 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 <!-- 🍽 食事（r35）＝その日の 朝食／昼食／夕食／間食 -->
 <div class="overlay" id="ovMeals"><div class="sheet tall">
   <button class="x" data-close>✕</button><h2>🍽 食事</h2>
-  <div class="mlNav">
-    <button id="mlPrev" aria-label="前の日">◀</button>
-    <div class="d" id="mlDayLbl"></div>
-    <button id="mlNext" aria-label="次の日">▶</button>
+  <div class="seg" id="mlViewSeg" style="margin-bottom:10px">
+    <button type="button" data-mlview="week">📅 週</button>
+    <button type="button" data-mlview="day">🍚 1日</button>
   </div>
+  <div class="mlNav">
+    <button id="mlPrev" aria-label="前へ">◀</button>
+    <div class="d" id="mlDayLbl"></div>
+    <button id="mlNext" aria-label="次へ">▶</button>
+  </div>
+  <div id="mlWeek" hidden></div>
   <div id="mlBody"></div>
   <!-- ⚠ 撮る入口は「いま見ている日」の中に置かない＝写真の時刻で日が決まるので、
        見ている日と入る日が違うことがある（そのことは撮ったあとに言う） -->
@@ -587,7 +615,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r35 🍽食事の記録を足した＝食事の写真をあげるとAIが「要約（1行）」と「詳細な書き起こし」を分けて保存し（あとで複数日をAIに読ませる基礎資料）、写真のEXIF撮影時刻から朝食/昼食/夕食/間食に自動で振り分ける。時間帯は⚙で登録・区分は詳細で選び直せる（手で直したものは設定を変えても上書きしない）。⚠EXIFは縮小前の元ファイルから読む・「いま」に近いファイル時刻は信じない（HEIC変換の疑い）｜r34 📈分析の失敗もアプリが控える＝これまで toast が4秒で消えるだけで、失敗すると記録が1件も残らなかった（分析は成功した時にしか記録が生まれない）。時刻・文言・分類・HTTP・どのAI/モデル・期間・件数・待ち秒を直近5件残し、▶の上に「次の手」を出す（📋でまとめてコピー・やり直しても消えない）。次の手は読み取りと分析で言い分ける＝「一覧の🔁」は📈に無いボタン。型ボタンが2行に折り返していたので1行2つに｜r33 🔎詳細検索を開くと条件で画面が埋まり結果が見えなかった（実機の指摘）＝条件欄は画面の4割までにして中でスクロール・「🔍結果を見る（N件）」で畳んで結果へ・効いている条件はチップで見え1つずつ外せる。実機でヘッダの「レシート」が切れていたので狭い幅では🧾だけにする｜r32 🔍トップにレシートの横断検索＝ヘッダの🔍で開き、簡易検索（店名・品目・分類・住所・金額をまとめて／空白区切りは全部を含む）と、🔎項目を決めての詳細検索（期間・分類・店名・品目・金額の範囲・支払・種別）。件数と合計が出る・📷で撮ると検索は畳む｜r31 🏷分類（カテゴリ）を自分で足せる＝⚙で追加・削除（既定の8つはライフログ互換なので消せない）。足した分類は読み取りのスキーマにも入れてAIに渡す（次に撮ったレシートから使われる）。消しても既存レシートは書き換えない・✏️の選択肢にも残す · 2026-08-14';
+const BUILD = 'r36 📅食事の週カレンダー＋ドラッグ＝縦が日・横が朝/昼/夕/間食の7×4。写真を長押しして別の枠へ動かせる（別の日にも移せるが、その時は写真の日付も変わると言う・時刻は動かさない）。⚠<img>はブラウザが自前でドラッグを始めてpointercancelでポインタを取り上げるのでdraggable=falseで止める・⚠touch-action:noneは指が触れた瞬間に見られるので掴んだ後では遅い（掴んでいる間のtouchmoveを止める）・長押し250msの前に指が8px動いたらスクロールのつもりとみなす｜r35 🍽食事の記録を足した＝食事の写真をあげるとAIが「要約（1行）」と「詳細な書き起こし」を分けて保存し（あとで複数日をAIに読ませる基礎資料）、写真のEXIF撮影時刻から朝食/昼食/夕食/間食に自動で振り分ける。時間帯は⚙で登録・区分は詳細で選び直せる（手で直したものは設定を変えても上書きしない）。⚠EXIFは縮小前の元ファイルから読む・「いま」に近いファイル時刻は信じない（HEIC変換の疑い）｜r34 📈分析の失敗もアプリが控える＝これまで toast が4秒で消えるだけで、失敗すると記録が1件も残らなかった（分析は成功した時にしか記録が生まれない）。時刻・文言・分類・HTTP・どのAI/モデル・期間・件数・待ち秒を直近5件残し、▶の上に「次の手」を出す（📋でまとめてコピー・やり直しても消えない）。次の手は読み取りと分析で言い分ける＝「一覧の🔁」は📈に無いボタン。型ボタンが2行に折り返していたので1行2つに｜r33 🔎詳細検索を開くと条件で画面が埋まり結果が見えなかった（実機の指摘）＝条件欄は画面の4割までにして中でスクロール・「🔍結果を見る（N件）」で畳んで結果へ・効いている条件はチップで見え1つずつ外せる。実機でヘッダの「レシート」が切れていたので狭い幅では🧾だけにする｜r32 🔍トップにレシートの横断検索＝ヘッダの🔍で開き、簡易検索（店名・品目・分類・住所・金額をまとめて／空白区切りは全部を含む）と、🔎項目を決めての詳細検索（期間・分類・店名・品目・金額の範囲・支払・種別）。件数と合計が出る・📷で撮ると検索は畳む · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -617,7 +645,7 @@ const AN = {
   errors: 'rcpt.an.errors', okAt: 'rcpt.an.okAt',
 };
 // 🍽 食事（r35）。⚠ あの日 web と同一オリジンなので rcpt. 接頭辞は外さない
-const ML = { slots: 'rcpt.meal.slots', day: 'rcpt.meal.day' };
+const ML = { slots: 'rcpt.meal.slots', day: 'rcpt.meal.day', view: 'rcpt.meal.view' };
 // r8 以前は Anthropic 決め打ち（rcpt.apiKey / rcpt.model）だった → 一度だけ引っ越す
 (function migrateSettings(){
   const k = localStorage.getItem('rcpt.apiKey'), m = localStorage.getItem('rcpt.model');
@@ -1344,7 +1372,9 @@ async function runMealAnalysis(id){
    ⚠ 枠は**空でも4つ全部出す**＝「そこに入れられる」ことが分かる。空を隠すと、間食だけの日が
       「間食しか無い日」でなく「壊れた日」に見える。 */
 let mlDay = localStorage.getItem(ML.day) || '';            // いま見ている日（空＝今日）
+let mlView = localStorage.getItem(ML.view) === 'day' ? 'day' : 'week';   // 既定＝📅 週（要望の「カレンダー」）
 let mlCur = null;                                          // 詳細を開いている食事
+let mlDraggedAt = 0;                                       // 直前にドラッグで指を離した時刻（click 抑止用）
 const mlThumbUrls = [];                                    // ⚠ 一覧（レシート）と別に持つ＝互いに revoke し合わない
 const mlDayNow = () => mlDay || todayStr();
 const mealDate = m => ymdLocal(new Date(m.ts));            // 暦日で数える（撮った時刻がその日のどこか）
@@ -1357,6 +1387,9 @@ const WD = ['日', '月', '火', '水', '木', '金', '土'];
 
 async function renderMeals(){
   if (!isOpen('ovMeals')) return;                          // 開いていない画面は描かない（撮る途中で毎回呼ばれる）
+  return mlView === 'week' ? renderWeek() : renderDay();
+}
+async function renderDay(){
   const day = mlDayNow();
   const all = (await mlAll()).filter(m => mealDate(m) === day)
                              .sort((a, b) => a.ts - b.ts);
@@ -1386,10 +1419,148 @@ async function renderMeals(){
     ? '写真の<b>撮影時刻</b>で自動的に振り分けます（時間帯は ⚙ で変えられます）。違っていたら、その食事を開いて区分を選び直してください。'
     : '食事の写真を選ぶと、写っているものを AI が書き起こして、<b>撮影時刻</b>から 朝食／昼食／夕食／間食 に振り分けます。';
 }
-document.getElementById('btnMeals').onclick = async () => { show('ovMeals'); await renderMeals(); };
-const mlGo = n => { mlDay = addDays(mlDayNow(), n); localStorage.setItem(ML.day, mlDay); renderMeals(); };
+/* ---------- 📅 週のカレンダー（r36） ----------
+   縦が日・横が 朝/昼/夕/間食。⚠ 1日の画面（r35）は消さない＝要約を読むにはこちらが要る。
+   カレンダーは「並びを見て・動かす」ための場所、1日の画面は「読む」ための場所。 */
+async function renderWeek(){
+  const from = weekStart(mlDayNow()), days = [...Array(7)].map((_, i) => addDays(from, i));
+  const all = (await mlAll()).filter(m => days.includes(mealDate(m))).sort((a, b) => a.ts - b.ts);
+  const d0 = new Date(from + 'T00:00:00'), d6 = new Date(days[6] + 'T00:00:00');
+  document.getElementById('mlDayLbl').innerHTML =
+    `${md(from)}（${WD[d0.getDay()]}）〜 ${md(days[6])}（${WD[d6.getDay()]}）`
+    + `<small>${all.length ? `${all.length}枚` : 'この週はまだありません'}</small>`;
+  mlThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
+  let html = '<div class="mlGrid"><div class="hd"></div>'
+           + MEAL_SLOTS.map(([, label, icon]) => `<div class="hd">${icon}<br>${label}</div>`).join('');
+  for (const day of days) {
+    const d = new Date(day + 'T00:00:00');
+    html += `<div class="dl${day === todayStr() ? ' today' : ''}"><b>${d.getMonth() + 1}/${d.getDate()}</b>${WD[d.getDay()]}</div>`;
+    for (const [slot] of MEAL_SLOTS) {
+      const rows = all.filter(m => mealDate(m) === day && m.slot === slot);
+      html += `<div class="cell" data-cell="${day}|${slot}">` + rows.map(m => {
+        const u = URL.createObjectURL(m.thumb); mlThumbUrls.push(u);
+        return `<img class="mlThumb${m.status === 'pending' ? ' pend' : m.status === 'error' ? ' err' : ''}"`
+             + ` draggable="false" src="${u}" data-meal="${esc(m.id)}" alt="${esc(mealLine(m)).slice(0, 30)}"`
+             + ` title="${esc(mealHM(m))} ${esc(mealLine(m))}">`;
+      }).join('') + '</div>';
+    }
+  }
+  document.getElementById('mlWeek').innerHTML = html + '</div>';
+  document.getElementById('mlNote').innerHTML =
+    '写真を<b>長押しして動かす</b>と、別の枠（朝／昼／夕／間食）へ移せます。<b>別の日</b>にも移せますが、その時は<b>写真の日付も変わります</b>。写真を<b>タップ</b>すると、書き起こしが読めます。';
+}
+
+document.getElementById('btnMeals').onclick = async () => { show('ovMeals'); await setMlView(mlView); };
+const mlGo = n => { mlDay = addDays(mlDayNow(), mlView === 'week' ? n * 7 : n);
+                    localStorage.setItem(ML.day, mlDay); renderMeals(); };
 document.getElementById('mlPrev').onclick = () => mlGo(-1);
 document.getElementById('mlNext').onclick = () => mlGo(1);
+function setMlView(v){
+  mlView = v; localStorage.setItem(ML.view, v);
+  document.querySelectorAll('#mlViewSeg button').forEach(b => b.classList.toggle('on', b.dataset.mlview === v));
+  document.getElementById('mlWeek').hidden = v !== 'week';
+  document.getElementById('mlBody').hidden = v !== 'day';
+  return renderMeals();
+}
+document.querySelectorAll('#mlViewSeg button').forEach(b => b.onclick = () => setMlView(b.dataset.mlview));
+
+/* ドラッグ（r36）。⚠ HTML5 の drag&drop は **iOS Safari で動かない**（`dragstart` が来ない）ので、
+   pointer events で自前で作る。設計で効いているのは3つ:
+     ① **長押し（250ms）で持ち上げる**＝すぐ掴むと縦スクロールができなくなる。指が 8px 動いたら
+        「スクロールのつもり」とみなして掴まない。
+     ② 掴んだら `touch-action:none` を立てて、そこから先はスクロールに取られない。
+     ③ 落とし先は `elementFromPoint` で拾う（ゴーストは pointer-events:none なので指の下を邪魔しない）。
+   ⚠ **ドラッグは追加の道であって、唯一の道にしない**＝区分は詳細（r35）からも変えられる。
+      実機で指が当たらなかった時に、機能ごと使えなくなるのを避ける。 */
+let mlDrag = null;
+function mlDragCleanup(){
+  document.getElementById('mlDragGhost')?.remove();
+  document.querySelectorAll('.mlGrid .cell.drop,.mlGrid .cell.from').forEach(c => c.classList.remove('drop', 'from'));
+  document.querySelectorAll('.mlThumb.lift').forEach(t => t.classList.remove('lift'));
+  document.getElementById('mlWeek').classList.remove('mlDragging');
+  clearTimeout(mlDrag?.timer);
+  mlDrag = null;
+}
+function mlCellAt(x, y){
+  const el = document.elementFromPoint(x, y);
+  return el ? el.closest('[data-cell]') : null;
+}
+document.getElementById('mlWeek').addEventListener('pointerdown', e => {
+  const img = e.target.closest('[data-meal]'); if (!img) return;
+  const cell = img.closest('[data-cell]');
+  mlDrag = { id: img.dataset.meal, img, from: cell?.dataset.cell, x0: e.clientX, y0: e.clientY,
+             on: false, pid: e.pointerId, timer: null };
+  mlDrag.timer = setTimeout(() => {
+    if (!mlDrag) return;
+    mlDrag.on = true;
+    const g = document.createElement('img');
+    g.id = 'mlDragGhost'; g.src = img.src;
+    g.style.left = mlDrag.x0 + 'px'; g.style.top = mlDrag.y0 + 'px';
+    document.body.appendChild(g);
+    img.classList.add('lift');
+    cell?.classList.add('from');
+    document.getElementById('mlWeek').classList.add('mlDragging');
+    try { img.setPointerCapture(mlDrag.pid); } catch (_) {}
+    if (navigator.vibrate) navigator.vibrate(12);          // 掴めたことを指に返す（見ていない指のため）
+  }, 250);
+});
+document.getElementById('mlWeek').addEventListener('pointermove', e => {
+  if (!mlDrag) return;
+  if (!mlDrag.on) {
+    // まだ掴んでいない＝指が動いたらスクロールのつもりとみなす
+    if (Math.hypot(e.clientX - mlDrag.x0, e.clientY - mlDrag.y0) > 8) { clearTimeout(mlDrag.timer); mlDrag = null; }
+    return;
+  }
+  e.preventDefault();
+  const g = document.getElementById('mlDragGhost');
+  if (g) { g.style.left = e.clientX + 'px'; g.style.top = e.clientY + 'px'; }
+  const cell = mlCellAt(e.clientX, e.clientY);
+  document.querySelectorAll('.mlGrid .cell.drop').forEach(c => c.classList.remove('drop'));
+  if (cell && cell.dataset.cell !== mlDrag.from) cell.classList.add('drop');
+});
+async function mlDrop(e){
+  if (!mlDrag) return;
+  const d = mlDrag;
+  if (!d.on) { clearTimeout(d.timer); mlDrag = null; return; }   // 長押しに届かなかった＝ふつうのタップ
+  const cell = mlCellAt(e.clientX, e.clientY);
+  mlDragCleanup();
+  // ⚠ pointerup のあとに click が来る＝掴んで動かしたのに詳細が開いてしまう。時刻で見張って握り潰す
+  mlDraggedAt = Date.now();
+  if (!cell || cell.dataset.cell === d.from) return;             // 元の場所・枠の外＝何もしない
+  const [day, slot] = cell.dataset.cell.split('|');
+  await moveMealTo(d.id, day, slot);
+}
+document.getElementById('mlWeek').addEventListener('pointerup', mlDrop);
+document.getElementById('mlWeek').addEventListener('pointercancel', mlDragCleanup);
+/* ⚠ `touch-action:none` は**指が触れた瞬間**に見られるので、掴んだ後（250ms 後）に足しても遅い。
+   掴んでいる間の touchmove を止めて、スクロールが始まらないようにする（始まると pointercancel が来る）。 */
+document.getElementById('mlWeek').addEventListener('touchmove', e => { if (mlDrag?.on) e.preventDefault(); },
+                                                   { passive: false });
+/* 落とした先へ移す。⚠ **別の日に落とすのは「日付を書き換える」こと**なので、必ず言う
+   （区分だけの移動と混ぜて黙ると、写真の日付がいつのまにか変わっていることになる）。
+   ⚠ 時刻は動かさない＝日付だけ差し替える（何時に食べたかは写真の側の事実）。 */
+async function moveMealTo(id, day, slot){
+  const m = await mlGet(id); if (!m) return null;
+  const sameDay = mealDate(m) === day;
+  if (sameDay && m.slot === slot) return null;
+  if (!sameDay) {
+    const t = new Date(m.ts);
+    const nd = new Date(`${day}T00:00:00`);
+    nd.setHours(t.getHours(), t.getMinutes(), t.getSeconds(), 0);
+    m.ts = nd.getTime(); m.tsSrc = 'manual';
+  }
+  m.slot = slot; m.slotAuto = false;      // 動かした＝人が決めた（あとで設定を変えても上書きしない）
+  await mlPut(m); await renderMeals();
+  toast(sameDay ? `${SLOT_ICON(slot)} ${SLOT_LABEL(slot)}へ移しました`
+                : `📅 ${md(day)} の${SLOT_LABEL(slot)}へ移しました（写真の日付も変えました）`);
+  return m;
+}
+// 週の写真をタップ＝詳細（⚠ ドラッグしたあとの指離しでは開かない＝mlDrop が先に片付けている）
+document.getElementById('mlWeek').addEventListener('click', async e => {
+  if (Date.now() - mlDraggedAt < 400) return;                    // いま動かし終えたところ＝開かない
+  const img = e.target.closest('[data-meal]'); if (!img) return;
+  const m = await mlGet(img.dataset.meal); if (m) openMeal(m);
+});
 document.getElementById('mlBody').addEventListener('click', async e => {
   const c = e.target.closest('[data-meal]'); if (!c) return;
   const m = await mlGet(c.dataset.meal); if (m) openMeal(m);
