@@ -111,6 +111,9 @@ table.items{width:100%; border-collapse:collapse; font-size:13.5px; margin:8px 0
 table.items td{padding:4px 2px; border-bottom:1px solid var(--line);}
 table.items td:last-child{text-align:right; white-space:nowrap;}
 .dual{display:flex; gap:8px;} .dual .btn{flex:1;}
+/* ⚠ flex の子は既定で「中身より狭くならない」（min-width:auto）＝日付・時刻の入力は
+   中身の幅を持っているので、320px では横にはみ出す（r39 の実測で発覚。r35 から入っていた）。 */
+.dual > *{min-width:0;} .dual input{min-width:0;}
 #toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom) + 80px); background:#2c2c2e; color:var(--fg); border-radius:12px; padding:10px 16px; font-size:14px; z-index:30; display:none; max-width:86vw;}
 /* 📊 統計 */
 .sheet.tall{max-height:94vh;}
@@ -160,6 +163,10 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 .leaflet-control-attribution a{color:#aaa !important;}
 /* 📈 分析（レシートをまとめてAIに読ませる） */
 #anPrompt{width:100%; min-height:96px; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:10px; padding:10px; font-family:inherit; font-size:15px; line-height:1.6; resize:vertical;}
+/* 🗒 ひとこと（r39）。⚠ textarea には `.row input` の width:100% が当たらない＝
+   何も書かないと既定の cols（20文字ぶん）のまま横にはみ出す。⚠ 依頼文ほど高くしない（1〜2行のもの） */
+#mlMemo{width:100%; min-height:56px; background:var(--card); border:1px solid var(--line); color:var(--fg);
+        border-radius:10px; padding:10px; font-family:inherit; font-size:15px; line-height:1.5; resize:vertical;}
 /* ✏️ 手で直す（r19）の品目行。名前を広く・個数は狭く＝スマホ幅で3つ並べても読める */
 .edIt{display:flex; gap:6px; margin-bottom:6px;}
 .edIt input{background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px; font-size:15px; min-width:0;}
@@ -241,6 +248,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
          -webkit-user-drag:none; user-drag:none;}
 .mlThumb.pend{opacity:.45;}
 .mlThumb.err{outline:2px solid var(--err); outline-offset:-2px;}
+.mlThumb.todo{outline:2px dashed var(--dim); outline-offset:-2px;}   /* まだ書き起こしていない（失敗ではない） */
 .mlThumb.lift{opacity:.3;}                                                        /* 持ち上げ中の元の位置 */
 #mlDragGhost{position:fixed; z-index:60; width:54px; height:54px; border-radius:8px; object-fit:cover;
              pointer-events:none; box-shadow:0 6px 20px rgba(0,0,0,.6); transform:translate(-50%,-50%); opacity:.95;}
@@ -476,6 +484,12 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
   </div>
   <div id="mlWeek" hidden></div>
   <div id="mlBody"></div>
+  <!-- 📝 まだ書き起こしていない写真（r38）＝キーを入れる前に撮った分も、あとからまとめて読める -->
+  <div id="mlTodoBar" hidden>
+    <button class="btn" id="btnMlBatch"></button>
+    <button class="btn" id="btnMlBatchStop" hidden>⏹ やめる</button>
+    <div class="note" id="mlTodoNote"></div>
+  </div>
   <!-- ⚠ 撮る入口は「いま見ている日」の中に置かない＝写真の時刻で日が決まるので、
        見ている日と入る日が違うことがある（そのことは撮ったあとに言う） -->
   <label class="attBtn" style="margin-top:14px">🍽 食事の写真を選ぶ（複数可）
@@ -496,6 +510,11 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
     <div class="row" style="flex:1"><label>日付</label><input type="date" id="mlDate"></div>
     <div class="row" style="flex:1"><label>時刻</label><input type="time" id="mlTime"></div>
   </div>
+  <!-- 🗒 ひとこと（r39）＝写真に写らないことを残す欄。任意・空のままでよい -->
+  <div class="row"><label>🗒 ひとこと（任意・<b>写真に写らないこと</b>を残せます）</label>
+    <textarea id="mlMemo" rows="2" maxlength="140"
+      placeholder="例: 残業で遅い夕食／人と一緒／おいしかった／少し食べすぎた"></textarea>
+    <div class="note" id="mlMemoNote" style="margin-top:4px"></div></div>
   <div id="mlBodyDetail"></div>
   <button class="btn" id="btnMlCopy">📋 この食事の記録をコピー</button>
   <button class="btn" id="btnMlDel">🗑 この食事を削除</button>
@@ -620,7 +639,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r37 📈分析に食事も渡す＝既定は要約だけ・「🔬詳細な書き起こしまで渡す」を入れた時だけ深掘り（毎回自動で乗るものと、押した時だけ払うものを分ける）。レシートが無くても食事だけで通る・書き起こせたものだけ渡す・何件どこまで渡したかを結果と一緒に残す。AIには「カロリーや栄養素の数値は入っていない（推定を事実のように書くな）」「買った物と食べた物は別なので無理に対応づけるな」と伝える。📤書き出しは詳細つき（押した時だけなので事情が違う）｜r36 📅食事の週カレンダー＋ドラッグ＝縦が日・横が朝/昼/夕/間食の7×4。写真を長押しして別の枠へ動かせる（別の日にも移せるが、その時は写真の日付も変わると言う・時刻は動かさない）。⚠<img>はブラウザが自前でドラッグを始めてpointercancelでポインタを取り上げるのでdraggable=falseで止める・⚠touch-action:noneは指が触れた瞬間に見られるので掴んだ後では遅い（掴んでいる間のtouchmoveを止める）・長押し250msの前に指が8px動いたらスクロールのつもりとみなす｜r35 🍽食事の記録を足した＝食事の写真をあげるとAIが「要約（1行）」と「詳細な書き起こし」を分けて保存し（あとで複数日をAIに読ませる基礎資料）、写真のEXIF撮影時刻から朝食/昼食/夕食/間食に自動で振り分ける。時間帯は⚙で登録・区分は詳細で選び直せる（手で直したものは設定を変えても上書きしない）。⚠EXIFは縮小前の元ファイルから読む・「いま」に近いファイル時刻は信じない（HEIC変換の疑い）｜r34 📈分析の失敗もアプリが控える＝これまで toast が4秒で消えるだけで、失敗すると記録が1件も残らなかった（分析は成功した時にしか記録が生まれない）。時刻・文言・分類・HTTP・どのAI/モデル・期間・件数・待ち秒を直近5件残し、▶の上に「次の手」を出す（📋でまとめてコピー・やり直しても消えない）。次の手は読み取りと分析で言い分ける＝「一覧の🔁」は📈に無いボタン。型ボタンが2行に折り返していたので1行2つに｜r33 🔎詳細検索を開くと条件で画面が埋まり結果が見えなかった（実機の指摘）＝条件欄は画面の4割までにして中でスクロール・「🔍結果を見る（N件）」で畳んで結果へ・効いている条件はチップで見え1つずつ外せる。実機でヘッダの「レシート」が切れていたので狭い幅では🧾だけにする · 2026-08-14';
+const BUILD = 'r38-39 🍽似たサービス（Ate/YouAte/Shutterbite・あすけん/カロミル）を調べて2点。①写真だけで残る＝APIキーが無くても撮った写真は❌にせず「まだ書き起こしていない」として残し、あとから📝まとめて書き起こせる（⚠同じ理由で2回続けて失敗したら止める）。撮り方のコツ（大きさの分かるものを一緒に写す）も出す。②🗒ひとこと＝気分・誰と・なぜを1行残せる（AIが写真から絶対に取れない唯一の情報なので、深掘りでなくても📈に常に渡す）。週の下に「この週は N食（M日ぶん）」＝⚠連続日数や達成率にはしない（途切れた人を責めない）｜r37 📈分析に食事も渡す＝既定は要約だけ・「🔬詳細な書き起こしまで渡す」を入れた時だけ深掘り（毎回自動で乗るものと、押した時だけ払うものを分ける）。レシートが無くても食事だけで通る・書き起こせたものだけ渡す・何件どこまで渡したかを結果と一緒に残す。AIには「カロリーや栄養素の数値は入っていない（推定を事実のように書くな）」「買った物と食べた物は別なので無理に対応づけるな」と伝える。📤書き出しは詳細つき（押した時だけなので事情が違う）｜r36 📅食事の週カレンダー＋ドラッグ＝縦が日・横が朝/昼/夕/間食の7×4。写真を長押しして別の枠へ動かせる（別の日にも移せるが、その時は写真の日付も変わると言う・時刻は動かさない）。⚠<img>はブラウザが自前でドラッグを始めてpointercancelでポインタを取り上げるのでdraggable=falseで止める・⚠touch-action:noneは指が触れた瞬間に見られるので掴んだ後では遅い（掴んでいる間のtouchmoveを止める）・長押し250msの前に指が8px動いたらスクロールのつもりとみなす｜r35 🍽食事の記録を足した＝食事の写真をあげるとAIが「要約（1行）」と「詳細な書き起こし」を分けて保存し（あとで複数日をAIに読ませる基礎資料）、写真のEXIF撮影時刻から朝食/昼食/夕食/間食に自動で振り分ける。時間帯は⚙で登録・区分は詳細で選び直せる（手で直したものは設定を変えても上書きしない）。⚠EXIFは縮小前の元ファイルから読む・「いま」に近いファイル時刻は信じない（HEIC変換の疑い）｜r34 📈分析の失敗もアプリが控える＝これまで toast が4秒で消えるだけで、失敗すると記録が1件も残らなかった（分析は成功した時にしか記録が生まれない）。時刻・文言・分類・HTTP・どのAI/モデル・期間・件数・待ち秒を直近5件残し、▶の上に「次の手」を出す（📋でまとめてコピー・やり直しても消えない）。次の手は読み取りと分析で言い分ける＝「一覧の🔁」は📈に無いボタン。型ボタンが2行に折り返していたので1行2つに · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1088,6 +1107,7 @@ const AN_SYSTEM = `あなたは家計と食事の相談相手。渡されたデ�
 - amount は「茶碗1杯」のような見た目の量。⚠ **カロリーや栄養素の数値は入っていない**（写真からは分からないため意図的に持っていない）。**自分で推定した数値を、あたかもデータにあったかのように書かない**。栄養の話をする時は「何をどれくらいの頻度で食べているか」という数えられる事実から書く。
 - detail（詳細な書き起こし）は、深掘りを頼まれた時だけ入っている（detail_included で分かる）。入っていない時に中身を推測しない。
 - slot_decided_by が "human" の区分は本人が直したもの＝時刻より確か。"auto" は撮影時刻からの自動判定なので、ずれていることがある。
+- note は**本人が書いたひとこと**（気分・誰と・なぜ・体調など）。⚠ **写真からは絶対に分からないことが書いてある唯一の場所**なので、summary より重く扱う。書かれていない食事について、気分や事情を勝手に補わない。
 - レシート（買った物）と食事（食べた物）は**別のもの**。同じ日でも一致しない（外食のレシートが無い・作り置きを食べた等）ので、無理に対応づけない。片方にしか無いことは、そのまま片方の事実として書く。
 
 書き方:
@@ -1349,7 +1369,9 @@ const onMealPicked = async e => {
       const rec = { id: 'm' + Date.now() + Math.random().toString(36).slice(2, 7),
                     ts: shot.at, tsSrc: shot.src, addedAt: Date.now(),
                     slot: slotOfTime(shot.at), slotAuto: true,
-                    status: 'pending', img, thumb, data: null, error: null, errors: [], meta: null };
+                    // ⚠ キーが無い時に AI を呼びに行かない＝呼べば必ず失敗し、写真が ❌ で埋まる（r38）
+                    status: ctxFor('ocr').key ? 'pending' : 'todo',
+                    img, thumb, data: null, error: null, errors: [], meta: null };
       /* ⚠ 入る日は**写真の撮影時刻**で決まる＝見ている日と違うことがある（昨日の晩ごはんを今あげた等）。
          黙って別の日に入れると「撮ったのに出てこない」＝r32 で検索に踏んだのと同じ罠。
          → **その日へ移動して**、移動したことを言う。 */
@@ -1359,7 +1381,7 @@ const onMealPicked = async e => {
         toast(`📅 撮影日の ${md(day)} を表示しています（${SLOT_LABEL(rec.slot)}）`);
       }
       await mlPut(rec); await renderMeals();
-      runMealAnalysis(rec.id);   // 待たずに次の1枚へ
+      if (rec.status === 'pending') runMealAnalysis(rec.id);   // 待たずに次の1枚へ
     }
   } catch (err) { toast('取り込み失敗: ' + err.message); }
   finally { e.target.value = ''; }   // iOS の教訓: await の前に消さない
@@ -1368,6 +1390,8 @@ const onMealPicked = async e => {
 async function runMealAnalysis(id){
   let rec = await mlGet(id); if (!rec) return;
   const ctx = ctxFor('ocr');
+  // ⚠ キーが無いのは「失敗」ではない＝写真は残し、あとで書き起こせる状態にして戻る
+  if (!ctx.key) { rec.status = 'todo'; rec.error = null; await mlPut(rec); await renderMeals(); return 'nokey'; }
   rec.status = 'pending'; rec.error = null; await mlPut(rec); await renderMeals();
   try {
     const { data, meta } = await analyzeMeal(rec);
@@ -1380,6 +1404,7 @@ async function runMealAnalysis(id){
   }
   await mlPut(rec); await renderMeals();
   if (rec.status === 'error') toast('❌ ' + rec.error + '（理由は詳細に残しました）');
+  return rec.status;
 }
 
 /* ---------- 🍽 食事の画面（r35） ----------
@@ -1394,13 +1419,28 @@ const mlDayNow = () => mlDay || todayStr();
 const mealDate = m => ymdLocal(new Date(m.ts));            // 暦日で数える（撮った時刻がその日のどこか）
 const mealHM = m => { const d = new Date(m.ts); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
 // 一覧に出す1行の文言＝要約（まだ読めていない・失敗した時は、その状態を言う）
+/* ⚠ 「まだ書き起こしていない」を失敗と区別する（r38）。
+   ⚠ **写真そのものが記録**＝AI が読めていなくても、その日その時刻に何かを食べた事実は残っている。
+      キー未登録で撮った食事が全部 ❌ になっていたのは**嘘**（アプリが読まなかっただけで、失敗していない）。
+   似たサービスを調べて分かったことの反映＝「**写真だけ撮る習慣を先に作ると定着しやすい**」。
+   書き起こしはあとから、まとめてでよい。 */
 const mealLine = m => m.status === 'done' ? (m.data?.summary || '（書き起こしが空でした）')
+                    : m.status === 'todo'  ? '📷 写真だけ記録しました（まだ書き起こしていません）'
                     : m.status === 'error' ? '❌ 読み取りに失敗しました'
                     : '🤖 書き起こし中…';
+// 書き起こせる（＝まだ中身が無い）写真＝失って困るものが無いので、まとめてやり直してよい（r29 の線引き）
+const mealTodo = m => m.status === 'todo' || m.status === 'error';
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
+/* 📷 撮る入口の一言（r38）。⚠ 画面（週／1日）で言うことが違っても、**撮り方の話は同じ**なので1か所に持つ。
+   「大きさの分かるものを一緒に写す」は、似たサービスを調べて出てきた実用的な工夫＝
+   AI が amount（茶碗1杯など）を書けるかは、比べられるものが一緒に写っているかで決まる。 */
+const MEAL_TIP = () =>
+  '<br>📷 <b>撮り方のコツ</b>: 箸やスプーンなど<b>大きさの分かるものを一緒に写す</b>と、量まで書き起こせます。'
+  + '<b>まず撮るだけで大丈夫</b>です（書き起こしはあとからまとめてできます）。';
 
 async function renderMeals(){
   if (!isOpen('ovMeals')) return;                          // 開いていない画面は描かない（撮る途中で毎回呼ばれる）
+  await renderMlTodo();
   return mlView === 'week' ? renderWeek() : renderDay();
 }
 async function renderDay(){
@@ -1423,6 +1463,7 @@ async function renderDay(){
           const u = URL.createObjectURL(m.thumb); mlThumbUrls.push(u);
           return `<div class="mlCard" data-meal="${esc(m.id)}"><img src="${u}" alt="">`
             + `<div class="bd"><div class="t">${esc(mealLine(m))}</div>`
+            + (m.memo ? `<div class="t" style="color:var(--dim); font-size:12.5px">🗒 ${esc(m.memo)}</div>` : '')
             + `<div class="s">${mealHM(m)}${m.slotAuto ? '' : ' ・ ✏️ 手で直した'}`
             + `${m.tsSrc === 'now' ? ' ・ ⚠ 撮影時刻が読めず取り込んだ時刻' : ''}</div></div></div>`;
         }).join('')
@@ -1431,7 +1472,9 @@ async function renderDay(){
   }).join('');
   document.getElementById('mlNote').innerHTML = (await mlAll()).length
     ? '写真の<b>撮影時刻</b>で自動的に振り分けます（時間帯は ⚙ で変えられます）。違っていたら、その食事を開いて区分を選び直してください。'
-    : '食事の写真を選ぶと、写っているものを AI が書き起こして、<b>撮影時刻</b>から 朝食／昼食／夕食／間食 に振り分けます。';
+      + '<br>📷 <b>撮り方のコツ</b>: 箸やスプーンなど<b>大きさの分かるものを一緒に写す</b>と、量まで書き起こせます。'
+    : '食事の写真を選ぶと、写っているものを AI が書き起こして、<b>撮影時刻</b>から 朝食／昼食／夕食／間食 に振り分けます。'
+      + '<br>📷 <b>まず撮るだけで大丈夫です。</b>書き起こしは、あとからまとめてできます。';
 }
 /* ---------- 📅 週のカレンダー（r36） ----------
    縦が日・横が 朝/昼/夕/間食。⚠ 1日の画面（r35）は消さない＝要約を読むにはこちらが要る。
@@ -1453,16 +1496,76 @@ async function renderWeek(){
       const rows = all.filter(m => mealDate(m) === day && m.slot === slot);
       html += `<div class="cell" data-cell="${day}|${slot}">` + rows.map(m => {
         const u = URL.createObjectURL(m.thumb); mlThumbUrls.push(u);
-        return `<img class="mlThumb${m.status === 'pending' ? ' pend' : m.status === 'error' ? ' err' : ''}"`
+        return `<img class="mlThumb${m.status === 'pending' ? ' pend' : m.status === 'error' ? ' err' : m.status === 'todo' ? ' todo' : ''}"`
              + ` draggable="false" src="${u}" data-meal="${esc(m.id)}" alt="${esc(mealLine(m)).slice(0, 30)}"`
-             + ` title="${esc(mealHM(m))} ${esc(mealLine(m))}">`;
+             + ` title="${esc(mealHM(m))} ${esc(mealLine(m))}${m.memo ? ' 🗒 ' + esc(m.memo) : ''}">`;
       }).join('') + '</div>';
     }
   }
   document.getElementById('mlWeek').innerHTML = html + '</div>';
+  /* 📊 押さなくても返ってくる手応え（r39）。
+     ⚠ **連続記録日数・達成率・目標にしない**＝途切れた時に「続かなかった」を突きつける数字になり、
+        いちばん続けてほしい人から先にやめる。出すのは**事実だけ**（何食・何日・ひとことが何件）。
+     調べて出てきた「続かない本当の原因は、フィードバックが返ってこない仕組み」への答え。 */
+  // ⚠ 名前は days にしない＝この関数はもう「週の7日」を days で持っている（別責務には別名・CLAUDE.md の教訓）
+  const daysWith = new Set(all.map(mealDate)).size, memos = all.filter(m => m.memo).length;
   document.getElementById('mlNote').innerHTML =
-    '写真を<b>長押しして動かす</b>と、別の枠（朝／昼／夕／間食）へ移せます。<b>別の日</b>にも移せますが、その時は<b>写真の日付も変わります</b>。写真を<b>タップ</b>すると、書き起こしが読めます。';
+    (all.length ? `<b>この週は ${all.length}食（${daysWith}日ぶん）</b>${memos ? ` ・ 🗒 ひとこと ${memos}件` : ''}<br>` : '')
+    + '写真を<b>長押しして動かす</b>と、別の枠（朝／昼／夕／間食）へ移せます。<b>別の日</b>にも移せますが、その時は<b>写真の日付も変わります</b>。写真を<b>タップ</b>すると、書き起こしが読めます。'
+    + MEAL_TIP();
 }
+
+/* 📝 まとめて書き起こす（r38）。
+   ⚠ 対象は **todo と error だけ**＝どちらも「まだ中身が無い」写真なので、やり直しても失うものが無い
+      （r29 の線引き＝読めているものを壊せるボタンにしない）。
+   ⚠ **同じ理由で2回続けて失敗したら止める**＝キーが違う・モデルが無い、といった直らない理由で
+      溜まった写真ぶんの課金を全部使い切ってしまう。 */
+let mlBatch = null;
+async function renderMlTodo(){
+  const todos = (await mlAll()).filter(mealTodo);
+  const bar = document.getElementById('mlTodoBar'), btn = document.getElementById('btnMlBatch');
+  bar.hidden = !todos.length;
+  document.getElementById('btnMlBatchStop').hidden = !mlBatch;
+  if (!todos.length) return;
+  const hasKey = !!ctxFor('ocr').key;
+  btn.disabled = !hasKey || !!mlBatch;
+  btn.style.opacity = btn.disabled ? '.5' : '';
+  btn.textContent = mlBatch ? `📝 書き起こし中… ${mlBatch.done}/${mlBatch.total}`
+                            : `📝 まだ書き起こしていない ${todos.length}枚を書き起こす`;
+  document.getElementById('mlTodoNote').innerHTML = hasKey
+    ? '⚠ 枚数ぶん AI に送ります（1枚あたりの目安は ⚙ のモデルの説明にあります）。途中でやめられます。'
+    : '⚙ で <b>APIキーを登録</b>すると書き起こせます。<b>写真と時刻はもう残っている</b>ので、あとからで大丈夫です。';
+}
+document.getElementById('btnMlBatch').onclick = async () => {
+  if (mlBatch) return;
+  const todos = (await mlAll()).filter(mealTodo).sort((a, b) => a.ts - b.ts);
+  if (!todos.length) return;
+  mlBatch = { total: todos.length, done: 0, stop: false, lastTag: null, sameCount: 0 };
+  await renderMlTodo();
+  for (const m of todos) {
+    if (mlBatch.stop) break;
+    const st = await runMealAnalysis(m.id);
+    mlBatch.done++;
+    await renderMlTodo();
+    if (st === 'nokey') { toast('⚙ で APIキーを登録してください'); break; }
+    if (st === 'error') {
+      const tag = (await mlGet(m.id))?.errors?.slice(-1)[0]?.tag || 'other';
+      mlBatch.sameCount = tag === mlBatch.lastTag ? mlBatch.sameCount + 1 : 1;
+      mlBatch.lastTag = tag;
+      // ⚠ 同じ理由で2回続いた＝直らない理由。残り全部に同じ失敗を繰り返させない（課金も無駄）
+      if (mlBatch.sameCount >= 2) {
+        toast(`❌ 同じ理由で続けて失敗したので止めました（残り ${mlBatch.total - mlBatch.done}枚）`);
+        break;
+      }
+    } else mlBatch.sameCount = 0;
+  }
+  const done = mlBatch.done, stopped = mlBatch.stop;
+  mlBatch = null;
+  await renderMlTodo(); await renderMeals();
+  if (stopped) toast(`⏹ ${done}枚まで書き起こしました`);
+  else if (!(await mlAll()).filter(mealTodo).length) toast(`📝 ${done}枚を書き起こしました`);
+};
+document.getElementById('btnMlBatchStop').onclick = () => { if (mlBatch) mlBatch.stop = true; };
 
 document.getElementById('btnMeals').onclick = async () => { show('ovMeals'); await setMlView(mlView); };
 const mlGo = n => { mlDay = addDays(mlDayNow(), mlView === 'week' ? n * 7 : n);
@@ -1599,8 +1702,18 @@ function openMeal(m){
     `<button type="button" data-mlslot="${id}"${m.slot === id ? ' class="on"' : ''}>${icon} ${label}</button>`).join('');
   document.getElementById('mlDate').value = ymdLocal(d);
   document.getElementById('mlTime').value = mealHM(m);
+  document.getElementById('mlMemo').value = m.memo || '';
+  /* ⚠ 何のための欄かを言う＝空欄は埋めてもらえない。**AI が写真から取れないもの**だと分かれば書く気になる。
+     似たサービス（Ate / YouAte / Shutterbite）が揃って持っていたのが、この「任意の気分・状況メモ」だった。 */
+  document.getElementById('mlMemoNote').innerHTML =
+    'AI は写真から<b>料理は読めても、気分・誰と・なぜは読めません</b>。ここに書いたことは 📈 分析にそのまま渡ります。';
   const body = document.getElementById('mlBodyDetail');
   if (m.status === 'error') body.innerHTML = failureBlock(m);
+  else if (m.status === 'todo') body.innerHTML =
+    `<div class="note">📷 <b>写真だけ記録しています。</b>${ctxFor('ocr').key
+      ? '下の「📝 書き起こす」を押すと、AI が写真の中身を書き起こします。'
+      : '⚙ で APIキーを登録すると、書き起こせるようになります（<b>写真と時刻はもう残っています</b>）。'}</div>`
+    + `<button class="btn" id="btnMlRun"${ctxFor('ocr').key ? '' : ' disabled style="opacity:.5"'}>📝 この写真を書き起こす</button>`;
   else if (m.status !== 'done') body.innerHTML = '<div class="note">🤖 書き起こし中です…</div>';
   else {
     const it = (m.data?.items || []).map(x =>
@@ -1616,6 +1729,14 @@ function openMeal(m){
   document.getElementById('ovMeal').querySelector('.sheet').scrollTop = 0;
   show('ovMeal');
 }
+// 📝 1枚だけ書き起こす（詳細から）
+document.getElementById('mlBodyDetail').addEventListener('click', async e => {
+  if (!e.target.closest('#btnMlRun') || !mlCur) return;
+  const id = mlCur.id;
+  e.target.disabled = true; e.target.textContent = '🤖 書き起こし中…';
+  await runMealAnalysis(id);
+  const m = await mlGet(id); if (m) openMeal(m);
+});
 // 区分を手で変える（項目からのルート）
 document.getElementById('mlSlotSeg').addEventListener('click', async e => {
   const b = e.target.closest('[data-mlslot]'); if (!b || !mlCur) return;
@@ -1645,6 +1766,23 @@ async function setMealTime(id, dateStr, timeStr){
   const m = await setMealTime(mlCur.id, document.getElementById('mlDate').value, document.getElementById('mlTime').value);
   if (m) { openMeal(m); toast('⏱ 時刻を直しました'); }
 }));
+/* ⚠ 「保存」ボタンを置かない＝1行のメモに保存操作を求めると、たいてい書かれないまま閉じられる。
+   打ち終わった時（change）・打つ手が止まった時・画面を閉じる時に書く。 */
+let mlMemoTimer = null;
+async function saveMealMemo(){
+  if (!mlCur) return;
+  const v = document.getElementById('mlMemo').value.trim();
+  const m = await mlGet(mlCur.id); if (!m || (m.memo || '') === v) return;
+  m.memo = v || null;
+  await mlPut(m); mlCur = m; await renderMeals();
+}
+document.getElementById('mlMemo').addEventListener('change', saveMealMemo);
+document.getElementById('mlMemo').addEventListener('input', () => {
+  clearTimeout(mlMemoTimer); mlMemoTimer = setTimeout(saveMealMemo, 800);   // 打ち終わりを待って1回だけ書く
+});
+// ⚠ 閉じる時にも書く＝change が来ないまま ✕ を押されることがある（キーボードを出したまま閉じた時）
+document.getElementById('ovMeal').addEventListener('click', e => { if (e.target.closest('[data-close]')) saveMealMemo(); });
+
 document.getElementById('btnMlDel').onclick = async () => {
   if (!mlCur || !confirm('この食事の記録を削除しますか？（写真もいっしょに消えます）')) return;
   await mlDel(mlCur.id); hide('ovMeal'); mlCur = null; renderMeals();
@@ -1655,6 +1793,7 @@ document.getElementById('btnMlCopy').onclick = async () => {
   const m = mlCur, d = new Date(m.ts);
   const txt = `🍽 ${SLOT_LABEL(m.slot)}　${ymdLocal(d)} ${mealHM(m)}\n`
     + `要約: ${m.data?.summary || '（未読み取り）'}\n`
+    + (m.memo ? `ひとこと: ${m.memo}\n` : '')
     + (m.data?.items?.length ? `\n${m.data.items.map(x => `- [${x.kind || ''}] ${x.name}${x.amount ? `（${x.amount}）` : ''}${x.note ? ` ※${x.note}` : ''}`).join('\n')}\n` : '')
     + (m.data?.detail ? `\n詳細:\n${m.data.detail}\n` : '');
   try { await navigator.clipboard.writeText(txt); toast('📋 コピーしました'); }
@@ -3440,6 +3579,9 @@ function exportMealsJson(meals, withDetail){
     slot: SLOT_LABEL(m.slot),
     slot_decided_by: m.slotAuto ? 'auto' : 'human',   // 人が直したものは、時刻より区分の方が確か
     summary: m.data.summary || '',
+    /* ⚠ ひとことは**深掘りでなくても常に渡す**＝1件が数十文字と短く、しかも
+       「気分・誰と・なぜ」は AI が写真から絶対に取れない。要約を削ってでも残すべき側。 */
+    ...(m.memo ? { note: m.memo } : {}),
     items: (m.data.items || []).map(x => ({ name: x.name, kind: x.kind, amount: x.amount ?? null })),
     ...(withDetail ? { detail: m.data.detail || '' } : {}),
   }));
