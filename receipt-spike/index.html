@@ -433,6 +433,11 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
       <div class="note" style="margin-top:6px">健康診断の結果・献立の写真・食事のメモなど。<b>レシートのデータと突き合わせて</b>読みます（レシートだけでは分からない事情を渡せます）。</div>
       <div id="anAttList"></div></div>
 
+    <!-- 🍽 食事もいっしょに渡す（r37）。⚠ 既定は要約だけ＝深掘りは「その時だけ」払うもの -->
+    <div class="row" id="anMealRow" hidden><label>🍽 食事の記録</label>
+      <label class="anChk"><input type="checkbox" id="anMealChk"><span>この期間の<b>食事もいっしょに渡す</b>（<span id="anMealN"></span>）</span></label>
+      <label class="anChk"><input type="checkbox" id="anMealDetailChk"><span>🔬 <b>詳細な書き起こしまで渡す</b>（深掘り・送る量が増えます）</span></label>
+    </div>
     <div class="anAi" id="anAiLine"></div>
     <label class="anChk"><input type="checkbox" id="anSaveChk"><span>結果を自動で保存する（🗂 履歴に貯まります）</span></label>
     <!-- ⚠ 失敗の記録は ▶ の**上**（r34）＝押す前に「次に何をすればいいか」が読める位置に置く -->
@@ -615,7 +620,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r36 📅食事の週カレンダー＋ドラッグ＝縦が日・横が朝/昼/夕/間食の7×4。写真を長押しして別の枠へ動かせる（別の日にも移せるが、その時は写真の日付も変わると言う・時刻は動かさない）。⚠<img>はブラウザが自前でドラッグを始めてpointercancelでポインタを取り上げるのでdraggable=falseで止める・⚠touch-action:noneは指が触れた瞬間に見られるので掴んだ後では遅い（掴んでいる間のtouchmoveを止める）・長押し250msの前に指が8px動いたらスクロールのつもりとみなす｜r35 🍽食事の記録を足した＝食事の写真をあげるとAIが「要約（1行）」と「詳細な書き起こし」を分けて保存し（あとで複数日をAIに読ませる基礎資料）、写真のEXIF撮影時刻から朝食/昼食/夕食/間食に自動で振り分ける。時間帯は⚙で登録・区分は詳細で選び直せる（手で直したものは設定を変えても上書きしない）。⚠EXIFは縮小前の元ファイルから読む・「いま」に近いファイル時刻は信じない（HEIC変換の疑い）｜r34 📈分析の失敗もアプリが控える＝これまで toast が4秒で消えるだけで、失敗すると記録が1件も残らなかった（分析は成功した時にしか記録が生まれない）。時刻・文言・分類・HTTP・どのAI/モデル・期間・件数・待ち秒を直近5件残し、▶の上に「次の手」を出す（📋でまとめてコピー・やり直しても消えない）。次の手は読み取りと分析で言い分ける＝「一覧の🔁」は📈に無いボタン。型ボタンが2行に折り返していたので1行2つに｜r33 🔎詳細検索を開くと条件で画面が埋まり結果が見えなかった（実機の指摘）＝条件欄は画面の4割までにして中でスクロール・「🔍結果を見る（N件）」で畳んで結果へ・効いている条件はチップで見え1つずつ外せる。実機でヘッダの「レシート」が切れていたので狭い幅では🧾だけにする｜r32 🔍トップにレシートの横断検索＝ヘッダの🔍で開き、簡易検索（店名・品目・分類・住所・金額をまとめて／空白区切りは全部を含む）と、🔎項目を決めての詳細検索（期間・分類・店名・品目・金額の範囲・支払・種別）。件数と合計が出る・📷で撮ると検索は畳む · 2026-08-14';
+const BUILD = 'r37 📈分析に食事も渡す＝既定は要約だけ・「🔬詳細な書き起こしまで渡す」を入れた時だけ深掘り（毎回自動で乗るものと、押した時だけ払うものを分ける）。レシートが無くても食事だけで通る・書き起こせたものだけ渡す・何件どこまで渡したかを結果と一緒に残す。AIには「カロリーや栄養素の数値は入っていない（推定を事実のように書くな）」「買った物と食べた物は別なので無理に対応づけるな」と伝える。📤書き出しは詳細つき（押した時だけなので事情が違う）｜r36 📅食事の週カレンダー＋ドラッグ＝縦が日・横が朝/昼/夕/間食の7×4。写真を長押しして別の枠へ動かせる（別の日にも移せるが、その時は写真の日付も変わると言う・時刻は動かさない）。⚠<img>はブラウザが自前でドラッグを始めてpointercancelでポインタを取り上げるのでdraggable=falseで止める・⚠touch-action:noneは指が触れた瞬間に見られるので掴んだ後では遅い（掴んでいる間のtouchmoveを止める）・長押し250msの前に指が8px動いたらスクロールのつもりとみなす｜r35 🍽食事の記録を足した＝食事の写真をあげるとAIが「要約（1行）」と「詳細な書き起こし」を分けて保存し（あとで複数日をAIに読ませる基礎資料）、写真のEXIF撮影時刻から朝食/昼食/夕食/間食に自動で振り分ける。時間帯は⚙で登録・区分は詳細で選び直せる（手で直したものは設定を変えても上書きしない）。⚠EXIFは縮小前の元ファイルから読む・「いま」に近いファイル時刻は信じない（HEIC変換の疑い）｜r34 📈分析の失敗もアプリが控える＝これまで toast が4秒で消えるだけで、失敗すると記録が1件も残らなかった（分析は成功した時にしか記録が生まれない）。時刻・文言・分類・HTTP・どのAI/モデル・期間・件数・待ち秒を直近5件残し、▶の上に「次の手」を出す（📋でまとめてコピー・やり直しても消えない）。次の手は読み取りと分析で言い分ける＝「一覧の🔁」は📈に無いボタン。型ボタンが2行に折り返していたので1行2つに｜r33 🔎詳細検索を開くと条件で画面が埋まり結果が見えなかった（実機の指摘）＝条件欄は画面の4割までにして中でスクロール・「🔍結果を見る（N件）」で畳んで結果へ・効いている条件はチップで見え1つずつ外せる。実機でヘッダの「レシート」が切れていたので狭い幅では🧾だけにする · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -643,6 +648,8 @@ const AN = {
   preset: 'rcpt.an.preset', prompt: 'rcpt.an.prompt', save: 'rcpt.an.save',
   // r34: 分析の失敗の記録と、最後に成功した時刻（成功していれば失敗は畳んで出す）
   errors: 'rcpt.an.errors', okAt: 'rcpt.an.okAt',
+  // r37: 📈 に食事も渡すか／詳細まで渡すか（既定＝渡す・詳細は渡さない）
+  meals: 'rcpt.an.meals', mealDetail: 'rcpt.an.mealdetail',
 };
 // 🍽 食事（r35）。⚠ あの日 web と同一オリジンなので rcpt. 接頭辞は外さない
 const ML = { slots: 'rcpt.meal.slots', day: 'rcpt.meal.day', view: 'rcpt.meal.view' };
@@ -1064,7 +1071,7 @@ const MEAL_JOB = { name: 'meal',     schema: mealSchema,    rules: MEAL_RULES, m
 
 /* 📈 分析（r15）＝写真ではなく「溜まったレシートの文字データ」をまとめて読ませる時の頼み方。
    ⚠ 説教させない。家計のデータは弱みなので、責める文章が返ると次から開かなくなる（＝データも溜まらない）。 */
-const AN_SYSTEM = `あなたは家計の相談相手。渡されたレシートのデータ（JSON）だけを根拠に、日本語で答える。
+const AN_SYSTEM = `あなたは家計と食事の相談相手。渡されたデータ（レシートの JSON と、あれば食事の記録）だけを根拠に、日本語で答える。
 
 データについて:
 - レシートアプリの書き出し形式。金額は日本円の整数。kind が "income" は収入なので、支出の集計に混ぜない。
@@ -1075,6 +1082,13 @@ const AN_SYSTEM = `あなたは家計の相談相手。渡されたレシート�
 - 日付の集計には date（レシートの印字）を使う。captured_at は「撮った時刻」なので、後日まとめて撮ると買った日と食い違う。
 - date が null のレシートは、日付が要る話からは外す。
 - 画像・PDF・テキストが一緒に添付されていることがある。その時はレシートのデータと突き合わせて読む（レシートだけでは分からない事情がそこにある）。
+
+🍽 食事の記録（format: "meal-log"）が一緒に渡されることがある:
+- 食事の写真を書き起こしたもの。slot は 朝食/昼食/夕食/間食、summary はその食事の1行の要約、items は写っていた料理（name・kind・amount）。
+- amount は「茶碗1杯」のような見た目の量。⚠ **カロリーや栄養素の数値は入っていない**（写真からは分からないため意図的に持っていない）。**自分で推定した数値を、あたかもデータにあったかのように書かない**。栄養の話をする時は「何をどれくらいの頻度で食べているか」という数えられる事実から書く。
+- detail（詳細な書き起こし）は、深掘りを頼まれた時だけ入っている（detail_included で分かる）。入っていない時に中身を推測しない。
+- slot_decided_by が "human" の区分は本人が直したもの＝時刻より確か。"auto" は撮影時刻からの自動判定なので、ずれていることがある。
+- レシート（買った物）と食事（食べた物）は**別のもの**。同じ日でも一致しない（外食のレシートが無い・作り置きを食べた等）ので、無理に対応づけない。片方にしか無いことは、そのまま片方の事実として書く。
 
 書き方:
 - 見出し（##）・箇条書き（-）・太字（**）だけを使う。表・コードブロックは使わない。
@@ -2381,14 +2395,33 @@ async function shareTextOut(title, text, fileName, dialogTitle){
     if (!/cancel|abort|dismiss/i.test(m)) toast('渡せませんでした: ' + m); // 共有シートを閉じただけの時は黙る
   }
 }
+/* 📤 から外へ出す時の食事（r37）。⚠ こちらは**詳細も入れる**＝行き先が本人の Drive・本人が
+   選んだ AI アプリで、量の心配は本人が持てる。📈 が要約だけなのは「毎回・自動で乗る」からで、
+   ここは押した時だけなので事情が違う。 */
+async function exportMealsFor(from, to){
+  return (await mlAll()).filter(m => m.status === 'done' && m.data
+      && (!from || mealDate(m) >= from) && (!to || mealDate(m) <= to))
+    .sort((a, b) => a.ts - b.ts);
+}
+const withMealsText = (jsonText, meals, label) => jsonText + (meals.length
+  ? `\n\n--- 食事の記録（${label}・${meals.length}件・詳細つき） ---\n`
+    + JSON.stringify({ format: 'meal-log', version: 1, count: meals.length, detail_included: true,
+                       meals: exportMealsJson(meals, true) }, null, 1)
+  : '');
 document.getElementById('btnShareText').onclick = async () => {
   const { from, to, rows } = await exportTargets();
-  await shareTextOut('レシートデータ', exportJson(rows, from, to), expName(from, to, 'txt'), 'AIに渡す');
+  const meals = await exportMealsFor(from, to);
+  await shareTextOut('レシートと食事のデータ',
+    withMealsText(exportJson(rows, from, to), meals, `${from || ''}〜${to || ''}`),
+    expName(from, to, 'txt'), 'AIに渡す');
 };
 async function refreshExpCount(){
-  const { rows } = await exportTargets();
+  const { from, to, rows } = await exportTargets();
+  const meals = await exportMealsFor(from, to);
   const spend = rows.filter(x => x.rc.kind !== 'income' && x.rc.total != null).reduce((s, x) => s + x.rc.total, 0);
-  document.getElementById('expCount').textContent = `対象: ${rows.length}件 ${spend ? '/ 支出合計 ' + yen(spend) : ''}`;
+  document.getElementById('expCount').textContent =
+    `対象: レシート ${rows.length}件 ${spend ? '/ 支出合計 ' + yen(spend) + ' ' : ''}`
+    + (meals.length ? `/ 🍽 食事 ${meals.length}件` : '');
 }
 document.getElementById('expFrom').onchange = refreshExpCount;
 document.getElementById('expTo').onchange = refreshExpCount;
@@ -3230,7 +3263,7 @@ const AN_PRESETS = [
   ['review', '📊 ふりかえり',   'この期間の支出をふりかえって。目立つ特徴、前と比べて変わった点、気づいたことを3〜5個あげて。'],
   ['save',   '💡 節約のヒント', '減らせそうな支出を、無理のない順に3つ。それぞれ「いま いくら使っているか」と「次に何をすればいいか」を具体的に。'],
   // r16: 「🍚 食費をくわしく」から差し替え（金額の話は 📊 統計で見えるので、AI には数えられない側を聞く）
-  ['health', '🩺 健康の面から', '買っているものから、食生活について健康の面で気づくことを教えて。栄養の偏り・よく買っているもの・続けられている良い点も。医者の代わりではないので断定はしないで、気になる点は受診の目安として書いて。'],
+  ['health', '🩺 健康の面から', '買っているもの・食べているものから、食生活について健康の面で気づくことを教えて。栄養の偏り・よく買っているもの・続けられている良い点も。医者の代わりではないので断定はしないで、気になる点は受診の目安として書いて。'],
   ['store',  '🏪 お店のくせ',   'よく行くお店と、そこでの使い方の傾向を教えて。同じような物を別の店で買っている、といった無駄があれば指摘して。'],
   ['memo',   '🧾 月次メモ',     '家計簿に残す月次コメントを、事実ベースで200字程度で書いて。数字は正確に。'],
   ['free',   '✍️ 自由に書く',   ''],
@@ -3383,10 +3416,33 @@ document.getElementById('anAttList').addEventListener('click', e => {
 
 async function anTargets(){
   const per = anPeriod();
-  if (per.bad) return { per, rows: [] };
+  if (per.bad) return { per, rows: [], meals: [] };
   const rows = (await listRows()).filter(x => x.rc && (!per.from || x.date >= per.from) && (!per.to || x.date <= per.to))
                                  .sort((a, b) => a.date.localeCompare(b.date));
-  return { per, rows };
+  /* 🍽 食事も同じ期間で拾う（r37）。⚠ **書き起こせたものだけ**＝失敗した写真を渡しても
+     AI には「読めなかった」という事実しか無く、判断の材料にならない（件数だけ画面で言う）。 */
+  const meals = anMealsOn()
+    ? (await mlAll()).filter(m => m.status === 'done' && m.data
+        && (!per.from || mealDate(m) >= per.from) && (!per.to || mealDate(m) <= per.to))
+       .sort((a, b) => a.ts - b.ts)
+    : [];
+  return { per, rows, meals };
+}
+const anMealsOn      = () => localStorage.getItem(AN.meals) !== '0';        // 既定＝渡す
+const anMealDetailOn = () => localStorage.getItem(AN.mealDetail) === '1';   // 既定＝渡さない（深掘りの時だけ）
+/* 📈 に渡す食事のデータ（r37）。
+   ⚠ **既定は要約だけ**＝要望のとおり「基本は要約を渡し、深掘りの時に詳細を渡す」。
+      詳細は1件が数百文字あるので、1か月ぶんを常に乗せると**毎回の料金が数倍**になり、
+      しかも長すぎて肝心のところが薄まる。深掘りは「その時だけ」払うもの。 */
+function exportMealsJson(meals, withDetail){
+  return meals.map(m => ({
+    meal_id: m.id, date: mealDate(m), time: mealHM(m),
+    slot: SLOT_LABEL(m.slot),
+    slot_decided_by: m.slotAuto ? 'auto' : 'human',   // 人が直したものは、時刻より区分の方が確か
+    summary: m.data.summary || '',
+    items: (m.data.items || []).map(x => ({ name: x.name, kind: x.kind, amount: x.amount ?? null })),
+    ...(withDetail ? { detail: m.data.detail || '' } : {}),
+  }));
 }
 
 /* AI の返事を読める形に。⚠ 必ず先にエスケープしてから記法を戻す＝モデルの出力を HTML として実行させない。
@@ -3421,12 +3477,15 @@ async function renderAnalyze(){
   const cnt = document.getElementById('anCount');
   if (per.bad) cnt.innerHTML = `<span style="color:var(--err)">${esc(per.bad)}</span>`;
   else {
-    const { rows } = await anTargets();
-    const chars = rows.length ? exportJson(rows, per.from, per.to).length : 0;
+    const { rows, meals } = await anTargets();
+    const chars = (rows.length ? exportJson(rows, per.from, per.to).length : 0)
+                + (meals.length ? JSON.stringify(exportMealsJson(meals, anMealDetailOn())).length : 0);
     const spend = rows.filter(x => x.rc.kind !== 'income' && x.rc.total != null).reduce((s, x) => s + x.rc.total, 0);
-    cnt.innerHTML = !rows.length
-      ? `<b>${esc(per.label)}</b>：この期間にレシートがありません`
-      : `<b>${esc(per.label)}</b>：${rows.length}件${spend ? ' ・ 支出 ' + yen(spend) : ''} ・ 送るデータ 約${chars.toLocaleString('ja-JP')}文字`
+    cnt.innerHTML = !rows.length && !meals.length
+      ? `<b>${esc(per.label)}</b>：この期間にレシートも食事もありません`
+      : `<b>${esc(per.label)}</b>：レシート ${rows.length}件${spend ? ' ・ 支出 ' + yen(spend) : ''}`
+        + (meals.length ? ` ・ 🍽 食事 ${meals.length}件（${anMealDetailOn() ? '詳細つき' : '要約のみ'}）` : '')
+        + ` ・ 送るデータ 約${chars.toLocaleString('ja-JP')}文字`
         + (anAtt.length ? ` ＋ 📎${anAtt.length}件` : '')
         // ⚠ かかる時間は量とモデルで変わる＝固定の数字を約束しない（r26）。上限だけは決めてあると伝える
         // ⚠ ストリーミングにしたので「全体で何分」ではなく「沈黙が続いたら」が上限（r27）
@@ -3479,6 +3538,19 @@ async function renderAnalyze(){
     + `<button id="anGoSettings">⚙ 変える</button>`;
   document.getElementById('anGoSettings').onclick = () => { openSettings(); };
 
+  // 🍽 食事の渡し方（r37）＝食事が1件も無い端末には出さない（使わない設定を置かない）
+  const mealsAll = (await mlAll()).filter(m => m.status === 'done').length;
+  const mealRow = document.getElementById('anMealRow');
+  mealRow.hidden = !mealsAll;
+  if (mealsAll) {
+    const { meals } = await anTargets();
+    document.getElementById('anMealChk').checked = anMealsOn();
+    document.getElementById('anMealDetailChk').checked = anMealDetailOn();
+    // ⚠ 渡さない設定のまま「詳細も渡す」を触れるようにしない（効かない操作を置かない）
+    document.getElementById('anMealDetailChk').disabled = !anMealsOn();
+    document.getElementById('anMealDetailChk').closest('label').style.opacity = anMealsOn() ? '' : '.45';
+    document.getElementById('anMealN').textContent = anMealsOn() ? `この期間に ${meals.length}件` : 'いまは渡しません';
+  }
   document.getElementById('anSaveChk').checked = anSaveOn();
   renderAnErrs();   // r34: 押す前に「前回なぜ失敗したか・次に何をすればいいか」が読める
   const run = document.getElementById('btnAnRun');
@@ -3603,9 +3675,10 @@ document.getElementById('btnArDelete').onclick = async () => {
 
 async function anRun(){
   if (anBusy) return;
-  const { per, rows } = await anTargets();
+  const { per, rows, meals } = await anTargets();
   if (per.bad) { toast(per.bad); return; }
-  if (!rows.length) { toast('この期間にレシートがありません（期間を変えてください）'); return; }
+  // ⚠ レシートが無くても食事があれば通す（r37）＝食事だけを見たい日がある
+  if (!rows.length && !meals.length) { toast('この期間にレシートも食事もありません（期間を変えてください）'); return; }
   const prompt = document.getElementById('anPrompt').value.trim();
   if (!prompt) { toast('聞きたいことを書いてください（上の型を選ぶと入ります）'); return; }
   const ctx = ctxFor('an');
@@ -3618,7 +3691,15 @@ async function anRun(){
   anTick = setInterval(anTickUI, 1000);
   renderAnalyze();
   try {
-    const data = exportJson(rows, per.from, per.to);
+    /* ⚠ レシートの交換形式（exportJson）に食事を混ぜない＝あれは 📤 書き出しと同じ形で、
+       受け取る側（表計算・他アプリ）が version で解釈している。食事は**別の塊**として並べて渡す。 */
+    const data = exportJson(rows, per.from, per.to)
+      + (meals.length ? `\n\n--- 食事の記録（${per.label}・${meals.length}件`
+          + `${anMealDetailOn() ? '・詳細つき' : '・要約のみ'}） ---\n`
+          + JSON.stringify({ format: 'meal-log', version: 1, count: meals.length,
+                             detail_included: anMealDetailOn(),
+                             meals: exportMealsJson(meals, anMealDetailOn()) }, null, 1)
+        : '');
     // ⚠ 並びは「添付 → 依頼文＋データ」。長い材料を先に置き、聞きたいことを最後にする方が読み違いが少ない
     const parts = [];
     for (const a of anAtt) {
@@ -3657,6 +3738,8 @@ async function anRun(){
       period: { mode: anMode, from: per.from, to: per.to, label: per.label }, count: rows.length,
       // 添付の中身は保存しない（名前だけ）＝何を見せた上での答えかは残るが、DB は重くならない
       attachments: anAtt.map(a => ({ name: a.name, kind: a.kind })),
+      // r37: 食事を何件・どこまで渡したか＝同じ依頼でも答えが変わるので、結果と一緒に残す
+      meals: meals.length, mealDetail: meals.length ? anMealDetailOn() : null,
       provider: ctx.prov, model: r.model || ctx.model, in: r.in, out: r.out, text,
     };
     // 「設定すれば自動で貯まる」＝保存ボタンは置かない。オフの時だけ、その場限りだと明示する
@@ -3727,6 +3810,12 @@ document.getElementById('anFrom').onchange = e => { anFrom = e.target.value; loc
 document.getElementById('anTo').onchange   = e => { anTo   = e.target.value; localStorage.setItem(AN.to,   anTo);   renderAnalyze(); };
 document.getElementById('anPrompt').oninput = e => localStorage.setItem(AN.prompt, e.target.value);
 document.getElementById('anSaveChk').onchange = e => localStorage.setItem(AN.save, e.target.checked ? '1' : '0');
+document.getElementById('anMealChk').onchange = e => {
+  localStorage.setItem(AN.meals, e.target.checked ? '1' : '0'); renderAnalyze();
+};
+document.getElementById('anMealDetailChk').onchange = e => {
+  localStorage.setItem(AN.mealDetail, e.target.checked ? '1' : '0'); renderAnalyze();
+};
 function setAnTab(t){
   anTab = t;
   document.querySelectorAll('#anTabs button').forEach(b => b.classList.toggle('on', b.dataset.antab === t));
