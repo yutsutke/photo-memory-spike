@@ -13,8 +13,10 @@
 [hidden]{display:none !important;}
 body{margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 -apple-system,"Hiragino Sans",sans-serif; padding-bottom:90px;}
 header{position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:8px; padding:calc(env(safe-area-inset-top) + 10px) 14px 10px; background:rgba(17,17,17,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
-header h1{font-size:18px; margin:0; flex:1;}
-.hbtn{background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:8px 12px; font-size:16px;}
+/* ⚠ ボタンが増えるとタイトルが折り返す（r5 で一度踏んだ・r32 で 🔍 を足して再発）。
+   nowrap で折り返しを禁じ、ボタンの横 padding を詰めて 5個 + タイトルが 360px でも1行に収まるようにする。 */
+header h1{font-size:18px; margin:0; flex:1; white-space:nowrap; min-width:0;}
+.hbtn{background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:8px 9px; font-size:16px; flex:0 0 auto;}
 /* left:50%+translate だと使える幅が画面の半分になり、ボタン2つで文字が折り返す。左右0＋中央寄せにする（帯はタップを通さない） */
 #shoot{position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 14px); z-index:5; display:flex; justify-content:center; align-items:center; gap:10px; pointer-events:none;}
 #shoot label{pointer-events:auto; white-space:nowrap; display:flex; align-items:center; gap:8px; background:var(--acc); color:#04121f; font-weight:700; font-size:17px; border-radius:28px; padding:14px 26px; box-shadow:0 4px 16px rgba(0,0,0,.5);}
@@ -35,6 +37,18 @@ main{padding:10px 14px;}
 .rec .amt.inc{color:var(--ok);}
 .rec .st small{color:var(--dim); font-weight:400;}
 .chip{display:inline-block; font-size:11px; color:var(--dim); border:1px solid var(--line); border-radius:8px; padding:0 6px; margin-left:6px;}
+/* 🔍 横断検索（r32）。⚠ ヘッダの下に貼り付く＝スクロールしても条件と件数が見えている */
+#search{position:sticky; top:calc(env(safe-area-inset-top) + 52px); z-index:4; background:rgba(17,17,17,.96);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:10px 14px;}
+#search .sTop{display:flex; gap:8px; align-items:center;}
+#sText{flex:1; font-size:16px;}   /* ⚠ 16px 未満だと iOS が勝手に拡大する */
+#sClose{background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:10px;
+  font-size:16px; padding:0 12px; min-width:44px; min-height:44px;}
+#sAdv{margin-top:8px;} #sAdv summary{font-size:13px; color:var(--acc); cursor:pointer; padding:6px 0;}
+#sAdv .row{margin-bottom:8px;} #sAdv label{font-size:12px;}
+#sCats button.on{background:var(--acc); color:#fff;}
+#sHits{font-size:12.5px; color:var(--dim); margin-top:8px;}
+#sHits b{color:var(--fg);}
 /* 🏷 分類の管理（r31）。⚠ ✕ は指で当たる大きさにする（細いものは preview で当たっても実機で当たらない） */
 #catTags{display:flex; flex-wrap:wrap; gap:6px;}
 .catTag{display:inline-flex; align-items:center; gap:5px; font-size:13px; border:1px solid var(--line);
@@ -174,11 +188,42 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 <body>
 <header>
   <h1>🧾 レシート</h1>
+  <button class="hbtn" id="btnSearch" title="検索（店名・品目・分類・期間・金額）">🔍</button>
   <button class="hbtn" id="btnAnalyze" title="分析（期間を決めてAIに読ませる）">📈</button>
   <button class="hbtn" id="btnStats" title="統計（期間・分類・お店・推移）">📊</button>
   <button class="hbtn" id="btnExport" title="期間を指定して書き出し">📤</button>
   <button class="hbtn" id="btnSettings" title="設定">⚙</button>
 </header>
+
+<!-- 🔍 横断検索（r32）＝既定は 🔍 ボタンだけ。開いた時だけ広がり、閉じれば元の一覧に戻る -->
+<div id="search" hidden>
+  <div class="sTop">
+    <input id="sText" placeholder="店名・品目・分類・住所・金額…" autocomplete="off" enterkeyhint="search">
+    <button id="sClose" title="検索をやめる" aria-label="検索をやめる">✕</button>
+  </div>
+  <details id="sAdv"><summary>🔎 項目を決めて探す</summary>
+    <div class="dual">
+      <div class="row"><label>日付 から</label><input type="date" id="sFrom"></div>
+      <div class="row"><label>まで</label><input type="date" id="sTo"></div>
+    </div>
+    <div class="row"><label>分類（選んだものだけ・複数可）</label><div class="seg wrap" id="sCats"></div></div>
+    <div class="dual">
+      <div class="row"><label>店名</label><input id="sStore" autocomplete="off"></div>
+      <div class="row"><label>品目</label><input id="sItem" autocomplete="off"></div>
+    </div>
+    <div class="dual">
+      <div class="row"><label>金額 これ以上</label><input type="number" inputmode="numeric" id="sMin"></div>
+      <div class="row"><label>これ以下</label><input type="number" inputmode="numeric" id="sMax"></div>
+    </div>
+    <div class="dual">
+      <div class="row"><label>支払</label><input id="sPay" autocomplete="off"></div>
+      <div class="row"><label>種別</label><select id="sKind">
+        <option value="">すべて</option><option value="expense">支出</option><option value="income">収入</option></select></div>
+    </div>
+    <button class="btn" id="sReset">条件をぜんぶ消す</button>
+  </details>
+  <div id="sHits"></div>
+</div>
 
 <main><div id="list"></div></main>
 
@@ -441,7 +486,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r31 🏷分類（カテゴリ）を自分で足せる＝⚙で追加・削除（既定の8つはライフログ互換なので消せない）。足した分類は読み取りのスキーマにも入れてAIに渡す（次に撮ったレシートから使われる）。消しても既存レシートは書き換えない・✏️の選択肢にも残す｜r30 🧾読み取りに失敗した理由をアプリが控える＝失敗の履歴（時刻・文言・分類・HTTP・どのAI/モデル）を写真ごとに残す。一覧には短い理由・詳細には「次の手」を出し、📋この失敗の記録をコピーで丸ごと持ち出せる（🔁でやり直しても消えない）｜r29 🔁詳細の再分析を撤去（実機で失敗するうえ、失敗すると読めていた店名・金額が一覧や📊から消えて見えた＝読めているレシートを壊せるボタンだった）。読み直しは「読み取りに失敗した写真」だけ＝一覧の🔁に残す・直すのは✏️手で直す｜r28 🧾1枚の写真に2枚のレシートが写っていても、詳細はタップした1枚だけを出す（写真の下の 🧾 で隣の1枚へ・✏️と🗑もその1枚に効く・🗑は残りと写真を消さない）｜r27 📡分析をストリーミングに＝返事が届いた端から出る（1年分を賢いモデルに読ませても待ちが見える・長い沈黙で接続が切られにくい）。上限は「全体で何分」ではなく「何も届かない時間が3分」に変更・生成中は⏹だけ出す（未完成をコピー/共有させない） · 2026-08-14';
+const BUILD = 'r32 🔍トップにレシートの横断検索＝ヘッダの🔍で開き、簡易検索（店名・品目・分類・住所・金額をまとめて／空白区切りは全部を含む）と、🔎項目を決めての詳細検索（期間・分類・店名・品目・金額の範囲・支払・種別）。件数と合計が出る・📷で撮ると検索は畳む｜r31 🏷分類（カテゴリ）を自分で足せる＝⚙で追加・削除（既定の8つはライフログ互換なので消せない）。足した分類は読み取りのスキーマにも入れてAIに渡す（次に撮ったレシートから使われる）。消しても既存レシートは書き換えない・✏️の選択肢にも残す｜r30 🧾読み取りに失敗した理由をアプリが控える＝失敗の履歴（時刻・文言・分類・HTTP・どのAI/モデル）を写真ごとに残す。一覧には短い理由・詳細には「次の手」を出し、📋この失敗の記録をコピーで丸ごと持ち出せる（🔁でやり直しても消えない）｜r29 🔁詳細の再分析を撤去（実機で失敗するうえ、失敗すると読めていた店名・金額が一覧や📊から消えて見えた＝読めているレシートを壊せるボタンだった）。読み直しは「読み取りに失敗した写真」だけ＝一覧の🔁に残す・直すのは✏️手で直す｜r28 🧾1枚の写真に2枚のレシートが写っていても、詳細はタップした1枚だけを出す（写真の下の 🧾 で隣の1枚へ・✏️と🗑もその1枚に効く・🗑は残りと写真を消さない） · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -988,6 +1033,14 @@ async function analyzeReceipt(rec){
 /* ---------- 取り込み → 自動分析 ---------- */
 const onPhotoPicked = async e => {
   const files = [...e.target.files];
+  /* ⚠ 絞り込み中に撮ると、撮ったばかりの1枚が条件に合わず**一覧に出ない**＝壊れたように見える（r32）。
+        撮る＝いま増やす操作なので、検索の方を畳む。黙って畳むと条件が消えた理由が分からないので言う。
+     ⚠ ここで await しない（描き直しは下の取り込みループがやる）＝File 参照を触る前に await を挟まない iOS の作法（r1 の教訓）。 */
+  if (!document.getElementById('search').hidden) {
+    const wasFiltering = searchOn();
+    resetSearchUI();
+    if (wasFiltering) toast('🔍 撮った1枚を出すため、検索をやめました');
+  }
   try {
     for (const f of files) {
       // 2576px＝高解像度visionの上限。住所の印字は低解像度だと読めない（ライフログ実測: 1600pxでほぼ0%・4096pxで31%）
@@ -1189,11 +1242,55 @@ async function listRows(){
   return rows.sort((a, b) => b.date.localeCompare(a.date) || b.rec.ts - a.rec.ts);
 }
 
+/* ---------- 🔍 横断検索（r32） ----------
+   要望「トップページでレシートの横断検索。簡易検索と、項目を決めての詳細検索」。
+   ⚠ 探すのは**レシート1枚ずつ**（写真ではない）＝一覧の1行と同じ単位で数える。1枚の写真に2枚写っていれば、
+      片方だけが条件に合うことがある（r28 で「人が数える単位はレシート」と決めたのと同じ考え）。
+   ⚠ **読めていない写真（失敗・未読み取り）は絞り込み中は出さない**＝探せる文字がそもそも無い。
+      代わりに「除いた件数」を出す＝黙って消さない（失敗が視界から消えると、直す機会も消える）。
+   ⚠ 検索は保存しない（開くたびに空）。溜まったレシートを「今」探すための道具で、設定ではない。 */
+const SQ = { text: '', from: '', to: '', store: '', item: '', min: null, max: null, kind: '', pay: '', cats: new Set() };
+// 全角/半角・大文字小文字の違いで取りこぼさない（レシートの店名は全角が多い・打つのは半角）
+const sNorm = s => String(s == null ? '' : s).normalize('NFKC').toLowerCase();
+const searchOn = () => !!(SQ.text || SQ.from || SQ.to || SQ.store || SQ.item ||
+                          SQ.min != null || SQ.max != null || SQ.kind || SQ.pay || SQ.cats.size);
+// 簡易検索が見に行く文字＝その行に書いてあるものを全部混ぜる（どこに書いてあったかは問わない）
+const rowText = row => sNorm([row.rc.store, row.rc.branch, row.rc.category, row.rc.address, row.rc.payment,
+  row.rc.regno, row.date, row.rc.time, row.rc.total, (row.rc.items || []).map(i => i.name).join(' ')].join(' '));
+function matchRow(row){
+  const rc = row.rc;
+  if (!rc) return false;
+  if (SQ.from && row.date < SQ.from) return false;
+  if (SQ.to   && row.date > SQ.to)   return false;
+  if (SQ.cats.size && !SQ.cats.has(rc.category || CAT_ETC)) return false;
+  if (SQ.kind && (rc.kind === 'income' ? 'income' : 'expense') !== SQ.kind) return false;
+  // ⚠ 金額が読めていない（null）レシートは、金額で絞った時には出さない（0円扱いにしない）
+  if (SQ.min != null && !(rc.total != null && rc.total >= SQ.min)) return false;
+  if (SQ.max != null && !(rc.total != null && rc.total <= SQ.max)) return false;
+  if (SQ.store && !sNorm(`${rc.store || ''} ${rc.branch || ''}`).includes(sNorm(SQ.store))) return false;
+  if (SQ.item  && !(rc.items || []).some(i => sNorm(i.name).includes(sNorm(SQ.item)))) return false;
+  if (SQ.pay   && !sNorm(rc.payment).includes(sNorm(SQ.pay))) return false;
+  // 簡易検索は空白区切りで「全部を含む」（AND）＝絞り込みを足していく感覚に合う
+  if (SQ.text) {
+    const t = rowText(row);
+    if (!sNorm(SQ.text).split(/\s+/).filter(Boolean).every(w => t.includes(w))) return false;
+  }
+  return true;
+}
+
 async function renderList(){
-  const rows = await listRows();
+  const all = await listRows();
+  const on = searchOn();
+  const rows = on ? all.filter(matchRow) : all;
+  renderHits(all, rows, on);
   const list = document.getElementById('list');
   thumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
-  if (!rows.length) { list.innerHTML = '<div class="empty">📷 でレシートを撮ると、自動で読み取りが始まります。<br>まず ⚙ で APIキーを登録してください。</div>'; return; }
+  if (!rows.length) {
+    list.innerHTML = on
+      ? '<div class="empty">🔍 条件に合うレシートがありません。<br>言葉を減らすか、🔎 の条件を消してみてください。</div>'
+      : '<div class="empty">📷 でレシートを撮ると、自動で読み取りが始まります。<br>まず ⚙ で APIキーを登録してください。</div>';
+    return;
+  }
   let html = '', curMonth = '';
   for (const row of rows) {
     const m = row.date.slice(0, 7);
@@ -1237,6 +1334,75 @@ document.getElementById('list').addEventListener('click', e => {
   const row = e.target.closest('.rec');
   if (row) openDetail(row.dataset.id, +row.dataset.i || 0);
 });
+
+/* --- 🔍 検索の画面まわり（r32） --- */
+// 件数と合計を出す。⚠ 支出と収入は混ぜない（引き算した数字は、どちらでもない数字になる）
+function renderHits(all, rows, on){
+  const el = document.getElementById('sHits');
+  if (document.getElementById('search').hidden) { el.innerHTML = ''; return; }
+  if (!on) { el.innerHTML = '店名・品目・分類・住所・金額のどこかに当たります（空白で区切ると「全部を含む」）。'; return; }
+  const sum = k => rows.filter(x => (x.rc.kind === 'income') === k && x.rc.total != null).reduce((s, x) => s + x.rc.total, 0);
+  const spend = sum(false), inc = sum(true), skipped = all.filter(x => !x.rc).length;
+  el.innerHTML = `🔍 <b>${rows.length}件</b>`
+    + (spend ? ` ・ 支出 <b>${yen(spend)}</b>` : '') + (inc ? ` ・ 収入 <b>+${yen(inc)}</b>` : '')
+    // ⚠ 出していないものは黙って消さずに数を言う（失敗が視界から消えると直す機会も消える）
+    + (skipped ? `<br>⚠ まだ読めていない写真 ${skipped}件 は、絞り込み中は出していません` : '');
+}
+const S_IN = { sText: 'text', sFrom: 'from', sTo: 'to', sStore: 'store', sItem: 'item', sPay: 'pay', sKind: 'kind' };
+function readSearchInputs(){
+  Object.entries(S_IN).forEach(([id, k]) => { SQ[k] = document.getElementById(id).value.trim(); });
+  const num = id => { const v = document.getElementById(id).value.trim(), n = Math.round(+v);
+                      return v === '' || !Number.isFinite(n) ? null : n; };
+  SQ.min = num('sMin'); SQ.max = num('sMax');
+}
+let sTimer = null;
+const onSearchInput = () => {   // ⚠ 1文字ごとに全件描き直すと重い（1年分だと目に見えて遅れる）
+  clearTimeout(sTimer);
+  sTimer = setTimeout(async () => { readSearchInputs(); await renderList(); }, 150);
+};
+['sText', 'sStore', 'sItem', 'sPay', 'sMin', 'sMax'].forEach(id =>
+  document.getElementById(id).addEventListener('input', onSearchInput));
+['sFrom', 'sTo', 'sKind'].forEach(id =>
+  document.getElementById(id).addEventListener('change', async () => { readSearchInputs(); await renderList(); }));
+// 分類は「使われている件数」つきで出す＝押す前に、その分類に何件あるか分かる
+async function renderSearchCats(){
+  const rows = (await listRows()).filter(x => x.rc);
+  const n = c => rows.filter(x => (x.rc.category || CAT_ETC) === c).length;
+  const cats = [...new Set([...catList(), ...rows.map(x => x.rc.category || CAT_ETC)])];
+  document.getElementById('sCats').innerHTML = cats.map(c =>
+    `<button type="button" data-scat="${esc(c)}"${SQ.cats.has(c) ? ' class="on"' : ''}>${esc(c)}<small>${n(c)}</small></button>`).join('');
+}
+document.getElementById('sCats').onclick = async e => {
+  const b = e.target.closest('[data-scat]'); if (!b) return;
+  const c = b.dataset.scat;
+  SQ.cats.has(c) ? SQ.cats.delete(c) : SQ.cats.add(c);
+  b.classList.toggle('on', SQ.cats.has(c));
+  await renderList();
+};
+function clearSearch(){
+  Object.values(S_IN).forEach(k => { SQ[k] = ''; });
+  SQ.min = SQ.max = null; SQ.cats.clear();
+  [...Object.keys(S_IN), 'sMin', 'sMax'].forEach(id => { document.getElementById(id).value = ''; });
+}
+// 画面を畳むところまで（描き直しは含めない）＝📷 の取り込みからは await 無しで呼べる
+function resetSearchUI(){
+  clearSearch();
+  document.getElementById('search').hidden = true;
+  document.getElementById('sAdv').open = false;
+}
+async function closeSearch(){ resetSearchUI(); await renderList(); }
+document.getElementById('btnSearch').onclick = async () => {
+  const box = document.getElementById('search');
+  if (!box.hidden) { await closeSearch(); return; }   // もう一度押したら閉じる（＝条件も消える）
+  box.hidden = false;
+  await renderSearchCats();
+  await renderList();
+  document.getElementById('sText').focus();
+};
+document.getElementById('sClose').onclick = closeSearch;
+document.getElementById('sReset').onclick = async () => {   // 閉じずに条件だけ消す
+  clearSearch(); await renderSearchCats(); await renderList();
+};
 
 /* ---------- 詳細 ----------
    ⚠ 詳細は**タップした1枚だけ**を出す（r28）。1枚の写真に2枚のレシートが写っていると、
