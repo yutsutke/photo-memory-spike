@@ -20,6 +20,13 @@ header{position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:
 header h1{font-size:18px; margin:0; flex:0 1 auto; white-space:nowrap; min-width:0; overflow:hidden;}
 header .sp{flex:1;}
 @media (max-width:430px){ header h1 .ttl{display:none;} }
+/* r35 で 🍽 を足して6個になった。320px（iPhone SE 相当）ではボタンだけで幅を使い切り、
+   🧾 が 6px まで潰れていた（＝つぶれた絵文字が出る）。狭い時は隙間と余白を詰める。
+   ⚠ 実機の絵文字は Chromium より大きいので、詰めても足りなくなったら**ボタンを減らす**（畳んで隠す）方へ倒す。 */
+@media (max-width:360px){
+  header{gap:5px; padding-left:10px; padding-right:10px;}
+  .hbtn{padding:8px 6px;}
+}
 .hbtn{background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:8px 9px; font-size:16px; flex:0 0 auto;}
 /* left:50%+translate だと使える幅が画面の半分になり、ボタン2つで文字が折り返す。左右0＋中央寄せにする（帯はタップを通さない） */
 #shoot{position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 14px); z-index:5; display:flex; justify-content:center; align-items:center; gap:10px; pointer-events:none;}
@@ -97,7 +104,7 @@ details.adv summary{color:var(--dim); font-size:13.5px; margin-bottom:10px; curs
 .btn.pri{background:var(--acc); color:#04121f; font-weight:700; border:none;}
 .note{font-size:12.5px; color:var(--dim); margin-top:10px;}
 .note a{color:var(--acc);}
-#dImg{width:100%; border-radius:12px; background:#000; margin-bottom:10px;}
+#dImg,#mlImg{width:100%; border-radius:12px; background:#000; margin-bottom:10px;}
 .kv{display:flex; justify-content:space-between; border-bottom:1px solid var(--line); padding:6px 0; font-size:14.5px;}
 .kv span:first-child{color:var(--dim);}
 table.items{width:100%; border-collapse:collapse; font-size:13.5px; margin:8px 0;}
@@ -193,6 +200,28 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 .anAtt .nm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .anAtt .sz{color:var(--dim); font-size:12px; flex:none;}
 .anAtt button{flex:none; background:none; border:none; color:var(--dim); font-size:16px; padding:0 2px;}
+/* 🍽 食事（r35）＝日ごとに 朝食／昼食／夕食／間食 の4枠。枠は空でも出す（そこに入れられると分かる） */
+.mlNav{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+.mlNav button{background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:10px; padding:8px 12px; font-size:15px;}
+.mlNav .d{flex:1; text-align:center; font-size:15.5px; font-weight:600;}
+.mlNav .d small{display:block; font-weight:400; font-size:12px; color:var(--dim);}
+.mlSlot{border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:10px; background:var(--card);}
+.mlSlot>.h{display:flex; align-items:baseline; gap:8px; font-size:14.5px; font-weight:600; margin-bottom:8px;}
+.mlSlot>.h small{color:var(--dim); font-weight:400; font-size:12px;}
+.mlSlot>.h .n{margin-left:auto; color:var(--dim); font-weight:400; font-size:12.5px;}
+.mlCard{display:flex; gap:10px; align-items:center; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:8px; margin-bottom:6px;}
+.mlCard:last-child{margin-bottom:0;}
+.mlCard img{width:54px; height:54px; object-fit:cover; border-radius:8px; background:#000; flex:none;}
+.mlCard .bd{flex:1; min-width:0;}
+.mlCard .t{font-size:14px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.mlCard .s{font-size:11.5px; color:var(--dim); margin-top:3px;}
+.mlNone{color:var(--dim); font-size:12.5px; padding:4px 2px;}
+.mlItem{display:flex; gap:8px; font-size:14px; padding:6px 0; border-bottom:1px solid var(--line);}
+.mlItem .k{flex:none; color:var(--dim); font-size:12px; min-width:3.2em; padding-top:2px;}
+.mlItem .a{flex:none; color:var(--dim); font-size:12px; margin-left:auto; padding-top:2px;}
+.mlDetail{white-space:pre-wrap; font-size:14px; line-height:1.7;}
+/* 区分は4つ＝1行に並べる（3+1 に折れると「間食だけ別物」に見える）。名前は2文字なので入る */
+#mlSlotSeg button{flex:1 1 20%;}
 /* 🔎 地図の拡大表示（全画面）。⚠ Leaflet は容器の大きさが変わったら invalidateSize() が要る */
 #mapWrap{position:relative;}
 #mapWrap.full{position:fixed; inset:0; z-index:25; background:var(--bg);}
@@ -210,6 +239,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
   <h1>🧾&nbsp;<span class="ttl">レシート</span></h1>
   <span class="sp"></span>
   <button class="hbtn" id="btnSearch" title="検索（店名・品目・分類・期間・金額）">🔍</button>
+  <button class="hbtn" id="btnMeals" title="食事（朝・昼・夕・間食のカレンダー）">🍽</button>
   <button class="hbtn" id="btnAnalyze" title="分析（期間を決めてAIに読ませる）">📈</button>
   <button class="hbtn" id="btnStats" title="統計（期間・分類・お店・推移）">📊</button>
   <button class="hbtn" id="btnExport" title="期間を指定して書き出し">📤</button>
@@ -305,6 +335,13 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
     <label class="anChk"><input type="checkbox" id="autoGeoChk"><span>レシートの<b>印字住所から自動で場所を決める</b></span></label>
   </div>
   <div class="note">🌏 オンの間は、読み取りが終わるたびに<b>住所の文字だけ</b>を <b>国土地理院</b>（日本の住所に強い）へ送り、見つからなければ <b>OpenStreetMap</b> にも送って座標を返してもらいます（<b>写真・金額・品目は送りません</b>）。決まった位置は<b>この端末の中だけ</b>に保存されます。オフにすると、💴 の 🔎 ボタンを押した時だけ送ります。<b>見つからなかった住所・ずれている店は、💴 からタップして手で置けます</b>（手で置いた位置が優先されます）。⚠ 地理院でも<b>号（建物単位）までは出ません</b>＝同じ番地に複数の店があると重なります。</div>
+  <!-- 🍽 食事の時間帯（r35）＝撮影時刻から 朝／昼／夕 を決める。どれにも入らなければ間食 -->
+  <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
+    <label>🍽 食事の時間帯（写真の撮影時刻から自動で振り分けます）</label>
+    <div id="mlSlotCfg"></div>
+    <button class="btn" id="btnSlotReset" style="margin-top:8px">↩ 既定の時間帯に戻す</button>
+  </div>
+  <div class="note">どの時間帯にも入らなかったものは <b>🍪 間食</b>になります。⚠ 終わりが始まりより<b>前</b>なら日をまたぐ扱いです（例 22:00〜01:00）。⚠ ここを変えても、<b>すでに手で直した食事は変わりません</b>（人が決めたものを自動で上書きしません）。まだ手で直していないものは、時間帯を変えると振り分け直します。</div>
   <!-- 🏷 分類（r31）＝自分で足せる。足したものは読み取りの選択肢として AI にも渡す -->
   <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
     <label>🏷 分類（カテゴリ）</label>
@@ -395,6 +432,40 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
     </div>
     <div id="anHistBody"></div>
   </div>
+</div></div>
+
+<!-- 🍽 食事（r35）＝その日の 朝食／昼食／夕食／間食 -->
+<div class="overlay" id="ovMeals"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2>🍽 食事</h2>
+  <div class="mlNav">
+    <button id="mlPrev" aria-label="前の日">◀</button>
+    <div class="d" id="mlDayLbl"></div>
+    <button id="mlNext" aria-label="次の日">▶</button>
+  </div>
+  <div id="mlBody"></div>
+  <!-- ⚠ 撮る入口は「いま見ている日」の中に置かない＝写真の時刻で日が決まるので、
+       見ている日と入る日が違うことがある（そのことは撮ったあとに言う） -->
+  <label class="attBtn" style="margin-top:14px">🍽 食事の写真を選ぶ（複数可）
+    <input type="file" accept="image/*" multiple id="mealPick"></label>
+  <label class="attBtn" style="margin-top:8px">📷 いま食べるものを撮る
+    <input type="file" accept="image/*" capture="environment" id="mealShoot"></label>
+  <div class="note" id="mlNote"></div>
+</div></div>
+
+<!-- 🍽 食事の詳細（書き起こしと、区分の手直し） -->
+<div class="overlay" id="ovMeal"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2 id="mlTitle">🍽 食事</h2>
+  <img id="mlImg" alt="">
+  <div id="mlHead"></div>
+  <div class="row"><label>区分（自動で決めたものを、ここで変えられます）</label>
+    <div class="seg wrap" id="mlSlotSeg"></div></div>
+  <div class="dual">
+    <div class="row" style="flex:1"><label>日付</label><input type="date" id="mlDate"></div>
+    <div class="row" style="flex:1"><label>時刻</label><input type="time" id="mlTime"></div>
+  </div>
+  <div id="mlBodyDetail"></div>
+  <button class="btn" id="btnMlCopy">📋 この食事の記録をコピー</button>
+  <button class="btn" id="btnMlDel">🗑 この食事を削除</button>
 </div></div>
 
 <!-- 📈 分析の結果 -->
@@ -516,7 +587,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r34 📈分析の失敗もアプリが控える＝これまで toast が4秒で消えるだけで、失敗すると記録が1件も残らなかった（分析は成功した時にしか記録が生まれない）。時刻・文言・分類・HTTP・どのAI/モデル・期間・件数・待ち秒を直近5件残し、▶の上に「次の手」を出す（📋でまとめてコピー・やり直しても消えない）。次の手は読み取りと分析で言い分ける＝「一覧の🔁」は📈に無いボタン。型ボタンが2行に折り返していたので1行2つに｜r33 🔎詳細検索を開くと条件で画面が埋まり結果が見えなかった（実機の指摘）＝条件欄は画面の4割までにして中でスクロール・「🔍結果を見る（N件）」で畳んで結果へ・効いている条件はチップで見え1つずつ外せる。実機でヘッダの「レシート」が切れていたので狭い幅では🧾だけにする｜r32 🔍トップにレシートの横断検索＝ヘッダの🔍で開き、簡易検索（店名・品目・分類・住所・金額をまとめて／空白区切りは全部を含む）と、🔎項目を決めての詳細検索（期間・分類・店名・品目・金額の範囲・支払・種別）。件数と合計が出る・📷で撮ると検索は畳む｜r31 🏷分類（カテゴリ）を自分で足せる＝⚙で追加・削除（既定の8つはライフログ互換なので消せない）。足した分類は読み取りのスキーマにも入れてAIに渡す（次に撮ったレシートから使われる）。消しても既存レシートは書き換えない・✏️の選択肢にも残す｜r30 🧾読み取りに失敗した理由をアプリが控える＝失敗の履歴（時刻・文言・分類・HTTP・どのAI/モデル）を写真ごとに残す。一覧には短い理由・詳細には「次の手」を出し、📋この失敗の記録をコピーで丸ごと持ち出せる（🔁でやり直しても消えない） · 2026-08-14';
+const BUILD = 'r35 🍽食事の記録を足した＝食事の写真をあげるとAIが「要約（1行）」と「詳細な書き起こし」を分けて保存し（あとで複数日をAIに読ませる基礎資料）、写真のEXIF撮影時刻から朝食/昼食/夕食/間食に自動で振り分ける。時間帯は⚙で登録・区分は詳細で選び直せる（手で直したものは設定を変えても上書きしない）。⚠EXIFは縮小前の元ファイルから読む・「いま」に近いファイル時刻は信じない（HEIC変換の疑い）｜r34 📈分析の失敗もアプリが控える＝これまで toast が4秒で消えるだけで、失敗すると記録が1件も残らなかった（分析は成功した時にしか記録が生まれない）。時刻・文言・分類・HTTP・どのAI/モデル・期間・件数・待ち秒を直近5件残し、▶の上に「次の手」を出す（📋でまとめてコピー・やり直しても消えない）。次の手は読み取りと分析で言い分ける＝「一覧の🔁」は📈に無いボタン。型ボタンが2行に折り返していたので1行2つに｜r33 🔎詳細検索を開くと条件で画面が埋まり結果が見えなかった（実機の指摘）＝条件欄は画面の4割までにして中でスクロール・「🔍結果を見る（N件）」で畳んで結果へ・効いている条件はチップで見え1つずつ外せる。実機でヘッダの「レシート」が切れていたので狭い幅では🧾だけにする｜r32 🔍トップにレシートの横断検索＝ヘッダの🔍で開き、簡易検索（店名・品目・分類・住所・金額をまとめて／空白区切りは全部を含む）と、🔎項目を決めての詳細検索（期間・分類・店名・品目・金額の範囲・支払・種別）。件数と合計が出る・📷で撮ると検索は畳む｜r31 🏷分類（カテゴリ）を自分で足せる＝⚙で追加・削除（既定の8つはライフログ互換なので消せない）。足した分類は読み取りのスキーマにも入れてAIに渡す（次に撮ったレシートから使われる）。消しても既存レシートは書き換えない・✏️の選択肢にも残す · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -545,6 +616,8 @@ const AN = {
   // r34: 分析の失敗の記録と、最後に成功した時刻（成功していれば失敗は畳んで出す）
   errors: 'rcpt.an.errors', okAt: 'rcpt.an.okAt',
 };
+// 🍽 食事（r35）。⚠ あの日 web と同一オリジンなので rcpt. 接頭辞は外さない
+const ML = { slots: 'rcpt.meal.slots', day: 'rcpt.meal.day' };
 // r8 以前は Anthropic 決め打ち（rcpt.apiKey / rcpt.model）だった → 一度だけ引っ越す
 (function migrateSettings(){
   const k = localStorage.getItem('rcpt.apiKey'), m = localStorage.getItem('rcpt.model');
@@ -576,15 +649,19 @@ function ctxFor(role){
 /* ---------- IndexedDB（あの日と同一オリジン共有 → DB名で分離） ---------- */
 // v2（r12）で PLACES＝店舗マスタ（店ごとの位置を1回決めて覚える）を追加。既存の receipts はそのまま
 // v3（r15）で ANALYSES＝📈 分析の結果を貯める場所を追加（既存の2つはそのまま）
-const DB_NAME = 'receipt-spike', STORE = 'receipts', PLACES = 'places', ANALYSES = 'analyses';
+const DB_NAME = 'receipt-spike', STORE = 'receipts', PLACES = 'places', ANALYSES = 'analyses', MEALS = 'meals';
 let _db = null;
 function db(){ return _db ? Promise.resolve(_db) : new Promise((ok, ng) => {
-  const rq = indexedDB.open(DB_NAME, 3);
+  // v4（r35）で MEALS＝🍽 食事の記録を追加（既存の3つはそのまま）
+  const rq = indexedDB.open(DB_NAME, 4);
   rq.onupgradeneeded = () => {
     const d = rq.result;
     if (!d.objectStoreNames.contains(STORE))    d.createObjectStore(STORE,    { keyPath: 'id' });
     if (!d.objectStoreNames.contains(PLACES))   d.createObjectStore(PLACES,   { keyPath: 'key' });
     if (!d.objectStoreNames.contains(ANALYSES)) d.createObjectStore(ANALYSES, { keyPath: 'id' });
+    // ⚠ レシートと同じ箱に入れない＝別物（金額も店も無い・数え方も違う）。r28/r29 で
+    //    「1つの記録に2種類のものを入れると、効く範囲が分からなくなる」のは学んである
+    if (!d.objectStoreNames.contains(MEALS))    d.createObjectStore(MEALS,    { keyPath: 'id' });
   };
   rq.onsuccess = () => { _db = rq.result; ok(_db); };
   rq.onerror = () => ng(rq.error);
@@ -604,6 +681,10 @@ const plAll = ()  => tx(PLACES, 'readonly',  s => s.getAll());
 const anPut = a   => tx(ANALYSES, 'readwrite', s => s.put(a));
 const anDel = id  => tx(ANALYSES, 'readwrite', s => s.delete(id));
 const anAll = ()  => tx(ANALYSES, 'readonly',  s => s.getAll());
+const mlPut = m   => tx(MEALS, 'readwrite', s => s.put(m));
+const mlDel = id  => tx(MEALS, 'readwrite', s => s.delete(id));
+const mlGet = id  => tx(MEALS, 'readonly',  s => s.get(id));
+const mlAll = ()  => tx(MEALS, 'readonly',  s => s.getAll());
 
 /* ---------- 画像（iOS の教訓: createImageBitmap でなく <img>+<canvas>、URL は必ず revoke） ---------- */
 function loadImage(blob){ return new Promise((ok, ng) => {
@@ -625,6 +706,69 @@ async function downscale(blob, maxLong, quality){
     return out;
   } finally { URL.revokeObjectURL(url); }
 }
+/* ---------- 📸 いつ撮った写真か（r35） ----------
+   食事の区分（朝/昼/夕/間食）は**撮った時刻**で決まる。ここを取り違えると分類が全部狂う。
+   ⚠ `file.lastModified` は当てにならない＝iOS のフォトピッカーは HEIC を裏で JPEG に変換して渡すので、
+      **変換した瞬間の時刻**が入ることがある。つまり「昨日の晩ごはんを今あげた」が全部いまの時刻になる。
+   ⚠ canvas に描いた時点で EXIF は消える＝**縮小する前の元ファイル**から読む。
+   → JPEG の APP1(Exif) から DateTimeOriginal(0x9003) を読む。無ければ DateTime(0x0132)、
+     それも無ければ lastModified、最後に「いま」。⚠ どれを使ったかは記録に残す（あとで疑える）。 */
+function exifShotAt(buf){
+  const v = new DataView(buf);
+  if (v.byteLength < 4 || v.getUint16(0) !== 0xFFD8) return null;       // JPEG でなければ諦める
+  let p = 2;
+  while (p + 4 <= v.byteLength) {
+    if (v.getUint8(p) !== 0xFF) return null;                            // マーカーの並びが壊れている
+    const marker = v.getUint8(p + 1), size = v.getUint16(p + 2);
+    if (marker === 0xDA || marker === 0xD9) return null;                // 画像データに入った＝もう無い
+    if (marker === 0xE1 && p + 4 + 6 <= v.byteLength
+        && v.getUint32(p + 4) === 0x45786966) {                          // "Exif"
+      const tiff = p + 10;
+      const le = v.getUint16(tiff) === 0x4949;                          // II=リトル / MM=ビッグ
+      const u16 = o => v.getUint16(o, le), u32 = o => v.getUint32(o, le);
+      if (u16(tiff + 2) !== 0x002A) return null;
+      const str = (o, n) => { let s = ''; for (let i = 0; i < n - 1; i++) s += String.fromCharCode(v.getUint8(o + i)); return s; };
+      // IFD をたどって、探しているタグの値（ASCII）か、次の IFD への飛び先を拾う
+      const scan = (ifd, want) => {
+        if (ifd + 2 > v.byteLength) return null;
+        const n = u16(ifd);
+        let sub = null, hit = null;
+        for (let i = 0; i < n; i++) {
+          const e = ifd + 2 + i * 12; if (e + 12 > v.byteLength) break;
+          const tag = u16(e), cnt = u32(e + 4), off = tiff + u32(e + 8);
+          if (tag === 0x8769) sub = tiff + u32(e + 8);                  // ExifIFD へのポインタ
+          if (tag === want && cnt >= 19 && off + cnt <= v.byteLength) hit = str(off, cnt);
+        }
+        return { hit, sub };
+      };
+      const ifd0 = scan(tiff + u32(tiff + 4), 0x0132);                  // IFD0 の DateTime
+      const ex   = ifd0?.sub ? scan(ifd0.sub, 0x9003) : null;           // ExifIFD の DateTimeOriginal
+      const s = ex?.hit || ifd0?.hit;                                   // ⚠ 撮影時刻を優先（DateTime は加工した時刻のことがある）
+      if (!s) return null;
+      // "YYYY:MM:DD HH:MM:SS"＝**端末のローカル時刻**として読む（EXIF に時差は入っていない）
+      const m = s.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+      if (!m) return null;
+      const t = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime();
+      return Number.isFinite(t) ? t : null;
+    }
+    if (size < 2) return null;
+    p += 2 + size;
+  }
+  return null;
+}
+// 元ファイルから撮影時刻を決める。⚠ 何を根拠にしたかも返す（分類がおかしい時、まずここを疑う）
+async function shotAtOf(file){
+  try {
+    // 先頭 256KB に EXIF は収まる（全部読むと大きい写真でメモリを食う）
+    const head = await file.slice(0, 262144).arrayBuffer();
+    const at = exifShotAt(head);
+    if (at) return { at, src: 'exif' };
+  } catch (_) { /* 読めなくても止めない＝下の当てに落ちる */ }
+  if (file.lastModified && Math.abs(Date.now() - file.lastModified) > 60000)
+    return { at: file.lastModified, src: 'file' };   // ⚠ 1分以内＝変換直後の疑いが濃いので信じない
+  return { at: Date.now(), src: 'now' };
+}
+
 const blobToB64 = blob => new Promise((ok, ng) => {
   const r = new FileReader();
   r.onload = () => ok(String(r.result).split(',')[1]);
@@ -793,6 +937,71 @@ const receiptSchema = () => ({
   required: ['receipts'],
 });
 
+/* ---------- 🍽 食事（r35） ----------
+   レシートが「買った物」なら、こちらは「食べた物」。同じ機械（写真 → AI → 記録 → 期間で取り出す →
+   📈 分析）に乗るが、**別の箱**に入れる（金額も店も無い・数え方も違う）。
+   ⚠ この記録の用途は「あとで複数日ぶんを AI に読ませるための基礎資料」＝
+      **要約（いつも渡す）と詳細（深掘りの時だけ渡す）を分けて持つ**。1つの文章にすると、
+      渡すたびに全文が乗って高くつくか、削って深掘りができなくなるかのどちらかになる。 */
+const MEAL_SLOTS = [
+  ['breakfast', '朝食', '🌅'],
+  ['lunch',     '昼食', '🍱'],
+  ['dinner',    '夕食', '🌙'],
+  ['snack',     '間食', '🍪'],   // ⚠ 受け皿＝どの時間帯にも入らなかったもの（並びの最後に固定）
+];
+const SLOT_LABEL = s => (MEAL_SLOTS.find(x => x[0] === s) || [, '間食'])[1];
+const SLOT_ICON  = s => (MEAL_SLOTS.find(x => x[0] === s) || [,, '🍪'])[2];
+const SLOT_IDS   = MEAL_SLOTS.map(s => s[0]);
+// 既定の時間帯。⚠ 間食は時間帯を持たない（「どれにも入らなかった」が間食の定義）
+const SLOT_DEF = { breakfast: ['04:00', '10:30'], lunch: ['10:30', '15:00'], dinner: ['16:30', '23:59'] };
+const mealSlotCfg = () => {
+  try { const o = JSON.parse(localStorage.getItem(ML.slots) || 'null');
+        return (o && SLOT_IDS.slice(0, 3).every(k => Array.isArray(o[k]) && o[k].length === 2)) ? o : { ...SLOT_DEF }; }
+  catch (_) { return { ...SLOT_DEF }; }
+};
+const setMealSlotCfg = o => localStorage.setItem(ML.slots, JSON.stringify(o));
+const hm2min = s => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '')); return m ? +m[1] * 60 + +m[2] : null; };
+const min2hm = n => `${pad2(Math.floor(n / 60) % 24)}:${pad2(n % 60)}`;
+/* 撮った時刻から区分を決める。
+   ⚠ 終わりが始まりより前なら**日をまたぐ**とみなす（夕食 22:00〜01:00 のような登録を殺さない）。
+   ⚠ 重なっていたら朝→昼→夕の順で先に当たった方（黙って弾かず、順番を決めておく）。 */
+function slotOfTime(ts, cfg = mealSlotCfg()){
+  const d = new Date(ts), t = d.getHours() * 60 + d.getMinutes();
+  for (const k of SLOT_IDS.slice(0, 3)) {
+    const a = hm2min(cfg[k]?.[0]), b = hm2min(cfg[k]?.[1]);
+    if (a == null || b == null) continue;
+    if (a <= b ? (t >= a && t <= b) : (t >= a || t <= b)) return k;
+  }
+  return 'snack';
+}
+const MEAL_KINDS = ['主食', '主菜', '副菜', '汁物', '飲み物', '果物', '菓子', 'その他'];
+const mealSchema = () => ({
+  type: 'object', additionalProperties: false,
+  properties: {
+    summary: { type: 'string' },
+    detail:  { type: 'string' },
+    items: { type: 'array', items: {
+      type: 'object', additionalProperties: false,
+      properties: { name: { type: 'string' }, kind: { type: 'string', enum: MEAL_KINDS },
+                    amount: NULLABLE('string'), note: NULLABLE('string') },
+      required: ['name', 'kind', 'amount', 'note'],
+    } },
+  },
+  required: ['summary', 'detail', 'items'],
+});
+/* ⚠ いちばん大事な規則＝**数字を作らせない**。カロリーや栄養素は写真からは分からない。
+   分かるふりをした数字が混ざると、これを基礎資料にした後日の分析が丸ごと壊れる（しかも気付けない）。 */
+const MEAL_RULES = `あなたは食事写真の記録係。写真に写っている食べ物・飲み物を、あとで読み返せる形に書き起こす。
+
+ルール:
+- summary: 何を食べたかの1行（例「鮭の塩焼き、ごはん、味噌汁、ほうれん草のおひたし」）。40文字程度まで。料理名を並べる。感想・評価は書かない。
+- detail: 見えたものを丁寧に書き起こす。料理ごとに、使われている材料・調理法・量の見当・盛り付け・器・付け合わせ・飲み物まで。あとで人と AI がこれだけを読んで献立を思い出せる密度で。
+- items: 料理・飲み物を1つずつ。name は料理名、kind は ${MEAL_KINDS.join('/')} から選ぶ、amount は見た目の量（「茶碗1杯」「小鉢1つ」「グラス1杯」など。分からなければ null）、note は気付いたこと（無ければ null）。
+- 食べ物が写っていなければ items は空配列、summary は「食事は写っていません」にする。
+- ⚠ 写真から見えないものを足さない（袋や皿の下に隠れているもの、味、温度など）。「〜と思われる」で埋めない。
+- ⚠ **カロリー・栄養素・グラム数などの数値を出さない**。写真からは分からない。この記録は後日まとめて分析するための素材なので、当てずっぽうの数字が混ざると分析そのものが壊れる。量は「茶碗1杯」のように見たままの言い方で書く。
+- 日本語で書く。`;
+
 // OCRルール＝ライフログ(receipt関数のOCR_SYSTEM)の実運用で磨かれた規則を移植（布石フィールド分は除く）
 const OCR_RULES = `あなたはレシート読み取りの専門家。写真に写っているレシートから情報を抽出する。
 
@@ -817,6 +1026,13 @@ const OCR_RULES = `あなたはレシート読み取りの専門家。写真に�
 - regno: 「登録番号」「適格請求書発行事業者登録番号」として印字された、T で始まる13桁の番号（例: T1234567890123）。
   印字が無ければ必ず null。推測で作らない。電話番号・レシート番号・店舗コード・法人番号の見出しが無い数字は登録番号ではないので null。
   T が読めなくても13桁の数字が「登録番号」の見出しで印字されていれば、その数字を返す。`;
+
+/* 写真から読む「仕事」の一覧（r35）。⚠ スキーマは**呼ぶたびに作る**（r31 の教訓＝分類を足しても効かなくなる）。
+   ⚠ max_tokens は仕事ごとに違う＝食事の detail は文章なので、レシートの明細より短くて足りる。 */
+const OCR_JOB  = { name: 'receipts', schema: receiptSchema, rules: OCR_RULES,  maxTokens: 6000,
+                   ask: 'このレシート写真から情報を抽出して。' };
+const MEAL_JOB = { name: 'meal',     schema: mealSchema,    rules: MEAL_RULES, maxTokens: 3000,
+                   ask: 'この食事の写真を書き起こして。' };
 
 /* 📈 分析（r15）＝写真ではなく「溜まったレシートの文字データ」をまとめて読ませる時の頼み方。
    ⚠ 説教させない。家計のデータは弱みなので、責める文章が返ると次から開かなくなる（＝データも溜まらない）。 */
@@ -870,14 +1086,17 @@ const PROVIDERS = {
     // CORS は公式のオプトインヘッダで許可される
     headers: ctx => ({ 'content-type': 'application/json', 'x-api-key': ctx.key,
                        'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }),
-    async analyze(ctx, b64){
-      const output_config = { format: { type: 'json_schema', schema: receiptSchema() } };
+    /* job（r35）＝「何を読む仕事か」。既定はレシート、🍽 食事は別の job を渡す。
+       ⚠ 入口を2本に増やさず、**仕事を差し替えられる1本**にする＝JSONの頼み方の3段構え（r10）や
+          上限で切れた時の扱い（r17）を、食事のためにもう一度書き直さなくて済む。 */
+    async analyze(ctx, b64, job = OCR_JOB){
+      const output_config = { format: { type: 'json_schema', schema: job.schema() } };
       if (ctx.model !== 'claude-haiku-4-5') output_config.effort = 'low'; // effort は Haiku 4.5 非対応
       const res = await apiFetch(ctx, '/messages', { method: 'POST', timeoutMs: T_OCR, body: {
-        model: ctx.model, max_tokens: 6000, output_config, system: OCR_RULES,
+        model: ctx.model, max_tokens: job.maxTokens, output_config, system: job.rules,
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
-          { type: 'text', text: 'このレシート写真から情報を抽出して。' },
+          { type: 'text', text: job.ask },
         ] }],
       }});
       if (res.stop_reason === 'refusal') throw new Error('AI が分析を拒否しました（画像を確認してください）');
@@ -936,13 +1155,13 @@ function openAICompatible(o){
     defaultModel: '', // 決め打ちしない＝「🔄 使えるモデルの一覧を取得」で本人のアカウントの正解を入れる
     presets: [],
     headers: ctx => ({ 'content-type': 'application/json', authorization: 'Bearer ' + ctx.key, ...(o.extraHeaders || {}) }),
-    async analyze(ctx, b64){
+    async analyze(ctx, b64, job = OCR_JOB){
       /* JSONの頼み方は3段構え（r10）。厳密な型指定に対応していないサービスがあるため、
          断られたら緩い指定＋指示文に落とし、それも駄目なら指示文だけで頼む。通った形は覚えて次から一発。 */
-      const withSchemaText = OCR_RULES +
-        '\n\n出力は次の JSON スキーマに厳密に従った JSON だけを返す（説明文・コードブロックを付けない）:\n' + JSON.stringify(receiptSchema());
+      const withSchemaText = job.rules +
+        '\n\n出力は次の JSON スキーマに厳密に従った JSON だけを返す（説明文・コードブロックを付けない）:\n' + JSON.stringify(job.schema());
       const FORMATS = [
-        ['json_schema', { type: 'json_schema', json_schema: { name: 'receipts', strict: true, schema: receiptSchema() } }],
+        ['json_schema', { type: 'json_schema', json_schema: { name: job.name, strict: true, schema: job.schema() } }],
         ['json_object', { type: 'json_object' }],
         ['none', null],
       ];
@@ -952,12 +1171,12 @@ function openAICompatible(o){
       for (const [name, response_format] of order) {
         const body = {
           model: ctx.model,
-          [o.tokenParam || 'max_tokens']: 6000,
+          [o.tokenParam || 'max_tokens']: job.maxTokens,
           messages: [
-            { role: 'system', content: name === 'json_schema' ? OCR_RULES : withSchemaText },
+            { role: 'system', content: name === 'json_schema' ? job.rules : withSchemaText },
             { role: 'user', content: [
               { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64, detail: 'high' } },
-              { type: 'text', text: 'このレシート写真から情報を抽出して。' },
+              { type: 'text', text: job.ask },
             ] },
           ],
         };
@@ -1064,6 +1283,198 @@ async function analyzeReceipt(rec){
   return { data: parseJsonLoose(r.text),
            meta: { provider: ctx.prov, model: r.model || ctx.model, in: r.in, out: r.out, at: Date.now() } };
 }
+
+async function analyzeMeal(rec){
+  const ctx = ctxFor('ocr');   // 写真を読む仕事なので、読み取りと同じ AI・同じキーを使う
+  if (!ctx.model) throw new Error('読み取りモデルが未選択です（⚙ の詳細設定から選んでください）');
+  const r = await ctx.p.analyze(ctx, await blobToB64(rec.img), MEAL_JOB);
+  if (isCut(r.stop)) throw new Error('書き起こしが上限に達しました（料理が多い可能性）。⚙ の詳細設定で別のモデルもお試しください');
+  const d = parseJsonLoose(r.text);
+  return { data: { summary: String(d.summary || '').trim(), detail: String(d.detail || '').trim(),
+                   items: Array.isArray(d.items) ? d.items : [] },
+           meta: { provider: ctx.prov, model: r.model || ctx.model, in: r.in, out: r.out, at: Date.now() } };
+}
+
+/* 🍽 食事を取り込む（r35）。⚠ レシートと同じ入口にしない＝**撮る前に「どっちか」を決めている**ので、
+   1つの入口で撮らせて AI に見分けさせると、外した時に人が直せない（レシートの山に食事が紛れる）。 */
+const onMealPicked = async e => {
+  const files = [...e.target.files];
+  try {
+    for (const f of files) {
+      // ⚠ 縮小する前に撮影時刻を読む（canvas に描くと EXIF が消える）
+      const shot = await shotAtOf(f);
+      const [img, thumb] = [await downscale(f, 1568, 0.85), await downscale(f, 320, 0.7)];
+      const rec = { id: 'm' + Date.now() + Math.random().toString(36).slice(2, 7),
+                    ts: shot.at, tsSrc: shot.src, addedAt: Date.now(),
+                    slot: slotOfTime(shot.at), slotAuto: true,
+                    status: 'pending', img, thumb, data: null, error: null, errors: [], meta: null };
+      /* ⚠ 入る日は**写真の撮影時刻**で決まる＝見ている日と違うことがある（昨日の晩ごはんを今あげた等）。
+         黙って別の日に入れると「撮ったのに出てこない」＝r32 で検索に踏んだのと同じ罠。
+         → **その日へ移動して**、移動したことを言う。 */
+      const day = mealDate(rec);
+      if (day !== mlDayNow()) {
+        mlDay = day; localStorage.setItem(ML.day, mlDay);
+        toast(`📅 撮影日の ${md(day)} を表示しています（${SLOT_LABEL(rec.slot)}）`);
+      }
+      await mlPut(rec); await renderMeals();
+      runMealAnalysis(rec.id);   // 待たずに次の1枚へ
+    }
+  } catch (err) { toast('取り込み失敗: ' + err.message); }
+  finally { e.target.value = ''; }   // iOS の教訓: await の前に消さない
+};
+
+async function runMealAnalysis(id){
+  let rec = await mlGet(id); if (!rec) return;
+  const ctx = ctxFor('ocr');
+  rec.status = 'pending'; rec.error = null; await mlPut(rec); await renderMeals();
+  try {
+    const { data, meta } = await analyzeMeal(rec);
+    rec = await mlGet(id); if (!rec) return;                 // 分析中に消されたら破棄
+    rec.status = 'done'; rec.data = data; rec.meta = meta; rec.edited = null;
+  } catch (err) {
+    rec = await mlGet(id); if (!rec) return;
+    rec.status = 'error'; rec.error = String(err.message || err);
+    noteFailure(rec, err, ctx);   // 失敗の控え方はレシートと同じ（r30）＝やり直しても消えない
+  }
+  await mlPut(rec); await renderMeals();
+  if (rec.status === 'error') toast('❌ ' + rec.error + '（理由は詳細に残しました）');
+}
+
+/* ---------- 🍽 食事の画面（r35） ----------
+   ⚠ 枠は**空でも4つ全部出す**＝「そこに入れられる」ことが分かる。空を隠すと、間食だけの日が
+      「間食しか無い日」でなく「壊れた日」に見える。 */
+let mlDay = localStorage.getItem(ML.day) || '';            // いま見ている日（空＝今日）
+let mlCur = null;                                          // 詳細を開いている食事
+const mlThumbUrls = [];                                    // ⚠ 一覧（レシート）と別に持つ＝互いに revoke し合わない
+const mlDayNow = () => mlDay || todayStr();
+const mealDate = m => ymdLocal(new Date(m.ts));            // 暦日で数える（撮った時刻がその日のどこか）
+const mealHM = m => { const d = new Date(m.ts); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+// 一覧に出す1行の文言＝要約（まだ読めていない・失敗した時は、その状態を言う）
+const mealLine = m => m.status === 'done' ? (m.data?.summary || '（書き起こしが空でした）')
+                    : m.status === 'error' ? '❌ 読み取りに失敗しました'
+                    : '🤖 書き起こし中…';
+const WD = ['日', '月', '火', '水', '木', '金', '土'];
+
+async function renderMeals(){
+  if (!isOpen('ovMeals')) return;                          // 開いていない画面は描かない（撮る途中で毎回呼ばれる）
+  const day = mlDayNow();
+  const all = (await mlAll()).filter(m => mealDate(m) === day)
+                             .sort((a, b) => a.ts - b.ts);
+  const d = new Date(day + 'T00:00:00');
+  document.getElementById('mlDayLbl').innerHTML =
+    `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}（${WD[d.getDay()]}）`
+    + `<small>${day === todayStr() ? '今日' : `${Math.round((new Date(todayStr() + 'T00:00:00') - d) / 86400000)}日前`}`
+    + `${all.length ? ` ・ ${all.length}枚` : ''}</small>`;
+  mlThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
+  document.getElementById('mlBody').innerHTML = MEAL_SLOTS.map(([id, label, icon]) => {
+    const rows = all.filter(m => m.slot === id);
+    const cfg = mealSlotCfg()[id];
+    return `<div class="mlSlot" data-slot="${id}">
+      <div class="h">${icon} ${label}${cfg ? `<small>${esc(cfg[0])}〜${esc(cfg[1])}</small>` : '<small>時間帯の外</small>'}`
+      + `<span class="n">${rows.length ? `${rows.length}枚` : ''}</span></div>`
+      + (rows.length ? rows.map(m => {
+          const u = URL.createObjectURL(m.thumb); mlThumbUrls.push(u);
+          return `<div class="mlCard" data-meal="${esc(m.id)}"><img src="${u}" alt="">`
+            + `<div class="bd"><div class="t">${esc(mealLine(m))}</div>`
+            + `<div class="s">${mealHM(m)}${m.slotAuto ? '' : ' ・ ✏️ 手で直した'}`
+            + `${m.tsSrc === 'now' ? ' ・ ⚠ 撮影時刻が読めず取り込んだ時刻' : ''}</div></div></div>`;
+        }).join('')
+      : '<div class="mlNone">まだありません</div>')
+      + '</div>';
+  }).join('');
+  document.getElementById('mlNote').innerHTML = (await mlAll()).length
+    ? '写真の<b>撮影時刻</b>で自動的に振り分けます（時間帯は ⚙ で変えられます）。違っていたら、その食事を開いて区分を選び直してください。'
+    : '食事の写真を選ぶと、写っているものを AI が書き起こして、<b>撮影時刻</b>から 朝食／昼食／夕食／間食 に振り分けます。';
+}
+document.getElementById('btnMeals').onclick = async () => { show('ovMeals'); await renderMeals(); };
+const mlGo = n => { mlDay = addDays(mlDayNow(), n); localStorage.setItem(ML.day, mlDay); renderMeals(); };
+document.getElementById('mlPrev').onclick = () => mlGo(-1);
+document.getElementById('mlNext').onclick = () => mlGo(1);
+document.getElementById('mlBody').addEventListener('click', async e => {
+  const c = e.target.closest('[data-meal]'); if (!c) return;
+  const m = await mlGet(c.dataset.meal); if (m) openMeal(m);
+});
+['mealPick', 'mealShoot'].forEach(id => document.getElementById(id).addEventListener('change', onMealPicked));
+
+/* 詳細＝書き起こしを読む場所であり、区分を**項目から**直す場所（r36 でドラッグの道も足す）。
+   ⚠ 区分を手で変えたら `slotAuto=false` を立てる＝あとで時間帯の設定を変えても、
+      **人が決めたものを勝手に上書きしない**（自動の親切で手直しが消えるのが一番腹立たしい）。 */
+function openMeal(m){
+  mlCur = m;
+  const img = document.getElementById('mlImg');
+  if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
+  const u = URL.createObjectURL(m.img); img.src = u; img.dataset.url = u;
+  document.getElementById('mlTitle').textContent = `${SLOT_ICON(m.slot)} ${SLOT_LABEL(m.slot)}`;
+  const d = new Date(m.ts);
+  document.getElementById('mlHead').innerHTML =
+    `<div class="note" style="margin-top:0">${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}（${WD[d.getDay()]}）${mealHM(m)}`
+    + `${m.tsSrc === 'exif' ? ' ・ 写真の撮影時刻' : m.tsSrc === 'file' ? ' ・ ファイルの時刻' : ' ・ ⚠ 撮影時刻が読めなかったので取り込んだ時刻'}`
+    + `${m.meta ? ` ・ ${esc(m.meta.model || '')}` : ''}</div>`;
+  document.getElementById('mlSlotSeg').innerHTML = MEAL_SLOTS.map(([id, label, icon]) =>
+    `<button type="button" data-mlslot="${id}"${m.slot === id ? ' class="on"' : ''}>${icon} ${label}</button>`).join('');
+  document.getElementById('mlDate').value = ymdLocal(d);
+  document.getElementById('mlTime').value = mealHM(m);
+  const body = document.getElementById('mlBodyDetail');
+  if (m.status === 'error') body.innerHTML = failureBlock(m);
+  else if (m.status !== 'done') body.innerHTML = '<div class="note">🤖 書き起こし中です…</div>';
+  else {
+    const it = (m.data?.items || []).map(x =>
+      `<div class="mlItem"><span class="k">${esc(x.kind || '')}</span><span>${esc(x.name || '')}`
+      + `${x.note ? `<br><small style="color:var(--dim)">${esc(x.note)}</small>` : ''}</span>`
+      + `<span class="a">${esc(x.amount || '')}</span></div>`).join('');
+    body.innerHTML = `<div class="row"><label>要約（📈 分析にはこれを渡します）</label>
+        <div class="mlDetail">${esc(m.data.summary || '')}</div></div>`
+      + (it ? `<div class="row"><label>写っていたもの</label>${it}</div>` : '')
+      + `<details class="adv"><summary>📄 詳細な書き起こし（深掘りの時に渡します）</summary>
+        <div class="mlDetail">${esc(m.data.detail || '')}</div></details>`;
+  }
+  document.getElementById('ovMeal').querySelector('.sheet').scrollTop = 0;
+  show('ovMeal');
+}
+// 区分を手で変える（項目からのルート）
+document.getElementById('mlSlotSeg').addEventListener('click', async e => {
+  const b = e.target.closest('[data-mlslot]'); if (!b || !mlCur) return;
+  await setMealSlot(mlCur.id, b.dataset.mlslot);
+  const m = await mlGet(mlCur.id); if (m) openMeal(m);
+});
+// ⚠ 区分の書き換えは1か所に集める＝r36 でドラッグの道が増えても、決まりが2つに割れない
+async function setMealSlot(id, slot){
+  const m = await mlGet(id); if (!m || !SLOT_IDS.includes(slot) || m.slot === slot) return null;
+  m.slot = slot; m.slotAuto = false;
+  await mlPut(m); await renderMeals();
+  return m;
+}
+/* 日時を直す＝**区分も付いてくる**か？ ⚠ 付いてこさせない。人が区分を決めたあとに時刻だけ直した時、
+   決めた区分が消えるのが一番困る。⚠ ただし自動のまま（slotAuto）なら、直した時刻で決め直す。 */
+async function setMealTime(id, dateStr, timeStr){
+  const m = await mlGet(id); if (!m) return null;
+  const t = new Date(`${dateStr}T${timeStr || '00:00'}:00`).getTime();
+  if (!Number.isFinite(t)) { toast('日付か時刻が読めませんでした'); return null; }
+  m.ts = t; m.tsSrc = 'manual';
+  if (m.slotAuto) m.slot = slotOfTime(t);
+  await mlPut(m); await renderMeals();
+  return m;
+}
+['mlDate', 'mlTime'].forEach(id => document.getElementById(id).addEventListener('change', async () => {
+  if (!mlCur) return;
+  const m = await setMealTime(mlCur.id, document.getElementById('mlDate').value, document.getElementById('mlTime').value);
+  if (m) { openMeal(m); toast('⏱ 時刻を直しました'); }
+}));
+document.getElementById('btnMlDel').onclick = async () => {
+  if (!mlCur || !confirm('この食事の記録を削除しますか？（写真もいっしょに消えます）')) return;
+  await mlDel(mlCur.id); hide('ovMeal'); mlCur = null; renderMeals();
+};
+// 📋＝あとで人が AI に貼るための形。⚠ 要約と詳細の両方を出す（この画面は「深掘り」の場所）
+document.getElementById('btnMlCopy').onclick = async () => {
+  if (!mlCur) return;
+  const m = mlCur, d = new Date(m.ts);
+  const txt = `🍽 ${SLOT_LABEL(m.slot)}　${ymdLocal(d)} ${mealHM(m)}\n`
+    + `要約: ${m.data?.summary || '（未読み取り）'}\n`
+    + (m.data?.items?.length ? `\n${m.data.items.map(x => `- [${x.kind || ''}] ${x.name}${x.amount ? `（${x.amount}）` : ''}${x.note ? ` ※${x.note}` : ''}`).join('\n')}\n` : '')
+    + (m.data?.detail ? `\n詳細:\n${m.data.detail}\n` : '');
+  try { await navigator.clipboard.writeText(txt); toast('📋 コピーしました'); }
+  catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
+};
 
 /* ---------- 取り込み → 自動分析 ---------- */
 const onPhotoPicked = async e => {
@@ -3210,9 +3621,45 @@ document.getElementById('catTags').onclick = async e => {
   toast(`🏷 「${name}」を選択肢から外しました`);
 };
 
+/* ---------- 🍽 食事の時間帯の設定（r35） ----------
+   ⚠ 変えたら、**まだ手で直していない食事だけ**を振り分け直す。手で直したもの（slotAuto=false）は触らない。
+   ⚠ 何件が動いたかを言う＝黙って過去が書き換わると、自分の記録なのに信用できなくなる。 */
+function renderSlotCfg(){
+  const cfg = mealSlotCfg();
+  document.getElementById('mlSlotCfg').innerHTML = MEAL_SLOTS.slice(0, 3).map(([id, label, icon]) =>
+    `<div class="dual" style="align-items:center; margin-top:6px">
+      <div style="flex:0 0 5.5em; font-size:14px">${icon} ${label}</div>
+      <input type="time" data-slotfrom="${id}" value="${esc(cfg[id][0])}" style="flex:1">
+      <div style="flex:0 0 auto; color:var(--dim)">〜</div>
+      <input type="time" data-slotto="${id}" value="${esc(cfg[id][1])}" style="flex:1">
+    </div>`).join('');
+}
+async function applySlotCfg(cfg){
+  setMealSlotCfg(cfg);
+  const all = await mlAll();
+  let moved = 0;
+  for (const m of all) {
+    if (!m.slotAuto) continue;                 // ⚠ 人が決めたものは触らない
+    const s = slotOfTime(m.ts, cfg);
+    if (s !== m.slot) { m.slot = s; await mlPut(m); moved++; }
+  }
+  renderSlotCfg(); renderMeals();
+  if (moved) toast(`🍽 ${moved}件を振り分け直しました（手で直したものはそのままです）`);
+}
+document.getElementById('mlSlotCfg').addEventListener('change', async e => {
+  const el = e.target.closest('[data-slotfrom],[data-slotto]'); if (!el) return;
+  const cfg = mealSlotCfg();
+  const id = el.dataset.slotfrom || el.dataset.slotto;
+  if (!el.value) { renderSlotCfg(); return toast('時刻を空にはできません'); }   // ⚠ 空＝全部が間食になる事故
+  cfg[id] = el.dataset.slotfrom ? [el.value, cfg[id][1]] : [cfg[id][0], el.value];
+  await applySlotCfg(cfg);
+});
+document.getElementById('btnSlotReset').onclick = () => applySlotCfg({ ...SLOT_DEF });
+
 function openSettings(){
   renderSettings();
   renderCatTags();
+  renderSlotCfg();
   document.getElementById('noteStore').innerHTML = IS_NATIVE
     ? '📱 <b>アプリ版</b>で動作中＝データは端末のアプリ領域に保存され、ブラウザの自動削除の対象外です（消えるのはアプリを削除した時）。'
     : '⚠ <b>ブラウザ版</b>です。iPhone の Safari は<b>7日間サイトを開かないとデータ（キーとレシート）を消す</b>ことがあります。<b>ホーム画面に追加</b>するか、アプリ版を使ってください。';
