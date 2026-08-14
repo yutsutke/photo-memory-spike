@@ -424,7 +424,7 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 
 <script>
 'use strict';
-const BUILD = 'r29 🔁詳細の再分析を撤去（実機で失敗するうえ、失敗すると読めていた店名・金額が一覧や📊から消えて見えた＝読めているレシートを壊せるボタンだった）。読み直しは「読み取りに失敗した写真」だけ＝一覧の🔁に残す・直すのは✏️手で直す｜r28 🧾1枚の写真に2枚のレシートが写っていても、詳細はタップした1枚だけを出す（写真の下の 🧾 で隣の1枚へ・✏️と🗑もその1枚に効く・🗑は残りと写真を消さない）｜r27 📡分析をストリーミングに＝返事が届いた端から出る（1年分を賢いモデルに読ませても待ちが見える・長い沈黙で接続が切られにくい）。上限は「全体で何分」ではなく「何も届かない時間が3分」に変更・生成中は⏹だけ出す（未完成をコピー/共有させない）｜r26 ⏱待ち時間の扱いを直す＝これまでアプリ側に制限時間が無く固まっても分からなかった。固定の「30秒ほど」をやめ経過秒を出す／⏹やめるを置く／読み取り3分・分析5分で打ち切り（理由の分かる文言で）｜r25 🗾住所の検索を国土地理院優先に（日本の住所は丁目・番＝街区まで座標が出る。見つからなければOpenStreetMapへ）＋▶の下の説明を送信内容に合わせて出し分け（📎を選んでいる時は「レシートの文字データ＋選んだN件」と書く） · 2026-08-13';
+const BUILD = 'r30 🧾読み取りに失敗した理由をアプリが控える＝失敗の履歴（時刻・文言・分類・HTTP・どのAI/モデル）を写真ごとに残す。一覧には短い理由・詳細には「次の手」を出し、📋この失敗の記録をコピーで丸ごと持ち出せる（🔁でやり直しても消えない）｜r29 🔁詳細の再分析を撤去（実機で失敗するうえ、失敗すると読めていた店名・金額が一覧や📊から消えて見えた＝読めているレシートを壊せるボタンだった）。読み直しは「読み取りに失敗した写真」だけ＝一覧の🔁に残す・直すのは✏️手で直す｜r28 🧾1枚の写真に2枚のレシートが写っていても、詳細はタップした1枚だけを出す（写真の下の 🧾 で隣の1枚へ・✏️と🗑もその1枚に効く・🗑は残りと写真を消さない）｜r27 📡分析をストリーミングに＝返事が届いた端から出る（1年分を賢いモデルに読ませても待ちが見える・長い沈黙で接続が切られにくい）。上限は「全体で何分」ではなく「何も届かない時間が3分」に変更・生成中は⏹だけ出す（未完成をコピー/共有させない）｜r26 ⏱待ち時間の扱いを直す＝これまでアプリ側に制限時間が無く固まっても分からなかった。固定の「30秒ほど」をやめ経過秒を出す／⏹やめるを置く／読み取り3分・分析5分で打ち切り（理由の分かる文言で） · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -555,7 +555,8 @@ async function httpErr(res){
   if (res.status === 401) msg = 'APIキーが無効です（⚙ で確認を）';
   if (res.status === 404) msg = 'モデルかURLが見つかりません（⚙ の詳細設定で確認を）: ' + msg;
   if (res.status === 429) msg = 'レート制限中。少し待ってから一覧の 🔁 でやり直してください';
-  return new Error(msg);
+  // ⚠ 数字（HTTP ステータス）も持たせる＝日本語に直した時点で「何が起きたか」の手がかりが消えていた（r30）
+  const e = new Error(msg); e.status = res.status; return e;
 }
 /* SSE（届いた端から返事を受け取る）。onLine には `data: {...}` の1行がそのまま渡る。
    ⚠ 中断（人が押した ⏹）と沈黙（届かなくなった）は言い分ける＝次の手が違う。 */
@@ -968,21 +969,95 @@ const onPhotoPicked = async e => {
 // 📷撮る（capture・1枚ずつ）と 🖼選ぶ（multiple・複数可）の2入口。処理は同じ
 ['photoInput', 'pickInput'].forEach(id => document.getElementById(id).addEventListener('change', onPhotoPicked));
 
+/* ---------- 失敗の記録（r30） ----------
+   r29 の宿題は「次に読み取り失敗を見たら ❌ の後ろの文言をそのまま控える」だった。
+   ⚠ **控えるのは人の仕事ではない**＝理由はアプリが持っている。持っていながら
+      ① toast（数秒で消える）と ② rec.error（**🔁 でやり直すと消される**）にしか置いていなかった。
+      つまり「やり直したら直った」時、**なぜ失敗したかは永久に分からなくなる**。
+   → 失敗は履歴として残す（時刻・文言・分類・HTTP・どのAI/モデル）。⚠ やり直しでも消さない。
+   ⚠ 分類の目的は「次に何をすればいいか」を出すこと。レート制限（待てば直る）・届かない（回線かCORS）・
+      時間切れ（軽いモデルへ）・キー（⚙）は**次の手がまったく違う**ので、混ぜて「失敗しました」と出さない。 */
+const ERR_KEEP = 5;   // 失敗の記録は直近5件（原因を追うのに十分・写真1件が肥え続けない）
+function classifyErr(msg, status){
+  const m = String(msg || '');
+  if (status === 429 || /レート制限/.test(m))
+    return { tag: 'rate', label: '混み合っています', next: '数分おいてから、一覧の 🔁 でやり直してください（待てば直る種類です）' };
+  if (status === 401 || status === 403 || /APIキー/.test(m))
+    return { tag: 'key', label: 'APIキーの問題', next: '⚙ でキーを登録し直し、🔌 接続テストが通るか確かめてください' };
+  if (status === 404 || /モデルかURLが見つかりません|モデルが未選択/.test(m))
+    return { tag: 'model', label: 'モデルかURLの問題', next: '⚙ の詳細設定で、モデルIDと APIのURL を確認してください' };
+  if (status >= 500)
+    return { tag: 'server', label: 'AI側の不調', next: '相手の障害の可能性。時間をおいて一覧の 🔁 でやり直してください' };
+  if (/届きませんでした/.test(m))
+    return { tag: 'net', label: '届きませんでした', next: '通信を確認。回線が生きているのに続くなら、そのサービスが端末からの直接呼び出しを許していない（CORS）可能性があります' };
+  if (/時間がかかりすぎた|何も届かなかった/.test(m))
+    return { tag: 'timeout', label: '時間切れ', next: '⚙ で軽いモデルを試すか、写真を1枚ずつ撮ってください' };
+  if (/上限に達しました/.test(m))
+    return { tag: 'cut', label: '返事が途中で切れました', next: 'レシートが長い／明細が多い可能性。⚙ の詳細設定で別のモデルをお試しください' };
+  if (/JSON として読めません|返事を読めません/.test(m))
+    return { tag: 'parse', label: '返事の形が読めません', next: '別のモデルを試すか、✏️ 手で入力してください' };
+  if (/やめました/.test(m)) return { tag: 'stop', label: '中止しました', next: '一覧の 🔁 でやり直せます' };
+  return { tag: 'other', label: '読み取り失敗', next: '同じ文言が続くようなら、📋 この記録をコピーして相談してください' };
+}
+const errsOf = r => Array.isArray(r?.errors) ? r.errors : [];
+const lastErr = r => errsOf(r).slice(-1)[0] || null;
+const errWhen = at => { const d = new Date(at);
+  return `${ymdLocal(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+// 失敗した時に、後から読める形で控える（人が控えなくてよくする）
+function noteFailure(rec, err, ctx){
+  const msg = String(err?.message || err);
+  const c = classifyErr(msg, err?.status || 0);
+  const e = { at: Date.now(), msg, tag: c.tag, status: err?.status || null,
+              prov: ctx?.prov || null, model: ctx?.model || null, build: BUILD.split('（')[0].trim().split(' ')[0] };
+  rec.errors = errsOf(rec).concat([e]).slice(-ERR_KEEP);   // ⚠ 古いものから捨てる（消すのは上限を超えた分だけ）
+  return e;
+}
+// 📋 に載せる文章。⚠ ここに出すのは「次の Claude / 自分」が読んで原因に辿り着ける材料だけ（キーは載せない）
+function failureReport(rec){
+  const es = errsOf(rec);
+  const head = `🧾 レシート読み取り失敗の記録\n写真を取り込んだ時刻: ${errWhen(rec.ts)}\nアプリ: ${BUILD.split('｜')[0].slice(0, 60)}\n失敗 ${es.length} 回`;
+  const body = es.map((e, i) => {
+    const c = classifyErr(e.msg, e.status);
+    return `\n\n${i + 1}) ${errWhen(e.at)}\n  文言: ${e.msg}\n  分類: ${c.label}（${e.tag}）`
+         + `${e.status ? ' / HTTP ' + e.status : ''}\n  AI: ${e.prov || '不明'} ${e.model || ''}`.trimEnd()
+         + `\n  次の手: ${c.next}`;
+  }).join('');
+  return head + body;
+}
+// 詳細に出す失敗の見せ方＝①そのままの文言（控えなくてよい）②分類と次の手 ③何回目か ④📋 で持ち出せる
+function failureBlock(r){
+  const es = errsOf(r), le = es.slice(-1)[0];
+  if (!le) return `<div class="note">❌ ${esc(r.error || 'レシートを検出できませんでした')}</div>`
+                + (r.error ? errCopyBtn() : '');
+  const c = classifyErr(le.msg, le.status);
+  const past = es.length < 2 ? '' :
+    `<div class="note">これまでに ${es.length} 回失敗しています<br>`
+    + es.slice(0, -1).map(e => `${errWhen(e.at)}　${esc(classifyErr(e.msg, e.status).label)}`).join('<br>') + '</div>';
+  return `<div class="note warn">❌ ${esc(le.msg)}<br><b>${esc(c.label)}</b>`
+       + `（${errWhen(le.at)}${le.status ? ' ・ HTTP ' + le.status : ''}${le.prov ? ' ・ ' + esc(le.prov) : ''}`
+       + `${le.model ? ' ' + esc(le.model) : ''}）<br>▶ ${esc(c.next)}</div>` + past + errCopyBtn();
+}
+const errCopyBtn = () => '<button class="btn" data-errcopy="1" style="margin-top:10px">📋 この失敗の記録をコピー</button>';
+
 async function runAnalysis(id){
   let rec = await dbGet(id); if (!rec) return;
+  const ctx = ctxFor('ocr');   // どのAI・どのモデルで失敗したかは、後から効く手がかり
   rec.status = 'pending'; rec.error = null; await dbPut(rec); await renderList();
   try {
     const { data, meta } = await analyzeReceipt(rec);
     rec = await dbGet(id); if (!rec) return; // 分析中に削除されたら破棄
     rec.status = 'done'; rec.data = data; rec.meta = meta; rec.edited = null; // AI の結果で上書き＝手直しの印も消す
+    // ⚠ 成功しても errors は消さない＝「やり直したら直った」こと自体が、原因を追う手がかりになる
   } catch (err) {
     rec = await dbGet(id); if (!rec) return;
     rec.status = 'error'; rec.error = String(err.message || err);
+    noteFailure(rec, err, ctx);
   }
   await dbPut(rec); await renderList();
   if (isOpen('ovStats')) renderStats(); // 分析が終わったら、開いている統計にも反映する
   if (rec.status === 'done') autoGeoSweep();  // 印字住所から場所も入れる（r20・待たない）
-  if (rec.status === 'error') toast('❌ ' + rec.error);
+  // ⚠ toast は数秒で消える＝「控えてあります」まで言う（人が慌てて書き写さなくてよい）
+  if (rec.status === 'error') toast('❌ ' + rec.error + '（理由は詳細に残しました）');
 }
 
 /* ---------- 一覧（レシート記載の日付降順・月グループ＋月合計） ---------- */
@@ -1104,7 +1179,14 @@ async function renderList(){
       right = rc.total == null ? '<div class="amt na">—</div>'
             : rc.kind === 'income' ? `<div class="amt inc">+${yen(rc.total)}</div>` : `<div class="amt">${yen(rc.total)}</div>`;
     } else if (r.status === 'pending') { title = '<span class="pend">🤖 読み取り中…</span>'; right = ''; }
-    else { title = `<span class="errt">${r.status === 'error' ? '読み取り失敗' : 'レシートを検出できず'}</span>`; right = `<button data-retry="${r.id}">🔁</button>`; }
+    else {
+      // ⚠ 「読み取り失敗」だけでは次に何をすればいいか分からない＝短い理由を並べて出す（r30）
+      const le = r.status === 'error' ? lastErr(r) : null;
+      const why = le ? classifyErr(le.msg, le.status).label : '';
+      title = `<span class="errt">${r.status === 'error' ? '読み取り失敗' : 'レシートを検出できず'}</span>`
+            + (why && why !== '読み取り失敗' ? `<span class="chip">${esc(why)}</span>` : '');
+      right = `<button data-retry="${r.id}">🔁</button>`;
+    }
     // data-i ＝ この行が「写真の中の何枚目」か。詳細をその1枚だけで開くために持ち回る（r28）
     html += `<div class="rec" data-id="${r.id}" data-i="${row.i}">
       <img src="${turl}" alt="">
@@ -1153,7 +1235,7 @@ async function openDetail(id, i = 0){
       + `<small>${esc(x.store || '店名不明')}${x.total != null ? ' ' + yen(x.total) : ''}</small></button>`).join('')
     + '</div>';
   document.getElementById('dBody').innerHTML = nav + (!d
-    ? `<div class="note">${r.status === 'pending' ? '🤖 読み取り中…' : '❌ ' + esc(r.error || 'レシートを検出できませんでした')}</div>`
+    ? (r.status === 'pending' ? '<div class="note">🤖 読み取り中…</div>' : failureBlock(r))
       + (r.status === 'pending' ? '' : editBtn('手で入力する'))
     : kv('店名', d.store && d.branch ? `${d.store} ${d.branch}` : d.store)
       + kv('日付', d.date) + kv('時刻', d.time)
@@ -1173,15 +1255,26 @@ async function openDetail(id, i = 0){
       + (receiptIssues(d).length
           ? `<div class="note warn">⚠ 数字が合いません（読み違いの可能性）<br>${receiptIssues(d).map(esc).join('<br>')}<br>✏️ で直せます。</div>` : '')
       + editBtn(rcs.length > 1 ? `この 🧾 ${detailIdx + 1}枚目 を手で直す` : '手で直す'))
+      // 読めた写真でも、失敗してから読めたなら記録は残す＝「やり直したら直った」は原因を追う手がかり（r30）
+      + (d && errsOf(r).length
+          ? `<div class="note">⚠ この写真は ${errsOf(r).length} 回読み取りに失敗してから読めました<br>`
+            + `最後の理由: ${esc(classifyErr(lastErr(r).msg, lastErr(r).status).label)}</div>` + errCopyBtn() : '')
       + (r.edited ? '<div class="note">✏️ 手で直したレシートです</div>' : '')
       + (r.meta ? `<div class="note">${esc(r.meta.model)} / in ${r.meta.in} · out ${r.meta.out} tokens</div>` : '');
   // ボタンの名前も「いま何に効くのか」に合わせる（🗑 が写真ごと消すのか1枚だけかは、押す前に分かる必要がある）
   document.getElementById('btnDelete').textContent = rcs.length > 1 ? '🗑 この1枚を削除' : '🗑 削除';
   show('ovDetail');
 }
-document.getElementById('dBody').onclick = e => {
+document.getElementById('dBody').onclick = async e => {
   const go = e.target.closest('[data-go]');
   if (go) { openDetail(detailId, +go.dataset.go); return; }   // 同じ写真の別のレシートへ（r28）
+  // 📋 失敗の記録を持ち出す＝r29 の宿題「❌ の文言を控える」をボタン1つにする（r30）
+  if (e.target.closest('[data-errcopy]')) {
+    const r = await dbGet(detailId); if (!r) return;
+    try { await navigator.clipboard.writeText(failureReport(r)); toast('📋 失敗の記録をコピーしました'); }
+    catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
+    return;
+  }
   const b = e.target.closest('[data-edit]'); if (b) openEdit(detailId, +b.dataset.edit);
 };
 /* 🔁 再分析（詳細の中）は r29 で撤去。実機で押すと読み取り失敗になり、しかも失敗すると
