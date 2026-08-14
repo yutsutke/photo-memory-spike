@@ -696,7 +696,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r50 ❌失敗の種類を「文言から当てる」のをやめ、投げる側が名乗るようにした＝r45で書いた「返事が通信の途中で途切れました（本文が最後まで届きませんでした）」の中の「届きませんでした」が、net(CORS疑い)の規則に先に当たり、実機で見当違いの案内（通信を確認・CORSの可能性）が出た。2枚は成功していたのでCORSではない。⚠一度決めた分類を保存して表示でも使い回す（今までは画面に出すたび文言から当て直していた＝誤りが再生産される）。⚠規則の順番も狭い方を先に。🩹途中で切れた時も「そこまで届いた分」を残す＝res.text()は失敗すると全部消えるので自分で受ける（いちばん知りたい失敗なのに現物が丸ごと無かった）｜r49 🍽書き起こせたあとも「前に失敗した記録」を読めるようにした＝r30で「やり直しても消さない」と決めたのに成功すると画面から消えていた（残す意味が半分無かった）。実機で3回目が失敗→4回目は同じ画像で成功したのに、その3回目の理由が読めなくなっていた。⚠この文はレシートには在って🍽食事に無かった＝r46(案内文の表)・r47(考える量)・r48(Anthropic側)に続いて4度目の「片方の道にしか実装されていない」→今回は共通の部品にして両方から呼ぶ＝注意書きでなく構造で防ぐ。実測4回で天井の効きも確認（1回目3323tokは旧上限3000なら必ず失敗していた数字）｜r48 🍽料理は考える量を絞らない＝r47で読み取り全部をeffort:lowにしたら実機で「精度がおちますね」。⚠同じ「写真を読む」でも、読むものが「書いてある文字」か「写っているもの」かで考えることの値打ちが逆＝📷レシートは印字を型に嵌めるだけなのでlowで足りるが、🍽料理は写真から見分ける仕事なので考えた分だけ当たる。effort/上限/待ち時間を仕事ごとの表に移した（🍽=絞らない・12000・300秒 ／ 📷=low・6000・180秒）。⚠Anthropic側も「low」を直接書いていて🍽まで絞っていたので同時に直した（明細で見えたのはOpenRouterだけ＝見えない方も同じ穴）。⚠元の失敗は天井が足りなかっただけで精度は出ていた（成功時2338/2524、失敗3001）＝r47は直しすぎ｜r47 🤖考えてから答えるモデルが、考えるだけでmax_tokensを使い切っていた＝OpenRouter経由の読み取りに reasoning:{effort:low} を送る（Anthropic側は最初からeffort:lowを送っていたのに、OpenAI互換側だけ絞る指定が無かった＝実測でQwen3.8 Maxの出力が3000の上限に張り付き・180秒切れ）。⚠📈分析には付けない＝あちらは考えさせる用途。⚠断られたらreasoningだけ外してもう一度（stream_optionsと同じ作法）。🍽のmax_tokensも3000→6000＝上限は「買う量」でなく「足りない方だけが事故」（考えた分も同じ上限を食うことを見積もりに入れていなかった）｜r46 🍽の失敗画面が行き止まりだった＝①📋この失敗の記録をコピーがr35から出ていたのに押しても何も起きなかった（受け手がレシートの詳細にしか無い＝出ているのに効かないボタンは無いより悪い）②案内が🍽に無い「一覧の🔁」「✏️手で入力」を指していた（r34の注意書き「画面ごとに次の手を分ける」に食事を足し忘れ＝自分の警告を後から踏んだ）③失敗した写真にやり直すボタンが無く一覧まで戻る必要があった→その場に「📝もう一度 書き起こす」（⚠r29で撤去した🔁と違い、error＝壊せる中身がまだ無い） · 2026-08-14';
+const BUILD = 'r51 🔁通信が途中で切れただけなら1回だけ自動でやり直す＝実機の📋で「返ってきた本文（空）」＝見出し200は来たのに本文が1バイトも届いていないと確定（AIの書きすぎでもアプリの時間切れでもない・OpenRouterの明細にも出ない＝課金もされていない）。⚠0バイト＝何も受け取っていない＝やり直しても二重にならない。⚠1回だけ（直らない理由なら2回目も同じで待ちと課金が倍になるだけ）。⚠失敗は必ず記録してからやり直す＝黙って直すと「回線が不安定」という事実が消える（通ればr49の「⚠N回失敗してから読めました」として残る）。⚠レシートと🍽の両方に同じ形で入れた｜r50 ❌失敗の種類を「文言から当てる」のをやめ、投げる側が名乗るようにした＝r45で書いた「返事が通信の途中で途切れました（本文が最後まで届きませんでした）」の中の「届きませんでした」が、net(CORS疑い)の規則に先に当たり、実機で見当違いの案内（通信を確認・CORSの可能性）が出た。2枚は成功していたのでCORSではない。⚠一度決めた分類を保存して表示でも使い回す（今までは画面に出すたび文言から当て直していた＝誤りが再生産される）。⚠規則の順番も狭い方を先に。🩹途中で切れた時も「そこまで届いた分」を残す＝res.text()は失敗すると全部消えるので自分で受ける（いちばん知りたい失敗なのに現物が丸ごと無かった）｜r49 🍽書き起こせたあとも「前に失敗した記録」を読めるようにした＝r30で「やり直しても消さない」と決めたのに成功すると画面から消えていた（残す意味が半分無かった）。実機で3回目が失敗→4回目は同じ画像で成功したのに、その3回目の理由が読めなくなっていた。⚠この文はレシートには在って🍽食事に無かった＝r46(案内文の表)・r47(考える量)・r48(Anthropic側)に続いて4度目の「片方の道にしか実装されていない」→今回は共通の部品にして両方から呼ぶ＝注意書きでなく構造で防ぐ。実測4回で天井の効きも確認（1回目3323tokは旧上限3000なら必ず失敗していた数字）｜r48 🍽料理は考える量を絞らない＝r47で読み取り全部をeffort:lowにしたら実機で「精度がおちますね」。⚠同じ「写真を読む」でも、読むものが「書いてある文字」か「写っているもの」かで考えることの値打ちが逆＝📷レシートは印字を型に嵌めるだけなのでlowで足りるが、🍽料理は写真から見分ける仕事なので考えた分だけ当たる。effort/上限/待ち時間を仕事ごとの表に移した（🍽=絞らない・12000・300秒 ／ 📷=low・6000・180秒）。⚠Anthropic側も「low」を直接書いていて🍽まで絞っていたので同時に直した（明細で見えたのはOpenRouterだけ＝見えない方も同じ穴）。⚠元の失敗は天井が足りなかっただけで精度は出ていた（成功時2338/2524、失敗3001）＝r47は直しすぎ｜r47 🤖考えてから答えるモデルが、考えるだけでmax_tokensを使い切っていた＝OpenRouter経由の読み取りに reasoning:{effort:low} を送る（Anthropic側は最初からeffort:lowを送っていたのに、OpenAI互換側だけ絞る指定が無かった＝実測でQwen3.8 Maxの出力が3000の上限に張り付き・180秒切れ）。⚠📈分析には付けない＝あちらは考えさせる用途。⚠断られたらreasoningだけ外してもう一度（stream_optionsと同じ作法）。🍽のmax_tokensも3000→6000＝上限は「買う量」でなく「足りない方だけが事故」（考えた分も同じ上限を食うことを見積もりに入れていなかった） · 2026-08-14';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1561,14 +1561,20 @@ async function runMealAnalysis(id){
   // ⚠ キーが無いのは「失敗」ではない＝写真は残し、あとで書き起こせる状態にして戻る
   if (!ctx.key) { rec.status = 'todo'; rec.error = null; await mlPut(rec); await renderMeals(); return 'nokey'; }
   rec.status = 'pending'; rec.error = null; await mlPut(rec); await renderMeals();
-  try {
-    const { data, meta } = await analyzeMeal(rec);
-    rec = await mlGet(id); if (!rec) return;                 // 分析中に消されたら破棄
-    rec.status = 'done'; rec.data = data; rec.meta = meta; rec.edited = null;
-  } catch (err) {
-    rec = await mlGet(id); if (!rec) return;
-    rec.status = 'error'; rec.error = String(err.message || err);
-    noteFailure(rec, err, ctx);   // 失敗の控え方はレシートと同じ（r30）＝やり直しても消えない
+  // ⚠ 通信が途中で切れただけなら1回やり直す（r51）。⚠ レシート側と同じ形（片方だけ直る事故を避ける）
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const { data, meta } = await analyzeMeal(rec);
+      rec = await mlGet(id); if (!rec) return;                 // 分析中に消されたら破棄
+      rec.status = 'done'; rec.data = data; rec.meta = meta; rec.edited = null;
+      break;
+    } catch (err) {
+      rec = await mlGet(id); if (!rec) return;
+      noteFailure(rec, err, ctx);   // 失敗の控え方はレシートと同じ（r30）＝やり直しても消えない
+      if (worthRetry(err, attempt)) { await mlPut(rec); await pause(800); continue; }
+      rec.status = 'error'; rec.error = String(err.message || err);
+      break;
+    }
   }
   await mlPut(rec); await renderMeals();
   if (rec.status === 'error') toast('❌ ' + rec.error + '（理由は詳細に残しました）');
@@ -2161,6 +2167,18 @@ function failureBlock(r, where = 'ocr'){
        + `${le.model ? ' ' + esc(le.model) : ''}）<br>▶ ${esc(c.next)}</div>` + past + errCopyBtn();
 }
 const errCopyBtn = () => '<button class="btn" data-errcopy="1" style="margin-top:10px">📋 この失敗の記録をコピー</button>';
+/* 通信が途中で切れただけなら、1回だけ自動でやり直す（r51）。
+   実機の記録＝**返ってきた本文が「（空）」**＝見出し（200 OK）は来たのに**本文が1バイトも届いていない**。
+     ・AI の書きすぎではない（中身が無いので大きさは無関係）
+     ・アプリの時間切れでもない（こちらは 180/300秒・切れたのは 3.9秒）
+     ・OpenRouter 側の利用明細にも出ない＝生成が完了扱いになっていない＝**課金もされていない**
+   ⚠ **0バイト＝何も受け取っていない＝やり直しても二重になるものが無い**＝やり直しが定石。
+   ⚠ **1回だけ**（直らない理由なら2回目も同じ＝待ちと課金が倍になるだけ・r39 と同じ考え）。
+   ⚠ **失敗は必ず記録してからやり直す**＝黙って直すと「回線が不安定」という事実が消える（r30）。
+      通ればそのまま使え、記録は r49 の「⚠ N回失敗してから読めました」として残る。 */
+const AUTO_RETRY_TAGS = ['trunc'];
+const worthRetry = (err, attempt) => attempt === 0 && AUTO_RETRY_TAGS.includes(err?.tag);
+const pause = ms => new Promise(r => setTimeout(r, ms));
 /* 読めた写真でも、失敗してから読めたなら記録を出す＝「やり直したら直った」は原因を追ういちばんの手がかり（r30）。
    ⚠ r30 で「やり直しても記録を消さない」と決めたのに、**成功すると画面から消えていた**＝残す意味が半分無かった。
    ⚠ **2つの画面に同じものを別々に書かない**（r49）＝この文はレシートにだけ在って 🍽 食事には無く、
@@ -2177,15 +2195,21 @@ async function runAnalysis(id){
   let rec = await dbGet(id); if (!rec) return;
   const ctx = ctxFor('ocr');   // どのAI・どのモデルで失敗したかは、後から効く手がかり
   rec.status = 'pending'; rec.error = null; await dbPut(rec); await renderList();
-  try {
-    const { data, meta } = await analyzeReceipt(rec);
-    rec = await dbGet(id); if (!rec) return; // 分析中に削除されたら破棄
-    rec.status = 'done'; rec.data = data; rec.meta = meta; rec.edited = null; // AI の結果で上書き＝手直しの印も消す
-    // ⚠ 成功しても errors は消さない＝「やり直したら直った」こと自体が、原因を追う手がかりになる
-  } catch (err) {
-    rec = await dbGet(id); if (!rec) return;
-    rec.status = 'error'; rec.error = String(err.message || err);
-    noteFailure(rec, err, ctx);
+  // ⚠ 通信が途中で切れただけなら1回やり直す（r51）。記録は残してからやり直す＝黙って直さない
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const { data, meta } = await analyzeReceipt(rec);
+      rec = await dbGet(id); if (!rec) return; // 分析中に削除されたら破棄
+      rec.status = 'done'; rec.data = data; rec.meta = meta; rec.edited = null; // AI の結果で上書き＝手直しの印も消す
+      // ⚠ 成功しても errors は消さない＝「やり直したら直った」こと自体が、原因を追う手がかりになる
+      break;
+    } catch (err) {
+      rec = await dbGet(id); if (!rec) return;
+      noteFailure(rec, err, ctx);
+      if (worthRetry(err, attempt)) { await dbPut(rec); await pause(800); continue; }
+      rec.status = 'error'; rec.error = String(err.message || err);
+      break;
+    }
   }
   await dbPut(rec); await renderList();
   if (isOpen('ovStats')) renderStats(); // 分析が終わったら、開いている統計にも反映する
