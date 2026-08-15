@@ -731,7 +731,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r53 ⚙🍽食事と📈分析にも「🔌接続テスト・🔄使えるモデルの一覧を取得・🛠詳細設定（モデルID直接入力・APIのURL）」を付けた（要望）＝これまで両方のボタンが「レシートの読み取り」決め打ちで、🍽や📈に別のAIを選ぶと、そのAIのモデル一覧を取ってくる手段が無かった（レシート側を一時的に切り替えるしかない）。⚠役割ごとに別なのは「選ぶモデル」だけで、キー・APIのURL・取ってきた一覧はAIごとに1つを共有（同じ鍵を3回貼らせない）。⚠r46-r51で5回踏んだ「片方の道にしか実装されない」を繰り返さないため、3つとも同じ関数から作った。⚠一覧は画像を読めるモデルだけに絞るので、分析用の文字だけのモデルは出てこない→「モデルIDを直接入力」で指定する｜r52 ⚙設定の並べ替えと🍽をよく考えさせる＝①「🔄使えるモデルの一覧を取得」を🛠詳細設定の中から出して🔌接続テストの下へ（モデルを選ぶには先に一覧が要るのに、畳まれた中にあると押す場所が見つからない）②「📷写真の読み取りに使うAI」→「📷レシートの読み取りに使うAI」（🍽食事の欄と並ぶので主語をそろえる）③🩹webでパネルの一番上（✕と見出し）が切れる＝スマホのvhは「アドレスバーが隠れた時の高さ」で今見えている高さより大きく、下端に寄せたパネルがはみ出した分だけ上に出ていた→dvhで測る＋上の安全域を引く（アプリはアドレスバーが無いのでwebだけで出る症状）④🍽の考える量を「何も言わない」から「high」へ＋上限12000→16000（考えた分も同じ上限を食うのでセットで上げる・r47の罠）。⚠差が出るのはOpenRouter経由だけでClaudeは元からhighが既定｜r51 🔁通信が途中で切れただけなら1回だけ自動でやり直す＝実機の📋で「返ってきた本文（空）」＝見出し200は来たのに本文が1バイトも届いていないと確定（AIの書きすぎでもアプリの時間切れでもない・OpenRouterの明細にも出ない＝課金もされていない）。⚠0バイト＝何も受け取っていない＝やり直しても二重にならない。⚠1回だけ（直らない理由なら2回目も同じで待ちと課金が倍になるだけ）。⚠失敗は必ず記録してからやり直す＝黙って直すと「回線が不安定」という事実が消える（通ればr49の「⚠N回失敗してから読めました」として残る）。⚠レシートと🍽の両方に同じ形で入れた｜r50 ❌失敗の種類を「文言から当てる」のをやめ、投げる側が名乗るようにした＝r45で書いた「返事が通信の途中で途切れました（本文が最後まで届きませんでした）」の中の「届きませんでした」が、net(CORS疑い)の規則に先に当たり、実機で見当違いの案内（通信を確認・CORSの可能性）が出た。2枚は成功していたのでCORSではない。⚠一度決めた分類を保存して表示でも使い回す（今までは画面に出すたび文言から当て直していた＝誤りが再生産される）。⚠規則の順番も狭い方を先に。🩹途中で切れた時も「そこまで届いた分」を残す＝res.text()は失敗すると全部消えるので自分で受ける（いちばん知りたい失敗なのに現物が丸ごと無かった）｜r49 🍽書き起こせたあとも「前に失敗した記録」を読めるようにした＝r30で「やり直しても消さない」と決めたのに成功すると画面から消えていた（残す意味が半分無かった）。実機で3回目が失敗→4回目は同じ画像で成功したのに、その3回目の理由が読めなくなっていた。⚠この文はレシートには在って🍽食事に無かった＝r46(案内文の表)・r47(考える量)・r48(Anthropic側)に続いて4度目の「片方の道にしか実装されていない」→今回は共通の部品にして両方から呼ぶ＝注意書きでなく構造で防ぐ。実測4回で天井の効きも確認（1回目3323tokは旧上限3000なら必ず失敗していた数字） · 2026-08-15';
+const BUILD = 'r54 ⏱📈分析の待ちに天井をつけた＝実機で25分（1531秒）待って失敗した。⚠原因は「沈黙の時計だけで見ていた」こと＝1文字でも届けば時計が戻るので、考えている間に届くもの（考えた内容の断片・相手の「まだ処理中」の合図）で戻り続け、本文が1文字も来ないまま何十分でも待てた。⚠逆に1531秒待てた事実そのものが「通信は生きていた」証拠（切れていれば180秒で止まっていた）＝r51の「回線が不安定」とは別物。→沈黙とは別に全体の天井10分を置く（普通の長考は通り、明らかにおかしい長さだけ止まる）。⚠さらに時間切れのあと一括でもう一度投げていた＝1531秒は2回ぶんの合計だった→止めた・時間切れは投げ直しても同じだけ待つので投げない（判定は名乗りで・r50）。⚠記録に待ちの内訳（届いた端から何秒→一括で何秒）を残す＝合計だけだと1回で25分に見えて原因の見当が狂う｜r53 ⚙🍽食事と📈分析にも「🔌接続テスト・🔄使えるモデルの一覧を取得・🛠詳細設定（モデルID直接入力・APIのURL）」を付けた（要望）＝これまで両方のボタンが「レシートの読み取り」決め打ちで、🍽や📈に別のAIを選ぶと、そのAIのモデル一覧を取ってくる手段が無かった（レシート側を一時的に切り替えるしかない）。⚠役割ごとに別なのは「選ぶモデル」だけで、キー・APIのURL・取ってきた一覧はAIごとに1つを共有（同じ鍵を3回貼らせない）。⚠r46-r51で5回踏んだ「片方の道にしか実装されない」を繰り返さないため、3つとも同じ関数から作った。⚠一覧は画像を読めるモデルだけに絞るので、分析用の文字だけのモデルは出てこない→「モデルIDを直接入力」で指定する｜r52 ⚙設定の並べ替えと🍽をよく考えさせる＝①「🔄使えるモデルの一覧を取得」を🛠詳細設定の中から出して🔌接続テストの下へ（モデルを選ぶには先に一覧が要るのに、畳まれた中にあると押す場所が見つからない）②「📷写真の読み取りに使うAI」→「📷レシートの読み取りに使うAI」（🍽食事の欄と並ぶので主語をそろえる）③🩹webでパネルの一番上（✕と見出し）が切れる＝スマホのvhは「アドレスバーが隠れた時の高さ」で今見えている高さより大きく、下端に寄せたパネルがはみ出した分だけ上に出ていた→dvhで測る＋上の安全域を引く（アプリはアドレスバーが無いのでwebだけで出る症状）④🍽の考える量を「何も言わない」から「high」へ＋上限12000→16000（考えた分も同じ上限を食うのでセットで上げる・r47の罠）。⚠差が出るのはOpenRouter経由だけでClaudeは元からhighが既定｜r51 🔁通信が途中で切れただけなら1回だけ自動でやり直す＝実機の📋で「返ってきた本文（空）」＝見出し200は来たのに本文が1バイトも届いていないと確定（AIの書きすぎでもアプリの時間切れでもない・OpenRouterの明細にも出ない＝課金もされていない）。⚠0バイト＝何も受け取っていない＝やり直しても二重にならない。⚠1回だけ（直らない理由なら2回目も同じで待ちと課金が倍になるだけ）。⚠失敗は必ず記録してからやり直す＝黙って直すと「回線が不安定」という事実が消える（通ればr49の「⚠N回失敗してから読めました」として残る）。⚠レシートと🍽の両方に同じ形で入れた｜r50 ❌失敗の種類を「文言から当てる」のをやめ、投げる側が名乗るようにした＝r45で書いた「返事が通信の途中で途切れました（本文が最後まで届きませんでした）」の中の「届きませんでした」が、net(CORS疑い)の規則に先に当たり、実機で見当違いの案内（通信を確認・CORSの可能性）が出た。2枚は成功していたのでCORSではない。⚠一度決めた分類を保存して表示でも使い回す（今までは画面に出すたび文言から当て直していた＝誤りが再生産される）。⚠規則の順番も狭い方を先に。🩹途中で切れた時も「そこまで届いた分」を残す＝res.text()は失敗すると全部消えるので自分で受ける（いちばん知りたい失敗なのに現物が丸ごと無かった） · 2026-08-15';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -957,6 +957,13 @@ const T_OCR = 180000, T_CHAT = 300000, T_SHORT = 60000;
    1年分を賢いモデルに読ませると、答え終わるまでに数分かかるのが普通＝全体で切ると
    正常な長考まで殺す。届いている限りは待ち、**沈黙が続いた時だけ**止める。 */
 const T_IDLE = 180000;
+/* ⚠ **沈黙だけでは止まらない**（r54）。実機で 📈 分析が **1531秒（25分）** 待って失敗した。
+   沈黙の時計は「1文字でも届いたら」戻すので、**考えている間に届くもの**（考えた内容の断片や、
+   相手サービスの「まだ処理中」の合図）で戻り続け、**本文が1文字も来ないまま何十分でも待てて**しまう。
+   ⚠ 逆に言うと、**1531秒 待てた事実そのものが「通信は生きていた」証拠**（切れていれば180秒で止まっていた）。
+   → 沈黙とは別に「**全体で何分まで**」の天井を置く。r27 の「全体で切ると正常な長考まで殺す」は正しいので、
+     **普通の長考（数分）は通り、明らかにおかしい長さだけ止まる**ところに置く。 */
+const T_STREAM_MAX = 600000;   // 10分
 async function httpErr(res){
   let msg = 'HTTP ' + res.status;
   try { msg = (await res.json()).error?.message || msg; } catch (_) {}
@@ -971,17 +978,22 @@ async function httpErr(res){
 }
 /* SSE（届いた端から返事を受け取る）。onLine には `data: {...}` の1行がそのまま渡る。
    ⚠ 中断（人が押した ⏹）と沈黙（届かなくなった）は言い分ける＝次の手が違う。 */
-async function apiStream(ctx, path, { body, idleMs = T_IDLE, signal = null, onLine }){
+async function apiStream(ctx, path, { body, idleMs = T_IDLE, maxMs = T_STREAM_MAX, signal = null, onLine }){
   if (!ctx.key) throw new Error(`${ctx.p.vendor} のAPIキーが未設定です（⚙ から登録）`);
   const ac = new AbortController();
-  let silent = false, stopped = false, idle = null;
+  let silent = false, stopped = false, overran = false, idle = null;
   const bump = () => { clearTimeout(idle); idle = setTimeout(() => { silent = true; ac.abort(); }, idleMs); };
+  // r54: 沈黙の時計とは別に、**全体の天井**。届き続けていても、ここを超えたら止める
+  const cap = maxMs ? setTimeout(() => { overran = true; ac.abort(); }, maxMs) : null;
   const onStop = () => { stopped = true; ac.abort(); };
   if (signal) { if (signal.aborted) onStop(); else signal.addEventListener('abort', onStop); }
-  const cleanup = () => { clearTimeout(idle); if (signal) signal.removeEventListener('abort', onStop); };
-  const why = () => stopped ? new Error('やめました')
-            : silent ? new Error(`${Math.round(idleMs / 1000)}秒のあいだ何も届かなかったので止めました（通信か、AIが応答していない可能性）`)
-            : new Error('APIに届きませんでした（通信状況か、APIのURLを確認してください）');
+  const cleanup = () => { clearTimeout(idle); clearTimeout(cap); if (signal) signal.removeEventListener('abort', onStop); };
+  /* ⚠ **投げる側が種類を名乗る**（r50 の方針を、この経路にも）。文言から当てさせない。
+     ⚠ 順番は「人が止めた → 天井 → 沈黙 → 届かない」＝**狭い理由から先に**見る。 */
+  const why = () => stopped ? tagged('やめました', 'stop')
+            : overran ? tagged(`${Math.round(maxMs / 1000)}秒たっても終わらなかったので止めました（考える量が多いか、モデルが重い可能性）`, 'timeout')
+            : silent ? tagged(`${Math.round(idleMs / 1000)}秒のあいだ何も届かなかったので止めました（通信か、AIが応答していない可能性）`, 'timeout')
+            : tagged('APIに届きませんでした（通信状況か、APIのURLを確認してください）', 'net');
   bump();
   let res;
   try {
@@ -2218,6 +2230,16 @@ const errCopyBtn = () => '<button class="btn" data-errcopy="1" style="margin-top
       通ればそのまま使え、記録は r49 の「⚠ N回失敗してから読めました」として残る。 */
 const AUTO_RETRY_TAGS = ['trunc'];
 const worthRetry = (err, attempt) => attempt === 0 && AUTO_RETRY_TAGS.includes(err?.tag);
+/* 📈 分析で「届いた端から」が駄目だった時に、**一括でもう一度投げる価値があるか**（r54）。
+   ⚠ 落とす目的は「**この入口（ストリーミング）を受け付けないサービスがある**」への保険だけ。
+   ⚠ **止めた・時間切れ（天井／沈黙）は投げ直しても同じだけ待つ**＝待ちが倍になるだけ。
+      実機ではここで落ちて、**25分待ったうえにもう一度投げていた**（記録の「1531秒」は2回ぶんの合計）。
+   ⚠ 1文字でも届いていたら投げ直さない（**二重課金**になる・r27 からの約束）。
+   ⚠ 判定は**名乗り（tag）で**（r50）。名乗りの無い古い経路のためだけ、最後に文言も見る。 */
+const NO_PLAIN_RETRY_TAGS = ['stop', 'timeout'];
+const worthPlainRetry = (err, chars) =>
+  !chars && !NO_PLAIN_RETRY_TAGS.includes(err?.tag)
+  && !/やめました|届かなかった/.test(String(err?.message || err || ''));
 const pause = ms => new Promise(r => setTimeout(r, ms));
 /* 読めた写真でも、失敗してから読めたなら記録を出す＝「やり直したら直った」は原因を追ういちばんの手がかり（r30）。
    ⚠ r30 で「やり直しても記録を消さない」と決めたのに、**成功すると画面から消えていた**＝残す意味が半分無かった。
@@ -3900,6 +3922,10 @@ if (!AN_PRESETS.some(p => p[0] === anPreset)) anPreset = AN_PRESETS[0][0];
 let anTab    = 'new';
 let anBusy   = false;
 let anStartedAt = 0, anTick = null, anAbort = null, anChars = 0;   // 経過秒の表示 / 中止（r26）/ 届いた文字数（r27）
+/* r54: ⚠ **待ちの内訳**（届いた端から 何秒 → 一括でやり直したか）。
+   実機の記録が「待ち: 1531秒」の1行だけで、**それが2回ぶんの合計**だと読めなかった＝
+   1回で25分かかったように見えて、原因の見当が狂う。合計しか残さないのは証拠を捨てているのと同じ（r45）。 */
+let anStreamSecs = null, anFellBack = false;
 let arCur    = null;   // いま結果画面に出している分析（履歴から開いた / いま実行した）
 const anSaveOn = () => localStorage.getItem(AN.save) !== '0'; // 既定＝保存する
 
@@ -3946,6 +3972,10 @@ function anFailureReport(){
          + `\n  依頼: ${e.presetLabel || '不明'} / ${e.periodLabel || '期間不明'}`
          + `${e.count != null ? ` / ${e.count}件` : ''}${e.att ? ` / 📎${e.att}件` : ''}`
          + `\n  待ち: ${e.secs != null ? e.secs + '秒' : '不明'}`
+         // r54: 合計だけだと「1回で25分」に見える＝内訳（届いた端から何秒／一括でやり直したか）を残す
+         + (e.streamSecs != null
+              ? `（届いた端から ${e.streamSecs}秒${e.fellBack ? ` → そのあと一括でやり直し ${Math.max(0, (e.secs ?? 0) - e.streamSecs)}秒` : ''}）`
+              : '')
          + `${e.chars != null ? ` / ${e.chars}文字 届いた` : ''}`
          + (e.body ? `\n  返ってきた本文: ${e.body}` : '')
          + `\n  次の手: ${c.next}`;
@@ -4311,6 +4341,7 @@ async function anRun(){
   if (!ctx.model) { toast('分析モデルが未選択です（⚙ の「分析モデル」で選んでください）'); return; }
 
   anBusy = true; anStartedAt = Date.now(); anAbort = new AbortController(); anChars = 0;
+  anStreamSecs = null; anFellBack = false;   // r54: 待ちの内訳は毎回まっさらから
   // ⚠ 1秒ごとに renderAnalyze を丸ごと呼ぶと、そのたびに全レシートを読み直す（1年分だと重い）。
   //   出したいのは経過秒だけなので、文字を書き換えるだけの軽い関数にする（r27）
   anTick = setInterval(anTickUI, 1000);
@@ -4342,13 +4373,16 @@ async function anRun(){
          互換サービスがありうるため）。途中まで届いていたら**作り直さない**＝二重課金になる。 */
     anStreamOpen(per, rows.length);
     let r;
+    const tStream = Date.now();
     try {
       r = await ctx.p.chatStream(ctx, AN_SYSTEM, parts, 8000, anAbort.signal, t => {
         anChars = t.length; renderArStream(t);
       });
     } catch (e) {
+      anStreamSecs = Math.round((Date.now() - tStream) / 1000);
       const m = String(e.message || e);
-      if (anChars || /やめました|届かなかった/.test(m)) throw e;
+      if (!worthPlainRetry(e, anChars)) throw e;
+      anFellBack = true;
       r = await ctx.p.chat(ctx, AN_SYSTEM, parts, 8000, anAbort.signal);
     }
     let text = String(r.text || '').trim();
@@ -4381,6 +4415,7 @@ async function anRun(){
       noteAnFailure(err, ctx, {
         presetLabel: AN_PRESET_LABEL(anPreset), periodLabel: per.label, count: rows.length,
         att: anAtt.length, chars: anChars, secs: Math.round((Date.now() - anStartedAt) / 1000),
+        streamSecs: anStreamSecs, fellBack: anFellBack,   // r54: 待ちの内訳（合計だけだと2回ぶんが1回に見える）
       });
       toast('❌ ' + m + '（理由は 📈 の画面に残しました）');
     }
