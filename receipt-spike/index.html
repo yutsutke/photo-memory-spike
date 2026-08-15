@@ -404,6 +404,18 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
   <div class="row" id="mlKeyRow" hidden><label id="mlKeyLabel"></label>
     <input type="password" id="mlKey" autocomplete="off"></div>
   <div class="row"><label>食事の読み取りモデル</label><select id="mlModel"></select></div>
+  <!-- r53: 🔌 接続テスト・🔄 一覧の取得・🛠 詳細設定 を **役割ごとに1組**（要望）。
+       ⚠ これまで両方のボタンが「レシートの読み取り」決め打ちだった＝🍽 や 📈 に**別の AI** を選ぶと、
+          その AI のモデル一覧を取ってくる手段が無かった（レシート側を一時的に切り替えるしかなかった）。 -->
+  <button class="btn" id="mlBtnTest">🔌 接続テスト（無料・課金されません）</button>
+  <button class="btn" id="mlBtnFetch">🔄 使えるモデルの一覧を取得</button>
+  <details class="adv" id="mlAdvBox"><summary>🛠 詳細設定（一覧に無いモデル・ほかのサービスを使う）</summary>
+    <div class="row"><label>モデルIDを直接入力（新しいモデルもここで使えます）</label>
+      <input id="mlModelCustom" placeholder="例: claude-opus-5 / gpt-5-mini" autocomplete="off"></div>
+    <div class="row"><label>APIのURL（OpenAI互換の別サービスを使う時だけ変える）</label>
+      <input id="mlBase" autocomplete="off"></div>
+    <div class="note">⚠ <b>キー・APIのURL・取ってきた一覧は AI ごとに1つ</b>です（レシート・食事・分析で<b>同じ AI を選んでいれば共有</b>されます）。役割ごとに別々なのは<b>選ぶモデル</b>だけ。</div>
+  </details>
   <div class="note">食事の写真は<b>数字を写す仕事ではなく、見えたものを言葉にする仕事</b>です（料理名・材料・量の見当）。レシートより<b>軽いモデルでも足りる</b>ことがあり、逆に<b>細かく書かせたいなら賢いモデル</b>が向きます。</div>
 
   <!-- 📈 分析用の AI＝写真の読み取りとは別に選べる（読み取りは安いモデル・分析は賢いモデル、が組める） -->
@@ -418,6 +430,17 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
   <div class="row" id="anKeyRow" hidden><label id="anKeyLabel"></label>
     <input type="password" id="anKey" autocomplete="off"></div>
   <div class="row"><label>分析モデル</label><select id="anModel"></select></div>
+  <!-- r53: 📈 にも同じ1組（上の 🍽 と同じ理由） -->
+  <button class="btn" id="anBtnTest">🔌 接続テスト（無料・課金されません）</button>
+  <button class="btn" id="anBtnFetch">🔄 使えるモデルの一覧を取得</button>
+  <details class="adv" id="anAdvBox"><summary>🛠 詳細設定（一覧に無いモデル・ほかのサービスを使う）</summary>
+    <div class="row"><label>モデルIDを直接入力（新しいモデルもここで使えます）</label>
+      <input id="anModelCustom" placeholder="例: claude-opus-5 / gpt-5-mini" autocomplete="off"></div>
+    <div class="row"><label>APIのURL（OpenAI互換の別サービスを使う時だけ変える）</label>
+      <input id="anBase" autocomplete="off"></div>
+    <div class="note">⚠ <b>キー・APIのURL・取ってきた一覧は AI ごとに1つ</b>です（レシート・食事・分析で<b>同じ AI を選んでいれば共有</b>されます）。役割ごとに別々なのは<b>選ぶモデル</b>だけ。</div>
+    <div class="note">⚠ 一覧は<b>画像を読めるモデルだけ</b>に絞って出します（レシート・食事と同じ一覧を使うため）。分析は<b>文字だけを読ませる</b>仕事なので<b>画像を読めないモデルでも使えます</b>が、それは一覧に出てきません → 上の<b>「モデルIDを直接入力」</b>で指定してください。</div>
+  </details>
   <div class="note">分析は<b>文章を書かせる</b>使い方なので、読み取りより<b>賢いモデル</b>が向きます（写真は安いモデル・分析は賢いモデル、という組み合わせができます）。<b>APIキーは AI ごとに1本</b>を読み取りと共有します（同じ鍵を2回貼らなくて済みます）。</div>
   <div class="note">キーは<b>この端末のアプリ内にのみ</b>保存されます（このアプリにサーバーはありません）。レシート画像は分析のときだけ、<b>あなたのキーで、選んだAIのAPIに直接</b>送信されます。それ以外に外部へ送るものはありません。</div>
   <div class="note">🔐 おすすめ運用: このアプリ<b>専用のAPIキー</b>を発行し、Console 側で<b>支出上限</b>を低く設定しておく（万一漏れても被害がその上限で止まる・いつでも失効できる）。</div>
@@ -708,7 +731,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r52 ⚙設定の並べ替えと🍽をよく考えさせる＝①「🔄使えるモデルの一覧を取得」を🛠詳細設定の中から出して🔌接続テストの下へ（モデルを選ぶには先に一覧が要るのに、畳まれた中にあると押す場所が見つからない）②「📷写真の読み取りに使うAI」→「📷レシートの読み取りに使うAI」（🍽食事の欄と並ぶので主語をそろえる）③🩹webでパネルの一番上（✕と見出し）が切れる＝スマホのvhは「アドレスバーが隠れた時の高さ」で今見えている高さより大きく、下端に寄せたパネルがはみ出した分だけ上に出ていた→dvhで測る＋上の安全域を引く（アプリはアドレスバーが無いのでwebだけで出る症状）④🍽の考える量を「何も言わない」から「high」へ＋上限12000→16000（考えた分も同じ上限を食うのでセットで上げる・r47の罠）。⚠差が出るのはOpenRouter経由だけでClaudeは元からhighが既定｜r51 🔁通信が途中で切れただけなら1回だけ自動でやり直す＝実機の📋で「返ってきた本文（空）」＝見出し200は来たのに本文が1バイトも届いていないと確定（AIの書きすぎでもアプリの時間切れでもない・OpenRouterの明細にも出ない＝課金もされていない）。⚠0バイト＝何も受け取っていない＝やり直しても二重にならない。⚠1回だけ（直らない理由なら2回目も同じで待ちと課金が倍になるだけ）。⚠失敗は必ず記録してからやり直す＝黙って直すと「回線が不安定」という事実が消える（通ればr49の「⚠N回失敗してから読めました」として残る）。⚠レシートと🍽の両方に同じ形で入れた｜r50 ❌失敗の種類を「文言から当てる」のをやめ、投げる側が名乗るようにした＝r45で書いた「返事が通信の途中で途切れました（本文が最後まで届きませんでした）」の中の「届きませんでした」が、net(CORS疑い)の規則に先に当たり、実機で見当違いの案内（通信を確認・CORSの可能性）が出た。2枚は成功していたのでCORSではない。⚠一度決めた分類を保存して表示でも使い回す（今までは画面に出すたび文言から当て直していた＝誤りが再生産される）。⚠規則の順番も狭い方を先に。🩹途中で切れた時も「そこまで届いた分」を残す＝res.text()は失敗すると全部消えるので自分で受ける（いちばん知りたい失敗なのに現物が丸ごと無かった）｜r49 🍽書き起こせたあとも「前に失敗した記録」を読めるようにした＝r30で「やり直しても消さない」と決めたのに成功すると画面から消えていた（残す意味が半分無かった）。実機で3回目が失敗→4回目は同じ画像で成功したのに、その3回目の理由が読めなくなっていた。⚠この文はレシートには在って🍽食事に無かった＝r46(案内文の表)・r47(考える量)・r48(Anthropic側)に続いて4度目の「片方の道にしか実装されていない」→今回は共通の部品にして両方から呼ぶ＝注意書きでなく構造で防ぐ。実測4回で天井の効きも確認（1回目3323tokは旧上限3000なら必ず失敗していた数字）｜r48 🍽料理は考える量を絞らない＝r47で読み取り全部をeffort:lowにしたら実機で「精度がおちますね」。⚠同じ「写真を読む」でも、読むものが「書いてある文字」か「写っているもの」かで考えることの値打ちが逆＝📷レシートは印字を型に嵌めるだけなのでlowで足りるが、🍽料理は写真から見分ける仕事なので考えた分だけ当たる。effort/上限/待ち時間を仕事ごとの表に移した（🍽=絞らない・12000・300秒 ／ 📷=low・6000・180秒）。⚠Anthropic側も「low」を直接書いていて🍽まで絞っていたので同時に直した（明細で見えたのはOpenRouterだけ＝見えない方も同じ穴）。⚠元の失敗は天井が足りなかっただけで精度は出ていた（成功時2338/2524、失敗3001）＝r47は直しすぎ · 2026-08-15';
+const BUILD = 'r53 ⚙🍽食事と📈分析にも「🔌接続テスト・🔄使えるモデルの一覧を取得・🛠詳細設定（モデルID直接入力・APIのURL）」を付けた（要望）＝これまで両方のボタンが「レシートの読み取り」決め打ちで、🍽や📈に別のAIを選ぶと、そのAIのモデル一覧を取ってくる手段が無かった（レシート側を一時的に切り替えるしかない）。⚠役割ごとに別なのは「選ぶモデル」だけで、キー・APIのURL・取ってきた一覧はAIごとに1つを共有（同じ鍵を3回貼らせない）。⚠r46-r51で5回踏んだ「片方の道にしか実装されない」を繰り返さないため、3つとも同じ関数から作った。⚠一覧は画像を読めるモデルだけに絞るので、分析用の文字だけのモデルは出てこない→「モデルIDを直接入力」で指定する｜r52 ⚙設定の並べ替えと🍽をよく考えさせる＝①「🔄使えるモデルの一覧を取得」を🛠詳細設定の中から出して🔌接続テストの下へ（モデルを選ぶには先に一覧が要るのに、畳まれた中にあると押す場所が見つからない）②「📷写真の読み取りに使うAI」→「📷レシートの読み取りに使うAI」（🍽食事の欄と並ぶので主語をそろえる）③🩹webでパネルの一番上（✕と見出し）が切れる＝スマホのvhは「アドレスバーが隠れた時の高さ」で今見えている高さより大きく、下端に寄せたパネルがはみ出した分だけ上に出ていた→dvhで測る＋上の安全域を引く（アプリはアドレスバーが無いのでwebだけで出る症状）④🍽の考える量を「何も言わない」から「high」へ＋上限12000→16000（考えた分も同じ上限を食うのでセットで上げる・r47の罠）。⚠差が出るのはOpenRouter経由だけでClaudeは元からhighが既定｜r51 🔁通信が途中で切れただけなら1回だけ自動でやり直す＝実機の📋で「返ってきた本文（空）」＝見出し200は来たのに本文が1バイトも届いていないと確定（AIの書きすぎでもアプリの時間切れでもない・OpenRouterの明細にも出ない＝課金もされていない）。⚠0バイト＝何も受け取っていない＝やり直しても二重にならない。⚠1回だけ（直らない理由なら2回目も同じで待ちと課金が倍になるだけ）。⚠失敗は必ず記録してからやり直す＝黙って直すと「回線が不安定」という事実が消える（通ればr49の「⚠N回失敗してから読めました」として残る）。⚠レシートと🍽の両方に同じ形で入れた｜r50 ❌失敗の種類を「文言から当てる」のをやめ、投げる側が名乗るようにした＝r45で書いた「返事が通信の途中で途切れました（本文が最後まで届きませんでした）」の中の「届きませんでした」が、net(CORS疑い)の規則に先に当たり、実機で見当違いの案内（通信を確認・CORSの可能性）が出た。2枚は成功していたのでCORSではない。⚠一度決めた分類を保存して表示でも使い回す（今までは画面に出すたび文言から当て直していた＝誤りが再生産される）。⚠規則の順番も狭い方を先に。🩹途中で切れた時も「そこまで届いた分」を残す＝res.text()は失敗すると全部消えるので自分で受ける（いちばん知りたい失敗なのに現物が丸ごと無かった）｜r49 🍽書き起こせたあとも「前に失敗した記録」を読めるようにした＝r30で「やり直しても消さない」と決めたのに成功すると画面から消えていた（残す意味が半分無かった）。実機で3回目が失敗→4回目は同じ画像で成功したのに、その3回目の理由が読めなくなっていた。⚠この文はレシートには在って🍽食事に無かった＝r46(案内文の表)・r47(考える量)・r48(Anthropic側)に続いて4度目の「片方の道にしか実装されていない」→今回は共通の部品にして両方から呼ぶ＝注意書きでなく構造で防ぐ。実測4回で天井の効きも確認（1回目3323tokは旧上限3000なら必ず失敗していた数字） · 2026-08-15';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -3046,6 +3069,11 @@ function renderRoleSettings(role){
   document.getElementById(`${ui}Model`).innerHTML =
     [[ '', `レシートの読み取りと同じ（${ocrModel}）` ], ...modelChoices(prov)]
       .map(([id, label]) => `<option value="${esc(id)}"${id === cur ? ' selected' : ''}>${esc(label)}</option>`).join('');
+  /* r53: 🛠 詳細設定も役割ごとに出す。⚠ **APIのURL は AI ごとに1つ**なので、
+     ここに映すのは「この役割が使っている AI」の値＝レシートと同じ AI なら同じ値が出る（正しい）。 */
+  document.getElementById(`${ui}ModelCustom`).value = '';
+  const bs = document.getElementById(`${ui}Base`);
+  bs.value = localStorage.getItem(LS.base(prov)) || ''; bs.placeholder = p.base;
 }
 const renderAnSettings = () => { renderRoleSettings('meal'); renderRoleSettings('an'); };
 Object.keys(ROLES).forEach(role => {
@@ -3067,35 +3095,55 @@ document.querySelectorAll('#provSeg button').forEach(b => b.onclick = () => {
 });
 document.getElementById('inKey').onchange    = e => localStorage.setItem(LS.key(getProv()), e.target.value.trim());
 document.getElementById('inModel').onchange  = e => localStorage.setItem(LS.model(getProv()), e.target.value);
+
+/* ---------- 🔌 接続テスト / 🔄 一覧の取得 / 🛠 詳細設定（r53：役割ごとに1組） ----------
+   ⚠ **これまで両方のボタンが `ctxFor('ocr')` 決め打ちだった**＝🍽 や 📈 に別の AI を選ぶと、
+      その AI のモデル一覧を取ってくる手段が無かった（レシート側を一時的に切り替えるしかない）。
+   ⚠ r46〜r51 で5回踏んだ「**片方の道にしか実装されていない**」を繰り返さないため、
+      3つとも**同じ関数から作る**（注意書きではなく構造で防ぐ・r49）。
+   ⚠ **役割ごとに別なのは「選ぶモデル」だけ**。キー・APIのURL・取ってきた一覧は **AI ごとに1つ**を共有する
+      （同じ鍵を3回貼らせない＝r40 の判断のまま。ここを役割ごとに分けると設定の置き場が3倍になる）。 */
+const LBL_TEST = '🔌 接続テスト（無料・課金されません）', LBL_FETCH = '🔄 使えるモデルの一覧を取得';
 // 直接入力はそのまま「選ばれているモデル」になる（設定の置き場を2つに増やさない）
-document.getElementById('inModelCustom').onchange = e => {
-  const id = e.target.value.trim(); if (!id) return;
-  localStorage.setItem(LS.model(getProv()), id); renderSettings(); toast('モデルを ' + id + ' にしました');
+const setRoleModel = (role, id) => {
+  const st = ROLES[role]?.store, prov = provForRole(role);   // ⚠ 'ocr' は表に無い＝基準の置き場へ
+  localStorage.setItem(st ? st.model(prov) : LS.model(prov), id);
 };
-document.getElementById('inBase').onchange = e => {
-  const v = e.target.value.trim();
-  if (v) localStorage.setItem(LS.base(getProv()), v); else localStorage.removeItem(LS.base(getProv()));
-};
-document.getElementById('btnFetchModels').onclick = async e => {
-  const b = e.target, ctx = ctxFor('ocr'), prov = ctx.prov; b.textContent = '🔄 取得中…';
-  try {
-    const list = await ctx.p.listModels(ctx);
-    localStorage.setItem(LS.list(prov), JSON.stringify(list));
-    if (!localStorage.getItem(LS.model(prov)) && list[0]) localStorage.setItem(LS.model(prov), list[0][0]);
-    renderSettings();
-    b.textContent = `✅ ${list.length}件`;
-  } catch (err) { b.textContent = '❌ ' + err.message; }
-  setTimeout(() => { b.textContent = '🔄 使えるモデルの一覧を取得'; }, 5000);
-};
-document.getElementById('btnTest').onclick = async e => {
-  const b = e.target; b.textContent = '🔌 確認中…';
-  try {
-    const ctx = ctxFor('ocr');
-    await ctx.p.test(ctx); // 無料のエンドポイントだけ叩く＝キー確認で課金されない
-    b.textContent = '✅ 接続OK（キー有効）';
-  } catch (err) { b.textContent = '❌ ' + err.message; }
-  setTimeout(() => { b.textContent = '🔌 接続テスト（無料・課金されません）'; }, 4000);
-};
+const AI_BLOCKS = [
+  { role: 'ocr',  test: 'btnTest',   fetch: 'btnFetchModels', custom: 'inModelCustom', base: 'inBase'  },
+  { role: 'meal', test: 'mlBtnTest', fetch: 'mlBtnFetch',     custom: 'mlModelCustom', base: 'mlBase'  },
+  { role: 'an',   test: 'anBtnTest', fetch: 'anBtnFetch',     custom: 'anModelCustom', base: 'anBase'  },
+];
+AI_BLOCKS.forEach(({ role, test, fetch, custom, base }) => {
+  document.getElementById(custom).onchange = e => {
+    const id = e.target.value.trim(); if (!id) return;
+    setRoleModel(role, id); renderSettings(); toast('モデルを ' + id + ' にしました');
+  };
+  document.getElementById(base).onchange = e => {
+    const v = e.target.value.trim(), prov = provForRole(role);   // ⚠ URL は AI ごと＝役割で分けない
+    if (v) localStorage.setItem(LS.base(prov), v); else localStorage.removeItem(LS.base(prov));
+  };
+  document.getElementById(fetch).onclick = async e => {
+    const b = e.target, ctx = ctxFor(role), prov = ctx.prov; b.textContent = '🔄 取得中…';
+    try {
+      const list = await ctx.p.listModels(ctx);
+      localStorage.setItem(LS.list(prov), JSON.stringify(list));
+      // 一覧が取れて、その AI にまだ既定のモデルが無ければ先頭を入れる（役割側は「同じ」のままでよい）
+      if (!localStorage.getItem(LS.model(prov)) && list[0]) localStorage.setItem(LS.model(prov), list[0][0]);
+      renderSettings();
+      b.textContent = `✅ ${list.length}件`;
+    } catch (err) { b.textContent = '❌ ' + err.message; }
+    setTimeout(() => { b.textContent = LBL_FETCH; }, 5000);
+  };
+  document.getElementById(test).onclick = async e => {
+    const b = e.target; b.textContent = '🔌 確認中…';
+    try {
+      await ctxFor(role).p.test(ctxFor(role)); // 無料のエンドポイントだけ叩く＝キー確認で課金されない
+      b.textContent = '✅ 接続OK（キー有効）';
+    } catch (err) { b.textContent = '❌ ' + err.message; }
+    setTimeout(() => { b.textContent = LBL_TEST; }, 4000);
+  };
+});
 
 /* ---------- 📊 統計（ライフログの 💴統計 を移植・レシートだけで完結） ----------
    ⚠ 収入（kind==='income'）は支出の集計に混ぜない＝合計・分類・お店・推移はすべて支出だけ。
