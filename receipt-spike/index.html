@@ -537,6 +537,16 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
       <label class="anChk"><input type="checkbox" id="anMealDetailChk"><span>🔬 <b>詳細な書き起こしまで渡す</b>（深掘り・送る量が増えます）</span></label>
     </div>
     <div class="anAi" id="anAiLine"></div>
+    <!-- r59: 返事の上限（要望）。⚠ 1か月まとめると足りなくなる＝**考えるぶんも同じ上限を食う**（r47）ので、
+         「返事が短い」のではなく「考えている途中で切れる」形で失敗する。⚠ 上限は「買う量」ではなく
+         **足りない方だけが事故**（短く済めば課金は増えない）＝上げても、使わなければ増えない。 -->
+    <div class="row"><label>返事の上限（🤖 が考えるぶんも含みます）</label>
+      <div class="seg wrap" id="anMaxSeg">
+        <button type="button" data-anmax="8000">8千（既定）</button>
+        <button type="button" data-anmax="16000">1.6万</button>
+        <button type="button" data-anmax="32000">3.2万</button>
+        <button type="button" data-anmax="64000">6.4万</button>
+      </div></div>
     <label class="anChk"><input type="checkbox" id="anSaveChk"><span>結果を自動で保存する（🗂 履歴に貯まります）</span></label>
     <!-- ⚠ 失敗の記録は ▶ の**上**（r34）＝押す前に「次に何をすればいいか」が読める位置に置く -->
     <div id="anErrBox" hidden></div>
@@ -731,7 +741,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r58 🔧案内の言い切りすぎを直した＝r57で「その AI（経路）側の問題」と書いたが、5回続けて落ちた提供元が前日は通っていた（ユーザー報告）＝そのとき不調だっただけで恒久的な性質ではない。⚠私が見ていたのは40分ぶんの窓だけだった。次の手（別の提供元に変える）は同じでも「今おかしい可能性」「別の日・別の時間帯なら通ることもあります」と言うようにした＝安い提供元を永久に捨てさせない（Qwen FlashはGemini Flashの1/20の値段）。⚠一時的な不調を恒久的な欠陥のように書くと、正しい次の手は出せても、そのあとの選択を誤らせる｜r57 🔁📈同じ失敗が続いたら「やり直せば通ります」と言わない＝実機でtruncが5回続いたのに案内がずっと「次は通ります」だった（1回目なら正しい案内も続くと嘘になる・r39と同じ考え）。同じ種類の失敗が2回以上続いたら「モデル/AIを変えて」に切り替え、モデルを変えても続いている時は「そのAI(経路)側の問題の可能性」まで言う。⚠一括への落とし直しは「すぐ失敗した時だけ」（10秒）に絞った＝この保険の相手はストリーミング非対応のサービスで、それはすぐ断ってくる。30〜100秒流れてから切れた＝ストリーミング自体は通っている＝投げ直しても同じ経路で同じことが起きるだけ（実測5回で5回とも一括側も0文字＝待ちと課金が倍になっただけ）。🔎今回の実験で確定に近づいた＝Qwen3系を3段階(max/plus/flash)変えても全部同じ失敗・同じ端末/回線/キーでGemini(Google Vertex経由)は成功＝モデルの大きさではなく提供元(Alibaba Cloud Int.)の経路の問題。plus/flashは生成完了して課金もされているのに0文字＝作った返事が配送されていない｜r56 🔎📈が一括に落ちた時、1回目（届いた端から）の失敗理由も記録するようにした＝実機で「71秒で駄目→一括で76秒も駄目」と内訳は分かったのに、71秒の方が何だったのかが残っていなかった（記録に載るのは最後に投げた方だけ）。⚠1回の実行で2回失敗しているなら2回とも控える（いちばん知りたい所で証拠を捨てない・r45）。⚠動きは変えていない＝控える内容が増えるだけ｜r55 📤「AIに渡す」にデータの読み方を同梱した（要望）＝書き出したJSONを Claude/ChatGPT のアプリに渡すと、受け取った側は読み方を知らないまま読むことになっていた。間違えるのは決まった所（items[].priceは行の合計なのにqtyを掛けて二重に数える／カロリーは持っていないのに推定して事実のように書く／photo_idで件数を数える＝1枚に複数レシートだと重複）で、どれも知っていれば起きない種類。⚠説明は1か所（DATA_NOTES）にだけ書いて📈の指示文と📤の同梱の両方から使う（2か所に書くと必ずズレる・r49）。⚠食事の説明は食事が入っている時だけ・📈には付けない（あちらは指示文で同じことを言っているので二重に送らない）。増えるのは約700文字｜r54 ⏱📈分析の待ちに天井をつけた＝実機で25分（1531秒）待って失敗した。⚠原因は「沈黙の時計だけで見ていた」こと＝1文字でも届けば時計が戻るので、考えている間に届くもの（考えた内容の断片・相手の「まだ処理中」の合図）で戻り続け、本文が1文字も来ないまま何十分でも待てた。⚠逆に1531秒待てた事実そのものが「通信は生きていた」証拠（切れていれば180秒で止まっていた）＝r51の「回線が不安定」とは別物。→沈黙とは別に全体の天井10分を置く（普通の長考は通り、明らかにおかしい長さだけ止まる）。⚠さらに時間切れのあと一括でもう一度投げていた＝1531秒は2回ぶんの合計だった→止めた・時間切れは投げ直しても同じだけ待つので投げない（判定は名乗りで・r50）。⚠記録に待ちの内訳（届いた端から何秒→一括で何秒）を残す＝合計だけだと1回で25分に見えて原因の見当が狂う · 2026-08-15';
+const BUILD = 'r59 💰📈に値段とトークン数を出した＋返事の上限を▶の近くで選べるようにした（要望）＝実測で同じ依頼が0.2円〜20円（100倍）、しかも同じ「GPT-5.6」でもSolとLunaで45倍＝名前からは値段が分からないのに、画面は「送るデータ約N文字」しか出していなかった（r15で「課金は送る文字数で効くので押す前に見えるように」と決めたのに半分だった）。⚠OpenRouterは一覧で単価を返しているのに捨てていた→拾って保存。⚠単価を返さないAI（Anthropic/OpenAI）は値段を捏造せずトークン数だけ出す。⚠確定しているのは送るぶんだけなので「送るぶん」と「返事は上限まで使うと最大」を分けて出す＝上限を上げると最大がいくら増えるか見える。⚠文字→トークンは実測校正（12,283文字＝入力4,812〜7,412tok・7モデル）で2文字=1トークン。結果画面には実測の入出力トークンと実際の料金｜r58 🔧案内の言い切りすぎを直した＝r57で「その AI（経路）側の問題」と書いたが、5回続けて落ちた提供元が前日は通っていた（ユーザー報告）＝そのとき不調だっただけで恒久的な性質ではない。⚠私が見ていたのは40分ぶんの窓だけだった。次の手（別の提供元に変える）は同じでも「今おかしい可能性」「別の日・別の時間帯なら通ることもあります」と言うようにした＝安い提供元を永久に捨てさせない（Qwen FlashはGemini Flashの1/20の値段）。⚠一時的な不調を恒久的な欠陥のように書くと、正しい次の手は出せても、そのあとの選択を誤らせる｜r57 🔁📈同じ失敗が続いたら「やり直せば通ります」と言わない＝実機でtruncが5回続いたのに案内がずっと「次は通ります」だった（1回目なら正しい案内も続くと嘘になる・r39と同じ考え）。同じ種類の失敗が2回以上続いたら「モデル/AIを変えて」に切り替え、モデルを変えても続いている時は「そのAI(経路)側の問題の可能性」まで言う。⚠一括への落とし直しは「すぐ失敗した時だけ」（10秒）に絞った＝この保険の相手はストリーミング非対応のサービスで、それはすぐ断ってくる。30〜100秒流れてから切れた＝ストリーミング自体は通っている＝投げ直しても同じ経路で同じことが起きるだけ（実測5回で5回とも一括側も0文字＝待ちと課金が倍になっただけ）。🔎今回の実験で確定に近づいた＝Qwen3系を3段階(max/plus/flash)変えても全部同じ失敗・同じ端末/回線/キーでGemini(Google Vertex経由)は成功＝モデルの大きさではなく提供元(Alibaba Cloud Int.)の経路の問題。plus/flashは生成完了して課金もされているのに0文字＝作った返事が配送されていない｜r56 🔎📈が一括に落ちた時、1回目（届いた端から）の失敗理由も記録するようにした＝実機で「71秒で駄目→一括で76秒も駄目」と内訳は分かったのに、71秒の方が何だったのかが残っていなかった（記録に載るのは最後に投げた方だけ）。⚠1回の実行で2回失敗しているなら2回とも控える（いちばん知りたい所で証拠を捨てない・r45）。⚠動きは変えていない＝控える内容が増えるだけ｜r55 📤「AIに渡す」にデータの読み方を同梱した（要望）＝書き出したJSONを Claude/ChatGPT のアプリに渡すと、受け取った側は読み方を知らないまま読むことになっていた。間違えるのは決まった所（items[].priceは行の合計なのにqtyを掛けて二重に数える／カロリーは持っていないのに推定して事実のように書く／photo_idで件数を数える＝1枚に複数レシートだと重複）で、どれも知っていれば起きない種類。⚠説明は1か所（DATA_NOTES）にだけ書いて📈の指示文と📤の同梱の両方から使う（2か所に書くと必ずズレる・r49）。⚠食事の説明は食事が入っている時だけ・📈には付けない（あちらは指示文で同じことを言っているので二重に送らない）。増えるのは約700文字 · 2026-08-15';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -746,6 +756,9 @@ const LS = {
   model: p => `rcpt.model.${p}`,
   base:  p => `rcpt.base.${p}`,
   list:  p => `rcpt.models.${p}`, // API から取ってきたモデル一覧のキャッシュ
+  /* r59: モデルごとの単価（1トークンあたりのドル）。⚠ 返してくるのは **OpenRouter だけ**＝
+     Anthropic と OpenAI の一覧に値段は入っていない。無い時は**トークン数だけ**出す（値段を捏造しない）。 */
+  price: p => `rcpt.price.${p}`,
   fmt:   p => `rcpt.fmt.${p}`,    // そのサービスで通った「JSONの頼み方」を覚えておく（r10）
   cats:  'rcpt.cats',             // 自分で足した分類（r31）
 };
@@ -761,6 +774,8 @@ const AN = {
   errors: 'rcpt.an.errors', okAt: 'rcpt.an.okAt',
   // r37: 📈 に食事も渡すか／詳細まで渡すか（既定＝渡す・詳細は渡さない）
   meals: 'rcpt.an.meals', mealDetail: 'rcpt.an.mealdetail',
+  // r59: 返事の上限（考えるぶんも含む）。1か月まとめると足りなくなるので選べるようにした
+  maxTokens: 'rcpt.an.maxtokens',
 };
 // 🍽 食事（r35）。⚠ あの日 web と同一オリジンなので rcpt. 接頭辞は外さない
 // r41: 📤 書き出しで食事をどこまで出すか（既定＝出す・詳細も入れる＝これまでと同じ結果）
@@ -791,6 +806,24 @@ const P        = () => provOf(getProv());
 const getKey   = () => localStorage.getItem(LS.key(getProv())) || '';
 const getModel = () => localStorage.getItem(LS.model(getProv())) || P().defaultModel || '';
 const getList  = p => { try { return JSON.parse(localStorage.getItem(LS.list(p)) || '[]'); } catch (_) { return []; } };
+/* ---------- 💰 いくらかかるか（r59） ----------
+   ⚠ 実機で **同じ依頼が 0.2円〜20円（100倍）**、しかも**同じ「GPT-5.6」でも Sol と Luna で45倍**だった
+      （2026-08-15・7モデル実測）＝**名前からは値段が分からない**のに、画面は「送るデータ 約N文字」しか
+      出していなかった。r15 で「課金は送る文字数で効くので押す前に見えるように」と決めたのに**半分**だった。
+   ⚠ **値段が分からない時は、トークン数だけ出す**（ユーザー指示）＝**捏造しない**。 */
+const priceOf = (prov, model) => {
+  try { return (JSON.parse(localStorage.getItem(LS.price(prov)) || '{}'))[model] || null; } catch (_) { return null; }
+};
+/* 文字→トークンのざっくり換算。⚠ **数え方はモデルごとに違う**ので、当たるのは桁だけ。
+   実測校正（2026-08-15・同じ期間のデータ 12,283文字）＝ 入力 4,812〜7,412 トークン（モデル7種）
+   ＝ 1トークンあたり 1.7〜2.6文字 → **2文字＝1トークン**で真ん中を取る。 */
+const CHARS_PER_TOKEN = 2;
+const estTokens = chars => Math.round(chars / CHARS_PER_TOKEN);
+// ⚠ 為替は固定（このアプリはサーバーを持たないので取りに行かない）＝「約」と明示して出す
+const USD_JPY = 150;
+const usdText = v => '$' + (v >= 0.1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(3) : v.toFixed(4));
+const yenText = v => { const y = v * USD_JPY; return y < 1 ? '1円未満' : '約' + Math.round(y).toLocaleString('ja-JP') + '円'; };
+const costText = (usd) => `${usdText(usd)}（${yenText(usd)}）`;
 // 分析用に選ばれている AI（未選択なら読み取りと同じ）
 /* 役割ごとの「どの AI か」。⚠ 選んでいない（空）／知らない名前 なら、レシートの読み取りに落ちる。
    ⚠ 落ちる先を getProv() 固定にする＝役割どうしを参照させない（meal が an を見に行く、のような輪を作らない）。 */
@@ -1533,9 +1566,16 @@ function openAICompatible(o){
         const mods = m.architecture?.input_modalities; // OpenRouter は入力の種類を返す＝画像可だけに絞れる
         return Array.isArray(mods) ? mods.includes('image') : true;
       };
-      return data.filter(m => seesImages(m) && !NG.test(m.id))
-                 .map(m => [m.id, m.name && m.name !== m.id ? `${m.name}（${m.id}）` : m.id])
-                 .sort((a, b) => a[0].localeCompare(b[0]));
+      const ok = data.filter(m => seesImages(m) && !NG.test(m.id));
+      /* r59: ⚠ **単価も返ってきているのに捨てていた**（`pricing.prompt` / `.completion` ＝1トークンあたりのドル）。
+         100倍の差を知らずに選ぶのは事故なので拾う。⚠ 0 や負（従量でないもの）は入れない＝「無い」と同じ扱い。 */
+      const prices = {};
+      for (const m of ok) {
+        const i = parseFloat(m.pricing?.prompt), o = parseFloat(m.pricing?.completion);
+        if (i > 0 || o > 0) prices[m.id] = [i > 0 ? i : 0, o > 0 ? o : 0];
+      }
+      return { list: ok.map(m => [m.id, m.name && m.name !== m.id ? `${m.name}（${m.id}）` : m.id])
+                       .sort((a, b) => a[0].localeCompare(b[0])), prices };
     },
   };
 }
@@ -3183,7 +3223,11 @@ AI_BLOCKS.forEach(({ role, test, fetch, custom, base }) => {
   document.getElementById(fetch).onclick = async e => {
     const b = e.target, ctx = ctxFor(role), prov = ctx.prov; b.textContent = '🔄 取得中…';
     try {
-      const list = await ctx.p.listModels(ctx);
+      /* r59: 単価を返す入口（OpenRouter）は `{list, prices}`、返さない入口（Anthropic 等）は今までどおり配列。
+         ⚠ **返さない側の作りを変えない**＝間口を狭めない（r10 と同じ作法）。 */
+      const got = await ctx.p.listModels(ctx);
+      const list = Array.isArray(got) ? got : got.list;
+      if (!Array.isArray(got) && got.prices) localStorage.setItem(LS.price(prov), JSON.stringify(got.prices));
       localStorage.setItem(LS.list(prov), JSON.stringify(list));
       // 一覧が取れて、その AI にまだ既定のモデルが無ければ先頭を入れる（役割側は「同じ」のままでよい）
       if (!localStorage.getItem(LS.model(prov)) && list[0]) localStorage.setItem(LS.model(prov), list[0][0]);
@@ -4159,6 +4203,12 @@ async function anTargets(){
 }
 const anMealsOn      = () => localStorage.getItem(AN.meals) !== '0';        // 既定＝渡す
 const anMealDetailOn = () => localStorage.getItem(AN.mealDetail) === '1';   // 既定＝渡さない（深掘りの時だけ）
+// r59: 返事の上限。⚠ 既定は今までどおり 8000（黙って変えない）
+const AN_MAX_CHOICES = [8000, 16000, 32000, 64000];
+const anMaxTokens = () => {
+  const v = +localStorage.getItem(AN.maxTokens);
+  return AN_MAX_CHOICES.includes(v) ? v : 8000;
+};
 /* 📈 に渡す食事のデータ（r37）。
    ⚠ **既定は要約だけ**＝要望のとおり「基本は要約を渡し、深掘りの時に詳細を渡す」。
       詳細は1件が数百文字あるので、1か月ぶんを常に乗せると**毎回の料金が数倍**になり、
@@ -4213,12 +4263,21 @@ async function renderAnalyze(){
     const chars = (rows.length ? exportJson(rows, per.from, per.to).length : 0)
                 + (meals.length ? JSON.stringify(exportMealsJson(meals, anMealDetailOn())).length : 0);
     const spend = rows.filter(x => x.rc.kind !== 'income' && x.rc.total != null).reduce((s, x) => s + x.rc.total, 0);
+    /* r59: 値段を押す前に見せる。⚠ **確定しているのは送るぶんだけ**（返事の長さは終わるまで分からない）＝
+       「送るぶん」と「返事は上限まで使うと最大」を**分けて**出す＝上限を上げると最大がいくら増えるかが見える。
+       ⚠ 単価が無い AI（Anthropic・OpenAI）は**トークン数だけ**（値段を捏造しない・ユーザー指示）。 */
+    const inTok = estTokens(chars), maxTok = anMaxTokens();
+    const anCtx = ctxFor('an'), pr = priceOf(anCtx.prov, anCtx.model);
+    const money = pr
+      ? ` ・ 送るぶん <b>${costText(inTok * pr[0])}</b> ＋ 返事は上限まで使うと最大 <b>${costText(maxTok * pr[1])}</b>`
+      : ` <span style="color:var(--dim)">（この AI は値段を返さないので、トークン数だけ出しています）</span>`;
     cnt.innerHTML = !rows.length && !meals.length
       ? `<b>${esc(per.label)}</b>：この期間にレシートも食事もありません`
       : `<b>${esc(per.label)}</b>：レシート ${rows.length}件${spend ? ' ・ 支出 ' + yen(spend) : ''}`
         + (meals.length ? ` ・ 🍽 食事 ${meals.length}件（${anMealDetailOn() ? '詳細つき' : '要約のみ'}）` : '')
-        + ` ・ 送るデータ 約${chars.toLocaleString('ja-JP')}文字`
+        + ` ・ 送るデータ 約${chars.toLocaleString('ja-JP')}文字（およそ ${inTok.toLocaleString('ja-JP')}トークン）`
         + (anAtt.length ? ` ＋ 📎${anAtt.length}件` : '')
+        + money
         // ⚠ かかる時間は量とモデルで変わる＝固定の数字を約束しない（r26）。上限だけは決めてあると伝える
         // ⚠ ストリーミングにしたので「全体で何分」ではなく「沈黙が続いたら」が上限（r27）
         + `<br>⏱ 返事は<b>届いた端から出ます</b>。1年分を賢いモデルに読ませると<b>数分かかることがあります</b>（量と選んだモデルによります）。`
@@ -4246,6 +4305,15 @@ async function renderAnalyze(){
     ? `レシートの<b>文字データ（JSON）</b>と、<b>📎 で選んだ ${anAtt.length}件（${kinds.join('・')}）</b>を、あなたのキーで選んだAIに直接送ります。`
       + `<br><b>レシートの写真は送りません</b>（📷 の読み取りで文字になっているため）。文字データの中身は 📤 の書き出しと同じです。`
     : `レシートの<b>文字データ（JSON）だけ</b>を、あなたのキーで選んだAIに直接送ります（<b>レシートの写真は送りません</b>）。中身は 📤 の書き出しと同じです。`;
+
+  // r59: 返事の上限（押したら覚えて、見積り行を出し直す＝上限を上げると最大がいくら増えるか見える）
+  const maxSeg = document.getElementById('anMaxSeg');
+  if (!maxSeg.dataset.wired) {
+    maxSeg.dataset.wired = '1';
+    maxSeg.querySelectorAll('button').forEach(b => b.onclick = () => {
+      localStorage.setItem(AN.maxTokens, b.dataset.anmax); renderAnalyze();
+    });
+  }
 
   // 型（プリセット）
   const seg = document.getElementById('anPresetSeg');
@@ -4282,6 +4350,12 @@ async function renderAnalyze(){
     document.getElementById('anMealDetailChk').disabled = !anMealsOn();
     document.getElementById('anMealDetailChk').closest('label').style.opacity = anMealsOn() ? '' : '.45';
     document.getElementById('anMealN').textContent = anMealsOn() ? `この期間に ${meals.length}件` : 'いまは渡しません';
+  }
+  // r59: 返事の上限（選ばれているものを光らせる）
+  {
+    const cur = anMaxTokens();
+    document.querySelectorAll('#anMaxSeg button').forEach(b =>
+      b.classList.toggle('on', +b.dataset.anmax === cur));
   }
   document.getElementById('anSaveChk').checked = anSaveOn();
   renderAnErrs();   // r34: 押す前に「前回なぜ失敗したか・次に何をすればいいか」が読める
@@ -4380,7 +4454,10 @@ function openAnResult(a){
   document.getElementById('arMeta').textContent =
     `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
     + ` ・ 対象 ${a.count}件 ・ ${a.model || ''}`
-    + (a.in != null ? ` / in ${a.in} · out ${a.out} tokens` : '')
+    // r59: 実測。⚠ 見積りより**こちらが本物**（送る前の数字はモデルごとの数え方を知らない）
+    + (a.in != null ? ` / 入力 ${a.in.toLocaleString('ja-JP')} · 出力 ${(a.out ?? 0).toLocaleString('ja-JP')} トークン` : '')
+    + (() => { const p = a.in != null && priceOf(a.provider, a.model);
+               return p ? ` / 実際 ${costText(a.in * p[0] + (a.out || 0) * p[1])}` : ''; })()
     + (a.attachments?.length ? ` ・ 📎 ${a.attachments.map(f => f.name).join(' / ')}` : '')
     + (a.saved === false ? ' ・ ⚠ 保存していません（この画面を閉じると消えます）' : '');
   document.getElementById('arBody').innerHTML = mdToHtml(a.text);
@@ -4444,6 +4521,8 @@ async function anRun(){
 
     // ⚠ 8000（r17 で 4000 から）＝今どきのモデルは考えてから答えるので、上限は「考えた分＋返事」の合計を縛る。
     //   AN_SYSTEM で頼んでいるのは 800 字程度なので、実際に使う量（＝課金）は増えない。切れないための余白。
+    // ⚠ r59: 1か月まとめると足りなくなる（考えるぶんも食う）＝▶ の近くで選べるようにした
+    const maxTok = anMaxTokens();
     /* 届いた端から受け取る（r27）。1年分を賢いモデルに読ませると答え終わるまで数分かかるので、
        ①待ちが見える ②長い沈黙で接続が切られにくい の両方が要る。
        ⚠ 一度も届かないまま失敗した時だけ、従来の一括に落とす（ストリーミングを受け付けない
@@ -4452,7 +4531,7 @@ async function anRun(){
     let r;
     const tStream = Date.now();
     try {
-      r = await ctx.p.chatStream(ctx, AN_SYSTEM, parts, 8000, anAbort.signal, t => {
+      r = await ctx.p.chatStream(ctx, AN_SYSTEM, parts, maxTok, anAbort.signal, t => {
         anChars = t.length; renderArStream(t);
       });
     } catch (e) {
@@ -4462,7 +4541,7 @@ async function anRun(){
       anStreamErr = { tag: errTag(m, e?.status || 0, e?.tag), msg: m.slice(0, 120) };
       if (!worthPlainRetry(e, anChars, anStreamSecs)) throw e;
       anFellBack = true;
-      r = await ctx.p.chat(ctx, AN_SYSTEM, parts, 8000, anAbort.signal);
+      r = await ctx.p.chat(ctx, AN_SYSTEM, parts, maxTok, anAbort.signal);
     }
     let text = String(r.text || '').trim();
     if (!text) throw new Error(isCut(r.stop)
