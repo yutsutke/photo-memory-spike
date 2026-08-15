@@ -298,11 +298,14 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 <header>
   <h1>🧾&nbsp;<span class="ttl">レシート</span></h1>
   <span class="sp"></span>
+  <!-- r62: 📤 を 📈 より前に置いた（要望「書き出しを1次に・分析は2次に」）＝
+       実際に試して「書き出し→AIアプリでファイルを読ませる」方が本命の使い方になったため。
+       📈 は簡易分析（1回きり・APIキー直呼び）として残す。 -->
   <button class="hbtn" id="btnSearch" title="検索（店名・品目・分類・期間・金額）">🔍</button>
   <button class="hbtn" id="btnMeals" title="食事（朝・昼・夕・間食のカレンダー）">🍽</button>
-  <button class="hbtn" id="btnAnalyze" title="分析（期間を決めてAIに読ませる）">📈</button>
+  <button class="hbtn" id="btnExport" title="書き出し（ファイルにして AI や表計算に渡す）">📤</button>
   <button class="hbtn" id="btnStats" title="統計（期間・分類・お店・推移）">📊</button>
-  <button class="hbtn" id="btnExport" title="期間を指定して書き出し">📤</button>
+  <button class="hbtn" id="btnAnalyze" title="簡易分析（1回きり・ここから直接AIに読ませる）">📈</button>
   <button class="hbtn" id="btnSettings" title="設定">⚙</button>
 </header>
 
@@ -473,8 +476,20 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <!-- 📤 書き出し -->
 <div class="overlay" id="ovExport"><div class="sheet">
-  <button class="x" data-close>✕</button><h2>📤 期間を指定して書き出し</h2>
-  <div class="dual">
+  <button class="x" data-close>✕</button><h2>📤 書き出し</h2>
+  <!-- r62: 期間はボタンで選ぶ（要望「日付を打つのがめんどう」）。📈 と同じ並び＋直近7日を追加。
+       「期間を選ぶ」を押した時だけ日付欄を出す -->
+  <div class="row"><label>期間</label>
+    <div class="seg wrap" id="expPeriodSeg">
+      <button type="button" data-ep="d7">直近7日</button>
+      <button type="button" data-ep="d30">直近30日</button>
+      <button type="button" data-ep="month">今月</button>
+      <button type="button" data-ep="lastmonth">先月</button>
+      <button type="button" data-ep="year">今年</button>
+      <button type="button" data-ep="all">全期間</button>
+      <button type="button" data-ep="range">期間を選ぶ</button>
+    </div></div>
+  <div class="dual" id="expRangeRow" style="display:none">
     <div class="row" style="flex:1"><label>から</label><input type="date" id="expFrom"></div>
     <div class="row" style="flex:1"><label>まで</label><input type="date" id="expTo"></div>
   </div>
@@ -484,20 +499,32 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
     <label class="anChk"><input type="checkbox" id="expMealChk"><span>この期間の<b>料理もいっしょに書き出す</b>（<span id="expMealN"></span>）</span></label>
     <label class="anChk"><input type="checkbox" id="expMealDetailChk"><span>📄 <b>詳細な書き起こしも入れる</b>（外すと<b>要約だけ</b>になります）</span></label>
   </div>
-  <button class="btn pri" id="btnShareText">🤖 AIに渡す（Claude 等）<br><small>文字として共有＝AIアプリが共有先に出ます</small></button>
+  <!-- r62: ファイルを1次に・文字貼りを2次に（実際に試して「ファイル→AIに読ませる」が本命になった）。
+       ⚠ 全期間で出して毎回上書きすれば、古いファイルと重なる心配がない＝その使い方をここで言う -->
+  <div class="note" style="margin:0 0 8px">💡 <b>おすすめ</b>: ファイルを自分の <b>Google ドライブ</b>（や iCloud）に保存 → Claude / ChatGPT に<b>そのファイルを読ませる</b>＝何度でも続けて聞けます。<b>「全期間」で出して毎回上書き</b>すれば、古いファイルと重なりません。</div>
   <div class="dual">
-    <button class="btn" id="btnJson">📄 JSON<br><small>ファイル保存</small></button>
-    <button class="btn" id="btnCsv">📊 CSV<br><small>表計算向け</small></button>
+    <button class="btn pri" id="btnJson">📄 JSON<br><small>全部入り・AI向け</small></button>
+    <button class="btn" id="btnCsv">📊 CSV<br><small id="csvSmall">表計算向け</small></button>
     <button class="btn" id="btnCopy">📋 コピー<br><small>貼り付け</small></button>
   </div>
-  <button class="btn" id="btnMealCsv" hidden>🍽 料理のCSV<br><small>表計算向け（レシートとは列が違うので別ファイル）</small></button>
+  <button class="btn" id="btnShareText">🤖 AIに文字で渡す（Claude 等）<br><small>そのまま貼る＝手軽。ちょっと聞きたいだけの時に</small></button>
+  <!-- r62: 頼み方の例（要望）。⚠ 例文に「レシートIDが同じ＝1回だけ数える」を入れてある＝
+       ファイルが複数あっても二重に数えない（重なりの保険はデータ側の receipt_id と、この一文の両輪） -->
+  <details class="adv" id="expPromptBox"><summary>🗣 AI への頼み方の例（コピーして使えます）</summary>
+    <textarea id="expPromptEx" readonly rows="10" style="width:100%; margin:8px 0 6px"></textarea>
+    <button class="btn" id="btnCopyPrompt">📋 この例文をコピー</button>
+    <div class="note">⚠ ファイルが複数ある時のために「レシートIDが同じものは1回だけ数える」を入れてあります（同じ期間を2回書き出して渡しても、二重に数えられません）。</div>
+  </details>
   <div class="note" id="expNote"></div>
-  <div class="note">JSON は AI にそのまま渡せる形式（バージョン付き）。リンク共有したい場合は、共有シートから自分の Drive / iCloud に保存し、そのリンクを AI に渡してください（このアプリはリンクをホストしません）。</div>
+  <div class="note">📄 JSON＝レシート＋🍽料理が<b>1ファイルに全部入り</b>で、AI 向けの「読み方」の説明も同梱。📊 CSV＝表計算向けで、料理がある時は<b>列が違うため2ファイル</b>になります（いっぺんに出ます）。このアプリはリンクをホストしません＝リンクで渡したい時は自分の Drive / iCloud に保存してそのリンクを。</div>
 </div></div>
 
-<!-- 📈 分析（期間を決めて、まとめてAIに読ませる） -->
+<!-- 📈 簡易分析（期間を決めて、まとめてAIに読ませる）
+     r62: 「分析」→「簡易分析」に改名＝1次の道は 📤 書き出し→AIアプリでファイルを読ませる、に決めた（実測で申し分なし）。
+     ここは ①手早くその場で確かめたい時 ②AI アプリの有料プランを使っていない人（APIキーだけで動く）のために残す。 -->
 <div class="overlay" id="ovAnalyze"><div class="sheet tall">
-  <button class="x" data-close>✕</button><h2>📈 分析</h2>
+  <button class="x" data-close>✕</button><h2>📈 簡易分析</h2>
+  <div class="note" style="margin:0 0 10px">💡 <b>しっかり分析するなら 📤 書き出しがおすすめ</b>＝ファイルを自分の <b>Google ドライブ</b>に保存して、Claude / ChatGPT に<b>そのファイルを読ませる</b>と、<b>何度でも続けて聞けて</b>、ここで使う API の料金もかかりません。ここ（📈）は<b>1回きりの簡易分析</b>＝手早く確かめたい時や、AI アプリの有料プランを使っていない人向けです。</div>
   <div class="seg" id="anTabs" style="margin-bottom:10px">
     <button type="button" data-antab="new">🆕 分析する</button>
     <button type="button" data-antab="hist">🗂 履歴</button>
@@ -534,14 +561,14 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
         <b>🗣 ① 手軽に渡す（そのまま貼る）</b>——ちょっと聞きたいだけの時。
         <br>① 上の <b>🧾 の画面に戻って 📤</b>（期間を指定して書き出し）を開く
         <br>② <b>期間</b>を決める（🍽 食事も、<b>詳細な書き起こしまで</b>渡すか選べます）
-        <br>③ <b>「🤖 AIに渡す（Claude 等）」</b>を押す
+        <br>③ <b>「🤖 AIに文字で渡す（Claude 等）」</b>を押す
         <br>④ 共有シートで <b>Claude / ChatGPT のアプリ</b>を選ぶ
         <br>⑤ そのまま<b>何度でも聞けます</b>（先月と比べる・気になる店を掘る…）
       </div>
       <div class="note" style="margin:0 0 8px">
         <b>📄 ② しっかり分析するなら「ファイルで渡す」</b>——1年ぶん、細かい集計、グラフまで欲しい時は<b>こちら</b>。
         <br>① 同じく <b>📤</b> を開いて<b>期間</b>を決める
-        <br>② <b>「📄 JSON（ファイル保存）」</b>を押す → <b>「ファイル」アプリ</b>に保存されます（アプリ版では共有シートが開くので、そこで Claude / ChatGPT を選べます）
+        <br>② <b>「📄 JSON」</b>を押す → <b>「ファイル」アプリ</b>に保存されます（アプリ版では共有シートが開くので、そこで Claude / ChatGPT や <b>Google ドライブ</b>を選べます）
         <br>③ <b>Claude / ChatGPT のアプリ</b>を開き、<b>＋ から そのファイルを添付</b>する
         <br>④ 「このファイルを読んで、月ごとの支出を出して」のように頼む
         <br>⚠ <b>ファイルの方が向いている理由</b>：貼り付けた文章は会話に埋もれますが、<b>添付は残る</b>ので何度でも読み返させられます。さらに <b>AI がファイルを計算に回せる</b>ので、合計や割合が<b>目分量ではなく計算</b>になり、表やグラフも作れます。量が多い時に<b>途中で切れる心配もありません</b>。
@@ -775,7 +802,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 
 <script>
 'use strict';
-const BUILD = 'r61 📄📈の案内に「ファイルで渡す」手順を書き足した（要望）＝渡し方を①手軽に貼る（🤖AIに渡す）②しっかり分析する（📄JSONをファイル保存→AIアプリに添付）の2本立てに。⚠ファイルが向く理由も書いた＝貼った文章は会話に埋もれるが添付は残る・AIがファイルを計算に回せるので合計や割合が目分量でなく計算になる・量が多くても途中で切れない。🩹書いた注記がwebでは誤りだった＝自動でファイルに切り替わるのはアプリ版だけで、ブラウザは常に文章のまま渡す（実装を読み直して限定した）＝文言は実装の写しでなければならない｜r60 🗣📈に「長い期間・じっくり掘るなら書き出してAIアプリで」の案内を手順つきで置いた（要望）＝📈は1回きりのやりとりで800字ほど＝続けて聞けない。⚠分かれ目はデータの量ではなく「一往復か往復できるか」（1か月でも数KB）。⚠「別の画面を見て」で終わらせず手順①〜⑤をその場に書く（探させない）。⚠今年/全期間や量が多い時は自動で開く＝いちばん要る時に畳まれていない。ただし人が見出しを押したら以後こちらからは動かさない。🩹実装で踏んだ罠＝toggleで見張るとこちらのopen代入でも発火して「人が触った」扱いになり二度と自動で開かない→見張るのは見出しのclick（人の操作）だけ｜r59 💰📈に値段とトークン数を出した＋返事の上限を▶の近くで選べるようにした（要望）＝実測で同じ依頼が0.2円〜20円（100倍）、しかも同じ「GPT-5.6」でもSolとLunaで45倍＝名前からは値段が分からないのに、画面は「送るデータ約N文字」しか出していなかった（r15で「課金は送る文字数で効くので押す前に見えるように」と決めたのに半分だった）。⚠OpenRouterは一覧で単価を返しているのに捨てていた→拾って保存。⚠単価を返さないAI（Anthropic/OpenAI）は値段を捏造せずトークン数だけ出す。⚠確定しているのは送るぶんだけなので「送るぶん」と「返事は上限まで使うと最大」を分けて出す＝上限を上げると最大がいくら増えるか見える。⚠文字→トークンは実測校正（12,283文字＝入力4,812〜7,412tok・7モデル）で2文字=1トークン。結果画面には実測の入出力トークンと実際の料金｜r58 🔧案内の言い切りすぎを直した＝r57で「その AI（経路）側の問題」と書いたが、5回続けて落ちた提供元が前日は通っていた（ユーザー報告）＝そのとき不調だっただけで恒久的な性質ではない。⚠私が見ていたのは40分ぶんの窓だけだった。次の手（別の提供元に変える）は同じでも「今おかしい可能性」「別の日・別の時間帯なら通ることもあります」と言うようにした＝安い提供元を永久に捨てさせない（Qwen FlashはGemini Flashの1/20の値段）。⚠一時的な不調を恒久的な欠陥のように書くと、正しい次の手は出せても、そのあとの選択を誤らせる｜r57 🔁📈同じ失敗が続いたら「やり直せば通ります」と言わない＝実機でtruncが5回続いたのに案内がずっと「次は通ります」だった（1回目なら正しい案内も続くと嘘になる・r39と同じ考え）。同じ種類の失敗が2回以上続いたら「モデル/AIを変えて」に切り替え、モデルを変えても続いている時は「そのAI(経路)側の問題の可能性」まで言う。⚠一括への落とし直しは「すぐ失敗した時だけ」（10秒）に絞った＝この保険の相手はストリーミング非対応のサービスで、それはすぐ断ってくる。30〜100秒流れてから切れた＝ストリーミング自体は通っている＝投げ直しても同じ経路で同じことが起きるだけ（実測5回で5回とも一括側も0文字＝待ちと課金が倍になっただけ）。🔎今回の実験で確定に近づいた＝Qwen3系を3段階(max/plus/flash)変えても全部同じ失敗・同じ端末/回線/キーでGemini(Google Vertex経由)は成功＝モデルの大きさではなく提供元(Alibaba Cloud Int.)の経路の問題。plus/flashは生成完了して課金もされているのに0文字＝作った返事が配送されていない · 2026-08-15';
+const BUILD = 'r62 📤🥇書き出しを1次に・📈は「簡易分析」に（要望）＝実際にファイルをGoogleドライブに置いてAIアプリに読ませたら「分析も申し分ない。基本はこっちのほうがいい」＝アプリ内📈より安くて何度でも続けて聞ける。①📤の期間をボタン化（直近7日/直近30日/今月/先月/今年/全期間/期間を選ぶ＝日付を打つのは「期間を選ぶ」の時だけ）②📊CSVはレシート＋🍽料理の2ファイルを1回でいっぺんに出す（列が違うので別ファイルのまま＝r41の判断は不変・手数だけ1回に）③🗣AIへの頼み方の例文を📤に同梱（コピーできる）④重なり対策＝例文と_readmeに「receipt_idが同じものは同じレシート＝1回だけ数える」を明記＝Driveに古い書き出しが残っていても二重に数えられない⑤ヘッダの📤を📈より前へ・📈の頭に「しっかり分析するなら📤でドライブに保存→AIに読ませるのがおすすめ」の案内（📈は手早い確認と、AIアプリの有料プランを使っていない人向けに残す）｜r61 📄📈の案内に「ファイルで渡す」手順を書き足した（要望）＝渡し方を①手軽に貼る（🤖AIに渡す）②しっかり分析する（📄JSONをファイル保存→AIアプリに添付）の2本立てに。⚠ファイルが向く理由も書いた＝貼った文章は会話に埋もれるが添付は残る・AIがファイルを計算に回せるので合計や割合が目分量でなく計算になる・量が多くても途中で切れない。🩹書いた注記がwebでは誤りだった＝自動でファイルに切り替わるのはアプリ版だけで、ブラウザは常に文章のまま渡す（実装を読み直して限定した）＝文言は実装の写しでなければならない｜r60 🗣📈に「長い期間・じっくり掘るなら書き出してAIアプリで」の案内を手順つきで置いた（要望）＝📈は1回きりのやりとりで800字ほど＝続けて聞けない。⚠分かれ目はデータの量ではなく「一往復か往復できるか」（1か月でも数KB）。⚠「別の画面を見て」で終わらせず手順①〜⑤をその場に書く（探させない）。⚠今年/全期間や量が多い時は自動で開く＝いちばん要る時に畳まれていない。ただし人が見出しを押したら以後こちらからは動かさない。🩹実装で踏んだ罠＝toggleで見張るとこちらのopen代入でも発火して「人が触った」扱いになり二度と自動で開かない→見張るのは見出しのclick（人の操作）だけ｜r59 💰📈に値段とトークン数を出した＋返事の上限を▶の近くで選べるようにした（要望）＝実測で同じ依頼が0.2円〜20円（100倍）、しかも同じ「GPT-5.6」でもSolとLunaで45倍＝名前からは値段が分からないのに、画面は「送るデータ約N文字」しか出していなかった（r15で「課金は送る文字数で効くので押す前に見えるように」と決めたのに半分だった）。⚠OpenRouterは一覧で単価を返しているのに捨てていた→拾って保存。⚠単価を返さないAI（Anthropic/OpenAI）は値段を捏造せずトークン数だけ出す。⚠確定しているのは送るぶんだけなので「送るぶん」と「返事は上限まで使うと最大」を分けて出す＝上限を上げると最大がいくら増えるか見える。⚠文字→トークンは実測校正（12,283文字＝入力4,812〜7,412tok・7モデル）で2文字=1トークン。結果画面には実測の入出力トークンと実際の料金｜r58 🔧案内の言い切りすぎを直した＝r57で「その AI（経路）側の問題」と書いたが、5回続けて落ちた提供元が前日は通っていた（ユーザー報告）＝そのとき不調だっただけで恒久的な性質ではない。⚠私が見ていたのは40分ぶんの窓だけだった。次の手（別の提供元に変える）は同じでも「今おかしい可能性」「別の日・別の時間帯なら通ることもあります」と言うようにした＝安い提供元を永久に捨てさせない（Qwen FlashはGemini Flashの1/20の値段）。⚠一時的な不調を恒久的な欠陥のように書くと、正しい次の手は出せても、そのあとの選択を誤らせる · 2026-08-15';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -813,7 +840,7 @@ const AN = {
 };
 // 🍽 食事（r35）。⚠ あの日 web と同一オリジンなので rcpt. 接頭辞は外さない
 // r41: 📤 書き出しで食事をどこまで出すか（既定＝出す・詳細も入れる＝これまでと同じ結果）
-const EX = { meals: 'rcpt.exp.meals', mealDetail: 'rcpt.exp.mealdetail' };
+const EX = { meals: 'rcpt.exp.meals', mealDetail: 'rcpt.exp.mealdetail', period: 'rcpt.exp.period' };
 const ML = { slots: 'rcpt.meal.slots', day: 'rcpt.meal.day', view: 'rcpt.meal.view',
              // r40: 食事の写真を読む AI（空 = レシートの読み取りと同じ）
              prov: 'rcpt.meal.provider', model: p => `rcpt.meal.model.${p}` };
@@ -2942,8 +2969,26 @@ document.getElementById('btnDelete').onclick = async () => {
 };
 
 /* ---------- 書き出し（期間指定 → JSON / CSV / OS共有シート） ---------- */
+/* r62: 期間はボタンで選ぶ（📈 の anPeriod と同じ考え・こちらは d7 もある）。
+   ⚠ 「期間を選ぶ」の時だけ日付欄を読む。日付欄が空なら「区切らない」＝従来どおり。 */
+let expMode = localStorage.getItem(EX.period) || 'month';
+function expPeriod(){
+  const t = todayStr(), y = +t.slice(0, 4), m = +t.slice(5, 7);
+  const lastDay = (yy, mm) => pad2(new Date(yy, mm, 0).getDate()); // mm は 1-12（Date の 0 日＝前月末日）
+  if (expMode === 'all')  return { from: '', to: '' };
+  if (expMode === 'd7')   return { from: addDays(t, -6),  to: t };
+  if (expMode === 'd30')  return { from: addDays(t, -29), to: t };
+  if (expMode === 'year') return { from: `${y}-01-01`, to: `${y}-12-31` };
+  if (expMode === 'lastmonth') {
+    const ly = m === 1 ? y - 1 : y, lm = m === 1 ? 12 : m - 1;
+    return { from: `${ly}-${pad2(lm)}-01`, to: `${ly}-${pad2(lm)}-${lastDay(ly, lm)}` };
+  }
+  if (expMode === 'range')
+    return { from: document.getElementById('expFrom').value, to: document.getElementById('expTo').value };
+  return { from: `${y}-${pad2(m)}-01`, to: `${y}-${pad2(m)}-${lastDay(y, m)}` };
+}
 async function exportTargets(){
-  const from = document.getElementById('expFrom').value, to = document.getElementById('expTo').value;
+  const { from, to } = expPeriod();
   const rows = (await listRows()).filter(x => x.rc && (!from || x.date >= from) && (!to || x.date <= to))
                                  .sort((a, b) => a.date.localeCompare(b.date));
   return { from, to, rows };
@@ -2990,34 +3035,42 @@ const expName = (from, to, ext) => `receipts_${from || 'all'}_${to || 'all'}.${e
 /* 書き出しの出口。native WebView は <a download> も Web Share API も効かない（r6 実機で確認＝押しても無反応）。
    → アプリ版は Capacitor プラグイン経由: キャッシュに一時ファイルを書く（権限不要）→ 共有シートへ URI を渡す。
    ブラウザ版は従来どおりダウンロード。📋 コピーはどちらでも効く最後の逃げ道として不変（r4）。 */
-async function nativeShareFile(name, text){
+/* r62: 複数ファイルをいっぺんに出せる形に（CSV はレシート＋料理の2ファイルを同時に渡すため）。
+   native の共有シートは files 配列を受け取れる。ブラウザは1ファイルずつダウンロード
+   （⚠ setTimeout を挟まない＝押した操作の続きでないとダウンロードが止められることがある）。 */
+async function nativeShareFiles(files){
   const { Filesystem, Share } = window.Capacitor.Plugins;
-  await Filesystem.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
-  const { uri } = await Filesystem.getUri({ path: name, directory: 'CACHE' });
-  await Share.share({ title: 'レシートデータ', files: [uri] });
+  const uris = [];
+  for (const f of files) {
+    await Filesystem.writeFile({ path: f.name, data: f.text, directory: 'CACHE', encoding: 'utf8' });
+    uris.push((await Filesystem.getUri({ path: f.name, directory: 'CACHE' })).uri);
+  }
+  await Share.share({ title: 'レシートデータ', files: uris });
 }
-async function exportOut(name, text, mime){
-  if (!IS_NATIVE) return download(name, text, mime);
-  try { await nativeShareFile(name, text); }
+const nativeShareFile = (name, text) => nativeShareFiles([{ name, text }]);
+async function exportOutMany(files){
+  if (!IS_NATIVE) { for (const f of files) download(f.name, f.text, f.mime); return; }
+  try { await nativeShareFiles(files); }
   catch (err) {
     const m = String(err?.message || err);
     if (!/cancel|abort|dismiss/i.test(m)) toast('渡せませんでした: ' + m); // 共有シートを閉じただけの時は黙る
   }
 }
+const exportOut = (name, text, mime) => exportOutMany([{ name, text, mime }]);
 document.getElementById('btnJson').onclick = async () => {
   const { from, to, rows } = await exportTargets();
   await exportOut(expName(from, to, 'json'), await exportPayload(rows, from, to), 'application/json');
 };
-document.getElementById('btnMealCsv').onclick = async () => {
-  const { from, to } = await exportTargets();
-  const meals = await exportMealsFor(from, to);
-  if (!meals.length) return toast('この期間に書き出せる料理がありません');
-  await exportOut(`meals_${from || 'all'}_${to || 'all'}.csv`,
-                  exportMealCsv(meals, expMealDetailOn()), 'text/csv');
-};
+/* r62: 📊 CSV は**1回でレシート＋料理の2ファイル**を出す（要望「2つをいっぺんに」）。
+   列が違うので別ファイルのまま（r41 の判断は不変）＝出す手数だけを1回にした。 */
 document.getElementById('btnCsv').onclick = async () => {
   const { from, to, rows } = await exportTargets();
-  await exportOut(expName(from, to, 'csv'), exportCsv(rows), 'text/csv');
+  const files = [{ name: expName(from, to, 'csv'), text: exportCsv(rows), mime: 'text/csv' }];
+  const meals = await exportMealsFor(from, to);   // 🍽 を「出す」設定の時だけ入る（r41 と同じ）
+  if (meals.length) files.push({ name: `meals_${from || 'all'}_${to || 'all'}.csv`,
+                                 text: exportMealCsv(meals, expMealDetailOn()), mime: 'text/csv' });
+  await exportOutMany(files);
+  if (!IS_NATIVE && files.length > 1) toast('📊 2つのファイルで保存しました（レシートと料理は列が違うため）');
 };
 // 📋 コピー＝共有シートもダウンロードも使えない環境（WebView 等）でも必ずデータを外に出せる逃げ道
 document.getElementById('btnCopy').onclick = async () => {
@@ -3087,6 +3140,8 @@ async function exportPayload(rows, from, to){
     答える時のお願い: [
       'データから分からないことは、分からないと書く。推測を事実のように書かない。',
       '数字を出す時は「何件で、いくら」を添えて、どこから来た数字か分かるようにする。',
+      // r62: 複数ファイル（期間の重なった書き出し）を渡されても二重に数えない保険
+      'このデータが複数のファイルで渡されている時は、receipt_id が同じものは同じレシート＝1回だけ数える。',
     ],
   };
   return JSON.stringify({ _readme: readme, ...o }, null, 1);
@@ -3124,7 +3179,9 @@ async function refreshExpCount(){
     + (all.length ? `/ 🍽 料理 ${on ? `${all.length}件（${detail ? '詳細つき' : '要約のみ'}）` : '出しません'}` : '');
   // 料理が1件も無い期間には、選択そのものを出さない（使わない設定を置かない）
   document.getElementById('expMealRow').hidden = !all.length;
-  document.getElementById('btnMealCsv').hidden = !all.length || !on;
+  // r62: 料理も出る時は CSV ボタンの但し書きで「2ファイルになる」と先に言う（押してから驚かせない）
+  document.getElementById('csvSmall').textContent =
+    (all.length && on) ? 'レシート＋料理の2ファイル' : '表計算向け';
   if (all.length) {
     document.getElementById('expMealChk').checked = on;
     const d = document.getElementById('expMealDetailChk');
@@ -3141,6 +3198,39 @@ document.getElementById('expMealDetailChk').onchange = e => {
 };
 document.getElementById('expFrom').onchange = refreshExpCount;
 document.getElementById('expTo').onchange = refreshExpCount;
+/* r62: 期間ボタン（📈 の anPeriodSeg と同じ作法）。「期間を選ぶ」にした時は直前の期間を初期値に入れる
+   ＝空の日付欄から打たせない */
+function renderExport(){
+  document.querySelectorAll('#expPeriodSeg button').forEach(b => b.classList.toggle('on', b.dataset.ep === expMode));
+  document.getElementById('expRangeRow').style.display = expMode === 'range' ? 'flex' : 'none';
+  return refreshExpCount();
+}
+document.querySelectorAll('#expPeriodSeg button').forEach(b => b.onclick = () => {
+  const prev = expPeriod();
+  expMode = b.dataset.ep; localStorage.setItem(EX.period, expMode);
+  if (expMode === 'range') {
+    const f = document.getElementById('expFrom'), t = document.getElementById('expTo');
+    if (!f.value) f.value = prev.from || todayStr();
+    if (!t.value) t.value = prev.to || todayStr();
+  }
+  renderExport();
+});
+/* r62: 🗣 AI への頼み方の例（要望）。⚠ 「レシートIDが同じ＝1回だけ数える」の一文が重なり対策の本体
+   ＝Drive に古い書き出しが残っていても二重に数えられない（データ側の receipt_id と両輪）。 */
+const EXP_PROMPT = `Google ドライブ（または添付）のレシートのデータを読んで、家計の分析をしてください。
+
+・まず「期間・レシートの件数・支出の合計」を出してください（正しく読めたかの確認）
+・月ごと・分類ごとの内訳、よく行くお店、大きい支出、前の期間からの変化
+・🍽 料理の記録が入っていれば、食費のレシートと突き合わせて食生活にもふれてください
+・ファイルが複数ある時は、レシートID（receipt_id）が同じものは同じレシート＝1回だけ数えてください
+・データに無いことは推測せず「分からない」と書いてください
+
+最後に、気づいたこと・見直すとよさそうな支出を教えてください。`;
+document.getElementById('expPromptEx').value = EXP_PROMPT;
+document.getElementById('btnCopyPrompt').onclick = async () => {
+  try { await navigator.clipboard.writeText(EXP_PROMPT); toast('📋 例文をコピーしました（AIアプリに貼り付けできます）'); }
+  catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
+};
 
 /* ---------- 設定（AIの選択・キー・モデル） ---------- */
 // 選べるモデル＝ 決め打ちの候補 ＋ APIから取ってきた一覧 ＋ いま選ばれているもの（重複は除く）
@@ -4801,14 +4891,16 @@ function openSettings(){
 }
 document.getElementById('btnSettings').onclick = openSettings;
 document.getElementById('btnExport').onclick = () => {
-  const now = new Date(), p = n => String(n).padStart(2, '0');
-  const today = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
-  if (!document.getElementById('expFrom').value) document.getElementById('expFrom').value = today.slice(0, 8) + '01';
-  if (!document.getElementById('expTo').value) document.getElementById('expTo').value = today;
+  // r62: 期間はボタン選択（expMode）に。「期間を選ぶ」で開いた時だけ、日付欄の空を今月で埋める
+  if (expMode === 'range') {
+    const t = todayStr(), f = document.getElementById('expFrom'), to = document.getElementById('expTo');
+    if (!f.value) f.value = t.slice(0, 8) + '01';
+    if (!to.value) to.value = t;
+  }
   document.getElementById('expNote').innerHTML = IS_NATIVE
-    ? '📱 アプリ版の使い分け: <b>🤖AIに渡す</b>＝文字で共有（AIアプリは JSON ファイルを受け取らないため。Claude 等が共有先に出ます）／<b>📄JSON・📊CSV</b>＝ファイルで共有（Drive・Files への保存用）。保存先は共有シートで選んでください。'
+    ? '📱 アプリ版の使い分け: <b>🤖AIに文字で渡す</b>＝文字で共有（AIアプリは JSON ファイルを受け取らないため。Claude 等が共有先に出ます）／<b>📄JSON・📊CSV</b>＝ファイルで共有（Drive・Files への保存用）。保存先は共有シートで選んでください。'
     : '';
-  refreshExpCount(); show('ovExport');
+  renderExport(); show('ovExport');
 };
 let toastTimer = null;
 /* r43: 押せるトーストを足した（`onTap` を渡した時だけ）。
