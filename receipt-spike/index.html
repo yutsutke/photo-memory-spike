@@ -273,6 +273,10 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 .hEmpty{color:var(--dim); font-size:13px; padding:8px 4px 4px;}
 .rec .chip.ok{color:var(--ok); border-color:var(--ok);}
 .rec .chip.bad{color:var(--err); border-color:var(--err);}
+/* 💊 予定の日を過ぎた薬に出す「終了にしますか」（r66）。⚠ カードの中に置くので、押しても詳細が開かないよう click 側で先に拾う */
+.mdAsk{margin-top:6px; font-size:12.5px; background:var(--line); border-radius:8px; padding:6px 8px; white-space:normal;}
+/* ⚠ 44px＝指で確実に当たる高さ。preview の合成クリックは細くても当たるが、実機の指は当たらない（過去に踏んだ罠） */
+.mdAsk button{margin:6px 6px 0 0; min-height:44px; padding:8px 14px;}
 /* 🩺 詳細＝ページ（本検査／再検査）のサムネを横に並べ、押した1枚を大きく出す */
 #ckImg{width:100%; border-radius:12px; background:#000; margin-bottom:8px;}
 .ckThumbs{display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:8px;}
@@ -603,7 +607,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <div id="mlSlotCfg"></div>
     <button class="btn" id="btnSlotReset" style="margin-top:8px">↩ 既定の時間帯に戻す</button>
   </div>
-  <div class="note">どの時間帯にも入らなかったものは <b>🍪 間食</b>になります。⚠ 終わりが始まりより<b>前</b>なら日をまたぐ扱いです（例 22:00〜01:00）。⚠ ここを変えても、<b>すでに手で直した食事は変わりません</b>（人が決めたものを自動で上書きしません）。まだ手で直していないものは、時間帯を変えると振り分け直します。</div>
+  <div class="note"><b>10分きざみ</b>で選べます。⚠ <b>時間帯どうしは重ねられません</b>＝選べる時刻が、となりの時間帯にぶつかる手前までになっています。だから「昼食の始まりを早くしたい」時は、<b>先に朝食の終わりを早く</b>してください。⚠ <b>終わりの時刻は、その時間帯には入りません</b>（次の時間帯の始まりです。時刻表と同じ読み方＝朝食 04:00〜10:30 なら 10:30 は昼食）。<br>どの時間帯にも入らなかったものは <b>🍪 間食</b>になります（例: 既定では 15:00〜16:30 と 00:00〜04:00）。始まりと終わりを<b>同じ時刻</b>にすると、その時間帯は使わない扱いになります。⚠ 終わりが始まりより<b>前</b>なら日をまたぐ扱いです（例 22:00〜01:00）。⚠ ここを変えても、<b>すでに手で直した食事は変わりません</b>（人が決めたものを自動で上書きしません）。まだ手で直していないものは、時間帯を変えると振り分け直します。</div>
   <!-- 🏷 分類（r31）＝自分で足せる。足したものは読み取りの選択肢として AI にも渡す -->
   <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
     <label>🏷 分類（カテゴリ）</label>
@@ -987,7 +991,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r65 🧾🍽🩺トップを3タブに（🧾レシート＝今までどおりの一覧／🍽食事＝旧モーダルの中身をそのまま／🩺健康＝新設）＋🩺健康診断と💊薬を入れる場所を作った（要望）。①健康診断＝結果表の写真（複数ページ可）を1回の健診として AI が検査値を書き起こす（項目・値・基準範囲・判定を印字のまま・診断や助言は書かせない）。再検査の結果は同じ健診に➕で足せて全ページを読ませ直す。検査日は写真の日付を仮に置き、読めたら結果表の日付に。②薬＝説明書・お薬手帳の写真から薬ごとに1件ずつ（1枚から複数読めたら記録を薬の数だけ作る）／写真なしでも✏️手で足せる／服用開始・服用中・終了（終了日が空＝服用中）。③どちらも⚙で AI とモデルを役割ごとに選べる（レシートと同じ1組の UI＝renderRoleSettings に役割を2つ足しただけ）。④📤/📈 に一緒に渡す＝**健診は年1回なので期間だけで拾うと渡し漏れる**→期間内の全部＋期間より前の直近1件を必ず入れる（in_period / included_because で AI に理由も渡す）。「すべての年」で推移も渡せる。薬は「その期間に飲んでいたもの」（終わった薬も全部、も選べる）。読み方（DATA_NOTES）は _readme と AN_SYSTEM の両方に。CSV は健診（1行＝1検査項目）と薬を別ファイルで。⑤写真を読む仕事（analyze）に複数画像＋見出しを渡せるようにした（レシート・食事は無改修）｜r64 🎉🩹実機で共有シートがワンタップで Google ドライブに届いた（さらに共有先に Claude が直接出た＝Drive を経由せず AI アプリへ手渡しできる）。ただし2つのはずのファイルが3つあり「レシート.txt」が余計だった＝navigator.share に files と一緒に title を渡すと、iOS がその文字を別のテキスト項目として足す→ファイルを渡す時は files だけにする（題名は要らない・ファイル名が題名になる）。native の Share.share からも先に外した（同じ iOS の共有シートに載る以上、同じ罠を踏む可能性が高い）。＋1ファイルの時も共有シートを使うよう広げた（📄JSON もスマホでは共有シートへ）＝同じ画面の📄と📊で出口が違うと操作が読めない・受け取れない形式は canShare が false を返すので今までどおりダウンロードに落ちる。📤の案内も実機で分かった一番短い道（共有先にClaude）を先に書く形へ｜r63 🩹📊CSVの2ファイル同時が web で壊れていたのを直した＋🗣頼み方の例を6種類に（要望）。①実機で「mealしか保存できない」＝同じ瞬間にダウンロードを2回叩くと後から始まった方が前をかき消す→600ms空ける。⚠r62で「setTimeoutを挟むと止められる」と書いたのは私の思い込みで実測が逆を示した（blob URLのダウンロードは押した操作の直後でなくても走る）＝思い込みで保険を外さない。②指で触る画面では共有シートで2つまとめて渡す（そのままDriveに保存できる＝この機能の目的地）・パソコンは共有ダイアログだとフォルダに保存しにくいのでダウンロードのまま。③キャンセルした時は「保存しました」と言わない。④例文6種＝📊ふりかえり/💡節約/🩺健康/🏪お店のくせ/⇆前とくらべる/📋表とグラフ。⚠📈の型と別に持つ＝あちらはアプリが指示文を添えるので短くてよいが、こちらはそのまま貼られて終わり＝前置きも注意書きも例文の中に要る。⚠共通の前後を挟んで組み立てる＝6つ書き写さない（直し忘れ防止）。⇆と📋はこの道でしかできないこと（📈は1回きり800字）を入口にした型｜r62 📤🥇書き出しを1次に・📈は「簡易分析」に（要望）＝実際にファイルをGoogleドライブに置いてAIアプリに読ませたら「分析も申し分ない。基本はこっちのほうがいい」＝アプリ内📈より安くて何度でも続けて聞ける。①📤の期間をボタン化（直近7日/直近30日/今月/先月/今年/全期間/期間を選ぶ＝日付を打つのは「期間を選ぶ」の時だけ）②📊CSVはレシート＋🍽料理の2ファイルを1回でいっぺんに出す（列が違うので別ファイルのまま＝r41の判断は不変・手数だけ1回に）③🗣AIへの頼み方の例文を📤に同梱（コピーできる）④重なり対策＝例文と_readmeに「receipt_idが同じものは同じレシート＝1回だけ数える」を明記＝Driveに古い書き出しが残っていても二重に数えられない⑤ヘッダの📤を📈より前へ・📈の頭に「しっかり分析するなら📤でドライブに保存→AIに読ませるのがおすすめ」の案内（📈は手早い確認と、AIアプリの有料プランを使っていない人向けに残す）｜r61 📄📈の案内に「ファイルで渡す」手順を書き足した（要望）＝渡し方を①手軽に貼る（🤖AIに渡す）②しっかり分析する（📄JSONをファイル保存→AIアプリに添付）の2本立てに。⚠ファイルが向く理由も書いた＝貼った文章は会話に埋もれるが添付は残る・AIがファイルを計算に回せるので合計や割合が目分量でなく計算になる・量が多くても途中で切れない。🩹書いた注記がwebでは誤りだった＝自動でファイルに切り替わるのはアプリ版だけで、ブラウザは常に文章のまま渡す（実装を読み直して限定した）＝文言は実装の写しでなければならない · 2026-08-16';
+const BUILD = 'r66 💊⏳予定の日を過ぎた薬に「終了にしますか」＋🍽時間帯を10分きざみにして重ねられなくした（要望3つのうち2つ・3つ目は起動時トーストの条件の説明）。①💊「N日分」の予定を過ぎた服用中の薬に、一覧のカードの中で2択（✅終了にする／まだ飲んでいる）。終了日に入れるのは**今日でなく予定の日**＝実際に飲み終えた日の方が本当。決まりは planEndOf の1か所に置き、一覧の✅・詳細の「終了」ボタン・詳細の⚠印が同じ日を出す（片方だけ直る事故を構造で防ぐ）。「まだ飲んでいる」は endAsk=keep で二度と聞かない／開始日を直す・写真を読み直すと予定が変わるので白紙に戻してまた聞く。⚠ボタンはカードの中にあるので click を先に拾って詳細を開かせない・高さ44px（preview の合成クリックは細くても当たるが実機の指は当たらない）。②🍽 食事の時間帯を「打ち込む」から「10分きざみで選ぶ」に。⚠**重ねて設定できなくした**＝6つの点（朝始・朝終・昼始・昼終・夕始・夕終）が1日を一周する円の上にこの順で並ぶモデルにして、各欄は**隣の点までしか選択肢を出さない**（押せてから弾くのでなく、そもそも選べない）。そのため「昼の始まりを早くする」には先に「朝の終わり」を早くする2手が要る＝⚙の説明に書いた。終わりの時刻はその時間帯に入らない [始まり, 終わり)＝境目の1分が両方に属する問題も消えた（時刻表と同じ読み方）。既定の夕食の終わりを 23:59→00:00。日またぎ（22:00〜01:00）は円なのでそのまま使える。r65 以前に保存された「すでに重なっている設定」は⚙を開いた時に詰めて直し、直したことを伝える。⚠教訓＝テストが本物を真似ていない罠を4回目（画面の開閉は hidden でなく on クラス）｜r65 🧾🍽🩺トップを3タブに（🧾レシート＝今までどおりの一覧／🍽食事＝旧モーダルの中身をそのまま／🩺健康＝新設）＋🩺健康診断と💊薬を入れる場所を作った（要望）。①健康診断＝結果表の写真（複数ページ可）を1回の健診として AI が検査値を書き起こす（項目・値・基準範囲・判定を印字のまま・診断や助言は書かせない）。再検査の結果は同じ健診に➕で足せて全ページを読ませ直す。検査日は写真の日付を仮に置き、読めたら結果表の日付に。②薬＝説明書・お薬手帳の写真から薬ごとに1件ずつ（1枚から複数読めたら記録を薬の数だけ作る）／写真なしでも✏️手で足せる／服用開始・服用中・終了（終了日が空＝服用中）。③どちらも⚙で AI とモデルを役割ごとに選べる（レシートと同じ1組の UI＝renderRoleSettings に役割を2つ足しただけ）。④📤/📈 に一緒に渡す＝**健診は年1回なので期間だけで拾うと渡し漏れる**→期間内の全部＋期間より前の直近1件を必ず入れる（in_period / included_because で AI に理由も渡す）。「すべての年」で推移も渡せる。薬は「その期間に飲んでいたもの」（終わった薬も全部、も選べる）。読み方（DATA_NOTES）は _readme と AN_SYSTEM の両方に。CSV は健診（1行＝1検査項目）と薬を別ファイルで。⑤写真を読む仕事（analyze）に複数画像＋見出しを渡せるようにした（レシート・食事は無改修）｜r64 🎉🩹実機で共有シートがワンタップで Google ドライブに届いた（さらに共有先に Claude が直接出た＝Drive を経由せず AI アプリへ手渡しできる）。ただし2つのはずのファイルが3つあり「レシート.txt」が余計だった＝navigator.share に files と一緒に title を渡すと、iOS がその文字を別のテキスト項目として足す→ファイルを渡す時は files だけにする（題名は要らない・ファイル名が題名になる）。native の Share.share からも先に外した（同じ iOS の共有シートに載る以上、同じ罠を踏む可能性が高い）。＋1ファイルの時も共有シートを使うよう広げた（📄JSON もスマホでは共有シートへ）＝同じ画面の📄と📊で出口が違うと操作が読めない・受け取れない形式は canShare が false を返すので今までどおりダウンロードに落ちる。📤の案内も実機で分かった一番短い道（共有先にClaude）を先に書く形へ｜r63 🩹📊CSVの2ファイル同時が web で壊れていたのを直した＋🗣頼み方の例を6種類に（要望）。①実機で「mealしか保存できない」＝同じ瞬間にダウンロードを2回叩くと後から始まった方が前をかき消す→600ms空ける。⚠r62で「setTimeoutを挟むと止められる」と書いたのは私の思い込みで実測が逆を示した（blob URLのダウンロードは押した操作の直後でなくても走る）＝思い込みで保険を外さない。②指で触る画面では共有シートで2つまとめて渡す（そのままDriveに保存できる＝この機能の目的地）・パソコンは共有ダイアログだとフォルダに保存しにくいのでダウンロードのまま。③キャンセルした時は「保存しました」と言わない。④例文6種＝📊ふりかえり/💡節約/🩺健康/🏪お店のくせ/⇆前とくらべる/📋表とグラフ。⚠📈の型と別に持つ＝あちらはアプリが指示文を添えるので短くてよいが、こちらはそのまま貼られて終わり＝前置きも注意書きも例文の中に要る。⚠共通の前後を挟んで組み立てる＝6つ書き写さない（直し忘れ防止）。⇆と📋はこの道でしかできないこと（📈は1回きり800字）を入口にした型｜r62 📤🥇書き出しを1次に・📈は「簡易分析」に（要望）＝実際にファイルをGoogleドライブに置いてAIアプリに読ませたら「分析も申し分ない。基本はこっちのほうがいい」＝アプリ内📈より安くて何度でも続けて聞ける。①📤の期間をボタン化（直近7日/直近30日/今月/先月/今年/全期間/期間を選ぶ＝日付を打つのは「期間を選ぶ」の時だけ）②📊CSVはレシート＋🍽料理の2ファイルを1回でいっぺんに出す（列が違うので別ファイルのまま＝r41の判断は不変・手数だけ1回に）③🗣AIへの頼み方の例文を📤に同梱（コピーできる）④重なり対策＝例文と_readmeに「receipt_idが同じものは同じレシート＝1回だけ数える」を明記＝Driveに古い書き出しが残っていても二重に数えられない⑤ヘッダの📤を📈より前へ・📈の頭に「しっかり分析するなら📤でドライブに保存→AIに読ませるのがおすすめ」の案内（📈は手早い確認と、AIアプリの有料プランを使っていない人向けに残す） · 2026-08-17';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1497,7 +1501,7 @@ const SLOT_LABEL = s => (MEAL_SLOTS.find(x => x[0] === s) || [, '間食'])[1];
 const SLOT_ICON  = s => (MEAL_SLOTS.find(x => x[0] === s) || [,, '🍪'])[2];
 const SLOT_IDS   = MEAL_SLOTS.map(s => s[0]);
 // 既定の時間帯。⚠ 間食は時間帯を持たない（「どれにも入らなかった」が間食の定義）
-const SLOT_DEF = { breakfast: ['04:00', '10:30'], lunch: ['10:30', '15:00'], dinner: ['16:30', '23:59'] };
+const SLOT_DEF = { breakfast: ['04:00', '10:30'], lunch: ['10:30', '15:00'], dinner: ['16:30', '00:00'] };
 const mealSlotCfg = () => {
   try { const o = JSON.parse(localStorage.getItem(ML.slots) || 'null');
         return (o && SLOT_IDS.slice(0, 3).every(k => Array.isArray(o[k]) && o[k].length === 2)) ? o : { ...SLOT_DEF }; }
@@ -1506,15 +1510,56 @@ const mealSlotCfg = () => {
 const setMealSlotCfg = o => localStorage.setItem(ML.slots, JSON.stringify(o));
 const hm2min = s => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '')); return m ? +m[1] * 60 + +m[2] : null; };
 const min2hm = n => `${pad2(Math.floor(n / 60) % 24)}:${pad2(n % 60)}`;
+/* 🍽 時間帯の決まり（r66 で作り直し）＝6つの点（朝の始まり・朝の終わり・昼の始まり・昼の終わり・夕の始まり・夕の終わり）が、
+   1日を一周する円の上に**この順番で**並ぶ。順番を崩せないようにする＝**重なりを作れない**。
+   ⚠ 弾く（押せてから怒る）のではなく、**選択肢に出さない**（そもそも選べない）。
+   ⚠ そのため「昼の始まりを早くしたい」時は、先に「朝の終わり」を早くする（隣にぶつかる手前までしか選べない）。
+   ⚠ 隣どうしが同じ時刻でよい＝すき間なく繋がる。ある時間帯の始まりと終わりを同じにすると、その時間帯は使わない扱い。
+   ⚠ 円なので夕食は日をまたげる（16:30〜01:00）。ただし朝の始まりは追い越せない。 */
+const SLOT_STEP = 10;   // 分きざみ。1分きざみは細かすぎて押しにくい（要望 2026-08-17）
+const SLOT_PTS = [['breakfast', 0], ['breakfast', 1], ['lunch', 0], ['lunch', 1], ['dinner', 0], ['dinner', 1]];
+// 朝食の始まりを 0 分として「そこから何分あとか」（0〜1439）＝円の上の位置
+const slotPos = cfg => {
+  const base = hm2min(cfg.breakfast[0]) ?? 0;
+  return SLOT_PTS.map(([k, i]) => ((((hm2min(cfg[k][i]) ?? 0) - base) % 1440) + 1440) % 1440);
+};
+/* i 番目の点が選べる時刻＝**前の点から次の点まで**を10分きざみで。
+   ⚠ 今入っている値が10分きざみでない時（前の版で入れた 23:59 など）は、その値も選択肢に足す＝黙って書き換えない。 */
+function slotOptions(cfg, i){
+  const base = hm2min(cfg.breakfast[0]) ?? 0, p = slotPos(cfg);
+  const lo = p[(i + 5) % 6];
+  let hi = p[(i + 1) % 6], me = p[i];
+  while (hi < lo) hi += 1440;
+  while (me < lo) me += 1440;
+  const offs = [];
+  for (let t = Math.ceil((base + lo) / SLOT_STEP) * SLOT_STEP; t <= base + hi; t += SLOT_STEP) offs.push(t - base);
+  if (!offs.includes(me)) offs.push(me);
+  return [...new Set(offs.sort((a, b) => a - b).map(off => min2hm(((base + off) % 1440 + 1440) % 1440)))];
+}
+/* r66 以前に保存された「すでに重なっている設定」を直す。
+   ⚠ 新しく重ねられなくしても、**前に保存されたもの**はそのまま残る＝⚙ を開いた時に1度だけ直す。
+   ⚠ 直し方＝朝食の始まりを起点に順番どおり並べ直し、はみ出した点を**手前の点まで戻す**（帯は縮むだけ・勝手に広げない）。
+   直す所が無ければ null を返す（＝黙って何もしない）。 */
+function slotRepair(cfg){
+  const base = hm2min(cfg.breakfast[0]) ?? 0, p = slotPos(cfg), out = JSON.parse(JSON.stringify(cfg));
+  let last = 0, changed = false;
+  for (let i = 1; i < 6; i++) {
+    if (p[i] < last) { p[i] = last; changed = true; out[SLOT_PTS[i][0]][SLOT_PTS[i][1]] = min2hm((base + last) % 1440); }
+    last = p[i];
+  }
+  return changed ? out : null;
+}
 /* 撮った時刻から区分を決める。
+   ⚠ **終わりの時刻は、その時間帯に入らない**（[始まり, 終わり) ＝時刻表と同じ読み方）。
+      こうしないと「朝の終わり＝昼の始まり」の1分が両方に属する＝重ならない約束が最後の1分だけ破れる。
    ⚠ 終わりが始まりより前なら**日をまたぐ**とみなす（夕食 22:00〜01:00 のような登録を殺さない）。
-   ⚠ 重なっていたら朝→昼→夕の順で先に当たった方（黙って弾かず、順番を決めておく）。 */
+   ⚠ 始まりと終わりが同じ＝その時間帯は空（使わない）。 */
 function slotOfTime(ts, cfg = mealSlotCfg()){
   const d = new Date(ts), t = d.getHours() * 60 + d.getMinutes();
   for (const k of SLOT_IDS.slice(0, 3)) {
     const a = hm2min(cfg[k]?.[0]), b = hm2min(cfg[k]?.[1]);
     if (a == null || b == null) continue;
-    if (a <= b ? (t >= a && t <= b) : (t >= a || t <= b)) return k;
+    if (a <= b ? (t >= a && t < b) : (t >= a || t < b)) return k;
   }
   return 'snack';
 }
@@ -2589,6 +2634,20 @@ const ckLine = c => c.status === 'done'
     : c.status === 'error' ? '❌ 読み取りに失敗しました' : '🤖 読み取り中…';
 // 服用中か＝終了日が無い、または**まだ来ていない**（今日を終了日にした瞬間から「終了」＝押した結果がすぐ見える）
 const medActive = m => !m.end || m.end > todayStr();
+/* 💊 予定の終わり（r66）＝開始日 ＋「N日分」。⚠ 決まりは1か所に置く＝一覧の「✅ 終了にする」・詳細の「終了」ボタン・
+   ⚠ の印の3か所が同じ日を出す（片方だけ直る事故を構造で防ぐ＝r65 の healthFor と同じ作法）。 */
+const planEndOf = (start, days) => (start && days > 0) ? addDays(start, days - 1) : null;
+const medPlanEnd = m => planEndOf(m.start, m.days);
+/* 「終了にしますか」を出すか＝①終了日がまだ入っていない ②「まだ飲んでいる」と答えていない
+   ③「N日分」と開始日の両方が分かる ④その予定の日が**過ぎている**。⚠ 勝手に終了にはしない（人が押した時だけ）。 */
+function medOverdue(m){
+  if (m.end || m.endAsk === 'keep') return false;
+  const p = medPlanEnd(m);
+  return !!p && p < todayStr();
+}
+/* 終了日に入れる日＝予定の日が過ぎているなら**その日**（今日ではない＝実際に飲み終えた日の方が本当）。
+   予定が分からない・まだ来ていないなら今日。 */
+const medEndDate = m => { const p = medPlanEnd(m); return (p && p < todayStr()) ? p : todayStr(); };
 const medLine = m => [m.dose, m.usage].filter(Boolean).join(' ') || (m.status === 'pending' ? '🤖 読み取り中…' : m.status === 'todo' ? '📷 写真だけ（まだ読み取っていません）' : m.status === 'error' ? '❌ 読み取りに失敗しました' : '');
 const mdSpan = m => `${m.start ? md(m.start) + (m.start.slice(0, 4) !== todayStr().slice(0, 4) ? `(${m.start.slice(0, 4)})` : '') : '開始日 不明'}〜${m.end ? md(m.end) : ''}`;
 
@@ -2622,9 +2681,15 @@ async function renderHealth(){
     let th = '<div style="width:52px;height:52px;border-radius:8px;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none">💊</div>';
     if (m.thumb) { const u = URL.createObjectURL(m.thumb); mdThumbUrls.push(u); th = `<img src="${u}" alt="">`; }
     const active = medActive(m);
+    // r66: 予定の日を過ぎた薬にだけ、その場で答えられる2択を出す（詳細を開かせない＝1タップで済む）
+    const ask = medOverdue(m)
+      ? `<div class="mdAsk">⏳ <b>${m.days}日分</b>の予定は <b>${md(medPlanEnd(m))}</b> まででした。飲み終わりましたか？
+          <div><button type="button" data-mdend="${esc(m.id)}">✅ 終了にする</button>
+          <button type="button" data-mdkeep="${esc(m.id)}">まだ飲んでいる</button></div></div>`
+      : '';
     return `<div class="rec" data-md="${esc(m.id)}">${th}
       <div class="mid"><div class="st">${esc(m.name || '（薬名 未入力）')}<span class="chip ${active ? 'ok' : ''}">${active ? '服用中' : '終了'}</span></div>
-      <div class="sub">${esc(medLine(m))}${m.purpose ? ` ・ ${esc(m.purpose)}` : ''}<br>${esc(mdSpan(m))}${m.source ? ` ・ ${esc(m.source)}` : ''}</div></div></div>`;
+      <div class="sub">${esc(medLine(m))}${m.purpose ? ` ・ ${esc(m.purpose)}` : ''}<br>${esc(mdSpan(m))}${m.source ? ` ・ ${esc(m.source)}` : ''}</div>${ask}</div></div>`;
   };
   document.getElementById('mdList').innerHTML = (mds.length
     ? (act.length ? act.map(card).join('') : '<div class="hEmpty">いま服用中の薬はありません</div>')
@@ -2638,7 +2703,23 @@ document.getElementById('ckList').addEventListener('click', async e => {
   const el = e.target.closest('[data-ck]'); if (!el) return;
   const c = await ckGet(el.dataset.ck); if (c) openChk(c);
 });
+/* r66: ⚠ 2択のボタンは**カードの中**にあるので、先に拾って return する（拾わないと詳細まで開いてしまう）。 */
+async function medFinish(id){
+  const m = await mdGet(id); if (!m) return;
+  const end = medEndDate(m);
+  Object.assign(m, { end, endSrc: 'planned', edited: Date.now() });
+  await mdPut(m); await renderHealth();
+  toast(`✅ ${m.name || '薬'} を ${md(end)} で終了にしました（直す時は開いて「服用中」）`);
+}
+async function medKeep(id){
+  const m = await mdGet(id); if (!m) return;
+  Object.assign(m, { endAsk: 'keep', edited: Date.now() });   // ⚠ 開始日を直したり読み取り直すと、この答えは消える（予定が変わるため）
+  await mdPut(m); await renderHealth();
+  toast('💊 服用中のままにします（この薬の予定日のことは、もう聞きません）');
+}
 document.getElementById('mdList').addEventListener('click', async e => {
+  const fin = e.target.closest('[data-mdend]');  if (fin)  return medFinish(fin.dataset.mdend);
+  const keep = e.target.closest('[data-mdkeep]'); if (keep) return medKeep(keep.dataset.mdkeep);
   const el = e.target.closest('[data-md]'); if (!el) return;
   const m = await mdGet(el.dataset.md); if (m) openMed(m);
 });
@@ -2842,6 +2923,7 @@ const onMedPicked = async e => {
 ['medShoot', 'medPick'].forEach(id => document.getElementById(id).addEventListener('change', onMedPicked));
 const fillMedFrom = (rec, x, d) => {
   rec.name = x.name; rec.dose = x.dose; rec.usage = x.usage; rec.purpose = x.purpose; rec.days = x.days;
+  delete rec.endAsk;   // r66: 日数と開始日を読み直した＝予定の終わりが変わる → 「まだ飲んでいる」の答えは白紙に戻す
   if (!rec.source && d.source) rec.source = d.source;
   if (rec.startSrc !== 'human' && d.date && /^\d{4}-\d{2}-\d{2}$/.test(d.date)) { rec.start = d.date; rec.startSrc = 'ai'; }
   rec.data = { date: d.date, source: d.source, med: x, count: d.meds.length };
@@ -2892,7 +2974,7 @@ function openMed(m){
   document.getElementById('mdHead').innerHTML = d
     ? `<div class="note" style="margin-top:0">写真から読んだもの: ${[
         d.date ? `処方日 ${esc(d.date)}` : '', d.source ? esc(d.source) : '', d.count > 1 ? `この写真から ${d.count}種類` : '',
-        rec.days ? `${rec.days}日分${rec.start ? `（→ ${md(addDays(rec.start, rec.days - 1))} まで予定）` : ''}` : '',
+        rec.days ? `${rec.days}日分${medPlanEnd(rec) ? `（→ ${md(medPlanEnd(rec))} まで予定${medOverdue(rec) ? '・<b>予定の日は過ぎています</b>' : ''}）` : ''}` : '',
         rec.meta?.model ? esc(rec.meta.model) : ''].filter(Boolean).join(' ・ ')}</div>`
     : mdNew ? '<div class="note" style="margin-top:0">写真なしで登録します。あとから写真は足せません（写真から読ませたい時は 💊 で撮ってください）。</div>' : '';
   document.getElementById('mdName').value = rec.name || '';
@@ -2923,7 +3005,12 @@ document.getElementById('mdEnd').addEventListener('change', mdSyncState);
 document.querySelectorAll('#mdStateSeg button').forEach(b => b.onclick = () => {
   const end = document.getElementById('mdEnd');
   if (b.dataset.mdstate === 'active') end.value = '';
-  else if (!end.value || end.value > todayStr()) end.value = todayStr();
+  else if (!end.value || end.value > todayStr()) {
+    /* r66: 「終了」＝予定の日が過ぎていれば**その日**（今日ではない）。一覧の ✅ と同じ決まり。
+       ⚠ 入った日は欄に見えるので、違えばその場で直せる。 */
+    const p = planEndOf(document.getElementById('mdStart').value, mdCur?.days);
+    end.value = (p && p < todayStr()) ? p : todayStr();
+  }
   mdSyncState();
 });
 document.getElementById('btnMdSave').onclick = async () => {
@@ -2934,7 +3021,8 @@ document.getElementById('btnMdSave').onclick = async () => {
                     : await mdGet(mdCur.id);
   if (!rec) return;
   const start = document.getElementById('mdStart').value || null;
-  if (start !== rec.start) rec.startSrc = 'human';
+  // r66: 開始日を直したら予定の終わりも変わる＝「まだ飲んでいる」の答えは白紙に戻す（新しい予定日で、また聞く）
+  if (start !== rec.start) { rec.startSrc = 'human'; delete rec.endAsk; }
   Object.assign(rec, { name, dose: document.getElementById('mdDose').value.trim() || null,
     usage: document.getElementById('mdUsage').value.trim() || null, purpose: document.getElementById('mdPurpose').value.trim() || null,
     source: document.getElementById('mdSource').value.trim() || null, start,
@@ -5875,14 +5963,22 @@ document.getElementById('catTags').onclick = async e => {
 /* ---------- 🍽 食事の時間帯の設定（r35） ----------
    ⚠ 変えたら、**まだ手で直していない食事だけ**を振り分け直す。手で直したもの（slotAuto=false）は触らない。
    ⚠ 何件が動いたかを言う＝黙って過去が書き換わると、自分の記録なのに信用できなくなる。 */
+/* r66: 時刻の欄を「打ち込む」から「選ぶ」に変えた＝①10分きざみ ②隣の時間帯にぶつかる手前までしか出さない
+   （＝重なりを作れない）。⚠ 選択肢が1つしか無くなる所まで詰めてしまったら「↩ 既定の時間帯に戻す」で戻せる。 */
+const slotSel = (cfg, i) => {
+  const [k, j] = SLOT_PTS[i], cur = cfg[k][j];
+  return `<select data-slotpt="${i}" style="flex:1">`
+    + slotOptions(cfg, i).map(v => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(v)}</option>`).join('')
+    + '</select>';
+};
 function renderSlotCfg(){
   const cfg = mealSlotCfg();
-  document.getElementById('mlSlotCfg').innerHTML = MEAL_SLOTS.slice(0, 3).map(([id, label, icon]) =>
+  document.getElementById('mlSlotCfg').innerHTML = MEAL_SLOTS.slice(0, 3).map(([id, label, icon], r) =>
     `<div class="dual" style="align-items:center; margin-top:6px">
       <div style="flex:0 0 5.5em; font-size:14px">${icon} ${label}</div>
-      <input type="time" data-slotfrom="${id}" value="${esc(cfg[id][0])}" style="flex:1">
+      ${slotSel(cfg, r * 2)}
       <div style="flex:0 0 auto; color:var(--dim)">〜</div>
-      <input type="time" data-slotto="${id}" value="${esc(cfg[id][1])}" style="flex:1">
+      ${slotSel(cfg, r * 2 + 1)}
     </div>`).join('');
 }
 async function applySlotCfg(cfg){
@@ -5896,20 +5992,29 @@ async function applySlotCfg(cfg){
   }
   renderSlotCfg(); renderMeals();
   if (moved) toast(`🍽 ${moved}件を振り分け直しました（手で直したものはそのままです）`);
+  return moved;
+}
+// r66: ⚙ を開いた時に、前の版で作れてしまった「重なった時間帯」を直す（黙って直さず、直したことを言う）
+async function fixSlotOverlap(){
+  const fixed = slotRepair(mealSlotCfg());
+  if (!fixed) return;
+  const moved = await applySlotCfg(fixed);
+  toast(`⚠ 重なっていた食事の時間帯を、重ならない形に直しました${moved ? `（${moved}件を振り分け直しました）` : ''}`);
 }
 document.getElementById('mlSlotCfg').addEventListener('change', async e => {
-  const el = e.target.closest('[data-slotfrom],[data-slotto]'); if (!el) return;
+  const el = e.target.closest('[data-slotpt]'); if (!el) return;
   const cfg = mealSlotCfg();
-  const id = el.dataset.slotfrom || el.dataset.slotto;
-  if (!el.value) { renderSlotCfg(); return toast('時刻を空にはできません'); }   // ⚠ 空＝全部が間食になる事故
-  cfg[id] = el.dataset.slotfrom ? [el.value, cfg[id][1]] : [cfg[id][0], el.value];
+  const [k, j] = SLOT_PTS[+el.dataset.slotpt];
+  // ⚠ 選べる時刻が隣までに限られているので、ここで順番が壊れることはない（弾く処理が要らない＝r66）
+  cfg[k] = j === 0 ? [el.value, cfg[k][1]] : [cfg[k][0], el.value];
   await applySlotCfg(cfg);
 });
 document.getElementById('btnSlotReset').onclick = () => applySlotCfg({ ...SLOT_DEF });
 
-function openSettings(){
+async function openSettings(){
   renderSettings();
   renderCatTags();
+  await fixSlotOverlap();   // r66: 前の版の「重なった設定」を先に直してから描く
   renderSlotCfg();
   document.getElementById('noteStore').innerHTML = IS_NATIVE
     ? '📱 <b>アプリ版</b>で動作中＝データは端末のアプリ領域に保存され、ブラウザの自動削除の対象外です（消えるのはアプリを削除した時）。'
