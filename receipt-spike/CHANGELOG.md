@@ -2,6 +2,36 @@
 
 > あの日（リポ直下）の CHANGELOG とは独立。こちらは r1, r2, … で進む。
 
+## 🏪 Play 内部テストに vc1 を上げた（コードの版は r70） (2026-08-17)
+
+**背景**
+- 「Play Console の内部テストに上げたい。手順と AAB を」＝これまで Android は **debug APK の直接配布**だけだった（Play を通していない）。Play は **署名付き AAB** しか受け取らない。
+
+**やったこと**
+- `receipt-spike/android/app/build.gradle` に **release の署名設定**を追加（あの日と同じ env 方式・**鍵が渡っている時だけ署名**するので手元の未署名ビルドは壊れない）。`versionName` を 0.1 → **1.0**（ストアに並ぶ版になるため）。
+- **アップロード鍵を新規作成**（あの日とは別アプリなので別の鍵）＝`Documents\receipt-signing\receipt-upload.jks` ＋ 人が読む控え `CREDENTIALS.txt`。Play App Signing 前提（配布用の鍵は Google が持つ＝アップロード鍵は失っても再設定できる）。
+- **`receipt-1.0-vc1.aab`（r70 入り）** と、同じ中身の**署名付き APK**（Play を通さず実機で試す用）を出力。
+- 手順・検証3点・Play Console の画面操作・**このアプリ固有のデータセーフティの書き方**を [BUILD-android.md](BUILD-android.md) に追記。
+- 🆕 **Play 上のアプリ名を「レシートと健康— 撮ってAIで読む」に**（r65 で 🩺 健康が3本目の柱になったのを名前に反映）。⚠ ホーム画面の表示名「レシート」・iOS の「レシート — 撮ってAIで読む」とは**別物のまま**。
+
+**ハマったところ**
+- 症状: `gradlew bundleRelease` が `Failed to read key ... Given final block not properly padded` で落ちる（ストアは開けているのに鍵が読めない）。
+- 原因: **PKCS12 形式では鍵のパスワードがストアのパスワードと同じになる**＝`keytool -keypass` は**警告だけ出して無視される**。別々のパスワードで控えを書いていたので、鍵のパスワードだけ食い違った。
+- 対処: 控えを実態に合わせた（Key password = Store password）＋その旨を BUILD-android.md に明記。
+- もう1つ: **AAB のマニフェストは protobuf 形式で `aapt2` が読めない**（`could not identify format of APK`）。→ versionCode の確認は**同じ env のまま `assembleRelease` した APK 側**で行う（ついでに実機用の署名付き APK も手に入る＝一石二鳥）。
+
+**結果 / 観察**
+- **上げる前の検証3点 green**＝①署名あり（`META-INF/RECEIPT-.RSA`・証明書 SHA-256 が作った鍵と一致）②versionCode 1 / versionName 1.0 / 権限は INTERNET のみ / targetSdk 36 ③**バンドル内 `base/assets/public/index.html` が r70**
+- ⏳ Play Console にアップロードずみ＝**Google が配布できる状態にするのを待っている**
+
+**教訓**
+- **鍵の控えは「作った時の意図」でなく「実際にそうなった値」を書く**。keytool は指定を黙って無視することがあるので、控えを書く前に**その鍵で1回読めるか試す**のが安い。
+- **検証は「上げる直前の物」に対してやる**。AAB が直接読めないなら、同じ設定で読める物（APK）を出して確かめる＝遠回りに見えて、これが一番早い。
+
+**残課題 / 次の方向**
+- ▶ 届いたら実機で起動確認。⚠ **アプリ版はこれまで r13 相当**＝🍽 食事も 🩺 健康も、native では初めて触ることになる
+- ⚠ プライバシーポリシーの URL がまだ無い／データセーフティは「収集なし」で済ませない（BYOK で写真が外部の AI に出る）
+
 ## r70 — 🧾🍽 食事とレシートを連動させた（一緒に上げる／先に上げてある、の2本） (2026-08-17)
 
 **背景**
