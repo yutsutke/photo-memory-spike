@@ -273,6 +273,11 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 .hEmpty{color:var(--dim); font-size:13px; padding:8px 4px 4px;}
 .rec .chip.ok{color:var(--ok); border-color:var(--ok);}
 .rec .chip.bad{color:var(--err); border-color:var(--err);}
+/* r68: 🍽 の画面に置く ☑（⚙ と同じ設定）。⚠ 触れる面積を広く＝行ぜんぶが押せる */
+.mlMultiRow{display:flex; gap:10px; align-items:flex-start; background:var(--card); border:1px solid var(--line);
+  border-radius:12px; padding:12px; margin-top:12px; font-size:14.5px; cursor:pointer;}
+.mlMultiRow input{width:22px; height:22px; margin:1px 0 0; flex:none;}
+.mlMultiRow small{color:var(--dim); font-size:12.5px;}
 /* 🍽 手がかりの写真（r67）＝小さなサムネ＋種類の印＋✕。足すボタンは <label> なので button と同じ見た目にする */
 .mlX{display:flex; gap:8px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:6px 8px; margin-bottom:6px;}
 .mlX img{width:44px; height:44px; object-fit:cover; border-radius:6px; background:#000; flex:none;}
@@ -425,6 +430,11 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
       <div class="note" id="mlTodoNote"></div>
     </div>
     <!-- ⚠ 撮る入口は下の帯（🍽 料理／🖼）＝r65 でトップに出たので、ここに重ねて置かない -->
+    <!-- r68: ☑ を「撮る画面」にも置く（要望）＝⚙ まで行かずに切り替えられる。⚙ と同じ1つの設定 -->
+    <label class="mlMultiRow" for="ckMealMulti2">
+      <input type="checkbox" id="ckMealMulti2">
+      <span>すぐ読ませず、<b>手がかりを足してから</b>書き起こす<br><small>レシート・成分表示・一言を足せます（精度重視）。⚙ と同じ設定です。</small></span>
+    </label>
     <!-- どの AI が読むのかを、使う画面で言う（r40）＝⚙ に並んだので、ここで分からないと迷う -->
     <div class="anAi" id="mlAiLine"></div>
     <div class="note" id="mlNote"></div>
@@ -874,8 +884,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <!-- r67: 手がかり（レシート・成分表示・別の角度・一言）＝使う時だけ広がる。⚙ の ☑ が入っていれば撮った直後に開いた状態で出る -->
   <details class="adv" id="mlExtraWrap" style="border-top:0; margin-top:0; padding-top:0">
     <summary id="mlExtraSum">➕ 手がかりを足して精度を上げる（レシート・成分表示・一言）</summary>
-    <div class="note" style="margin-top:0">AI は<b>写真の見た目</b>で料理を当てるので、似た料理を取り違えます。<b>外食ならレシート・伝票</b>（店の品名）、<b>買ってきた物なら成分表示・パッケージ</b>、<b>手作りなら一言</b>（材料・調理法）を足すと、その情報を優先して書き起こします。⚠ 全部いっぺんに1回で読ませるので、料金と待ち時間は<b>写真1枚ぶん＋α</b>です。</div>
-    <div class="row"><label>どんな食事？（任意）</label><div class="seg wrap" id="mlOriginSeg"></div></div>
+    <div class="note" style="margin-top:0">AI は<b>写真の見た目</b>で料理を当てるので、似た料理を取り違えます。<b>外食ならレシート・伝票</b>（店の品名）、<b>買ってきた物なら成分表示・パッケージ</b>、<b>手作りなら一言</b>（材料・調理法）を足すと、その情報を優先して書き起こします。⚠ 全部いっぺんに1回で読ませるので、料金と待ち時間は<b>写真1枚ぶん＋α</b>です。<br>⚠ <b>手作り／中食／外食は AI が写真から見分けます</b>（選ぶ必要はありません）。違っていたら 📝 の欄に「これは手作りです」と書けば、そちらが優先されます。</div>
     <div class="row"><label>いっしょに渡す写真（任意・何枚でも）</label>
       <div id="mlExtraList"></div>
       <div class="seg wrap" id="mlExtraAdd"></div></div>
@@ -922,6 +931,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <button class="x" data-close>✕</button><h2 id="stHead">📊 統計</h2>
   <div class="seg" id="stTabs" style="margin-bottom:8px">
     <button type="button" data-tab="stats">📊 統計</button>
+    <button type="button" data-tab="meal">🍽 食事</button>
     <button type="button" data-tab="map">💴 支出マップ</button>
   </div>
   <div class="seg wrap" id="stPeriodSeg">
@@ -938,6 +948,8 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <div class="row" style="flex:1"><label>まで</label><input type="date" id="stTo"></div>
   </div>
   <div id="stBody"></div>
+  <!-- r68: 🍽 食事の統計＝外食・中食・手作りの比率（要望「外食がどれくらいの比率かすぐ分かるように」） -->
+  <div id="mealStatPane" hidden></div>
   <div id="mapPane" hidden>
     <div class="seg" id="smMetricSeg" style="margin:8px 0">
       <button type="button" data-mt="yen">金額</button>
@@ -1020,7 +1032,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r67 🍽📎料理の写真に手がかりを足して精度を上げる（要望）＝外食はレシート・伝票／中食は成分表示・パッケージ／手作りは一言（材料・調理法）＋「どんな食事？（手作り/中食/外食）」。①詳細の「➕ 手がかりを足して精度を上げる」＝使う時だけ広がる（既定は1行）。何枚でも足せる・✕で外せる・一言は打つ手が止まると保存。②⚙「🍽 料理を撮ったあと」☑＝入れると1枚撮るたびに詳細が開き（読ませない）、手がかりを足してから📝＝読ませてから足すと2回分の料金と待ち時間になるので「まず読ませない」。外すと今までどおり撮った瞬間に読む。複数枚まとめての時は写真だけ記録して伝える。③渡し方＝r65 の imgList（画像ごとの見出しを直前に）＋ask の末尾に【本人からの情報】＝analyze() は無改修・手がかり無しなら今までと同じ呼び方。規則に優先順位（本人＞印字＞見た目）と、成分表示に**印字された**数値だけ「印字：」付きで写してよい（推定は今までどおり禁止）を足した。④見出し行に「画像N枚＋一言を N秒で読取」＝手がかりで遅くなるか高くなるかを実測で見られる。⑤📤 JSON に origin/hint_from_person/evidence_photos（付いている食事だけ）・CSV に2列・読み方に説明。🩹2つの競合を潰した＝(a)写真の縮小中に📝を押すと手がかり無しで読みに行く→縮小が終わるまで「準備中」で待たせる (b)一言を打ってから「外食」を押すと blur の保存と click の保存が同時に走り片方が消える→保存を1本の待ち行列に｜r66 💊⏳予定の日を過ぎた薬に「終了にしますか」＋🍽時間帯を10分きざみにして重ねられなくした（要望3つのうち2つ・3つ目は起動時トーストの条件の説明）。①💊「N日分」の予定を過ぎた服用中の薬に、一覧のカードの中で2択（✅終了にする／まだ飲んでいる）。終了日に入れるのは**今日でなく予定の日**＝実際に飲み終えた日の方が本当。決まりは planEndOf の1か所に置き、一覧の✅・詳細の「終了」ボタン・詳細の⚠印が同じ日を出す（片方だけ直る事故を構造で防ぐ）。「まだ飲んでいる」は endAsk=keep で二度と聞かない／開始日を直す・写真を読み直すと予定が変わるので白紙に戻してまた聞く。⚠ボタンはカードの中にあるので click を先に拾って詳細を開かせない・高さ44px（preview の合成クリックは細くても当たるが実機の指は当たらない）。②🍽 食事の時間帯を「打ち込む」から「10分きざみで選ぶ」に。⚠**重ねて設定できなくした**＝6つの点（朝始・朝終・昼始・昼終・夕始・夕終）が1日を一周する円の上にこの順で並ぶモデルにして、各欄は**隣の点までしか選択肢を出さない**（押せてから弾くのでなく、そもそも選べない）。そのため「昼の始まりを早くする」には先に「朝の終わり」を早くする2手が要る＝⚙の説明に書いた。終わりの時刻はその時間帯に入らない [始まり, 終わり)＝境目の1分が両方に属する問題も消えた（時刻表と同じ読み方）。既定の夕食の終わりを 23:59→00:00。日またぎ（22:00〜01:00）は円なのでそのまま使える。r65 以前に保存された「すでに重なっている設定」は⚙を開いた時に詰めて直し、直したことを伝える。⚠教訓＝テストが本物を真似ていない罠を4回目（画面の開閉は hidden でなく on クラス）｜r65 🧾🍽🩺トップを3タブに（🧾レシート＝今までどおりの一覧／🍽食事＝旧モーダルの中身をそのまま／🩺健康＝新設）＋🩺健康診断と💊薬を入れる場所を作った（要望）。①健康診断＝結果表の写真（複数ページ可）を1回の健診として AI が検査値を書き起こす（項目・値・基準範囲・判定を印字のまま・診断や助言は書かせない）。再検査の結果は同じ健診に➕で足せて全ページを読ませ直す。検査日は写真の日付を仮に置き、読めたら結果表の日付に。②薬＝説明書・お薬手帳の写真から薬ごとに1件ずつ（1枚から複数読めたら記録を薬の数だけ作る）／写真なしでも✏️手で足せる／服用開始・服用中・終了（終了日が空＝服用中）。③どちらも⚙で AI とモデルを役割ごとに選べる（レシートと同じ1組の UI＝renderRoleSettings に役割を2つ足しただけ）。④📤/📈 に一緒に渡す＝**健診は年1回なので期間だけで拾うと渡し漏れる**→期間内の全部＋期間より前の直近1件を必ず入れる（in_period / included_because で AI に理由も渡す）。「すべての年」で推移も渡せる。薬は「その期間に飲んでいたもの」（終わった薬も全部、も選べる）。読み方（DATA_NOTES）は _readme と AN_SYSTEM の両方に。CSV は健診（1行＝1検査項目）と薬を別ファイルで。⑤写真を読む仕事（analyze）に複数画像＋見出しを渡せるようにした（レシート・食事は無改修）｜r64 🎉🩹実機で共有シートがワンタップで Google ドライブに届いた（さらに共有先に Claude が直接出た＝Drive を経由せず AI アプリへ手渡しできる）。ただし2つのはずのファイルが3つあり「レシート.txt」が余計だった＝navigator.share に files と一緒に title を渡すと、iOS がその文字を別のテキスト項目として足す→ファイルを渡す時は files だけにする（題名は要らない・ファイル名が題名になる）。native の Share.share からも先に外した（同じ iOS の共有シートに載る以上、同じ罠を踏む可能性が高い）。＋1ファイルの時も共有シートを使うよう広げた（📄JSON もスマホでは共有シートへ）＝同じ画面の📄と📊で出口が違うと操作が読めない・受け取れない形式は canShare が false を返すので今までどおりダウンロードに落ちる。📤の案内も実機で分かった一番短い道（共有先にClaude）を先に書く形へ｜r63 🩹📊CSVの2ファイル同時が web で壊れていたのを直した＋🗣頼み方の例を6種類に（要望）。①実機で「mealしか保存できない」＝同じ瞬間にダウンロードを2回叩くと後から始まった方が前をかき消す→600ms空ける。⚠r62で「setTimeoutを挟むと止められる」と書いたのは私の思い込みで実測が逆を示した（blob URLのダウンロードは押した操作の直後でなくても走る）＝思い込みで保険を外さない。②指で触る画面では共有シートで2つまとめて渡す（そのままDriveに保存できる＝この機能の目的地）・パソコンは共有ダイアログだとフォルダに保存しにくいのでダウンロードのまま。③キャンセルした時は「保存しました」と言わない。④例文6種＝📊ふりかえり/💡節約/🩺健康/🏪お店のくせ/⇆前とくらべる/📋表とグラフ。⚠📈の型と別に持つ＝あちらはアプリが指示文を添えるので短くてよいが、こちらはそのまま貼られて終わり＝前置きも注意書きも例文の中に要る。⚠共通の前後を挟んで組み立てる＝6つ書き写さない（直し忘れ防止）。⇆と📋はこの道でしかできないこと（📈は1回きり800字）を入口にした型 · 2026-08-17';
+const BUILD = 'r68 🍽🤖手作り/中食/外食を **AI が写真から見分ける**ようにした＋📊 に「🍽 食事」タブ（外食の比率）＋☑ を 🍽 の画面にも（要望3つ）。①r67 で置いた手で選ぶボタンを撤去＝AI が見分ける（schema に origin と origin_reason・規則に見分け方＝外食は店の食器/トレー/伝票、中食はプラ容器/フィルム/値札シール、手作りは家の食器/食卓）。⚠ **迷ったら null**（決めつけた判定が混ざると比率が嘘になる）。⚠ 人に選ばせない代わり**判定と理由を詳細に必ず出す**（見えない判定は信用できない）・違っていたら 📝 の一言で「これは手作りです」と書けば規則の優先順位（本人＞印字＞見た目）で直る。②📊 統計に3つ目のタブ「🍽 食事」＝期間の仕組み（今日/今週/月/年/全期間/期間を選ぶ）はレシートと共有＝新しい期間UIを作らない。帯と一覧で手作り/中食/外食の比率・「🍴 外食は N%」・区分ごとの外食率（昼だけ外食が多い、が見える）。🥇 **母数は見分けられた食事だけ**＝分からなかった件数は必ず別に出す（分母に入れると比率が薄まり、分子に入れると嘘になる・なぜ合計が合わないかが見える）。③☑「すぐ読ませず手がかりを足してから」を 🍽 の画面にも置いた＝⚙ まで行かずに切り替えられる。⚠ **設定は1つ**＝どちらを触ってももう片方の見た目もそろえる（片方だけ変わると2つ設定があるように見える）。④📤 JSON は origin_decided_by:"ai"・読み方に「origin が無い食事は分からないであって手作りではない＝母数から外して断って書く」。⚠ mealHasExtras（📎 の印・➕ を開くか）から origin を外した＝AI 判定を入れると全部の食事に 📎 が付く｜r67 🍽📎料理の写真に手がかりを足して精度を上げる（要望）＝外食はレシート・伝票／中食は成分表示・パッケージ／手作りは一言（材料・調理法）＋「どんな食事？（手作り/中食/外食）」。①詳細の「➕ 手がかりを足して精度を上げる」＝使う時だけ広がる（既定は1行）。何枚でも足せる・✕で外せる・一言は打つ手が止まると保存。②⚙「🍽 料理を撮ったあと」☑＝入れると1枚撮るたびに詳細が開き（読ませない）、手がかりを足してから📝＝読ませてから足すと2回分の料金と待ち時間になるので「まず読ませない」。外すと今までどおり撮った瞬間に読む。複数枚まとめての時は写真だけ記録して伝える。③渡し方＝r65 の imgList（画像ごとの見出しを直前に）＋ask の末尾に【本人からの情報】＝analyze() は無改修・手がかり無しなら今までと同じ呼び方。規則に優先順位（本人＞印字＞見た目）と、成分表示に**印字された**数値だけ「印字：」付きで写してよい（推定は今までどおり禁止）を足した。④見出し行に「画像N枚＋一言を N秒で読取」＝手がかりで遅くなるか高くなるかを実測で見られる。⑤📤 JSON に origin/hint_from_person/evidence_photos（付いている食事だけ）・CSV に2列・読み方に説明。🩹2つの競合を潰した＝(a)写真の縮小中に📝を押すと手がかり無しで読みに行く→縮小が終わるまで「準備中」で待たせる (b)一言を打ってから「外食」を押すと blur の保存と click の保存が同時に走り片方が消える→保存を1本の待ち行列に｜r66 💊⏳予定の日を過ぎた薬に「終了にしますか」＋🍽時間帯を10分きざみにして重ねられなくした（要望3つのうち2つ・3つ目は起動時トーストの条件の説明）。①💊「N日分」の予定を過ぎた服用中の薬に、一覧のカードの中で2択（✅終了にする／まだ飲んでいる）。終了日に入れるのは**今日でなく予定の日**＝実際に飲み終えた日の方が本当。決まりは planEndOf の1か所に置き、一覧の✅・詳細の「終了」ボタン・詳細の⚠印が同じ日を出す（片方だけ直る事故を構造で防ぐ）。「まだ飲んでいる」は endAsk=keep で二度と聞かない／開始日を直す・写真を読み直すと予定が変わるので白紙に戻してまた聞く。⚠ボタンはカードの中にあるので click を先に拾って詳細を開かせない・高さ44px（preview の合成クリックは細くても当たるが実機の指は当たらない）。②🍽 食事の時間帯を「打ち込む」から「10分きざみで選ぶ」に。⚠**重ねて設定できなくした**＝6つの点（朝始・朝終・昼始・昼終・夕始・夕終）が1日を一周する円の上にこの順で並ぶモデルにして、各欄は**隣の点までしか選択肢を出さない**（押せてから弾くのでなく、そもそも選べない）。そのため「昼の始まりを早くする」には先に「朝の終わり」を早くする2手が要る＝⚙の説明に書いた。終わりの時刻はその時間帯に入らない [始まり, 終わり)＝境目の1分が両方に属する問題も消えた（時刻表と同じ読み方）。既定の夕食の終わりを 23:59→00:00。日またぎ（22:00〜01:00）は円なのでそのまま使える。r65 以前に保存された「すでに重なっている設定」は⚙を開いた時に詰めて直し、直したことを伝える。⚠教訓＝テストが本物を真似ていない罠を4回目（画面の開閉は hidden でなく on クラス）｜r65 🧾🍽🩺トップを3タブに（🧾レシート＝今までどおりの一覧／🍽食事＝旧モーダルの中身をそのまま／🩺健康＝新設）＋🩺健康診断と💊薬を入れる場所を作った（要望）。①健康診断＝結果表の写真（複数ページ可）を1回の健診として AI が検査値を書き起こす（項目・値・基準範囲・判定を印字のまま・診断や助言は書かせない）。再検査の結果は同じ健診に➕で足せて全ページを読ませ直す。検査日は写真の日付を仮に置き、読めたら結果表の日付に。②薬＝説明書・お薬手帳の写真から薬ごとに1件ずつ（1枚から複数読めたら記録を薬の数だけ作る）／写真なしでも✏️手で足せる／服用開始・服用中・終了（終了日が空＝服用中）。③どちらも⚙で AI とモデルを役割ごとに選べる（レシートと同じ1組の UI＝renderRoleSettings に役割を2つ足しただけ）。④📤/📈 に一緒に渡す＝**健診は年1回なので期間だけで拾うと渡し漏れる**→期間内の全部＋期間より前の直近1件を必ず入れる（in_period / included_because で AI に理由も渡す）。「すべての年」で推移も渡せる。薬は「その期間に飲んでいたもの」（終わった薬も全部、も選べる）。読み方（DATA_NOTES）は _readme と AN_SYSTEM の両方に。CSV は健診（1行＝1検査項目）と薬を別ファイルで。⑤写真を読む仕事（analyze）に複数画像＋見出しを渡せるようにした（レシート・食事は無改修）｜r64 🎉🩹実機で共有シートがワンタップで Google ドライブに届いた（さらに共有先に Claude が直接出た＝Drive を経由せず AI アプリへ手渡しできる）。ただし2つのはずのファイルが3つあり「レシート.txt」が余計だった＝navigator.share に files と一緒に title を渡すと、iOS がその文字を別のテキスト項目として足す→ファイルを渡す時は files だけにする（題名は要らない・ファイル名が題名になる）。native の Share.share からも先に外した（同じ iOS の共有シートに載る以上、同じ罠を踏む可能性が高い）。＋1ファイルの時も共有シートを使うよう広げた（📄JSON もスマホでは共有シートへ）＝同じ画面の📄と📊で出口が違うと操作が読めない・受け取れない形式は canShare が false を返すので今までどおりダウンロードに落ちる。📤の案内も実機で分かった一番短い道（共有先にClaude）を先に書く形へ · 2026-08-17';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1599,6 +1611,9 @@ const mealSchema = () => ({
   properties: {
     summary: { type: 'string' },
     detail:  { type: 'string' },
+    // r68: 手作り / 中食（買ってきた） / 外食 を AI が見分ける。⚠ 迷ったら null（決めつけない＝統計が汚れる）
+    origin: { anyOf: [{ type: 'string', enum: ORIGIN_ENUM }, { type: 'null' }] },
+    origin_reason: NULLABLE('string'),
     items: { type: 'array', items: {
       type: 'object', additionalProperties: false,
       properties: { name: { type: 'string' }, kind: { type: 'string', enum: MEAL_KINDS },
@@ -1606,7 +1621,7 @@ const mealSchema = () => ({
       required: ['name', 'kind', 'amount', 'note'],
     } },
   },
-  required: ['summary', 'detail', 'items'],
+  required: ['summary', 'detail', 'origin', 'origin_reason', 'items'],
 });
 /* ⚠ いちばん大事な規則＝**数字を作らせない**。カロリーや栄養素は写真からは分からない。
    分かるふりをした数字が混ざると、これを基礎資料にした後日の分析が丸ごと壊れる（しかも気付けない）。 */
@@ -1616,6 +1631,13 @@ const MEAL_RULES = `あなたは食事写真の記録係。写真に写ってい
 - summary: 何を食べたかの1行（例「鮭の塩焼き、ごはん、味噌汁、ほうれん草のおひたし」）。40文字程度まで。料理名を並べる。感想・評価は書かない。
 - detail: 料理ごとに、料理名・使われている材料・調理法（揚げる/焼く/生 など）・味付けやソース類・量の見当・付け合わせ・飲み物を書き起こす。あとで健康の面から振り返るための素材なので、**食べ物と量のことだけ**を書く。
 - ⚠ detail に「何をどれだけ食べたか」に関わらないことを書かない。器や箸などの食器・敷物や背景・包装の様子・皿や食べ物の色形の見た目描写は不要（器は「茶碗1杯」のように量の物差しとして使う時だけ登場してよい）。
+- origin: この食事が「手作り」「中食」「外食」のどれかを写真から見分ける。分からなければ **null**（⚠ 迷ったら null。決めつけた判定が混ざると、あとで「外食の割合」を数えた時に嘘になる）。見分ける手がかり:
+  - **外食**＝店の食器（同じ柄の皿・番号の入った札・トレー）、店内のテーブル・カウンター、伝票やレシート、店名の入った紙やおしぼり、盛り付けが均一で商品らしい、割り箸に店名。
+  - **中食**＝買ってきたもの＝プラスチック容器・フィルムや蓋・値札やバーコードのシール・コンビニやスーパーの袋・惣菜パック・カップ麺・弁当箱型の容器のまま食べている。
+  - **手作り**＝家庭の食器（不揃いの茶碗・箸・普段使いの皿）に盛られている、家の食卓やテーブル、鍋やフライパンから取り分けた様子、作りかけ・盛り付けが手作業。
+  - ⚠ 容器から家の皿に移していると見分けにくい。**その時は null**。
+  - ⚠ レシート・伝票が一緒に写っている（渡されている）なら外食か中食の強い手がかり。成分表示・パッケージが写っていれば中食の強い手がかり。**本人からの情報があれば、それを最優先**。
+- origin_reason: origin をそう判断した理由を**20文字ほど**で（例「店の食器とトレー」「コンビニの容器のまま」「家の茶碗と箸」）。null の時は、なぜ決められなかったかを短く。
 - items: 料理・飲み物を1つずつ。name は料理名、kind は ${MEAL_KINDS.join('/')} から選ぶ、amount は見た目の量（「茶碗1杯」「小鉢1つ」「グラス1杯」など。分からなければ null）、note は気付いたこと（無ければ null）。
 - 食べ物が写っていなければ items は空配列、summary は「食事は写っていません」にする。
 - ⚠ 写真から見えないものを足さない（袋や皿の下に隠れているもの、味、温度など）。「〜と思われる」で埋めない。
@@ -1634,11 +1656,18 @@ const MEAL_EXTRA = [
   ['label',   '🏷', '成分表示・パッケージ', '【成分表示・パッケージ】食べた物の商品名・原材料・栄養成分表示が印字されている。'],
   ['photo',   '🍽', '別の角度の写真',       '【料理の写真（別の角度）】同じ食事を別の角度・寄りで撮ったもの。'],
 ];
-const MEAL_ORIGIN = [['home', '🏠', '手作り'], ['store', '🏪', '中食（買ってきた）'], ['out', '🍴', '外食']];
+/* r68: 手作り/中食/外食は**AI が写真から見分ける**（要望「選択は不要・AI が自動に認識」）。
+   ⚠ 人に選ばせない代わりに、**判定結果は詳細に必ず出す**（見えない判定は信用できない）。
+   ⚠ 違っていたら 📝 の一言で「これは手作りです」と伝えれば、規則で本人＞見た目なので直る。 */
+const MEAL_ORIGIN = [['home', '🏠', '手作り'], ['store', '🏪', '中食'], ['out', '🍴', '外食']];
+const ORIGIN_ENUM = ['手作り', '中食', '外食'];   // AI が返す値（分からなければ null）
+const ORIGIN_CODE = v => (MEAL_ORIGIN.find(x => x[2] === String(v || '').trim()) || [])[0] || null;
 const ORIGIN_LABEL = o => (MEAL_ORIGIN.find(x => x[0] === o) || [])[2] || null;
+const ORIGIN_ICON  = o => (MEAL_ORIGIN.find(x => x[0] === o) || [])[1] || '';
 const mealMultiOn = () => localStorage.getItem(ML.multi) === '1';
-// 手がかりが1つでも付いているか（＝詳細の「➕」を開いた状態で見せる）
-const mealHasExtras = m => !!(m.origin || m.hint || (m.extras && m.extras.length));
+/* 人が足した手がかりが1つでもあるか（＝詳細の「➕」を開いた状態で見せる・一覧に 📎 を出す）。
+   ⚠ r68: origin は**AI が見分けたもの**なので、ここには入れない（入れると全部の食事に 📎 が付く）。 */
+const mealHasExtras = m => !!(m.hint || (m.extras && m.extras.length));
 
 // OCRルール＝ライフログ(receipt関数のOCR_SYSTEM)の実運用で磨かれた規則を移植（布石フィールド分は除く）
 const OCR_RULES = `あなたはレシート読み取りの専門家。写真に写っているレシートから情報を抽出する。
@@ -1784,7 +1813,8 @@ const DATA_NOTES = {
     'detail（詳細な書き起こし）は入っていないことがある（detail_included で分かる）。入っていない時に中身を推測しない。',
     'slot_decided_by が "human" の区分は本人が直したもの＝時刻より確か。"auto" は撮影時刻からの自動判定なので、ずれていることがある。',
     'note は本人が書いたひとこと（気分・誰と・なぜ・体調など）。⚠ 写真からは絶対に分からないことが書いてある唯一の場所なので、summary より重く扱う。書かれていない食事について、気分や事情を勝手に補わない。',
-    'origin（手作り/中食（買ってきた）/外食）・hint_from_person（本人が読み取り前に伝えた料理名や材料）・evidence_photos（レシート・成分表示など、読み取りの手がかりに使った写真の種類）は付いている食事だけにある。無い食事は「分からない」であって「手作り」ではない。origin がある食事だけで外食の割合などを数える時は、母数をその件数にする。',
+    'origin（手作り/中食/外食）は **AI が写真から見分けたもの**（origin_decided_by が "ai"）。⚠ 見分けられなかった食事には origin が無い。無い食事は「分からない」であって「手作り」ではないので、外食の割合を数える時は **origin がある件数を母数**にし、「見分けられなかった N件は除いた」と断って書く。',
+    'hint_from_person は本人が読み取り前に伝えた料理名や材料（写真より確か）。evidence_photos はレシート・成分表示など、読み取りの手がかりに使った写真の種類。どちらも付いている食事だけにある。',
     'detail の中の「印字：」で始まる数値（例 印字：1食 380kcal）は成分表示に印字されていたものを写したもので、推定ではない。それ以外に数値は無い。',
     'レシート（買った物）と食事（食べた物）は別のもの。同じ日でも一致しない（外食のレシートが無い・作り置きを食べた等）ので、無理に対応づけない。片方にしか無いことは、そのまま片方の事実として書く。',
   ],
@@ -2097,8 +2127,7 @@ async function analyzeReceipt(rec){
 async function mealPayload(rec){
   const extras = rec.extras || [];
   const lines = [];
-  if (rec.origin) lines.push(`この食事は「${ORIGIN_LABEL(rec.origin)}」です。`);
-  if (rec.hint) lines.push(rec.hint);
+  if (rec.hint) lines.push(rec.hint);   // r68: 手作り/中食/外食 は人に選ばせず AI が見分ける（一言で伝えれば優先される）
   if (!extras.length && !lines.length) return { b64: await blobToB64(rec.img), job: MEAL_JOB, imgs: 1, hinted: false };
   const imgs = [{ label: '【料理の写真】', b64: await blobToB64(rec.img) }];
   for (const x of extras) {
@@ -2116,6 +2145,8 @@ async function analyzeMeal(rec){
   if (isCut(r.stop)) throw new Error('書き起こしが上限に達しました（料理が多い可能性）。⚙ の詳細設定で別のモデルもお試しください');
   const d = parseJsonLoose(r.text);
   return { data: { summary: String(d.summary || '').trim(), detail: String(d.detail || '').trim(),
+                   // r68: AI が見分けた 手作り/中食/外食（分からなければ null＝決めつけない）
+                   origin: ORIGIN_CODE(d.origin), originWhy: cleanStr(d.origin_reason),
                    items: Array.isArray(d.items) ? d.items : [] },
            // r67: 所要時間と渡した画像の枚数も控える＝「手がかりを足すと遅くなるか」を実測で答えられる
            meta: { provider: ctx.prov, model: r.model || ctx.model, in: r.in, out: r.out, at: Date.now(),
@@ -2216,6 +2247,7 @@ async function runMealAnalysis(id){
       const { data, meta } = await analyzeMeal(rec);
       rec = await mlGet(id); if (!rec) return;                 // 分析中に消されたら破棄
       rec.status = 'done'; rec.data = data; rec.meta = meta; rec.edited = null;
+      rec.origin = data.origin;   // r68: 📤 書き出し・📊 統計が読む場所を1つに（AI が見分けた結果）
       break;
     } catch (err) {
       rec = await mlGet(id); if (!rec) return;
@@ -2572,7 +2604,14 @@ function openMeal(m){
       `<div class="mlItem"><span class="k">${esc(x.kind || '')}</span><span>${esc(x.name || '')}`
       + `${x.note ? `<br><small style="color:var(--dim)">${esc(x.note)}</small>` : ''}</span>`
       + `<span class="a">${esc(x.amount || '')}</span></div>`).join('');
-    body.innerHTML = `<div class="row"><label>要約（📈 分析にはこれを渡します）</label>
+    /* r68: AI が見分けた 手作り/中食/外食 を必ず出す（人に選ばせない代わりに、判定は見えるようにする）。
+       ⚠ 「分からない」も出す＝黙って抜けると、📊 の比率がなぜ合わないか分からなくなる。 */
+    const o = m.data.origin, ow = m.data.originWhy;
+    body.innerHTML = `<div class="row"><label>どんな食事か（AI が写真から見分けました）</label>
+        <div class="mlDetail">${o ? `${ORIGIN_ICON(o)} <b>${esc(ORIGIN_LABEL(o))}</b>` : '❓ <b>分かりませんでした</b>'}`
+      + `${ow ? ` <small style="color:var(--dim)">${esc(ow)}</small>` : ''}`
+      + `<br><small style="color:var(--dim)">違っていたら、上の「➕ 手がかり」の 📝 に「これは手作りです」と書いて読み直すと直ります。</small></div></div>`
+      + `<div class="row"><label>要約（📈 分析にはこれを渡します）</label>
         <div class="mlDetail">${esc(m.data.summary || '')}</div></div>`
       + (it ? `<div class="row"><label>写っていたもの</label>${it}</div>` : '')
       + `<details class="adv"><summary>📄 詳細な書き起こし（深掘りの時に渡します）</summary>
@@ -2638,8 +2677,6 @@ const mlExtraUrls = [];
 function renderMealExtras(m){
   const wrap = document.getElementById('mlExtraWrap');
   wrap.open = (mealMultiOn() && m.status === 'todo') || mealHasExtras(m);
-  document.getElementById('mlOriginSeg').innerHTML = MEAL_ORIGIN.map(([id, icon, label]) =>
-    `<button type="button" data-mlorigin="${id}"${m.origin === id ? ' class="on"' : ''}>${icon} ${label}</button>`).join('');
   mlExtraUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
   document.getElementById('mlExtraList').innerHTML = (m.extras || []).map(x => {
     const u = URL.createObjectURL(x.thumb || x.img); mlExtraUrls.push(u);
@@ -2672,12 +2709,6 @@ function patchMeal(id, fn){
   mlPatchQueue = job.catch(() => {});   // 1つ失敗しても列を止めない
   return job;
 }
-document.getElementById('mlOriginSeg').addEventListener('click', async e => {
-  const b = e.target.closest('[data-mlorigin]'); if (!b || !mlCur) return;
-  const v = b.dataset.mlorigin;
-  const m = await patchMeal(mlCur.id, x => { x.origin = x.origin === v ? null : v; });   // もう一度押すと外れる
-  if (m) renderMealExtras(m);
-});
 /* ⚠ 写真の縮小には時間がかかる（大きな写真で1秒近く）。その間に 📝 を押されると**手がかり無しで読みに行く**
    ＝足したつもりのレシートが渡らない。→ 足している間は 📝 を「準備中」にし、押されても**縮小が終わるのを待ってから**読む。 */
 let mlExtraBusy = 0, mlExtraPending = Promise.resolve();
@@ -2728,10 +2759,19 @@ document.getElementById('btnMlRunX').onclick = async e => {
   await runMealAnalysis(id);
   const m = await mlGet(id); if (m) openMeal(m);
 };
-document.getElementById('ckMealMulti').addEventListener('change', e => {
+/* ⚠ ☑ は2か所（⚙ と 🍽 の画面）にあるが**設定は1つ**＝どちらを触っても、もう片方の見た目もそろえる
+   （片方だけ変わると「効いていない」に見える＝2つの設定があるように見えるのが最悪）。 */
+function syncMealMulti(){
+  const on = mealMultiOn();
+  ['ckMealMulti', 'ckMealMulti2'].forEach(id => { const el = document.getElementById(id); if (el) el.checked = on; });
+}
+['ckMealMulti', 'ckMealMulti2'].forEach(id => document.getElementById(id).addEventListener('change', e => {
   localStorage.setItem(ML.multi, e.target.checked ? '1' : '0');
+  syncMealMulti();
+  if (mlCur) renderMealExtras(mlCur);   // 開いている詳細の案内文も合わせる
   toast(e.target.checked ? '🍽 これからは、撮ったあとに手がかりを足してから 📝 で読ませます' : '🍽 これからは、撮った瞬間に読み始めます');
-});
+}));
+syncMealMulti();
 
 /* ⚠ 「保存」ボタンを置かない＝1行のメモに保存操作を求めると、たいてい書かれないまま閉じられる。
    打ち終わった時（change）・打つ手が止まった時・画面を閉じる時に書く。 */
@@ -4351,7 +4391,7 @@ async function exportPayload(rows, from, to){
    どちらの行か分からなくなる（受け取るのは表計算ソフト＝列の意味が全て）。 */
 function exportMealCsv(meals, withDetail){
   const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
-  const head = ['食事ID', '日付', '時刻', '区分', '区分の決め方', '要約', 'ひとこと', '料理', '手作り/中食/外食', 'AIに伝えた情報'];
+  const head = ['食事ID', '日付', '時刻', '区分', '区分の決め方', '要約', 'ひとこと', '料理', '手作り/中食/外食（AI判定）', 'AIに伝えた情報'];
   if (withDetail) head.push('詳細な書き起こし');
   const out = [head.join(',')];
   for (const m of meals) {
@@ -4922,12 +4962,13 @@ function syncPeriodUI(){
 document.getElementById('stFrom').onchange = e => { stFrom = e.target.value; renderTab(); };
 document.getElementById('stTo').onchange   = e => { stTo   = e.target.value; renderTab(); };
 let stTab = 'stats';
-function renderTab(){ syncPeriodUI(); return stTab === 'map' ? renderSpendMap() : renderStats(); }
+function renderTab(){ syncPeriodUI(); return stTab === 'map' ? renderSpendMap() : stTab === 'meal' ? renderMealStats() : renderStats(); }
 function setTab(t){
   stTab = t;
   document.querySelectorAll('#stTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-  document.getElementById('stHead').textContent = t === 'map' ? '💴 支出マップ' : '📊 統計';
+  document.getElementById('stHead').textContent = t === 'map' ? '💴 支出マップ' : t === 'meal' ? '🍽 食事の統計' : '📊 統計';
   document.getElementById('stBody').hidden = t !== 'stats';
+  document.getElementById('mealStatPane').hidden = t !== 'meal';
   document.getElementById('mapPane').hidden = t !== 'map';
   if (t !== 'map') setMapFull(false); // 📊 に戻ったのに全画面が残っていると、次に 💴 を開いた時いきなり全画面になる
   if (t === 'map') autoGeoSweep();    // 溜まっていた分の場所もここで入れる（r20・待たない）
@@ -4954,6 +4995,46 @@ document.getElementById('btnStats').onclick = async () => {
   setMapFull(false); // 開き直したら等倍から（前回の全画面を引きずらない）
   show('ovStats'); setTab(stTab);
 };
+
+/* ---------- 🍽 食事の統計（r68） ----------
+   要望＝「**外食がどれくらいの比率かすぐ分かるように**」。期間の仕組み（今日/今週/月/年/全期間/期間を選ぶ）は
+   レシートの統計とそのまま共有する＝新しい期間 UI を作らない。
+   ⚠ **母数は「AI が見分けられた食事」だけ**にする（分からなかったものを分母に入れると比率が薄まり、
+      分子に入れると嘘になる）。「分からなかった」件数は必ず別に出す＝なぜ合計が合わないかが見える。
+   ⚠ カロリー等の数値は無い（写真から分からない）＝ここでも件数だけを数える。 */
+const ORIGIN_COLOR = { out: '#ff9f0a', store: '#5e9bff', home: '#30d158' };
+async function renderMealStats(){
+  const per = statsPeriod(), pane = document.getElementById('mealStatPane');
+  if (per.bad) { pane.innerHTML = `<div class="hEmpty">⚠ ${esc(per.bad)}</div>`; return; }
+  const all = (await mlAll()).filter(m => m.status === 'done')
+    .filter(m => (!per.from || mealDate(m) >= per.from) && (!per.to || mealDate(m) <= per.to));
+  if (!all.length) { pane.innerHTML = '<div class="hEmpty">この期間に書き起こした食事がありません。</div>'; return; }
+  const known = all.filter(m => m.origin), unknown = all.length - known.length;
+  const cnt = k => known.filter(m => m.origin === k).length;
+  const pct = n => known.length ? Math.round(n / known.length * 100) : 0;
+  const rows = MEAL_ORIGIN.map(([k, icon, label]) => ({ k, icon, label, n: cnt(k), p: pct(cnt(k)) }));
+  const bar = rows.filter(r => r.n).map(r => `<i style="width:${r.p}%; background:${ORIGIN_COLOR[r.k]}"></i>`).join('');
+  // 区分（朝昼夕間食）ごとの外食率＝「昼だけ外食が多い」が見える
+  const bySlot = MEAL_SLOTS.map(([id, label, icon]) => {
+    const ks = known.filter(m => m.slot === id);
+    const o = ks.filter(m => m.origin === 'out').length;
+    return { label, icon, n: ks.length, o, p: ks.length ? Math.round(o / ks.length * 100) : 0 };
+  }).filter(x => x.n);
+  pane.innerHTML =
+    `<div class="note" style="margin-top:0">${esc(per.label)}・書き起こした食事 <b>${all.length}件</b>`
+      + `${unknown ? `（うち <b>${unknown}件</b>は AI が見分けられませんでした＝下の比率の母数から外しています）` : ''}</div>`
+    + (known.length ? `<div class="stBar" style="height:14px; border-radius:7px; margin:10px 0">${bar}</div>`
+        + rows.map(r => `<div class="stRow"><span class="dot" style="background:${ORIGIN_COLOR[r.k]}"></span>`
+            + `<span class="nm">${r.icon} ${esc(r.label)}</span><span class="pct">${r.p}%</span>`
+            + `<span class="val">${r.n}件</span></div>`).join('')
+        + `<div class="note">🍴 <b>外食は ${pct(cnt('out'))}%</b>（${cnt('out')}件 / 見分けられた ${known.length}件）</div>`
+        + (bySlot.length > 1 ? `<div class="row" style="margin-top:14px"><label>区分ごとの外食率</label>`
+            + bySlot.map(s => `<div class="stBarRow"><span class="lab">${s.icon} ${esc(s.label)}</span>`
+                + `<span class="stBar"><i style="width:${s.p}%; background:${ORIGIN_COLOR.out}"></i></span>`
+                + `<span class="pct">${s.p}%（${s.o}/${s.n}）</span></div>`).join('') + `</div>` : '')
+      : '<div class="hEmpty">この期間は、AI が手作り/中食/外食を見分けられた食事がありません。</div>')
+    + `<div class="note" style="margin-top:14px">⚠ 手作り／中食／外食は <b>AI が写真から見分けた</b>ものです（容器から家の皿に移した物などは「見分けられません」になります）。個々の食事を開くと、何をもとにそう見たかが出ます。違っていたら 📝 の一言で直せます。</div>`;
+}
 
 /* ---------- 💴 支出マップ（統計 × 地図） ----------
    ★ このアプリには位置ログが無い（あの日の軌跡を「日パック」で受ける案は将来）。
@@ -5633,8 +5714,8 @@ function exportMealsJson(meals, withDetail){
     /* ⚠ ひとことは**深掘りでなくても常に渡す**＝1件が数十文字と短く、しかも
        「気分・誰と・なぜ」は AI が写真から絶対に取れない。要約を削ってでも残すべき側。 */
     ...(m.memo ? { note: m.memo } : {}),
-    // r67: 手がかり＝ある時だけ付ける（外食/中食/手作り は「外食の割合」のような数え方に使える）
-    ...(m.origin ? { origin: ORIGIN_LABEL(m.origin) } : {}),
+    // r67/r68: origin は **AI が写真から見分けた**もの（分からなければ付かない）
+    ...(m.origin ? { origin: ORIGIN_LABEL(m.origin), origin_decided_by: 'ai' } : {}),
     ...(m.hint ? { hint_from_person: m.hint } : {}),
     ...(m.extras?.length ? { evidence_photos: m.extras.map(x => (MEAL_EXTRA.find(e => e[0] === x.kind) || [,, x.kind])[2]) } : {}),
     items: (m.data.items || []).map(x => ({ name: x.name, kind: x.kind, amount: x.amount ?? null })),
@@ -6209,7 +6290,7 @@ async function openSettings(){
   renderCatTags();
   await fixSlotOverlap();   // r66: 前の版の「重なった設定」を先に直してから描く
   renderSlotCfg();
-  document.getElementById('ckMealMulti').checked = mealMultiOn();   // r67
+  syncMealMulti();   // r67/r68: ☑ は ⚙ と 🍽 の2か所にあるが、設定は1つ
   document.getElementById('noteStore').innerHTML = IS_NATIVE
     ? '📱 <b>アプリ版</b>で動作中＝データは端末のアプリ領域に保存され、ブラウザの自動削除の対象外です（消えるのはアプリを削除した時）。'
     : '⚠ <b>ブラウザ版</b>です。iPhone の Safari は<b>7日間サイトを開かないとデータ（キーとレシート）を消す</b>ことがあります。<b>ホーム画面に追加</b>するか、アプリ版を使ってください。';
