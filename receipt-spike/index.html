@@ -195,6 +195,15 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 #mlMemo{width:100%; min-height:56px; background:var(--card); border:1px solid var(--line); color:var(--fg);
         border-radius:10px; padding:10px; font-family:inherit; font-size:15px; line-height:1.5; resize:vertical;}
 /* ✏️ 手で直す（r19）の品目行。名前を広く・個数は狭く＝スマホ幅で3つ並べても読める */
+/* ✏️ 手で直す（r69）＝表の1行。⚠ スマホでは横に並べきれないので、狭い時は折り返して2段になる */
+.e2Row{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--line);}
+.e2Row input,.e2Row select,.e2Row textarea{background:var(--card); border:1px solid var(--line); color:var(--fg);
+  border-radius:8px; padding:9px; font-size:16px; min-width:0; min-height:44px; width:100%;}
+.e2C{display:flex; flex-direction:column; gap:2px; min-width:0;}
+.e2C span{font-size:11px; color:var(--dim); padding-left:2px;}
+.e2Row .rm{flex:none; width:44px; align-self:flex-end; background:none; border:1px solid var(--line); color:var(--dim); border-radius:8px; font-size:15px; min-height:44px;}
+.e2Lab{font-size:12px; color:var(--dim); width:100%; margin-bottom:-2px;}
+.e2Add{margin-top:2px;}
 .edIt{display:flex; gap:6px; margin-bottom:6px;}
 .edIt input{background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px; font-size:15px; min-width:0;}
 .edIt .nm{flex:3;} .edIt .pr{flex:2;} .edIt .qt{width:54px; flex:none;}
@@ -869,6 +878,10 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <div class="row" style="flex:1"><label>服用開始</label><input type="date" id="mdStart"></div>
     <div class="row" style="flex:1"><label>服用終了（服用中なら空）</label><input type="date" id="mdEnd"></div>
   </div>
+  <!-- r69: 「N日分」も直せるように（これが「終了にしますか」を出す予定日のもと。今まで AI しか書けなかった） -->
+  <div class="row"><label>処方日数（「14日分」の 14。分からなければ空）</label>
+    <input type="number" inputmode="numeric" min="1" id="mdDays" placeholder="例: 14">
+    <div class="note" id="mdDaysNote" style="margin-top:4px"></div></div>
   <div class="row"><label>🗒 ひとこと（任意）</label>
     <textarea id="mdMemo" rows="2" maxlength="300" placeholder="例: 眠くなる／食後すぐでないと胃が痛い／◯月◯日の診察で減らす予定"></textarea></div>
   <div id="mdBody"></div>
@@ -1028,11 +1041,22 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <div class="note">直した内容が AI に上書きされることはありません（🔁 再分析は r29 で撤去）。写真そのものは変わりません。</div>
 </div></div>
 
+<!-- ✏️ 手で直す（r69）＝食事・健康診断で共通の1つの画面。
+     ⚠ 中身は「直せる項目の一覧（spec）」から描く＝**検査項目のような表は行を自由に足せる**し、
+        あとで項目が増えても spec に1行足すだけで済む（画面の作り直しが要らない）。 -->
+<div class="overlay" id="ovEd2"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2 id="ed2Title">✏️ 手で直す</h2>
+  <div class="note" id="ed2Note" style="margin-top:0"></div>
+  <div id="ed2Body"></div>
+  <button class="btn pri" id="ed2Save" style="margin-top:14px">この内容にする</button>
+  <div class="note">直した内容は<b>この端末に保存</b>され、📊 統計・📤 書き出し・📈 分析にそのまま効きます。写真は変わりません。<br>⚠ そのあと <b>📝 で読ませ直すと、AI の読み取りで上書きされます</b>（押した時に確かめます）。</div>
+</div></div>
+
 <div id="toast"></div>
 
 <script>
 'use strict';
-const BUILD = 'r68 🍽🤖手作り/中食/外食を **AI が写真から見分ける**ようにした＋📊 に「🍽 食事」タブ（外食の比率）＋☑ を 🍽 の画面にも（要望3つ）。①r67 で置いた手で選ぶボタンを撤去＝AI が見分ける（schema に origin と origin_reason・規則に見分け方＝外食は店の食器/トレー/伝票、中食はプラ容器/フィルム/値札シール、手作りは家の食器/食卓）。⚠ **迷ったら null**（決めつけた判定が混ざると比率が嘘になる）。⚠ 人に選ばせない代わり**判定と理由を詳細に必ず出す**（見えない判定は信用できない）・違っていたら 📝 の一言で「これは手作りです」と書けば規則の優先順位（本人＞印字＞見た目）で直る。②📊 統計に3つ目のタブ「🍽 食事」＝期間の仕組み（今日/今週/月/年/全期間/期間を選ぶ）はレシートと共有＝新しい期間UIを作らない。帯と一覧で手作り/中食/外食の比率・「🍴 外食は N%」・区分ごとの外食率（昼だけ外食が多い、が見える）。🥇 **母数は見分けられた食事だけ**＝分からなかった件数は必ず別に出す（分母に入れると比率が薄まり、分子に入れると嘘になる・なぜ合計が合わないかが見える）。③☑「すぐ読ませず手がかりを足してから」を 🍽 の画面にも置いた＝⚙ まで行かずに切り替えられる。⚠ **設定は1つ**＝どちらを触ってももう片方の見た目もそろえる（片方だけ変わると2つ設定があるように見える）。④📤 JSON は origin_decided_by:"ai"・読み方に「origin が無い食事は分からないであって手作りではない＝母数から外して断って書く」。⚠ mealHasExtras（📎 の印・➕ を開くか）から origin を外した＝AI 判定を入れると全部の食事に 📎 が付く｜r67 🍽📎料理の写真に手がかりを足して精度を上げる（要望）＝外食はレシート・伝票／中食は成分表示・パッケージ／手作りは一言（材料・調理法）＋「どんな食事？（手作り/中食/外食）」。①詳細の「➕ 手がかりを足して精度を上げる」＝使う時だけ広がる（既定は1行）。何枚でも足せる・✕で外せる・一言は打つ手が止まると保存。②⚙「🍽 料理を撮ったあと」☑＝入れると1枚撮るたびに詳細が開き（読ませない）、手がかりを足してから📝＝読ませてから足すと2回分の料金と待ち時間になるので「まず読ませない」。外すと今までどおり撮った瞬間に読む。複数枚まとめての時は写真だけ記録して伝える。③渡し方＝r65 の imgList（画像ごとの見出しを直前に）＋ask の末尾に【本人からの情報】＝analyze() は無改修・手がかり無しなら今までと同じ呼び方。規則に優先順位（本人＞印字＞見た目）と、成分表示に**印字された**数値だけ「印字：」付きで写してよい（推定は今までどおり禁止）を足した。④見出し行に「画像N枚＋一言を N秒で読取」＝手がかりで遅くなるか高くなるかを実測で見られる。⑤📤 JSON に origin/hint_from_person/evidence_photos（付いている食事だけ）・CSV に2列・読み方に説明。🩹2つの競合を潰した＝(a)写真の縮小中に📝を押すと手がかり無しで読みに行く→縮小が終わるまで「準備中」で待たせる (b)一言を打ってから「外食」を押すと blur の保存と click の保存が同時に走り片方が消える→保存を1本の待ち行列に｜r66 💊⏳予定の日を過ぎた薬に「終了にしますか」＋🍽時間帯を10分きざみにして重ねられなくした（要望3つのうち2つ・3つ目は起動時トーストの条件の説明）。①💊「N日分」の予定を過ぎた服用中の薬に、一覧のカードの中で2択（✅終了にする／まだ飲んでいる）。終了日に入れるのは**今日でなく予定の日**＝実際に飲み終えた日の方が本当。決まりは planEndOf の1か所に置き、一覧の✅・詳細の「終了」ボタン・詳細の⚠印が同じ日を出す（片方だけ直る事故を構造で防ぐ）。「まだ飲んでいる」は endAsk=keep で二度と聞かない／開始日を直す・写真を読み直すと予定が変わるので白紙に戻してまた聞く。⚠ボタンはカードの中にあるので click を先に拾って詳細を開かせない・高さ44px（preview の合成クリックは細くても当たるが実機の指は当たらない）。②🍽 食事の時間帯を「打ち込む」から「10分きざみで選ぶ」に。⚠**重ねて設定できなくした**＝6つの点（朝始・朝終・昼始・昼終・夕始・夕終）が1日を一周する円の上にこの順で並ぶモデルにして、各欄は**隣の点までしか選択肢を出さない**（押せてから弾くのでなく、そもそも選べない）。そのため「昼の始まりを早くする」には先に「朝の終わり」を早くする2手が要る＝⚙の説明に書いた。終わりの時刻はその時間帯に入らない [始まり, 終わり)＝境目の1分が両方に属する問題も消えた（時刻表と同じ読み方）。既定の夕食の終わりを 23:59→00:00。日またぎ（22:00〜01:00）は円なのでそのまま使える。r65 以前に保存された「すでに重なっている設定」は⚙を開いた時に詰めて直し、直したことを伝える。⚠教訓＝テストが本物を真似ていない罠を4回目（画面の開閉は hidden でなく on クラス）｜r65 🧾🍽🩺トップを3タブに（🧾レシート＝今までどおりの一覧／🍽食事＝旧モーダルの中身をそのまま／🩺健康＝新設）＋🩺健康診断と💊薬を入れる場所を作った（要望）。①健康診断＝結果表の写真（複数ページ可）を1回の健診として AI が検査値を書き起こす（項目・値・基準範囲・判定を印字のまま・診断や助言は書かせない）。再検査の結果は同じ健診に➕で足せて全ページを読ませ直す。検査日は写真の日付を仮に置き、読めたら結果表の日付に。②薬＝説明書・お薬手帳の写真から薬ごとに1件ずつ（1枚から複数読めたら記録を薬の数だけ作る）／写真なしでも✏️手で足せる／服用開始・服用中・終了（終了日が空＝服用中）。③どちらも⚙で AI とモデルを役割ごとに選べる（レシートと同じ1組の UI＝renderRoleSettings に役割を2つ足しただけ）。④📤/📈 に一緒に渡す＝**健診は年1回なので期間だけで拾うと渡し漏れる**→期間内の全部＋期間より前の直近1件を必ず入れる（in_period / included_because で AI に理由も渡す）。「すべての年」で推移も渡せる。薬は「その期間に飲んでいたもの」（終わった薬も全部、も選べる）。読み方（DATA_NOTES）は _readme と AN_SYSTEM の両方に。CSV は健診（1行＝1検査項目）と薬を別ファイルで。⑤写真を読む仕事（analyze）に複数画像＋見出しを渡せるようにした（レシート・食事は無改修）｜r64 🎉🩹実機で共有シートがワンタップで Google ドライブに届いた（さらに共有先に Claude が直接出た＝Drive を経由せず AI アプリへ手渡しできる）。ただし2つのはずのファイルが3つあり「レシート.txt」が余計だった＝navigator.share に files と一緒に title を渡すと、iOS がその文字を別のテキスト項目として足す→ファイルを渡す時は files だけにする（題名は要らない・ファイル名が題名になる）。native の Share.share からも先に外した（同じ iOS の共有シートに載る以上、同じ罠を踏む可能性が高い）。＋1ファイルの時も共有シートを使うよう広げた（📄JSON もスマホでは共有シートへ）＝同じ画面の📄と📊で出口が違うと操作が読めない・受け取れない形式は canShare が false を返すので今までどおりダウンロードに落ちる。📤の案内も実機で分かった一番短い道（共有先にClaude）を先に書く形へ · 2026-08-17';
+const BUILD = 'r69 ✏️食事・健康診断・薬を「項目ごとに」手で直せるようにした（要望）＝🥇画面を3つ作らず**「直せる項目の一覧（spec）」から描く1つの編集画面**にした＝単独の項目（文字/長い文/選ぶ/1行に1つの箇条書き）と**表（行を自由に足す・消す）**。⚠ **検査項目が増えても後々対応できるように**という要望への答えがこれ＝①健診の検査項目は**行を足せる**（AI が読み落とした項目・新しく増えた項目が入る）②あとでアプリに項目が増えても spec に1行足すだけで画面のコードは触らない。①🍽 食事＝要約・詳細・手作り/中食/外食・料理の表（料理名/種類/量/メモ）。⚠ originを人が直したら「AI が見分けました」と言うのをやめ「自分で直しました」に変えて AI の理由を消す（**表示が嘘になる**）・📤 の origin_decided_by も human に。②🩺 健診＝総合判定・要約・所見（1行に1つ）・検査項目の表（区分/項目名/値/単位/基準範囲/判定/備考）・再検査があれば再検査の表も。③💊 薬＝**処方日数（N日分）の欄**を足した（今まで AI しか書けず、これが「終了にしますか」の予定日のもと）＝打つとその場に予定の終わりが出る・日数を直すと「まだ飲んでいる」の答えは白紙に戻ってまた聞く。🥇 **手で直したものを 📝 で読ませ直す時・➕ でページを足す時は確かめる**（黙って上書きしない）。🩹 スマホで7列が並びきらず欄が20pxまで潰れていた→**各欄に小さな見出しを付けて折り返す**（潰さない・折り返してもどの欄か分かる）｜r68 🍽🤖手作り/中食/外食を **AI が写真から見分ける**ようにした＋📊 に「🍽 食事」タブ（外食の比率）＋☑ を 🍽 の画面にも（要望3つ）。①r67 で置いた手で選ぶボタンを撤去＝AI が見分ける（schema に origin と origin_reason・規則に見分け方＝外食は店の食器/トレー/伝票、中食はプラ容器/フィルム/値札シール、手作りは家の食器/食卓）。⚠ **迷ったら null**（決めつけた判定が混ざると比率が嘘になる）。⚠ 人に選ばせない代わり**判定と理由を詳細に必ず出す**（見えない判定は信用できない）・違っていたら 📝 の一言で「これは手作りです」と書けば規則の優先順位（本人＞印字＞見た目）で直る。②📊 統計に3つ目のタブ「🍽 食事」＝期間の仕組み（今日/今週/月/年/全期間/期間を選ぶ）はレシートと共有＝新しい期間UIを作らない。帯と一覧で手作り/中食/外食の比率・「🍴 外食は N%」・区分ごとの外食率（昼だけ外食が多い、が見える）。🥇 **母数は見分けられた食事だけ**＝分からなかった件数は必ず別に出す（分母に入れると比率が薄まり、分子に入れると嘘になる・なぜ合計が合わないかが見える）。③☑「すぐ読ませず手がかりを足してから」を 🍽 の画面にも置いた＝⚙ まで行かずに切り替えられる。⚠ **設定は1つ**＝どちらを触ってももう片方の見た目もそろえる（片方だけ変わると2つ設定があるように見える）。④📤 JSON は origin_decided_by:"ai"・読み方に「origin が無い食事は分からないであって手作りではない＝母数から外して断って書く」。⚠ mealHasExtras（📎 の印・➕ を開くか）から origin を外した＝AI 判定を入れると全部の食事に 📎 が付く｜r67 🍽📎料理の写真に手がかりを足して精度を上げる（要望）＝外食はレシート・伝票／中食は成分表示・パッケージ／手作りは一言（材料・調理法）＋「どんな食事？（手作り/中食/外食）」。①詳細の「➕ 手がかりを足して精度を上げる」＝使う時だけ広がる（既定は1行）。何枚でも足せる・✕で外せる・一言は打つ手が止まると保存。②⚙「🍽 料理を撮ったあと」☑＝入れると1枚撮るたびに詳細が開き（読ませない）、手がかりを足してから📝＝読ませてから足すと2回分の料金と待ち時間になるので「まず読ませない」。外すと今までどおり撮った瞬間に読む。複数枚まとめての時は写真だけ記録して伝える。③渡し方＝r65 の imgList（画像ごとの見出しを直前に）＋ask の末尾に【本人からの情報】＝analyze() は無改修・手がかり無しなら今までと同じ呼び方。規則に優先順位（本人＞印字＞見た目）と、成分表示に**印字された**数値だけ「印字：」付きで写してよい（推定は今までどおり禁止）を足した。④見出し行に「画像N枚＋一言を N秒で読取」＝手がかりで遅くなるか高くなるかを実測で見られる。⑤📤 JSON に origin/hint_from_person/evidence_photos（付いている食事だけ）・CSV に2列・読み方に説明。🩹2つの競合を潰した＝(a)写真の縮小中に📝を押すと手がかり無しで読みに行く→縮小が終わるまで「準備中」で待たせる (b)一言を打ってから「外食」を押すと blur の保存と click の保存が同時に走り片方が消える→保存を1本の待ち行列に｜r66 💊⏳予定の日を過ぎた薬に「終了にしますか」＋🍽時間帯を10分きざみにして重ねられなくした（要望3つのうち2つ・3つ目は起動時トーストの条件の説明）。①💊「N日分」の予定を過ぎた服用中の薬に、一覧のカードの中で2択（✅終了にする／まだ飲んでいる）。終了日に入れるのは**今日でなく予定の日**＝実際に飲み終えた日の方が本当。決まりは planEndOf の1か所に置き、一覧の✅・詳細の「終了」ボタン・詳細の⚠印が同じ日を出す（片方だけ直る事故を構造で防ぐ）。「まだ飲んでいる」は endAsk=keep で二度と聞かない／開始日を直す・写真を読み直すと予定が変わるので白紙に戻してまた聞く。⚠ボタンはカードの中にあるので click を先に拾って詳細を開かせない・高さ44px（preview の合成クリックは細くても当たるが実機の指は当たらない）。②🍽 食事の時間帯を「打ち込む」から「10分きざみで選ぶ」に。⚠**重ねて設定できなくした**＝6つの点（朝始・朝終・昼始・昼終・夕始・夕終）が1日を一周する円の上にこの順で並ぶモデルにして、各欄は**隣の点までしか選択肢を出さない**（押せてから弾くのでなく、そもそも選べない）。そのため「昼の始まりを早くする」には先に「朝の終わり」を早くする2手が要る＝⚙の説明に書いた。終わりの時刻はその時間帯に入らない [始まり, 終わり)＝境目の1分が両方に属する問題も消えた（時刻表と同じ読み方）。既定の夕食の終わりを 23:59→00:00。日またぎ（22:00〜01:00）は円なのでそのまま使える。r65 以前に保存された「すでに重なっている設定」は⚙を開いた時に詰めて直し、直したことを伝える。⚠教訓＝テストが本物を真似ていない罠を4回目（画面の開閉は hidden でなく on クラス）｜r65 🧾🍽🩺トップを3タブに（🧾レシート＝今までどおりの一覧／🍽食事＝旧モーダルの中身をそのまま／🩺健康＝新設）＋🩺健康診断と💊薬を入れる場所を作った（要望）。①健康診断＝結果表の写真（複数ページ可）を1回の健診として AI が検査値を書き起こす（項目・値・基準範囲・判定を印字のまま・診断や助言は書かせない）。再検査の結果は同じ健診に➕で足せて全ページを読ませ直す。検査日は写真の日付を仮に置き、読めたら結果表の日付に。②薬＝説明書・お薬手帳の写真から薬ごとに1件ずつ（1枚から複数読めたら記録を薬の数だけ作る）／写真なしでも✏️手で足せる／服用開始・服用中・終了（終了日が空＝服用中）。③どちらも⚙で AI とモデルを役割ごとに選べる（レシートと同じ1組の UI＝renderRoleSettings に役割を2つ足しただけ）。④📤/📈 に一緒に渡す＝**健診は年1回なので期間だけで拾うと渡し漏れる**→期間内の全部＋期間より前の直近1件を必ず入れる（in_period / included_because で AI に理由も渡す）。「すべての年」で推移も渡せる。薬は「その期間に飲んでいたもの」（終わった薬も全部、も選べる）。読み方（DATA_NOTES）は _readme と AN_SYSTEM の両方に。CSV は健診（1行＝1検査項目）と薬を別ファイルで。⑤写真を読む仕事（analyze）に複数画像＋見出しを渡せるようにした（レシート・食事は無改修） · 2026-08-17';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1813,7 +1837,7 @@ const DATA_NOTES = {
     'detail（詳細な書き起こし）は入っていないことがある（detail_included で分かる）。入っていない時に中身を推測しない。',
     'slot_decided_by が "human" の区分は本人が直したもの＝時刻より確か。"auto" は撮影時刻からの自動判定なので、ずれていることがある。',
     'note は本人が書いたひとこと（気分・誰と・なぜ・体調など）。⚠ 写真からは絶対に分からないことが書いてある唯一の場所なので、summary より重く扱う。書かれていない食事について、気分や事情を勝手に補わない。',
-    'origin（手作り/中食/外食）は **AI が写真から見分けたもの**（origin_decided_by が "ai"）。⚠ 見分けられなかった食事には origin が無い。無い食事は「分からない」であって「手作り」ではないので、外食の割合を数える時は **origin がある件数を母数**にし、「見分けられなかった N件は除いた」と断って書く。',
+    'origin（手作り/中食/外食）は AI が写真から見分けたもの（origin_decided_by が "ai"）か、本人が直したもの（"human"＝そちらが確か）。⚠ 見分けられなかった食事には origin が無い。無い食事は「分からない」であって「手作り」ではないので、外食の割合を数える時は **origin がある件数を母数**にし、「見分けられなかった N件は除いた」と断って書く。',
     'hint_from_person は本人が読み取り前に伝えた料理名や材料（写真より確か）。evidence_photos はレシート・成分表示など、読み取りの手がかりに使った写真の種類。どちらも付いている食事だけにある。',
     'detail の中の「印字：」で始まる数値（例 印字：1食 380kcal）は成分表示に印字されていたものを写したもので、推定ではない。それ以外に数値は無い。',
     'レシート（買った物）と食事（食べた物）は別のもの。同じ日でも一致しない（外食のレシートが無い・作り置きを食べた等）ので、無理に対応づけない。片方にしか無いことは、そのまま片方の事実として書く。',
@@ -2606,16 +2630,19 @@ function openMeal(m){
       + `<span class="a">${esc(x.amount || '')}</span></div>`).join('');
     /* r68: AI が見分けた 手作り/中食/外食 を必ず出す（人に選ばせない代わりに、判定は見えるようにする）。
        ⚠ 「分からない」も出す＝黙って抜けると、📊 の比率がなぜ合わないか分からなくなる。 */
-    const o = m.data.origin, ow = m.data.originWhy;
-    body.innerHTML = `<div class="row"><label>どんな食事か（AI が写真から見分けました）</label>
+    const o = m.data.origin, ow = m.data.originWhy, byHuman = m.data.originSrc === 'human';
+    body.innerHTML = `<div class="row"><label>どんな食事か（${byHuman ? '自分で直しました' : 'AI が写真から見分けました'}）</label>
         <div class="mlDetail">${o ? `${ORIGIN_ICON(o)} <b>${esc(ORIGIN_LABEL(o))}</b>` : '❓ <b>分かりませんでした</b>'}`
-      + `${ow ? ` <small style="color:var(--dim)">${esc(ow)}</small>` : ''}`
-      + `<br><small style="color:var(--dim)">違っていたら、上の「➕ 手がかり」の 📝 に「これは手作りです」と書いて読み直すと直ります。</small></div></div>`
+      + `${ow && !byHuman ? ` <small style="color:var(--dim)">${esc(ow)}</small>` : ''}`
+      + `<br><small style="color:var(--dim)">${byHuman ? '📊 統計にはこの値で入ります。' : '違っていたら、下の ✏️ で直すか、上の「➕ 手がかり」の 📝 に「これは手作りです」と書いて読み直してください。'}</small></div></div>`
       + `<div class="row"><label>要約（📈 分析にはこれを渡します）</label>
         <div class="mlDetail">${esc(m.data.summary || '')}</div></div>`
       + (it ? `<div class="row"><label>写っていたもの</label>${it}</div>` : '')
       + `<details class="adv"><summary>📄 詳細な書き起こし（深掘りの時に渡します）</summary>
         <div class="mlDetail">${esc(m.data.detail || '')}</div></details>`
+      // r69: 要約・詳細・手作り/中食/外食・料理の行を、それぞれ直せる
+      + `<button class="btn" data-ed2="meal" style="margin-top:10px">✏️ 手で直す（要約・詳細・料理）</button>`
+      + (m.edited ? '<div class="note">✏️ 手で直した記録です。</div>' : '')
       // ⚠ 書き起こせたあとも、失敗の記録は読める（r49）＝レシートには在ってここに無かった
       + recoveredNote(m, 'meal');
   }
@@ -2634,8 +2661,10 @@ document.getElementById('mlBodyDetail').addEventListener('click', async e => {
     catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
     return;
   }
+  if (e.target.closest('[data-ed2="meal"]')) return openEditor('meal', mlCur.id);   // r69
   if (!e.target.closest('#btnMlRun')) return;
   const id = mlCur.id;
+  if (!okToOverwrite(await mlGet(id))) return;   // r69: 手で直した内容を黙って消さない
   e.target.disabled = true; e.target.textContent = '🤖 書き起こし中…';
   await runMealAnalysis(id);
   const m = await mlGet(id); if (m) openMeal(m);
@@ -2753,6 +2782,7 @@ document.getElementById('mlHint').addEventListener('input', () => { clearTimeout
 document.getElementById('btnMlRunX').onclick = async e => {
   if (!mlCur) return;
   const id = mlCur.id;
+  if (!okToOverwrite(await mlGet(id))) return;   // r69
   e.target.disabled = true; e.target.textContent = '🤖 書き起こし中…';
   await mlExtraPending;    // ⚠ 足している最中の写真を待ってから（待たないと手がかり無しで読みに行く）
   await saveMealHint();
@@ -3051,7 +3081,9 @@ function openChk(c, page = 0){
       + `<details class="adv"${bad.length ? '' : ' open'}><summary>📋 すべての検査項目（${(d.items || []).length}）</summary>${ckItemsTable(d.items)}</details>`
       + (d.findings?.length ? `<div class="row" style="margin-top:12px"><label>🩺 所見・コメント</label><div class="mlDetail">${d.findings.map(s => '・' + esc(s)).join('<br>')}</div></div>` : '')
       + (d.recheck ? `<div class="row" style="margin-top:12px"><label>🔁 再検査${d.recheck.date ? `（${esc(d.recheck.date)}）` : ''}</label><div class="mlDetail">${esc(d.recheck.summary || '')}</div>${ckItemsTable(d.recheck.items)}</div>` : '')
-      + `<div class="note">${c.meta ? `読み取り: ${esc(c.meta.model || '')} ・ ` : ''}⚠ 値が違っていたら 📝 で読ませ直すか、🗒 ひとことに正しい値を書いてください（表の手直し欄はまだありません）。</div>`
+      // r69: 検査項目の表を直せる（行を足す・消すもできる＝読み落とした項目・新しく増えた項目が入る）
+      + `<button class="btn" data-ed2="chk" style="margin-top:10px">✏️ 手で直す（検査値・所見・項目を足す）</button>`
+      + `<div class="note">${c.meta ? `読み取り: ${esc(c.meta.model || '')} ・ ` : ''}${c.edited ? '✏️ 手で直した記録です。' : ''}値が違っていたら ✏️ で直せます（📝 で読ませ直すと AI の読み取りで上書きされます）。</div>`
       + recoveredNote(c, 'chk') + runBtn('📝 もう一度 読み取る');
   }
   document.getElementById('ovChk').querySelector('.sheet').scrollTop = 0;
@@ -3069,7 +3101,9 @@ document.getElementById('ckBody').addEventListener('click', async e => {
     catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
     return;
   }
+  if (e.target.closest('[data-ed2="chk"]')) return openEditor('chk', ckCur.id);   // r69
   if (!e.target.closest('#btnCkRun')) return;
+  if (!okToOverwrite(await ckGet(ckCur.id))) return;   // r69: 手で直した検査値を黙って消さない
   e.target.disabled = true; e.target.textContent = '🤖 読み取り中…';
   await runChkAnalysis(ckCur.id);
 });
@@ -3098,6 +3132,8 @@ async function ckAddPages(e, part){
   if (!files.length || !ckCur) return;
   try {
     const c = await ckGet(ckCur.id); if (!c) return;
+    // r69: ページを足すと**全ページを読み直す**＝手で直した検査値も消える。先に確かめる
+    if (ctxFor('chk').key && !okToOverwrite(c)) return;
     for (const f of files) c.pages.push(await newPage(f, part));
     if (c.status === 'done' || c.status === 'error') c.status = ctxFor('chk').key ? 'pending' : 'todo';
     await ckPut(c); openChk(c, c.pages.length - 1);
@@ -3212,7 +3248,8 @@ function openMed(m){
   document.getElementById('mdSource').value = rec.source || '';
   document.getElementById('mdStart').value = rec.start || '';
   document.getElementById('mdEnd').value = rec.end || '';
-  mdSyncState();
+  document.getElementById('mdDays').value = rec.days || '';   // r69
+  mdSyncState(); mdSyncDays();
   document.getElementById('mdMemo').value = rec.memo || '';
   const body = document.getElementById('mdBody');
   const runBtn = `<button class="btn" id="btnMdRun"${ctxFor('med').key ? '' : ' disabled style="opacity:.5"'} style="margin-top:10px">📝 写真をもう一度 読み取る</button>`;
@@ -3229,6 +3266,16 @@ function mdSyncState(){
   const active = !end || end > todayStr();   // ⚠ medActive と同じ決まり
   document.querySelectorAll('#mdStateSeg button').forEach(b => b.classList.toggle('on', (b.dataset.mdstate === 'active') === active));
 }
+/* r69: 日数を打った時に、そこから決まる「予定の終わり」をその場に出す
+   ＝この数字が何に効くのか（「終了にしますか」がいつ出るか）が見えないと、直しようがない。 */
+function mdSyncDays(){
+  const d = +document.getElementById('mdDays').value, start = document.getElementById('mdStart').value;
+  const p = planEndOf(start, d);
+  document.getElementById('mdDaysNote').innerHTML = p
+    ? `→ 予定の終わりは <b>${md(p)}</b>（${p}）${p < todayStr() ? '・<b>すでに過ぎています</b>' : ''}。この日を過ぎると 🩺 の一覧で「終了にしますか」と聞きます。`
+    : (d > 0 ? '⚠ 服用開始が空なので、予定の終わりを出せません。' : '空のままなら「終了にしますか」は聞きません。');
+}
+['mdDays', 'mdStart'].forEach(id => document.getElementById(id).addEventListener('input', mdSyncDays));
 document.getElementById('mdEnd').addEventListener('change', mdSyncState);
 document.querySelectorAll('#mdStateSeg button').forEach(b => b.onclick = () => {
   const end = document.getElementById('mdEnd');
@@ -3249,8 +3296,12 @@ document.getElementById('btnMdSave').onclick = async () => {
                     : await mdGet(mdCur.id);
   if (!rec) return;
   const start = document.getElementById('mdStart').value || null;
+  // r69: 処方日数も手で直せる（空＝分からない）。⚠ 日数が変わっても予定が変わる＝聞き直す
+  const dv = document.getElementById('mdDays').value.trim();
+  const days = dv === '' ? null : Math.max(1, Math.round(+dv)) || null;
   // r66: 開始日を直したら予定の終わりも変わる＝「まだ飲んでいる」の答えは白紙に戻す（新しい予定日で、また聞く）
-  if (start !== rec.start) { rec.startSrc = 'human'; delete rec.endAsk; }
+  if (start !== rec.start || days !== rec.days) { if (start !== rec.start) rec.startSrc = 'human'; delete rec.endAsk; }
+  rec.days = days;
   Object.assign(rec, { name, dose: document.getElementById('mdDose').value.trim() || null,
     usage: document.getElementById('mdUsage').value.trim() || null, purpose: document.getElementById('mdPurpose').value.trim() || null,
     source: document.getElementById('mdSource').value.trim() || null, start,
@@ -4996,6 +5047,151 @@ document.getElementById('btnStats').onclick = async () => {
   show('ovStats'); setTab(stTab);
 };
 
+/* ---------- ✏️ 手で直す（r69）＝食事・健康診断で共通の1つの仕組み ----------
+   要望（2026-08-17）＝「食事の概要・詳細・外食等、健康診断の内容、薬の内容も**それぞれ項に修正**できるように。
+   例えば**検査項目が増えても後々対応できる**ようにしておきたい」。
+   🥇 画面を3つ作らず、**「直せる項目の一覧（spec）」から描く1つの画面**にした:
+     - 単独の項目（fields）＝文字・長い文・日付・選ぶ・数
+     - 表（tables）＝**行を自由に足せる/消せる**＝検査項目が人により年により違っても入る
+   ⚠ あとで項目が増えても spec に1行足すだけ（画面のコードは触らない）＝要望の「後々対応できる」の答え。
+   ⚠ 直したら `edited` を立てる＝一覧と詳細に「✏️ 手で直した」と出す。
+   ⚠ そのあと 📝 で読ませ直すと AI の読み取りで上書きされる＝**押した時に確かめる**（黙って消さない）。 */
+const pget = (o, path) => path.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
+function pset(o, path, v){
+  const ks = path.split('.'), last = ks.pop();
+  let t = o;
+  for (const k of ks) { if (t[k] == null || typeof t[k] !== 'object') t[k] = {}; t = t[k]; }
+  t[last] = v;
+}
+const ORIGIN_OPTS = [['', '（分からない）'], ...MEAL_ORIGIN.map(([k,, label]) => [k, label])];
+const EDIT_SPECS = {
+  meal: {
+    title: '🍽 食事を直す', get: mlGet, put: mlPut,
+    note: 'AI の書き起こしが違っていたら、ここで直せます。<b>要約</b>は 📈 分析と 📤 書き出しにそのまま渡ります。',
+    fields: [
+      { k: 'data.summary', label: '要約（📈 分析に渡ります）', type: 'text' },
+      { k: 'data.origin',  label: '手作り / 中食 / 外食', type: 'select', opts: ORIGIN_OPTS },
+      { k: 'data.detail',  label: '詳細な書き起こし（深掘りの時に渡ります）', type: 'area', rows: 5 },
+    ],
+    tables: [{ k: 'data.items', label: '写っていた料理（行を足せます）', add: '＋ 料理を足す', key: 'name',
+      cols: [{ k: 'name', label: '料理名', flex: 3 }, { k: 'kind', label: '種類', type: 'select', opts: MEAL_KINDS, w: 92 },
+             { k: 'amount', label: '量', flex: 2 }, { k: 'note', label: 'メモ', flex: 2 }] }],
+    /* ⚠ 人が直したら「AI が見分けました」と言い続けない＝**表示が嘘になる**（AI の理由もその判定のものなので消す）。
+       📊 統計・📤 が読む rec.origin もここでそろえる。 */
+    after: (rec, before) => {
+      rec.origin = rec.data.origin || null;
+      if (before['data.origin'] !== rec.data.origin) { rec.data.originSrc = 'human'; rec.data.originWhy = null; }
+    },
+  },
+  chk: {
+    title: '🩺 健康診断を直す', get: ckGet, put: ckPut,
+    note: '検査値が違っていたら、ここで直せます。<b>行は自由に足せます</b>（AI が読み落とした項目・新しく増えた項目も入ります）。値は<b>印字のまま</b>（「120/80」「(-)」）で構いません。',
+    fields: [
+      { k: 'data.overall', label: '総合判定（印字のまま）', type: 'text' },
+      { k: 'data.summary', label: '要約', type: 'area', rows: 3 },
+      { k: 'data.findings', label: '所見・コメント（1行に1つ）', type: 'lines', rows: 4 },
+    ],
+    tables: rec => [
+      { k: 'data.items', label: `検査項目（${(pget(rec, 'data.items') || []).length}）`, add: '＋ 検査項目を足す', key: 'name', cols: CHK_COLS },
+      ...(pget(rec, 'data.recheck') ? [{ k: 'data.recheck.items', label: '🔁 再検査の項目', add: '＋ 再検査の項目を足す', key: 'name', cols: CHK_COLS }] : []),
+    ],
+  },
+};
+const CHK_COLS = [{ k: 'category', label: '区分', type: 'select', opts: CHK_CATS, w: 112 },
+                  { k: 'name', label: '項目名', flex: 3, basis: 128 }, { k: 'value', label: '値', flex: 2, basis: 96 },
+                  { k: 'unit', label: '単位', w: 84 }, { k: 'ref', label: '基準範囲', flex: 2, basis: 112 },
+                  { k: 'flag', label: '判定', w: 84 }, { k: 'note', label: '備考', flex: 3, basis: 128 }];
+let ed2Kind = null, ed2Id = null;
+/* ⚠ 1行に7列は**スマホでは並びきらない**（実測で欄が 20px まで潰れた）。
+   → 各欄に**小さな見出しを付けて折り返す**（潰さない）＝折り返しても、どの欄が何か分かる。 */
+function e2Cell(c, v){
+  const style = c.w ? `flex:0 0 ${c.w}px` : `flex:${c.flex || 1} 1 ${c.basis || 104}px; min-width:${c.basis || 104}px`;
+  const inner = c.type === 'select'
+    ? `<select data-ec="${c.k}">`
+      + (c.opts || []).map(o => { const [ov, ol] = Array.isArray(o) ? o : [o, o];
+          return `<option value="${esc(ov)}"${String(v ?? '') === String(ov) ? ' selected' : ''}>${esc(ol)}</option>`; }).join('')
+      + '</select>'
+    : `<input data-ec="${c.k}" value="${esc(v ?? '')}" placeholder="${esc(c.label)}" autocomplete="off">`;
+  return `<label class="e2C" style="${style}"><span>${esc(c.label)}</span>${inner}</label>`;
+}
+const e2Table = (t, rows) => `<div class="row"><label>${esc(t.label)}</label><div data-et="${t.k}">`
+  + rows.map(r => `<div class="e2Row">${t.cols.map(c => e2Cell(c, r[c.k])).join('')}<button type="button" class="rm" title="この行を消す">✕</button></div>`).join('')
+  + `</div><button class="btn e2Add" type="button" data-eadd="${t.k}">${esc(t.add)}</button></div>`;
+const e2TablesOf = (spec, rec) => (typeof spec.tables === 'function' ? spec.tables(rec) : (spec.tables || []));
+function renderEd2(spec, rec){
+  const f = spec.fields.map(fd => {
+    const v = pget(rec, fd.k);
+    const val = fd.type === 'lines' ? (Array.isArray(v) ? v.join('\n') : '') : (v ?? '');
+    if (fd.type === 'area' || fd.type === 'lines')
+      return `<div class="row"><label>${esc(fd.label)}</label><textarea data-ef="${fd.k}" data-etype="${fd.type}" rows="${fd.rows || 3}"
+        style="width:100%; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:10px; padding:10px; font-size:16px">${esc(val)}</textarea></div>`;
+    if (fd.type === 'select')
+      return `<div class="row"><label>${esc(fd.label)}</label><select data-ef="${fd.k}" data-etype="select">`
+        + fd.opts.map(o => { const [ov, ol] = Array.isArray(o) ? o : [o, o];
+            return `<option value="${esc(ov)}"${String(val ?? '') === String(ov) ? ' selected' : ''}>${esc(ol)}</option>`; }).join('')
+        + '</select></div>';
+    return `<div class="row"><label>${esc(fd.label)}</label><input data-ef="${fd.k}" data-etype="${fd.type}" type="${fd.type === 'date' ? 'date' : 'text'}" value="${esc(val)}" autocomplete="off"></div>`;
+  }).join('');
+  document.getElementById('ed2Body').innerHTML = f
+    + e2TablesOf(spec, rec).map(t => e2Table(t, (pget(rec, t.k) || []).map(x => ({ ...x })))).join('');
+}
+// 画面に出ている値をそのまま読む（配列と DOM を二重に持つと必ずずれる＝レシートの編集と同じ作法）
+const readE2Rows = (tk, cols) => [...document.querySelectorAll(`[data-et="${CSS.escape(tk)}"] .e2Row`)].map(el => {
+  const o = {};
+  for (const c of cols) { const v = el.querySelector(`[data-ec="${CSS.escape(c.k)}"]`)?.value ?? ''; o[c.k] = v.trim() === '' ? null : v.trim(); }
+  return o;
+});
+async function openEditor(kind, id){
+  const spec = EDIT_SPECS[kind], rec = await spec.get(id);
+  if (!rec || !rec.data) { toast('まだ書き起こしていないので直せません'); return; }
+  ed2Kind = kind; ed2Id = id;
+  document.getElementById('ed2Title').textContent = '✏️ ' + spec.title;
+  document.getElementById('ed2Note').innerHTML = spec.note;
+  renderEd2(spec, rec);
+  document.getElementById('ovEd2').querySelector('.sheet').scrollTop = 0;
+  show('ovEd2');
+}
+document.getElementById('ed2Body').addEventListener('click', async e => {
+  const add = e.target.closest('[data-eadd]');
+  if (add) {   // ⚠ いま画面に出ている行を読んでから足す（描き直しで打ちかけが消えないように）
+    const spec = EDIT_SPECS[ed2Kind], rec = await spec.get(ed2Id); if (!rec) return;
+    const t = e2TablesOf(spec, rec).find(x => x.k === add.dataset.eadd); if (!t) return;
+    const wrap = document.querySelector(`[data-et="${CSS.escape(t.k)}"]`);
+    wrap.insertAdjacentHTML('beforeend', `<div class="e2Row">${t.cols.map(c => e2Cell(c, null)).join('')}<button type="button" class="rm" title="この行を消す">✕</button></div>`);
+    wrap.lastElementChild.querySelector('input,select')?.focus();
+    return;
+  }
+  const rm = e.target.closest('.rm');
+  if (rm) rm.parentElement.remove();
+});
+document.getElementById('ed2Save').onclick = async () => {
+  const spec = EDIT_SPECS[ed2Kind], rec = await spec.get(ed2Id);
+  if (!rec) { hide('ovEd2'); return; }
+  const before = {};   // ⚠ 何が変わったかを after に渡す（「人が直した」印を付ける判断に要る）
+  for (const fd of spec.fields) before[fd.k] = pget(rec, fd.k);
+  for (const fd of spec.fields) {
+    const el = document.querySelector(`[data-ef="${CSS.escape(fd.k)}"]`); if (!el) continue;
+    const v = el.value;
+    pset(rec, fd.k, fd.type === 'lines' ? v.split('\n').map(s => s.trim()).filter(Boolean)
+                  : fd.type === 'select' ? (v || null)
+                  : (v.trim() || null));
+  }
+  for (const t of e2TablesOf(spec, rec)) {
+    // ⚠ 鍵の欄（料理名・項目名）が空の行は捨てる＝足したまま書かなかった行が残らない
+    pset(rec, t.k, readE2Rows(t.k, t.cols).filter(r => r[t.key]));
+  }
+  if (spec.after) spec.after(rec, before);
+  rec.edited = Date.now();
+  await spec.put(rec);
+  hide('ovEd2'); toast('✏️ 直しました');
+  if (ed2Kind === 'meal') { mlCur = rec; await renderMeals(); if (isOpen('ovMeal')) openMeal(rec); }
+  else { ckCur = rec; await renderHealth(); if (isOpen('ovChk')) openChk(rec, ckPage); }
+};
+/* ⚠ 手で直したものを 📝 で読ませ直す時は確かめる（黙って消さない）。false なら読ませない。 */
+function okToOverwrite(rec){
+  return !rec?.edited || confirm('✏️ 手で直した内容があります。\nAI に読ませ直すと、直した内容は上書きされます。\n\n読ませ直しますか？');
+}
+
 /* ---------- 🍽 食事の統計（r68） ----------
    要望＝「**外食がどれくらいの比率かすぐ分かるように**」。期間の仕組み（今日/今週/月/年/全期間/期間を選ぶ）は
    レシートの統計とそのまま共有する＝新しい期間 UI を作らない。
@@ -5715,7 +5911,7 @@ function exportMealsJson(meals, withDetail){
        「気分・誰と・なぜ」は AI が写真から絶対に取れない。要約を削ってでも残すべき側。 */
     ...(m.memo ? { note: m.memo } : {}),
     // r67/r68: origin は **AI が写真から見分けた**もの（分からなければ付かない）
-    ...(m.origin ? { origin: ORIGIN_LABEL(m.origin), origin_decided_by: 'ai' } : {}),
+    ...(m.origin ? { origin: ORIGIN_LABEL(m.origin), origin_decided_by: m.data?.originSrc === 'human' ? 'human' : 'ai' } : {}),
     ...(m.hint ? { hint_from_person: m.hint } : {}),
     ...(m.extras?.length ? { evidence_photos: m.extras.map(x => (MEAL_EXTRA.find(e => e[0] === x.kind) || [,, x.kind])[2]) } : {}),
     items: (m.data.items || []).map(x => ({ name: x.name, kind: x.kind, amount: x.amount ?? null })),
