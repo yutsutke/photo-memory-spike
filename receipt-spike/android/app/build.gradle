@@ -11,7 +11,8 @@ android {
         // 「同じか古い版」として弾かれるので、配り直すたびに上げる（env BUILD_NUMBER でも上書き可）。
         def _buildNum = System.getenv("BUILD_NUMBER")
         versionCode _buildNum ? _buildNum.toInteger() : 1
-        versionName "0.1"
+        // r70 で Play の内部テストに出す＝ストアに並ぶ版なので 0.1 から 1.0 に上げた
+        versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -19,8 +20,30 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    /* リリース署名（アップロード鍵）＝Play App Signing 前提。この鍵で署名した AAB を Play が受け取り、
+       配布用の署名鍵は Play が管理する（アップロード鍵は紛失しても Play で再設定できる）。
+       ⚠ あの日（madeleine）と**同じ流儀・別の鍵**（別アプリなので鍵も別）。
+       ⚠ **公開リポなので鍵も生パスワードも絶対にコミットしない**（.gitignore 済／値は手元の
+          Documents\receipt-signing\CREDENTIALS.txt と、将来 CI を使うなら CI の Secure だけ）。
+       env: CM_KEYSTORE_PATH / CM_KEYSTORE_PASSWORD / CM_KEY_ALIAS / CM_KEY_PASSWORD
+       ⚠ PowerShell の env は**呼び出しをまたいで残らない**＝資格情報の設定と gradlew は同じ1コールで流す。 */
+    signingConfigs {
+        release {
+            def ksPath = System.getenv("CM_KEYSTORE_PATH")
+            if (ksPath) {
+                storeFile file(ksPath)
+                storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CM_KEY_ALIAS")
+                keyPassword System.getenv("CM_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
+            // 鍵が渡っている時だけ署名する（渡さない手元の release ビルドは未署名でも壊れない）
+            if (System.getenv("CM_KEYSTORE_PATH")) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

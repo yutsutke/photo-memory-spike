@@ -10,6 +10,86 @@
 
 ---
 
+---
+
+## 🏪 Google Play（内部テスト）に出す — r70 / vc1 (2026-08-17)
+
+> **debug APK の直接配布とは別の道**。Play に出すには **署名付きの AAB** が要る（debug 鍵では弾かれる）。
+> あの日（madeleine）と**同じ流儀・別の鍵**（別アプリなので鍵も別）。
+
+### 鍵の置き場（この PC・git 管理外）
+
+```
+C:\Users\yutsu\Documents\receipt-signing\
+  receipt-upload.jks      ← アップロード鍵（2026-08-17 作成・有効期限 10000日）
+  CREDENTIALS.txt         ← 人が読む控え（パス・別名・パスワード）
+  receipt-1.0-vc1.aab     ← Play に上げる物
+  receipt-1.0-vc1.apk     ← 同じ中身の署名付き APK（実機に直接入れて試す用）
+```
+
+- ⚠ **失うと同じ鍵で更新できない**。ただし **Play App Signing** を使うので、アップロード鍵は Play で再設定できる（配布用の鍵は Google が持つ）＝致命傷にはならない。それでも `receipt-signing` フォルダごとバックアップしておくこと。
+- ⚠ **PKCS12 形式では鍵のパスワード＝ストアのパスワード**（`keytool -keypass` は黙って無視される）。別々に指定したつもりで gradle が `Given final block not properly padded` で落ちるのはこれが原因（2026-08-17 に踏んだ）。
+- 証明書の SHA-256: `a7:91:11:90:57:94:89:bc:a3:3f:1b:b3:ee:2d:1a:24:a0:40:b2:56:e5:e2:ff:c7:17:3e:81:42:e7:3b:bd:4b`
+
+### AAB を作る（PowerShell・1コールで流す）
+
+⚠ **PowerShell の env は呼び出しをまたいで残らない**＝資格情報の設定と `gradlew` は**同じ1コール**にする（別々に打つと未署名の AAB ができて Play に弾かれる）。
+
+```powershell
+cd C:\Users\yutsu\Documents\GitHub\photo-memory-spike\receipt-spike
+npm run sync:web ; npx cap sync android
+$cred = Get-Content C:\Users\yutsu\Documents\receipt-signing\CREDENTIALS.txt
+$get = { param($l) ($cred | Where-Object { $_ -match "^$l\s*:" } | Select-Object -First 1) -replace "^$l\s*:\s*", '' }
+$env:CM_KEYSTORE_PATH = (& $get 'Keystore file'); $env:CM_KEYSTORE_PASSWORD = (& $get 'Store password')
+$env:CM_KEY_ALIAS = (& $get 'Key alias'); $env:CM_KEY_PASSWORD = (& $get 'Key password')
+$env:BUILD_NUMBER = "1"   # ← Play に上げるたびに +1（同じ番号は二度と使えない）
+.\android\gradlew.bat -p android bundleRelease --no-daemon
+```
+
+出力: `android\app\build\outputs\bundle\release\app-release.aab`
+
+### 上げる前の検証3点（毎回やる）
+
+| 見るもの | 通っている状態 | 見かた |
+|---|---|---|
+| **署名されているか** | `META-INF/RECEIPT-.RSA` がある | AAB を zip として開いて `META-INF/` を見る |
+| **versionCode** | 前回より大きい | 同じ設定で `assembleRelease` した APK を `aapt2 dump badging` |
+| **中身の web の版** | 出したい版（例 r70） | AAB 内 `base/assets/public/index.html` の先頭の `const BUILD` |
+
+⚠ **AAB のマニフェストは protobuf 形式で `aapt2` が読めない**（`could not identify format of APK` になる）。versionCode を見たい時は、同じ env のまま `assembleRelease` も流して**その APK を** `aapt2 dump badging` する（ついでに実機用の署名付き APK も手に入る）。
+
+### Play Console の手順（ブラウザ・人がやる）
+
+1. **アプリを作る**（初回だけ）— [Play Console](https://play.google.com/console) → **アプリを作成**
+   - アプリ名: `レシート — 撮ってAIで読む`（Play 上の名前。ホーム画面の表示名「レシート」とは別物）
+   - 言語: 日本語 / **アプリ**（ゲームではない）/ **無料**
+   - ⚠ パッケージ名は**最初のアップロードで確定**＝`io.github.yutsutke.receipt`（あとから変えられない）
+2. **内部テスト** → **新しいリリースを作成**
+   - **Play App Signing**：初回に「続行」＝Google が配布用の鍵を管理し、こちらが上げるのは**アップロード鍵で署名した AAB**（今回作った鍵）
+   - `receipt-1.0-vc1.aab` を D&D
+   - リリース名（例 `1.0 (1) r70`）とリリースノートを書く
+3. **テスターを追加** — 内部テスト → テスター → メールアドレスのリスト（自分を入れる）→ **リンクをコピー**して端末で開く
+4. **審査は無いが、公開前に「アプリのコンテンツ」を埋める必要がある**（内部テストでも必須の項目がある）:
+   - **プライバシーポリシー**の URL ／ **データセーフティ**（下記）／ 広告の有無（**なし**）／ コンテンツのレーティング ／ 対象年齢 ／ ニュースアプリか（いいえ）
+5. **公開** → テスターの端末に届く（数分〜数時間）
+
+### ⚠ データセーフティの書き方（このアプリ固有）
+
+このアプリは**サーバーを持たない**が、**BYOK（本人の APIキー）で本人が選んだ AI に写真を送る**。ここを正直に書く:
+
+- 収集する（アプリ運営者が集める）データ：**なし**
+- **共有**（第三者に送られる）：**写真**（レシート・料理・健診・薬）と、そこから読み取ったテキスト。送り先は**利用者自身が ⚙ で選んだ AI 事業者**（Anthropic / OpenAI / OpenRouter 等）。送るのは**利用者の操作時のみ**、利用者自身の APIキーで**端末から直接**。
+- 暗号化：転送時は HTTPS。端末内のデータは**端末から出ない**（IndexedDB）
+- 削除依頼：アプリを削除すればデータも消える（サーバーに無い）
+
+⚠ **「収集なし」だけで済ませない**＝写真が外部の AI へ出るのは事実。あの日 v1 の「収集なし」クリーン審査とは事情が違う。
+
+### 実機に直接入れて試す（Play を通さず）
+
+`receipt-1.0-vc1.apk` を端末へ送ってインストール。⚠ **debug APK とは署名が違う**ので、debug 版が入っている端末では**一度アンインストール**が要る。
+
+---
+
 ## 手元でビルド（Android Studio 不要）
 
 前提: Node 22+ と JDK 21（Capacitor 8 の capacitor-android は Java 21 ソースレベル）、Android SDK（`ANDROID_HOME`）＝**vc4 を作った環境がそのまま使える**。
