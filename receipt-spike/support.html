@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>サポート — レシート（撮ってAIで読む）</title>
+<style>
+  :root { font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #111; color: #e6e6e6; line-height: 1.75; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 20px 80px; }
+  header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; border-bottom: 1px solid #262626; padding-bottom: 14px; margin-bottom: 8px; }
+  header.top h1 { font-size: 20px; margin: 0; }
+  header.top .sub { font-size: 12px; color: #8a8a8a; }
+  .lang { margin-left: auto; display: flex; gap: 6px; }
+  .lang button { font: inherit; font-size: 12px; padding: 5px 12px; border: 1px solid #333; background: #1b1b1b; color: #ccc; border-radius: 999px; cursor: pointer; }
+  .lang button[aria-pressed="true"] { background: #13a08c; border-color: #13a08c; color: #fff; }
+  .updated { font-size: 12px; color: #8a8a8a; margin: 6px 0 22px; }
+  .lead { background: #14241f; border: 1px solid #1f4a40; border-radius: 12px; padding: 14px 16px; margin: 0 0 26px; color: #d7f0e9; }
+  h2 { font-size: 16px; margin: 30px 0 8px; padding-top: 4px; border-top: 1px solid #1f1f1f; }
+  h2:first-of-type { border-top: 0; }
+  p { margin: 8px 0; }
+  ul { margin: 8px 0; padding-left: 22px; }
+  li { margin: 5px 0; }
+  strong { color: #fff; }
+  a { color: #6db8ff; }
+  .qa { margin: 14px 0; }
+  .qa .q { color: #fff; font-weight: 600; margin: 0; }
+  .qa .a { margin: 4px 0 0; }
+  .contact { background: #181818; border: 1px solid #262626; border-radius: 12px; padding: 16px 18px; margin: 14px 0; }
+  .contact a { font-size: 16px; }
+  footer { margin-top: 40px; font-size: 12px; color: #777; border-top: 1px solid #222; padding-top: 14px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>レシート <span class="sub">Receipt — 撮ってAIで読む</span></h1>
+    <div class="lang" role="group" aria-label="Language">
+      <button id="btnJa" aria-pressed="true">日本語</button>
+      <button id="btnEn" aria-pressed="false">English</button>
+    </div>
+  </header>
+
+  <!-- ============ 日本語 ============ -->
+  <section id="ja">
+    <p class="updated">サポート / お問い合わせ</p>
+
+    <p class="lead"><strong>困ったときは。</strong> 使い方・よくある質問・お問い合わせ先をまとめています。ご質問・ご要望・不具合の報告は、いつでも歓迎します。</p>
+
+    <h2>このアプリについて</h2>
+    <p>レシートを撮ると、AI が<strong>店名・日付・金額・品目</strong>を読み取って表にします。料理の写真、健康診断の結果、薬の説明書も同じように撮って残せます。<strong>サーバーはありません</strong>＝記録はあなたの端末の中だけに貯まります。</p>
+    <p>AI に読ませる部分だけは、<strong>あなた自身の APIキー</strong>を ⚙ 設定に登録して使います（BYOK＝自分のキーを持ち込む方式）。写真はそのとき、あなたが選んだ AI 事業者へ<strong>端末から直接</strong>送られます。詳しくは<a href="privacy.html">プライバシーポリシー</a>をご覧ください。</p>
+
+    <h2>使い方</h2>
+    <ul>
+      <li><strong>① APIキーを登録する</strong>: ⚙ 設定で AI（Claude／ChatGPT／OpenRouter）を選び、そのサービスで発行したキーを貼り付けます。「🔌 接続テスト」で繋がるか確かめられます（無料）。</li>
+      <li><strong>② 撮る</strong>: 📷 レシート／🍽 料理を撮ると、自動で読み取りが始まります。🖼 から既にある写真を選ぶこともできます（複数可）。</li>
+      <li><strong>③ 貯まる・探す</strong>: 一覧から探す・🔍 で横断検索・📊 統計や 💴 支出マップで眺める。</li>
+      <li><strong>④ 取り出す</strong>: 📤 書き出しで期間を決めて JSON / CSV / テキストにし、共有シートから AI アプリや Google ドライブへ渡せます。</li>
+      <li><strong>🩺 健康</strong>: 健康診断の結果（複数ページ可）と薬を残せます。薬は写真なしで手入力もできます。</li>
+    </ul>
+
+    <h2>よくある質問</h2>
+    <div class="qa">
+      <p class="q">なぜ自分の APIキーが要るのですか？</p>
+      <p class="a">このアプリにサーバーが無いためです。写真は端末から<strong>あなたの契約している AI</strong> へ直接送られます。開発者が間に入らないので、あなたのレシートを私たちが見ることはありません。料金もあなたと AI 事業者の間で完結します。</p>
+    </div>
+    <div class="qa">
+      <p class="q">APIキーはどこで手に入りますか？</p>
+      <p class="a">各 AI 事業者のコンソール（Anthropic / OpenAI / OpenRouter）で発行します。⚠ <strong>このアプリ専用のキー</strong>を作り、<strong>支出の上限</strong>を低く設定しておくことをおすすめします（万一漏れても被害がその上限で止まり、いつでも失効できます）。</p>
+    </div>
+    <div class="qa">
+      <p class="q">キーを入れずに使えますか？</p>
+      <p class="a">撮って残すことはできます（写真と時刻は端末に貯まります）。読み取り（文字起こし）だけが動きません。あとからキーを入れて、貯まった写真を読ませることもできます。</p>
+    </div>
+    <div class="qa">
+      <p class="q">写真はどこかに送られますか？</p>
+      <p class="a">読み取りを実行したときだけ、<strong>あなたが選んだ AI 事業者</strong>へ送られます。私たちのサーバーへは送られません（存在しません）。お店の場所を探す機能では<strong>住所の文字だけ</strong>が送られ、写真は送られません。</p>
+    </div>
+    <div class="qa">
+      <p class="q">読み取りが失敗する／内容が間違っています。</p>
+      <p class="a">明るい所で、レシート全体が入るように撮り直すと改善します。内容は<strong>手で直せます</strong>（詳細画面の ✏️）。料理は「➕ 手がかり」でレシートや成分表示、一言を足すと精度が上がります。</p>
+    </div>
+    <div class="qa">
+      <p class="q">データを消したいです。</p>
+      <p class="a">⚙ 設定の一番下「🧹 まとめて削除」で、<strong>期間</strong>と<strong>種類</strong>（レシート／料理／健康診断／薬／分析の履歴／お店の場所）を選んで消せます。すべてを選べば全データの削除になります。アプリを削除しても、端末内のデータはすべて消えます。</p>
+    </div>
+    <div class="qa">
+      <p class="q">機種変更したらデータは移りますか？</p>
+      <p class="a">OS のバックアップ／引き継ぎの仕組みを通じて移ります。私たちはそのデータにアクセスできません。大事な記録は 📤 書き出しでファイルにしておくと確実です。</p>
+    </div>
+    <div class="qa">
+      <p class="q">健康診断や薬の内容を AI に読ませても大丈夫ですか？</p>
+      <p class="a">それらも同じ経路で端末の外（あなたが選んだ AI）へ出ます。読ませるかどうかは常にあなたが選べます。⚠ 本アプリは<strong>医療機器ではなく、医学的な助言を行うものではありません</strong>。AI の要約は参考であり、診断・治療の判断は必ず医師にご相談ください。</p>
+    </div>
+
+    <h2>お問い合わせ</h2>
+    <p>下記までお気軽にご連絡ください。日本語・英語どちらでも歓迎します。できるだけ早くお返事します。</p>
+    <div class="contact">
+      開発者: Tanaka Yusuke<br>
+      メール: <a href="mailto:anohiapp@gmail.com">anohiapp@gmail.com</a>
+    </div>
+
+    <p><a href="privacy.html">プライバシーポリシー →</a></p>
+  </section>
+
+  <!-- ============ English ============ -->
+  <section id="en" hidden>
+    <p class="updated">Support / Contact</p>
+
+    <p class="lead"><strong>Need help?</strong> Here are the basics, frequently asked questions, and how to reach us. Questions, requests, and bug reports are always welcome.</p>
+
+    <h2>About this app</h2>
+    <p>Photograph a receipt and AI extracts the <strong>store, date, amount, and line items</strong> into a table. You can keep meal photos, health check-up results, and medication leaflets the same way. <strong>There is no server</strong> — records accumulate only on your device.</p>
+    <p>For the AI part you register <strong>your own API key</strong> in ⚙ Settings (BYOK — bring your own key). At that moment the photo is sent <strong>directly from your device</strong> to the AI provider you chose. See the <a href="privacy.html">Privacy Policy</a> for details.</p>
+
+    <h2>Getting started</h2>
+    <ul>
+      <li><strong>1. Register an API key</strong>: in ⚙ Settings choose an AI (Claude / ChatGPT / OpenRouter) and paste the key issued by that service. “🔌 Connection test” checks it for free.</li>
+      <li><strong>2. Shoot</strong>: 📷 receipt / 🍽 meal starts the reading automatically. You can also pick existing photos with 🖼 (multiple allowed).</li>
+      <li><strong>3. Browse</strong>: the list, 🔍 search across everything, 📊 statistics, and the 💴 spending map.</li>
+      <li><strong>4. Take it out</strong>: 📤 Export produces JSON / CSV / text for a chosen period, which you can hand to an AI app or Google Drive via the share sheet.</li>
+      <li><strong>🩺 Health</strong>: keep health check-up results (multi-page) and medications. Medications can also be entered by hand without a photo.</li>
+    </ul>
+
+    <h2>FAQ</h2>
+    <div class="qa">
+      <p class="q">Why do I need my own API key?</p>
+      <p class="a">Because this app has no server. Photos go from your device straight to <strong>the AI you have an account with</strong>. The developer is never in the middle, so we never see your receipts, and billing stays between you and the provider.</p>
+    </div>
+    <div class="qa">
+      <p class="q">Where do I get a key?</p>
+      <p class="a">From your provider’s console (Anthropic / OpenAI / OpenRouter). ⚠ We recommend creating a key <strong>dedicated to this app</strong> and setting a <strong>low spending limit</strong>, so even in the worst case the damage stops there and the key can be revoked anytime.</p>
+    </div>
+    <div class="qa">
+      <p class="q">Can I use it without a key?</p>
+      <p class="a">Yes, for capturing — photos and timestamps are kept on the device. Only the reading (transcription) will not run. You can add a key later and read the photos you already collected.</p>
+    </div>
+    <div class="qa">
+      <p class="q">Are my photos sent anywhere?</p>
+      <p class="a">Only when you run a reading, and only to <strong>the AI provider you chose</strong>. Never to our servers (we have none). The store-location feature sends <strong>the printed address text only</strong> — never photos.</p>
+    </div>
+    <div class="qa">
+      <p class="q">The reading fails or is wrong.</p>
+      <p class="a">Re-shoot in good light with the whole receipt in frame. You can <strong>edit any field by hand</strong> (✏️ on the detail screen). For meals, “➕ add hints” (receipt, nutrition label, a short note) improves accuracy.</p>
+    </div>
+    <div class="qa">
+      <p class="q">How do I delete my data?</p>
+      <p class="a">“🧹 Delete in bulk” at the bottom of ⚙ Settings lets you pick a <strong>period</strong> and the <strong>kinds</strong> of data (receipts / meals / check-ups / medications / analysis history / store locations). Select everything to delete all data. Deleting the app also erases everything on the device.</p>
+    </div>
+    <div class="qa">
+      <p class="q">Does my data move to a new phone?</p>
+      <p class="a">Through your OS backup/transfer mechanism. We have no access to that data. For anything important, 📤 Export to a file is the reliable route.</p>
+    </div>
+    <div class="qa">
+      <p class="q">Is it OK to have health data read by AI?</p>
+      <p class="a">It leaves your device by the same path (to the AI you chose); whether to do so is always your choice. ⚠ This app is <strong>not a medical device and does not provide medical advice</strong>. AI summaries are for reference only — always consult a physician for diagnosis and treatment.</p>
+    </div>
+
+    <h2>Contact</h2>
+    <p>Feel free to reach out in English or Japanese. We reply as soon as we can.</p>
+    <div class="contact">
+      Developer: Tanaka Yusuke<br>
+      Email: <a href="mailto:anohiapp@gmail.com">anohiapp@gmail.com</a>
+    </div>
+
+    <p><a href="privacy.html">Privacy Policy →</a></p>
+  </section>
+
+  <footer>
+    <span id="ftJa">レシート（撮ってAIで読む） — このアプリにサーバーはありません。</span>
+    <span id="ftEn" hidden>Receipt — this app has no server.</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var ja = document.getElementById('ja'), en = document.getElementById('en');
+  var bja = document.getElementById('btnJa'), ben = document.getElementById('btnEn');
+  var fja = document.getElementById('ftJa'), fen = document.getElementById('ftEn');
+  function set(lang) {
+    var isJa = lang === 'ja';
+    ja.hidden = !isJa; en.hidden = isJa;
+    fja.hidden = !isJa; fen.hidden = isJa;
+    bja.setAttribute('aria-pressed', String(isJa));
+    ben.setAttribute('aria-pressed', String(!isJa));
+    document.documentElement.lang = lang;
+    document.title = (isJa ? 'サポート — レシート（撮ってAIで読む）' : 'Support — Receipt (Shoot and Read with AI)');
+  }
+  bja.addEventListener('click', function () { set('ja'); });
+  ben.addEventListener('click', function () { set('en'); });
+  set((navigator.language || 'ja').toLowerCase().indexOf('ja') === 0 ? 'ja' : 'en');
+})();
+</script>
+</body>
+</html>

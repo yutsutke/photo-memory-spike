@@ -17,9 +17,9 @@
 >
 > **🔧 セッション43（2026-08-11 朝）＝🧾 レシート r11-r12＝📊 統計 と 💴 支出マップ（ライフログの実装から「判断の理由」を移植）。あの日本体は無改修。**
 >
-> **🔧 セッション44（2026-08-18 朝）＝🧾 レシート r71＝⚙ の一番下に「🧹 まとめて削除」（全データ／期間／種類）。あの日本体は無改修。**
+> **🔧 セッション44（2026-08-18 朝）＝🧾 レシート r71＝⚙ の一番下に「🧹 まとめて削除」（全データ／期間／種類）／r72＝📄 プライバシーポリシー・サポートの公開ページ2枚（日英）＋🍎 **App Store 提出の台本**（`receipt-spike/SUBMIT-appstore.md`）。あの日本体は無改修。**
 > 
-> **▶▶ 次回はここから＝🧾 レシートを実機で触る**（web は push 済み＝`https://yutsutke.github.io/photo-memory-spike/receipt-spike/` ですぐ）—— ① **Play 内部テストの vc1**（⚙ でキー→🧾🍽🩺 の3タブ・1枚読む。⚠ **vc1 の中身は r70 まで**）② **r71 の 🧹 まとめて削除**を web で。詳細は `receipt-spike/TODO.md` 現在地。あの日側の次の一手（iOS 1.7 Codemagic→審査 / Android vc5 / 実機確認）は下記セッション41から変わらず。
+> **▶▶ 次回はここから＝🍎 レシートを Apple の審査に出す**——🔴 まず **審査専用の APIキーを1本発行**（支出上限つき・⚠ ゆうの作業）＝**BYOK はキーが無いと審査担当者が中心機能を試せない**（Guideline 2.1 の定番落ち）。次に **r72 で Codemagic → TestFlight**（いまの TestFlight は 1.0(4)＝r65 相当）→ ASC の入力（App のプライバシーは「収集する」で申告）→ 提出。手順と審査メモの文面は `receipt-spike/SUBMIT-appstore.md`、詳細は `receipt-spike/TODO.md` 現在地。あの日側の次の一手（iOS 1.7 Codemagic→審査 / Android vc5 / 実機確認）は下記セッション41から変わらず。
 > - **▶ あの日側の次の一手は変わらず下記セッション41の3つ**（iOS 1.7 Codemagic ビルド→審査 / Android vc5 / 実機確認）。プリフライト点検済み＝新権限ゼロ確認・sync:web OK・CDN残留ゼロ。⚠️ vc5 手元ビルド時は資格情報と同一コールで `BUILD_NUMBER=5` を渡すこと（忘れると versionCode=1 に落ちて Play に弾かれる）。
 > - レシート起点で将来 あの日 に入り得るもの（今は作らない）: レシート専用アルバムの取り込み除外 / 「手がかりとしてのレシート」（拡大表示に店名・金額がそっと寄り添う）＝レシートアプリが当たってから。
 > - **（同日追記2）receipt-spike を r4＝📱Android native 化**（iOS Safari の ITP で7日後にデータが消える問題への対応。ログイン方式＝サーバー保存は却下）。**あの日の Capacitor 基盤を踏襲しつつ appId・android プロジェクトは完全別**（`io.github.yutsutke.receipt`）＝あの日の審査 train には一切影響なし。配布は debug APK の直接インストール。ビルド手順は `receipt-spike/BUILD-android.md`。
