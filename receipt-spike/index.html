@@ -123,6 +123,14 @@ main{padding:10px 14px;}
 details.adv{border-top:1px solid var(--line); margin-top:12px; padding-top:10px;}
 details.adv summary{color:var(--dim); font-size:13.5px; margin-bottom:10px; cursor:pointer;}
 .btn.pri{background:var(--acc); color:#04121f; font-weight:700; border:none;}
+/* 🧹 まとめて削除（r71）＝押し間違えたら戻せない操作なので、ふだんの設定と見た目を変える（赤・行は指で押せる高さ） */
+.wipeK{display:flex; align-items:center; gap:10px; min-height:44px; font-size:15px; color:var(--fg); cursor:pointer;}
+.wipeK input{width:22px; height:22px; accent-color:var(--err); flex:none;}
+.wipeK small{margin-left:auto; color:var(--dim); font-size:13px; flex:none;}
+.wipeK.off{opacity:.4;}
+.wipeK.all{border-bottom:1px solid var(--line); margin-bottom:4px;}
+.btn.dang{color:var(--err); border-color:#5c3232;}
+.btn.dang:disabled{color:var(--dim); border-color:var(--line); opacity:.5;}
 .note{font-size:12.5px; color:var(--dim); margin-top:10px;}
 .note a{color:var(--acc);}
 #dImg,#mlImg{width:100%; border-radius:12px; background:#000; margin-bottom:10px;}
@@ -653,6 +661,29 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   </div>
   <div class="note">足した分類は<b>読み取りの選択肢として AI にも渡します</b>（次に撮ったレシートから使われます）。数字は<b>いま使われている件数</b>です。既定の8つ（食費〜その他）は消せません。⚠ 消しても<b>その分類が付いた既存のレシートはそのまま</b>です（一覧にも検索にも出ます）。</div>
   <div class="note" id="noteStore"></div>
+  <!-- 🧹 まとめて削除（r71）＝⚙ の一番下（毎日触る設定と離す）。元に戻せないので:
+       ① 何件消えるかを先に出す ② 既定は何も選ばれていない ③「全期間」の時だけ確認のチェックを1つ増やす -->
+  <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
+    <label>🧹 まとめて削除（⚠ 元に戻せません）</label>
+    <div class="seg wrap" id="wipePeriodSeg">
+      <button type="button" data-wp="d7">直近7日</button>
+      <button type="button" data-wp="d30">直近30日</button>
+      <button type="button" data-wp="month">今月</button>
+      <button type="button" data-wp="lastmonth">先月</button>
+      <button type="button" data-wp="year">今年</button>
+      <button type="button" data-wp="all">全期間</button>
+      <button type="button" data-wp="range">期間を選ぶ</button>
+    </div>
+  </div>
+  <div class="dual" id="wipeRangeRow" style="display:none">
+    <div class="row" style="flex:1"><label>から</label><input type="date" id="wipeFrom"></div>
+    <div class="row" style="flex:1"><label>まで</label><input type="date" id="wipeTo"></div>
+  </div>
+  <div id="wipeKinds"></div>
+  <!-- ⚠ 「全期間」は取り返しがつかないので、ここだけもう1手（チェック）を挟む -->
+  <label class="wipeK" id="wipeAckRow" hidden style="color:var(--err)"><input type="checkbox" id="wipeAck"><span>⚠ <b>全期間</b>です＝選んだものが<b>すべて</b>消えて、元に戻せないことを分かっています</span></label>
+  <button class="btn dang" id="btnWipe" disabled>🗑 消すものを選んでください</button>
+  <div class="note" id="wipeNote"></div>
   <div class="note" id="buildLine"></div>
 </div></div>
 
@@ -1056,7 +1087,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r70 🧾🍽食事とレシートを連動させた（要望＝アップし忘れをなくす）。道は2本＝①**一緒に上げる**＝🍽 の手がかりに足した 🧾 レシートを、**レシート側の記録としても登録して読む**（食事を📝で読ませた時に一緒に・⚠ 読む仕事が2つ＝料金も2回ぶん・書き起こしが成功してからレシートを作る＝失敗した時にレシートだけ課金して残らない・手がかりに印を付けて**何度📝を押しても増やさない**）②**先に上げてある**＝同じ日・前後4時間・まだどの食事にも付いていないレシートから**いちばん近い1件**を見つけて「この食事のレシートは、これですか？」と聞く（結び付けるだけ・読み直さない＝課金しない）。「ちがう」を押したらもう聞かない。③**外食なのにレシートが無い時は、無いと言う**＝黙って空白にしない（アップし忘れを減らすのが目的なので、無い時こそ道を書く）。手作り・中食では出さない。④**両側から見える**＝食事の詳細に🧾（店名と金額・見る・外す）、レシートの詳細に🍽（食事のサムネと要約・見る）＝どちらから入っても行き来できる。⑤**結び付けるだけで、片方を消してももう片方は残す**（レシートは金額の原本・食事は食べた記録＝別物）。消えたレシートを指していたら結び付きだけ静かに外す。⑥📤 JSON に receipt_id・読み方に「結び付いたレシートは🧾の一覧にも同じ物が居る＝**金額を二重に数えない**」｜r69 ✏️食事・健康診断・薬を「項目ごとに」手で直せるようにした（要望）＝🥇画面を3つ作らず**「直せる項目の一覧（spec）」から描く1つの編集画面**にした＝単独の項目（文字/長い文/選ぶ/1行に1つの箇条書き）と**表（行を自由に足す・消す）**。⚠ **検査項目が増えても後々対応できるように**という要望への答えがこれ＝①健診の検査項目は**行を足せる**（AI が読み落とした項目・新しく増えた項目が入る）②あとでアプリに項目が増えても spec に1行足すだけで画面のコードは触らない。①🍽 食事＝要約・詳細・手作り/中食/外食・料理の表（料理名/種類/量/メモ）。⚠ originを人が直したら「AI が見分けました」と言うのをやめ「自分で直しました」に変えて AI の理由を消す（**表示が嘘になる**）・📤 の origin_decided_by も human に。②🩺 健診＝総合判定・要約・所見（1行に1つ）・検査項目の表（区分/項目名/値/単位/基準範囲/判定/備考）・再検査があれば再検査の表も。③💊 薬＝**処方日数（N日分）の欄**を足した（今まで AI しか書けず、これが「終了にしますか」の予定日のもと）＝打つとその場に予定の終わりが出る・日数を直すと「まだ飲んでいる」の答えは白紙に戻ってまた聞く。🥇 **手で直したものを 📝 で読ませ直す時・➕ でページを足す時は確かめる**（黙って上書きしない）。🩹 スマホで7列が並びきらず欄が20pxまで潰れていた→**各欄に小さな見出しを付けて折り返す**（潰さない・折り返してもどの欄か分かる）｜r68 🍽🤖手作り/中食/外食を **AI が写真から見分ける**ようにした＋📊 に「🍽 食事」タブ（外食の比率）＋☑ を 🍽 の画面にも（要望3つ）。①r67 で置いた手で選ぶボタンを撤去＝AI が見分ける（schema に origin と origin_reason・規則に見分け方＝外食は店の食器/トレー/伝票、中食はプラ容器/フィルム/値札シール、手作りは家の食器/食卓）。⚠ **迷ったら null**（決めつけた判定が混ざると比率が嘘になる）。⚠ 人に選ばせない代わり**判定と理由を詳細に必ず出す**（見えない判定は信用できない）・違っていたら 📝 の一言で「これは手作りです」と書けば規則の優先順位（本人＞印字＞見た目）で直る。②📊 統計に3つ目のタブ「🍽 食事」＝期間の仕組み（今日/今週/月/年/全期間/期間を選ぶ）はレシートと共有＝新しい期間UIを作らない。帯と一覧で手作り/中食/外食の比率・「🍴 外食は N%」・区分ごとの外食率（昼だけ外食が多い、が見える）。🥇 **母数は見分けられた食事だけ**＝分からなかった件数は必ず別に出す（分母に入れると比率が薄まり、分子に入れると嘘になる・なぜ合計が合わないかが見える）。③☑「すぐ読ませず手がかりを足してから」を 🍽 の画面にも置いた＝⚙ まで行かずに切り替えられる。⚠ **設定は1つ**＝どちらを触ってももう片方の見た目もそろえる（片方だけ変わると2つ設定があるように見える）。④📤 JSON は origin_decided_by:"ai"・読み方に「origin が無い食事は分からないであって手作りではない＝母数から外して断って書く」。⚠ mealHasExtras（📎 の印・➕ を開くか）から origin を外した＝AI 判定を入れると全部の食事に 📎 が付く｜r67 🍽📎料理の写真に手がかりを足して精度を上げる（要望）＝外食はレシート・伝票／中食は成分表示・パッケージ／手作りは一言（材料・調理法）＋「どんな食事？（手作り/中食/外食）」。①詳細の「➕ 手がかりを足して精度を上げる」＝使う時だけ広がる（既定は1行）。何枚でも足せる・✕で外せる・一言は打つ手が止まると保存。②⚙「🍽 料理を撮ったあと」☑＝入れると1枚撮るたびに詳細が開き（読ませない）、手がかりを足してから📝＝読ませてから足すと2回分の料金と待ち時間になるので「まず読ませない」。外すと今までどおり撮った瞬間に読む。複数枚まとめての時は写真だけ記録して伝える。③渡し方＝r65 の imgList（画像ごとの見出しを直前に）＋ask の末尾に【本人からの情報】＝analyze() は無改修・手がかり無しなら今までと同じ呼び方。規則に優先順位（本人＞印字＞見た目）と、成分表示に**印字された**数値だけ「印字：」付きで写してよい（推定は今までどおり禁止）を足した。④見出し行に「画像N枚＋一言を N秒で読取」＝手がかりで遅くなるか高くなるかを実測で見られる。⑤📤 JSON に origin/hint_from_person/evidence_photos（付いている食事だけ）・CSV に2列・読み方に説明。🩹2つの競合を潰した＝(a)写真の縮小中に📝を押すと手がかり無しで読みに行く→縮小が終わるまで「準備中」で待たせる (b)一言を打ってから「外食」を押すと blur の保存と click の保存が同時に走り片方が消える→保存を1本の待ち行列に｜r66 💊⏳予定の日を過ぎた薬に「終了にしますか」＋🍽時間帯を10分きざみにして重ねられなくした（要望3つのうち2つ・3つ目は起動時トーストの条件の説明）。①💊「N日分」の予定を過ぎた服用中の薬に、一覧のカードの中で2択（✅終了にする／まだ飲んでいる）。終了日に入れるのは**今日でなく予定の日**＝実際に飲み終えた日の方が本当。決まりは planEndOf の1か所に置き、一覧の✅・詳細の「終了」ボタン・詳細の⚠印が同じ日を出す（片方だけ直る事故を構造で防ぐ）。「まだ飲んでいる」は endAsk=keep で二度と聞かない／開始日を直す・写真を読み直すと予定が変わるので白紙に戻してまた聞く。⚠ボタンはカードの中にあるので click を先に拾って詳細を開かせない・高さ44px（preview の合成クリックは細くても当たるが実機の指は当たらない）。②🍽 食事の時間帯を「打ち込む」から「10分きざみで選ぶ」に。⚠**重ねて設定できなくした**＝6つの点（朝始・朝終・昼始・昼終・夕始・夕終）が1日を一周する円の上にこの順で並ぶモデルにして、各欄は**隣の点までしか選択肢を出さない**（押せてから弾くのでなく、そもそも選べない）。そのため「昼の始まりを早くする」には先に「朝の終わり」を早くする2手が要る＝⚙の説明に書いた。終わりの時刻はその時間帯に入らない [始まり, 終わり)＝境目の1分が両方に属する問題も消えた（時刻表と同じ読み方）。既定の夕食の終わりを 23:59→00:00。日またぎ（22:00〜01:00）は円なのでそのまま使える。r65 以前に保存された「すでに重なっている設定」は⚙を開いた時に詰めて直し、直したことを伝える。⚠教訓＝テストが本物を真似ていない罠を4回目（画面の開閉は hidden でなく on クラス） · 2026-08-17';
+const BUILD = 'r71 🧹⚙ の一番下に「まとめて削除」を置いた（要望＝全データ／期間を決めて／データの種類を決めて、まとめて消せるボタン）。①期間（直近7日/30日・今月・先月・今年・全期間・期間を選ぶ）×②種類（🧾レシート・🍽料理・🩺健診・💊薬・📈分析の履歴・📍店の場所＋「すべての種類」）の掛け算で消す。🥇 **消す前に必ず件数を出す**＝ボタンの文字がそのまま「何を何件消すか」になっていて、0件なら押せない。確認の文にも**種類ごとの件数**を出す（合計だけだと中身を見ずに押せてしまう）。⚠ **開くたび白紙**＝既定は何も選ばれていない（元に戻せない操作の既定を「全部」にしない）・覚えもしない＝これは設定でなく「今やる操作」だから（r32 の検索と同じ考え）。⚠ **全期間の時だけ**同意のチェックをもう1つ挟む（期間を変えたら同意は取り消し＝前の同意を持ち越さない）。⚠ **日付を持たないもの**（📍店の場所・検査日が未確定の健診・服用開始日が無い薬）は**全期間の時だけ**消す＝期間で消せるふりをしない。除いた件数は画面に必ず書く（黙って残さない）。⚠ 💊 は**服用開始日**で見る＝期間をまたいで飲み続けている薬を巻き込まない（狭い方に倒す）。⚠ 🧾 は「レシート1枚」で数えるが**消す単位は写真**（r28）＝同じ写真に期間外のレシートが残る時は、写真を消さず**その1枚だけ抜く**（既存の 🗑 と同じ形・人が触った印 edited を立てる）。⚠ 消したものへの**結び付き（r70 の 🍽↔🧾）も外す**＝宙に浮いたままだと 📤 の receipt_id が「🧾 の一覧にも同じ物が居る」と嘘をつく。ただし**手がかりの印（extras[].rcptId）は消さない**＝消したレシートが 📝 のたびに作り直され（課金され）よみがえるのを防ぐ。⚠ **1つのトランザクションでまとめて**消す（1件ずつだと数千件で待たされる）／消したものを出したままの画面（詳細・編集）は閉じる＝**開いたまま保存されると消したはずのものが戻る**。期間の決まりは presetPeriod(mode) に切り出した（既存3つ expPeriod/anPeriod/statsPeriod は**選べる期間が違う**のでまとめない＝まとめると3画面が同時に壊れる）。ブラウザ実測 green・コンソール0（今月4件／全期間16件・またぎ写真は1枚だけ抜けた・結び付いた食事は残ってリンクだけ外れた・全部消すと0件で押せなくなる・逆さまの期間はボタンが直し方を言う）｜r70 🧾🍽食事とレシートを連動させた（要望＝アップし忘れをなくす）。道は2本＝①**一緒に上げる**＝🍽 の手がかりに足した 🧾 レシートを、**レシート側の記録としても登録して読む**（食事を📝で読ませた時に一緒に・⚠ 読む仕事が2つ＝料金も2回ぶん・書き起こしが成功してからレシートを作る＝失敗した時にレシートだけ課金して残らない・手がかりに印を付けて**何度📝を押しても増やさない**）②**先に上げてある**＝同じ日・前後4時間・まだどの食事にも付いていないレシートから**いちばん近い1件**を見つけて「この食事のレシートは、これですか？」と聞く（結び付けるだけ・読み直さない＝課金しない）。「ちがう」を押したらもう聞かない。③**外食なのにレシートが無い時は、無いと言う**＝黙って空白にしない（アップし忘れを減らすのが目的なので、無い時こそ道を書く）。手作り・中食では出さない。④**両側から見える**＝食事の詳細に🧾（店名と金額・見る・外す）、レシートの詳細に🍽（食事のサムネと要約・見る）＝どちらから入っても行き来できる。⑤**結び付けるだけで、片方を消してももう片方は残す**（レシートは金額の原本・食事は食べた記録＝別物）。消えたレシートを指していたら結び付きだけ静かに外す。⑥📤 JSON に receipt_id・読み方に「結び付いたレシートは🧾の一覧にも同じ物が居る＝**金額を二重に数えない**」｜r69 ✏️食事・健康診断・薬を「項目ごとに」手で直せるようにした（要望）＝🥇画面を3つ作らず**「直せる項目の一覧（spec）」から描く1つの編集画面**にした＝単独の項目（文字/長い文/選ぶ/1行に1つの箇条書き）と**表（行を自由に足す・消す）**。⚠ **検査項目が増えても後々対応できるように**という要望への答えがこれ＝①健診の検査項目は**行を足せる**（AI が読み落とした項目・新しく増えた項目が入る）②あとでアプリに項目が増えても spec に1行足すだけで画面のコードは触らない。①🍽 食事＝要約・詳細・手作り/中食/外食・料理の表（料理名/種類/量/メモ）。⚠ originを人が直したら「AI が見分けました」と言うのをやめ「自分で直しました」に変えて AI の理由を消す（**表示が嘘になる**）・📤 の origin_decided_by も human に。②🩺 健診＝総合判定・要約・所見（1行に1つ）・検査項目の表（区分/項目名/値/単位/基準範囲/判定/備考）・再検査があれば再検査の表も。③💊 薬＝**処方日数（N日分）の欄**を足した（今まで AI しか書けず、これが「終了にしますか」の予定日のもと）＝打つとその場に予定の終わりが出る・日数を直すと「まだ飲んでいる」の答えは白紙に戻ってまた聞く。🥇 **手で直したものを 📝 で読ませ直す時・➕ でページを足す時は確かめる**（黙って上書きしない）。🩹 スマホで7列が並びきらず欄が20pxまで潰れていた→**各欄に小さな見出しを付けて折り返す**（潰さない・折り返してもどの欄か分かる）｜r68 🍽🤖手作り/中食/外食を **AI が写真から見分ける**ようにした＋📊 に「🍽 食事」タブ（外食の比率）＋☑ を 🍽 の画面にも（要望3つ）。①r67 で置いた手で選ぶボタンを撤去＝AI が見分ける（schema に origin と origin_reason・規則に見分け方＝外食は店の食器/トレー/伝票、中食はプラ容器/フィルム/値札シール、手作りは家の食器/食卓）。⚠ **迷ったら null**（決めつけた判定が混ざると比率が嘘になる）。⚠ 人に選ばせない代わり**判定と理由を詳細に必ず出す**（見えない判定は信用できない）・違っていたら 📝 の一言で「これは手作りです」と書けば規則の優先順位（本人＞印字＞見た目）で直る。②📊 統計に3つ目のタブ「🍽 食事」＝期間の仕組み（今日/今週/月/年/全期間/期間を選ぶ）はレシートと共有＝新しい期間UIを作らない。帯と一覧で手作り/中食/外食の比率・「🍴 外食は N%」・区分ごとの外食率（昼だけ外食が多い、が見える）。🥇 **母数は見分けられた食事だけ**＝分からなかった件数は必ず別に出す（分母に入れると比率が薄まり、分子に入れると嘘になる・なぜ合計が合わないかが見える）。③☑「すぐ読ませず手がかりを足してから」を 🍽 の画面にも置いた＝⚙ まで行かずに切り替えられる。⚠ **設定は1つ**＝どちらを触ってももう片方の見た目もそろえる（片方だけ変わると2つ設定があるように見える）。④📤 JSON は origin_decided_by:"ai"・読み方に「origin が無い食事は分からないであって手作りではない＝母数から外して断って書く」。⚠ mealHasExtras（📎 の印・➕ を開くか）から origin を外した＝AI 判定を入れると全部の食事に 📎 が付く｜r67 🍽📎料理の写真に手がかりを足して精度を上げる（要望）＝外食はレシート・伝票／中食は成分表示・パッケージ／手作りは一言（材料・調理法）＋「どんな食事？（手作り/中食/外食）」。①詳細の「➕ 手がかりを足して精度を上げる」＝使う時だけ広がる（既定は1行）。何枚でも足せる・✕で外せる・一言は打つ手が止まると保存。②⚙「🍽 料理を撮ったあと」☑＝入れると1枚撮るたびに詳細が開き（読ませない）、手がかりを足してから📝＝読ませてから足すと2回分の料金と待ち時間になるので「まず読ませない」。外すと今までどおり撮った瞬間に読む。複数枚まとめての時は写真だけ記録して伝える。③渡し方＝r65 の imgList（画像ごとの見出しを直前に）＋ask の末尾に【本人からの情報】＝analyze() は無改修・手がかり無しなら今までと同じ呼び方。規則に優先順位（本人＞印字＞見た目）と、成分表示に**印字された**数値だけ「印字：」付きで写してよい（推定は今までどおり禁止）を足した。④見出し行に「画像N枚＋一言を N秒で読取」＝手がかりで遅くなるか高くなるかを実測で見られる。⑤📤 JSON に origin/hint_from_person/evidence_photos（付いている食事だけ）・CSV に2列・読み方に説明。🩹2つの競合を潰した＝(a)写真の縮小中に📝を押すと手がかり無しで読みに行く→縮小が終わるまで「準備中」で待たせる (b)一言を打ってから「外食」を押すと blur の保存と click の保存が同時に走り片方が消える→保存を1本の待ち行列に · 2026-08-18';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -6613,12 +6644,218 @@ document.getElementById('mlSlotCfg').addEventListener('change', async e => {
 });
 document.getElementById('btnSlotReset').onclick = () => applySlotCfg({ ...SLOT_DEF });
 
+/* ---------- 🧹 まとめて削除（r71） ----------
+   要望＝「全データ／期間を決めて／データの種類を決めて、まとめて削除できるボタンを ⚙ の一番下に」。
+   決めごと（元に戻せない操作なので、全部「事故を構造で防ぐ」側に倒す）:
+   ⚠ **消す前に件数を必ず出す**＝ボタンの文字がそのまま「何を何件消すか」になっている。0件なら押せない。
+   ⚠ **開いた直後は何も選ばれていない**＝既定を「全部」にしない。覚えもしない（開くたび白紙）＝
+      これは設定ではなく「今やる操作」だから（r32 の検索と同じ考え）。
+   ⚠ **日付を持たないもの**（📍 店の場所・検査日が未確定の健診・服用開始日が無い薬）は
+      **「全期間」の時だけ**消す＝期間で消せるふりをしない。除いた件数は下に必ず書く（黙って残さない）。
+   ⚠ 💊 は**服用開始日**で見る＝期間をまたいで飲み続けている薬を巻き込まない（狭い方に倒す）。
+   ⚠ 🧾 は「レシート1枚」で数えるが**消す単位は写真**（r28）＝同じ写真に期間外のレシートが残る時は
+      写真を消さずに**その1枚だけ抜く**（既存の 🗑 と同じ形・人が触った印 edited を残す）。
+   ⚠ 消したものへの**結び付き（r70 の 🍽↔🧾）も外す**＝宙に浮いたままだと 📤 の receipt_id が
+      「🧾 の一覧にも同じ物が居る」と嘘をつく。 */
+const WIPE_KINDS = [
+  { id: 'rcpt',  icon: '🧾', label: 'レシート' },
+  { id: 'meal',  icon: '🍽', label: '料理・食事' },
+  { id: 'chk',   icon: '🩺', label: '健康診断' },
+  { id: 'med',   icon: '💊', label: '薬' },
+  { id: 'an',    icon: '📈', label: '分析の履歴' },
+  { id: 'place', icon: '📍', label: 'お店の場所' },
+];
+let wipeMode = 'month', wipeSel = new Set(), wipeBusy = false;
+/* 期間の言葉づかいは 📤/📈/📊 と同じにする（同じ言葉が画面ごとに違う意味だと、出た数字を信じられない）。
+   ⚠ 既存の3つ（expPeriod / anPeriod / statsPeriod）は**選べる期間が違う**（📊 は日・週、📤 は直近7日…）ので
+      1つにまとめない＝まとめると3画面が同時に壊れる。ここは「渡された mode で決める」形にして、
+      これから足す画面はこれを呼べばよいようにしておく。 */
+function presetPeriod(mode, from, to){
+  const t = todayStr(), y = +t.slice(0, 4), m = +t.slice(5, 7);
+  const lastDay = (yy, mm) => pad2(new Date(yy, mm, 0).getDate());   // mm は 1-12（Date の 0 日＝前月末日）
+  if (mode === 'all')  return { from: '', to: '', label: '全期間' };
+  if (mode === 'd7')   return { from: addDays(t, -6),  to: t, label: '直近7日' };
+  if (mode === 'd30')  return { from: addDays(t, -29), to: t, label: '直近30日' };
+  if (mode === 'year') return { from: `${y}-01-01`, to: `${y}-12-31`, label: `${y}年` };
+  if (mode === 'lastmonth') {
+    const ly = m === 1 ? y - 1 : y, lm = m === 1 ? 12 : m - 1;
+    return { from: `${ly}-${pad2(lm)}-01`, to: `${ly}-${pad2(lm)}-${lastDay(ly, lm)}`, label: `${ly}年${lm}月（先月）` };
+  }
+  if (mode === 'range') {
+    // ⚠ 統計・分析と同じ作法＝逆さま（開始 > 終了）でも黙って入れ替えない（消す話なら、なおさら黙って直さない）
+    if (!from || !to) return { bad: '開始と終了の両方を選んでください', label: '期間を選ぶ' };
+    if (from > to)    return { bad: '開始が終了より後になっています', label: `${md(from)} 〜 ${md(to)}` };
+    return { from, to, label: `${md(from)} 〜 ${md(to)}` };
+  }
+  return { from: `${y}-${pad2(m)}-01`, to: `${y}-${pad2(m)}-${lastDay(y, m)}`, label: `${y}年${m}月（今月）` };
+}
+const wipePeriod = () => presetPeriod(wipeMode,
+  document.getElementById('wipeFrom').value, document.getElementById('wipeTo').value);
+
+/* 何が消えるかを数える。⚠ **数える道と消す道を同じ1本にする**＝ボタンの数字・確認の文・実際に消える物が
+   ずれない（別々に数えると「12件と言われて13件消えた」が起きる）。 */
+async function wipePlan(){
+  const per = wipePeriod();
+  if (per.bad) return { per, bad: per.bad };
+  const { from, to } = per, all = wipeMode === 'all';
+  const inP = d => !!d && (!from || d >= from) && (!to || d <= to);
+  const p = { per, all, rcptDel: [], rcptTrim: [], meals: [], chks: [], meds: [], ans: [], places: [], skipped: [] };
+  let rcptN = 0;
+  for (const r of await dbAll()) {
+    const rcs = receiptsOf(r);
+    if (!rcs.length) {                                   // まだ読めていない写真＝撮った日で見る（1件と数える）
+      if (inP(capDate(r))) { p.rcptDel.push(r); rcptN++; }
+      continue;
+    }
+    const keep = rcs.filter(rc => !inP(rc.date || capDate(r)));
+    const n = rcs.length - keep.length;
+    if (!n) continue;
+    rcptN += n;
+    if (keep.length) p.rcptTrim.push({ r, keep }); else p.rcptDel.push(r);
+  }
+  const cks = await ckAll(), mds = await mdAll(), pls = await plAll();
+  p.meals  = (await mlAll()).filter(m => inP(mealDate(m)));
+  p.chks   = cks.filter(c => all || inP(c.date));
+  p.meds   = mds.filter(m => all || inP(m.start));
+  p.ans    = (await anAll()).filter(a => inP(ymdLocal(new Date(a.ts))));
+  p.places = all ? pls : [];
+  if (!all) {   // 日付を持たないもの＝期間を決めている間は消さない。何を残したかは画面の下に出す
+    const nc = cks.filter(c => !c.date).length, nm = mds.filter(m => !m.start).length;
+    if (nc) p.skipped.push(`🩺 検査日が未確定の健診 ${nc}件`);
+    if (nm) p.skipped.push(`💊 服用開始日が無い薬 ${nm}件`);
+    if (pls.length) p.skipped.push(`📍 お店の場所 ${pls.length}件`);
+  }
+  p.count = { rcpt: rcptN, meal: p.meals.length, chk: p.chks.length,
+              med: p.meds.length, an: p.ans.length, place: p.places.length };
+  return p;
+}
+async function renderWipe(){
+  document.querySelectorAll('#wipePeriodSeg button').forEach(b => b.classList.toggle('on', b.dataset.wp === wipeMode));
+  document.getElementById('wipeRangeRow').style.display = wipeMode === 'range' ? 'flex' : 'none';
+  const box = document.getElementById('wipeKinds'), btn = document.getElementById('btnWipe'),
+        ackRow = document.getElementById('wipeAckRow'), ack = document.getElementById('wipeAck');
+  const p = await wipePlan();
+  if (p.bad) {   // 期間が半端なうちは数えられない＝0件と嘘をつかず、何を直せばよいかをボタンに出す
+    box.innerHTML = ''; ackRow.hidden = true; ack.checked = false;
+    btn.disabled = true; btn.innerHTML = '🗑 ' + esc(p.bad);
+    document.getElementById('wipeNote').textContent = '';
+    return;
+  }
+  const live = WIPE_KINDS.filter(k => p.count[k.id]);
+  [...wipeSel].forEach(id => { if (!p.count[id]) wipeSel.delete(id); });   // 0件が選ばれたまま残らない
+  const allOn = live.length > 0 && live.every(k => wipeSel.has(k.id));
+  box.innerHTML = `<label class="wipeK all${live.length ? '' : ' off'}"><input type="checkbox" id="wipeAllK"${allOn ? ' checked' : ''}${live.length ? '' : ' disabled'}><span><b>すべての種類</b></span><small>${live.reduce((s, k) => s + p.count[k.id], 0)}件</small></label>`
+    + WIPE_KINDS.map(k => {
+        const n = p.count[k.id], off = !n;
+        return `<label class="wipeK${off ? ' off' : ''}"><input type="checkbox" data-wipek="${k.id}"${wipeSel.has(k.id) ? ' checked' : ''}${off ? ' disabled' : ''}>`
+             + `<span>${k.icon} ${k.label}</span><small>${n}件</small></label>`;
+      }).join('');
+  const sel = WIPE_KINDS.filter(k => wipeSel.has(k.id));
+  const total = sel.reduce((s, k) => s + p.count[k.id], 0);
+  ackRow.hidden = !(p.all && total);
+  if (ackRow.hidden) ack.checked = false;
+  btn.disabled = !total || (p.all && !ack.checked);
+  // ⚠ 1行に押し込まない＝期間は2行目の小さい字に（r33 の教訓＝折り返すくらいなら形を変える）
+  btn.innerHTML = !total ? '🗑 消すものを選んでください'
+    : `🗑 ${sel.map(k => k.icon).join('')} ${total}件を削除する<br><small>${esc(p.per.label)}のぶん</small>`;
+  document.getElementById('wipeNote').innerHTML =
+      '消えるのは<b>この端末の中の記録</b>だけです（写真アプリに残っているもとの写真は消えません）。'
+    + '<b>元に戻せない</b>ので、残したいものは先に 📤 書き出しで手元に出しておいてください。'
+    + '<br>⚠ 🧾 は<b>レシート1枚ずつ</b>数えます（同じ写真に期間外のレシートが残る時は、写真は消さずに<b>その1枚だけ</b>抜きます）。'
+    + '⚠ 💊 は<b>服用開始日</b>が期間に入るものだけです（期間をまたいで飲み続けている薬は消えません）。'
+    + '⚠ 🍽 と 🧾 が結び付いている時、片方を消しても<b>もう片方は残ります</b>（結び付きだけ外れます）。'
+    + (p.skipped.length ? `<br>⚠ <b>日付を持たないもの</b>は、期間を決めている間は消しません（${p.skipped.join(' / ')}）＝消すなら「全期間」を選んでください。` : '');
+}
+/* まとめて消すので **1つのトランザクションで一息に**（1件ずつだと数千件で待たされる） */
+const delMany = (store, ids)  => ids.length  ? tx(store, 'readwrite', s => ids.forEach(id => s.delete(id))) : Promise.resolve();
+const putMany = (store, recs) => recs.length ? tx(store, 'readwrite', s => recs.forEach(r => s.put(r)))     : Promise.resolve();
+async function runWipe(p, kinds){
+  const delRcpt = new Set(), delMeal = new Set();
+  if (kinds.has('rcpt')) {
+    p.rcptDel.forEach(r => delRcpt.add(r.id));
+    await delMany(STORE, p.rcptDel.map(r => r.id));
+    // 期間外のレシートが同じ写真に残る＝写真は残し、その1枚だけ抜く（人が触った印を残す＝既存の 🗑 と同じ形）
+    await putMany(STORE, p.rcptTrim.map(({ r, keep }) => Object.assign(r, { data: { receipts: keep }, edited: Date.now() })));
+  }
+  if (kinds.has('meal'))  { p.meals.forEach(m => delMeal.add(m.id)); await delMany(MEALS, p.meals.map(m => m.id)); }
+  if (kinds.has('chk'))   await delMany(CHECKUPS, p.chks.map(c => c.id));
+  if (kinds.has('med'))   await delMany(MEDS, p.meds.map(m => m.id));
+  if (kinds.has('an'))    await delMany(ANALYSES, p.ans.map(a => a.id));
+  if (kinds.has('place')) await delMany(PLACES, p.places.map(q => q.key));
+  /* 消えたものを指している結び付きを外す。
+     ⚠ 手がかりの印（extras[].rcptId）は消さない＝消したレシートが 📝 のたびに作り直され（課金され）
+        よみがえるのを防ぐ（r70 の「同じ手がかりから二度作らない」印をそのまま生かす）。 */
+  if (delRcpt.size) for (const m of await mlAll())
+    if (m.rcptId && delRcpt.has(m.rcptId)) await patchMeal(m.id, x => { delete x.rcptId; });
+  if (delMeal.size) {
+    const fix = (await dbAll()).filter(r => r.mealId && delMeal.has(r.mealId));
+    fix.forEach(r => { delete r.mealId; });
+    await putMany(STORE, fix);
+  }
+  /* 開いたままの画面が「消したもの」を出し続けないようにする。
+     ⚠ とくに詳細・編集は、開いたまま保存されると**消したはずのものが戻る**（⚙ は 🍽 の「⚙ 変える」からも開ける） */
+  ['ovDetail', 'ovEdit', 'ovEd2', 'ovMeal', 'ovChk', 'ovMed', 'ovAnRes', 'ovPlace'].forEach(id => { if (isOpen(id)) hide(id); });
+  await renderList(); await renderMeals(); await renderHealth();
+  if (isOpen('ovStats')) renderTab();
+  if (isOpen('ovAnalyze')) await renderAnHistory();
+}
+document.querySelectorAll('#wipePeriodSeg button').forEach(b => b.onclick = () => {
+  wipeMode = b.dataset.wp;
+  document.getElementById('wipeAck').checked = false;   // 期間を変えたら確認は取り直し（前の同意を持ち越さない）
+  renderWipe();
+});
+['wipeFrom', 'wipeTo'].forEach(id => document.getElementById(id).addEventListener('change', renderWipe));
+document.getElementById('wipeKinds').addEventListener('change', async e => {
+  if (e.target.id === 'wipeAllK') {
+    const p = await wipePlan();
+    wipeSel = e.target.checked ? new Set(WIPE_KINDS.filter(k => p.count && p.count[k.id]).map(k => k.id)) : new Set();
+  } else {
+    const cb = e.target.closest('[data-wipek]'); if (!cb) return;
+    cb.checked ? wipeSel.add(cb.dataset.wipek) : wipeSel.delete(cb.dataset.wipek);
+  }
+  renderWipe();
+});
+document.getElementById('wipeAck').addEventListener('change', renderWipe);
+document.getElementById('btnWipe').onclick = async () => {
+  if (wipeBusy) return;
+  const btn = document.getElementById('btnWipe'), label = btn.innerHTML;
+  const p = await wipePlan();
+  if (p.bad) return;
+  const sel = WIPE_KINDS.filter(k => wipeSel.has(k.id) && p.count[k.id]);
+  const total = sel.reduce((s, k) => s + p.count[k.id], 0);
+  if (!total) return;
+  if (p.all && !document.getElementById('wipeAck').checked) return;
+  // ⚠ 確認の文にも**種類ごとの件数**を出す＝合計だけだと、何が入っているか見ずに押せてしまう
+  const photos = wipeSel.has('rcpt') ? p.rcptDel.length : 0;
+  if (!confirm(`${p.per.label}の、下のものを削除します。\n\n${sel.map(k => `・${k.icon} ${k.label} ${p.count[k.id]}件`).join('\n')}\n\n`
+      + (photos ? `（レシートの写真 ${photos}枚もいっしょに消えます）\n\n` : '')
+      + '⚠ 元に戻せません。よろしいですか？')) return;
+  wipeBusy = true; btn.disabled = true; btn.innerHTML = '🗑 削除しています…';
+  try {
+    await runWipe(p, new Set(sel.map(k => k.id)));
+    wipeSel.clear(); document.getElementById('wipeAck').checked = false;
+    toast(`🗑 削除しました（${sel.map(k => `${k.icon} ${p.count[k.id]}件`).join(' / ')}）`);
+  } catch (err) {
+    btn.innerHTML = label; toast('削除できませんでした: ' + (err.message || err));
+  } finally {
+    wipeBusy = false;
+    await renderWipe();
+  }
+};
+// ⚙ を開くたび白紙に戻す（前に選んだ種類・期間を持ち越さない＝「押した覚えのない削除」を作らない）
+function resetWipe(){
+  wipeMode = 'month'; wipeSel = new Set();
+  document.getElementById('wipeAck').checked = false;
+  document.getElementById('wipeFrom').value = ''; document.getElementById('wipeTo').value = '';
+}
+
 async function openSettings(){
   renderSettings();
   renderCatTags();
   await fixSlotOverlap();   // r66: 前の版の「重なった設定」を先に直してから描く
   renderSlotCfg();
   syncMealMulti();   // r67/r68: ☑ は ⚙ と 🍽 の2か所にあるが、設定は1つ
+  resetWipe(); await renderWipe();   // r71: 🧹 は開くたび白紙＋件数を数え直す
   document.getElementById('noteStore').innerHTML = IS_NATIVE
     ? '📱 <b>アプリ版</b>で動作中＝データは端末のアプリ領域に保存され、ブラウザの自動削除の対象外です（消えるのはアプリを削除した時）。'
     : '⚠ <b>ブラウザ版</b>です。iPhone の Safari は<b>7日間サイトを開かないとデータ（キーとレシート）を消す</b>ことがあります。<b>ホーム画面に追加</b>するか、アプリ版を使ってください。';
