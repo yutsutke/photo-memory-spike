@@ -55,6 +55,7 @@ main{padding:10px 14px;}
 .mon span{color:var(--dim); font-size:13px; margin-left:auto;}
 .rec{display:flex; gap:10px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:8px; margin-bottom:8px;}
 .rec img{width:52px; height:52px; object-fit:cover; border-radius:8px; background:#000;}
+.rec .noimg{width:52px; height:52px; border-radius:8px; flex:none; font-size:20px;}   /* r80: 写真なしの食事 */
 .rec .mid{flex:1; min-width:0;}
 .rec .st{font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .rec .sub{color:var(--dim); font-size:12.5px;}
@@ -274,6 +275,14 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 .mlCard{display:flex; gap:10px; align-items:center; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:8px; margin-bottom:6px;}
 .mlCard:last-child{margin-bottom:0;}
 .mlCard img{width:54px; height:54px; object-fit:cover; border-radius:8px; background:#000; flex:none;}
+/* r80: 写真なしの記録（✍️ 手入力・🧾 レシートから）＝**写真の枠は残して中身を変える**。
+   ⚠ 枠ごと消すと行の形が揃わず、空の <img> にすると「壊れた画像」に見える＝どちらも事故に見える。
+      枠の中に何で作ったかの印を出す＝一覧を見ただけで「これは写真から読んだものではない」と分かる。 */
+.noimg{display:flex; align-items:center; justify-content:center; border:1px dashed var(--line);
+       background:var(--card); color:var(--dim);}
+.mlCard .noimg{width:54px; height:54px; border-radius:8px; flex:none; font-size:21px;}
+.mlMate .noimg{width:36px; height:36px; border-radius:6px; flex:none; font-size:15px;}
+.mlX .noimg{width:44px; height:44px; border-radius:6px; flex:none; font-size:18px; background:var(--bg);}
 .mlCard .bd{flex:1; min-width:0;}
 .mlCard .t{font-size:14px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
 .mlCard .s{font-size:11.5px; color:var(--dim); margin-top:3px;}
@@ -329,6 +338,12 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
   border-radius:12px; padding:12px; margin-top:12px; font-size:14.5px; cursor:pointer;}
 .mlMultiRow input{width:22px; height:22px; margin:1px 0 0; flex:none;}
 .mlMultiRow small{color:var(--dim); font-size:12.5px;}
+/* r80: レシートの品目を選ぶ行。⚠ 押す所は行ごと（44px）＝小さな四角だけが当たり判定だと指で外す */
+.mlChk{display:flex; gap:10px; align-items:center; min-height:44px; padding:4px 2px; font-size:14.5px; cursor:pointer;}
+.mlChk+.mlChk{border-top:1px solid var(--line);}
+.mlChk input{width:22px; height:22px; flex:none;}
+.mlChk .n{flex:1; min-width:0;}
+.mlChk .p{color:var(--dim); font-size:12.5px; flex:none;}
 /* 🍽 手がかりの写真（r67）＝小さなサムネ＋種類の印＋✕。足すボタンは <label> なので button と同じ見た目にする */
 .mlX{display:flex; gap:8px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:6px 8px; margin-bottom:6px;}
 .mlX img{width:44px; height:44px; object-fit:cover; border-radius:6px; background:#000; flex:none;}
@@ -378,6 +393,8 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 .mlThumb.pend{opacity:.45;}
 .mlThumb.err{outline:2px solid var(--err); outline-offset:-2px;}
 .mlThumb.todo{outline:2px dashed var(--dim); outline-offset:-2px;}   /* まだ書き起こしていない（失敗ではない） */
+/* r80: 週の枠でも写真なしを1マスとして出す（写っていない＝居ないではない）。⚠ .mlThumb の黒背景を上書きする */
+.mlThumb.noimg{background:var(--card); font-size:17px;}
 .mlThumb.lift{opacity:.3;}                                                        /* 持ち上げ中の元の位置 */
 #mlDragGhost{position:fixed; z-index:60; width:54px; height:54px; border-radius:8px; object-fit:cover;
              pointer-events:none; box-shadow:0 6px 20px rgba(0,0,0,.6); transform:translate(-50%,-50%); opacity:.95;}
@@ -472,6 +489,9 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
       <div class="d" id="mlDayLbl"></div>
       <button id="mlNext" aria-label="次へ">▶</button>
     </div>
+    <!-- ✍️ r80: 撮り忘れた食事を、写真なしで入れる入口。⚠ 下の「🍽 料理／🖼」の帯（写真から）と
+         役目が違うので同じ場所に混ぜない＝こちらは**見ている日に**入る（帯は撮影時刻の日に入る）。 -->
+    <button class="btn" id="btnMlHand" style="margin-bottom:10px">✍️ 写真なしで記録する（撮り忘れた食事）</button>
     <!-- 🔁 r73: 「毎回確かめる」繰り返しの、まだ答えていない日（⚠ 答えるまで食事は作られていない） -->
     <div id="mlAskBar" hidden></div>
     <div id="mlWeek" hidden></div>
@@ -1015,6 +1035,30 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <button class="btn" id="btnMlDel">🗑 この食事を削除</button>
 </div></div>
 
+<!-- ✍️🧾 写真なしで食事を記録（r80）＝撮り忘れた食事を手で入れる／読み取り済みのレシートの品目から作る。
+     ⚠ 画面は**1つ**にする（r73 と同じ考え）＝どちらも「写真のない食事を1件作る」ことなので、
+        入口が2つでも作る場所を分けない（分けると同じ直しを2回することになる）。 -->
+<div class="overlay" id="ovMlNew"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2 id="mlNewTitle">✍️ 写真なしで記録</h2>
+  <div class="note" id="mlNewNote" style="margin-top:0"></div>
+  <div class="dual">
+    <div class="row" style="flex:1"><label>日付</label><input type="date" id="mlNewDate"></div>
+    <div class="row" style="flex:1"><label>時刻</label><input type="time" id="mlNewTime"></div>
+  </div>
+  <div class="note" id="mlNewSlot" style="margin-top:0"></div>
+  <div class="row"><label>何を食べたか（📈 分析にはこれを渡します）</label>
+    <input id="mlNewSummary" maxlength="120" placeholder="例: 鮭の塩焼き、ごはん、味噌汁" autocomplete="off"></div>
+  <!-- 🧾 から作る時だけ出る＝レシートの品目のうち「食べたもの」を選ぶ（日用品まで食事にしない） -->
+  <div id="mlNewItems"></div>
+  <div class="row"><label>どんな食事か（📊 統計に入ります）</label>
+    <div class="seg wrap" id="mlNewOrigin"></div>
+    <div class="note" id="mlNewOriginNote" style="margin-top:4px"></div></div>
+  <div class="row"><label>🗒 ひとこと（任意・あとから足せます）</label>
+    <textarea id="mlNewMemo" rows="2" maxlength="140"
+      placeholder="例: 残業で遅い夕食／人と一緒／写真を撮り忘れた"></textarea></div>
+  <button class="btn pri" id="btnMlNewSave" style="margin-top:12px">この内容で記録する</button>
+</div></div>
+
 <!-- 📋🔁 この食事をもう一度（r73）＝1回だけコピーする／決めた日に繰り返し入れる -->
 <div class="overlay" id="ovMlRep"><div class="sheet tall">
   <button class="x" data-close>✕</button><h2 id="mlRepTitle">📋 この食事をもう一度</h2>
@@ -1206,7 +1250,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r79 💬 「写真を読み出せませんでした」の案内に「**これは通信の問題ではありません**」を足した（実機で本人が「通信状態がわるかったのかも」と推測したため＝**いちばん自然な誤解**なので、聞かれる前に画面で答える）。⚠ この失敗は **AI に送る前**に、写真を端末の中で読み出す所で止まっている＝**通信は1バイトも使っておらず、料金もかかっていない**。だから「回線を確かめる」方向に時間を使わせない。⚠ 通信まわりの失敗とは**別の名前が付いている**ことも実測で確認（届きませんでした(net)／時間切れ(timeout)／返事が届く途中で途切れました(trunc)／AI側の不調(server)／写真を読み出せませんでした(gone)＝5つとも別の分類・別の次の手）。🩹 あわせて、この欄は**マークダウンを解釈しない**（esc してから出す）ので、書いた 二重アスタリスクの強調 が星のまま出るところだった＝外した。⚠ **注意書きを足す時は、その欄が記法を解釈するかを確かめる**（同じ文字列でも、置く場所で見え方が変わる）。 · 2026-08-19｜r78 ⏳ 自動でやり直す**回数と待ち時間を、失敗の種類ごとに**変えた（実機の記録で r77 の見立てが裏取りされ、同時に不足も分かった）。実機＝**14:29:54 と 14:29:55 に連続で失敗 → そのあと押し直したら読めた**、画面には「⚠ この写真は 2 回書き起こしに失敗してから読めました」＋書き起こし本文（白米・回鍋肉・お茶）。①✅ **r77 の見立ては当たっていた**＝写真は消えていない・**一時的に読み出せないだけ**（同じ写真が数十秒後に読めている）。②🥇 **しかし r77 の自動やり直し（800ms を1回）では足りなかった**＝2回とも失敗している。**もっと待って、もっと粘る**のが正しい → **種類ごとの計画表**にした（RETRY_PLAN）＝**gone は 400ms → 1200ms → 3000ms の3回**（＝最大4回・約4.6秒）／**trunc（通信の途中切れ）は今までどおり1回だけ**。⚠ 粘ってよいのは gone だけ＝**AI に届く手前で落ちる＝お金がかからない**。trunc は**もう AI に届いている**ので粘ると二重課金（r27 の約束）。⚠ 表は「待つミリ秒の並び」＝**並びの長さがそのままやり直す回数**（増やす時はここだけ触る）。③🩹 **文言の食い違いを直した**＝r77 でラベルは「写真を読み出せませんでした」に直したのに、**中身の文は「写真の中身が端末から消えています」と断定したまま**だった（同じ記録の中で label と msg が矛盾）→「その時は読み出せませんでした（記録も写真も残っています）」に。⚠ **直す時は、同じことを言っている場所を全部探す**（片方だけ直すと、余計に信用できない画面になる）。ブラウザ実測 green（実機と同じ「2回失敗」を再現すると**3回目で成功**（約2.9秒）／ずっと駄目でも**4回で諦める**（無限に粘らない）／trunc は1回のまま／rate は自動やり直し無し（据え置き）） · 2026-08-19｜r77 🔁 「写真を読み出せなかった」を**直らない失敗と決めつけていた**のを撤回した（r76 の直しすぎ）。実機で ⚙ の 📏 を押した結果＝**70枚 23.6MB・すべて読めます**＝**写真は無事**で、あの失敗は**その瞬間だけ読み出せなかった**（アプリを開き直した直後などに起きる一時的なもの）。⚠ r76 は文言（The object can not be found here.）だけを見て「中身が消えた＝二度と直らない」と断定し、**📝 のボタンを消して「🗑 で消してください」と案内していた**＝**無事な記録を捨てさせかねなかった**。①🏷 ラベルを「保存した写真が読めません」→「**写真を読み出せませんでした**」（その回の出来事として言う・永久の宣告にしない）。②▶ 次の手を**「まず もう一度お試しください（一時的なことがあります）」**に。🥇 **見分け方を案内に書いた**＝⚙ の 📏 で「すべて読めます」なら写真は無事（＝もう一度で通る）・📏 でも読めないと出た時にはじめて「中身が消えている」と言える＝**人が自分で確かめられる道**にした。③📝 **ボタンを戻した**（🍽🩺💊）。④📝 **まとめて書き起こしからも外さない**＝代わりに「同じ理由で2回続いたら打ち切り」の**数に入れない**（FREE_FAIL_TAGS＝gone/stalled）。🥇 **打ち切りの目的は無駄な課金を止めること**で、これらは **AI に届く手前で落ちる＝お金がかかっていない**＝止める理由が無い（目的に照らすと、外すのでなく数えないのが正しかった）。⑤🔄 **自動で1回だけやり直す**（AUTO_RETRY_TAGS に gone を追加）＝課金ゼロなのでやり直しがいちばん安い種類。⑥📏 の結果に**意味を書いた**＝「✅ なら、読み出せなかった記録があっても写真は無事＝もう一度で通る」（この点検が実際に**原因を確定させた道具**になったので、次に見た人が同じ判断をできるように）。教訓＝**エラーの文言は「何が起きたか」は教えるが「もう直らないか」は教えない**。断定する前に、**確かめる道具（📏）の答えを見る**。ブラウザ実測 green（案内が「まず試す」に・自動やり直しは1回だけ・📝 が戻る・まとめに3枚とも入る・帯が「もう一度押せばやり直します」に・📏 の✅に意味の説明） · 2026-08-19｜r76 🕳 「保存した写真が読めない」を名前のある失敗にした（実機の記録＝The object can not be found here. ／ 🍽 の書き起こしが失敗・分類は「読み取り失敗(other)」・次の手は「同じ文言が続くなら相談してください」＝**次に何をすればいいかがどこにも出ていなかった**）。①🔎 **正体**＝WebKit が「そのデータの中身がもう無い」時に出す文言。**IndexedDB に記録は残っているのに、写真の中身だけが端末から消えている**（ブラウザの保存領域の掃除／容量不足での追い出し／File 参照の期限切れ）。⚠ 記録が残るので**一覧には出るしサムネも出る**＝「写真はあるのに読めない」といういちばん気付きにくい壊れ方。⚠ **やり直しても絶対に直らない唯一の種類**なのに、案内は「もう一度お試しください」だった＝永久に同じ所をぐるぐるさせていた。②🏷 **gone という分類を足した**＝ラベル「保存した写真が読めません」・次の手は**撮り直す／✏️手入力／🗑消す**（「もう一度」と言わない）。⚠ **文言での見分けを名乗り(tag)より先に**置いた＝すでに other として控えてある**古い記録も正しく直る**（いちばん次の手がはっきりしている失敗なのに道が出ない、を過去分ごと解消）。③🚫 **できないことをボタンに出さない**＝🍽🩺💊 の詳細で写真が消えている時は 📝 を出さない（押しても必ず同じ所に戻る）。🧾 は既存の ✏️ 手入力がそのまま逃げ道。④📝 **まとめて書き起こしから外す**＝直らないものが混ざると「同じ理由で2回失敗したら止める」に毎回引っかかり、**本当に読める写真まで進まなくなる**。除いた件数は帯に書く（黙って飛ばさない）。⑤📏 ⚙ の「保存している写真を数える」を「**数える・読めるか調べる**」にした＝⚠ **blob.size は記録の見出しだけで分かるので、中身が消えていても正しい数字が出る**（大きさを数えるだけではこの壊れ方は絶対に見つからない）→ **1バイトだけ実際に読む**。読めない枚数を種類ごとに出し、直し方とブラウザ版の弱点（ホーム画面に追加／アプリ版）まで書く。⑥🛡 **原本のまま保存する時、File をそのまま保存しない**＝File は「端末のこのファイル」への**参照**なので、元が消える・移動すると読めなくなる。中身を1回読んで**自前の Blob** にしてから保存する（この壊れ方の片方を構造で消す）。⚠ 読めなければ今までどおり作り直す（原本を諦めてでも読める写真を残す）。⑦❓ 「再度読み取る時に新しいファイルを上げていないのが原因？」への答え＝**違う**。読み直しは保存済みの写真を使う設計で、**上げ直しは要らない**。問題は保存済みの写真の中身が消えていたこと。ブラウザ実測 green（実機の文言が gone に分類される・**old な other 記録も直る**／sendB64 が名乗る／photoGone は gone だけ true・レート制限は false／📝 が消える・レート制限では残る／帯に除外1枚と理由／⚙ の点検が✅と枚数を出す・375px 横スクロールなし） · 2026-08-19｜r75 🩹「🤖 書き起こし中」で止まったまま二度と戻れなくなるのを直した（実機報告＝書き起こし中のまま／閉じて開き直しても何も起きない／「2度失敗してます」が見えたのに、いつのまにか消えた）。穴は3つあり、どれも**失敗そのものより「見えない・戻れない」ことが問題**だった。①🚑 **取り残された pending を起動時に必ず片付ける**＝アプリを閉じた・端末が寝た・読み込み直した時、走っていた仕事はそこで死ぬのに DB には pending だけが残り、画面は「読み取り中…」と言い続ける（誰も走っていないのに）。⚠ これまでレシートは **getKey() がある時だけ**やり直し・🍽 食事は**起動時に何もしていなかった**・キーが無い時は「読み取り中」のまま放置＝**嘘の表示が残る**。→ キーがあれば読み直す／無ければ「まだ読んでいない(todo)」に戻す（⚠ **写真も失敗の記録も消さない**）＋何件片付けたかトーストで言う。②⏱ **見張り（8分）**＝通信には時間切れがあるが、**その手前**（写真を base64 に変える・縮める＝<img> の onload も onerror も来ないことがある）で止まると**どこにも時間切れが無い**＝約束が永久に決まらず pending が残る。仕事1つを丸ごと見張り、超えたら「途中で止まりました(stalled)」として error にする。⚠ **時間切れ(timeout)と別の分類**にした＝次の手が違う（軽いモデルにしても直らない・同じ写真だけ止まるなら写真が壊れている）。⚠ 見張りは走っている処理を止められない（JS に中断が無い）が、**二度と触れない記録が残るよりよい**。③👁 **やり直し中も失敗の履歴を隠さない**＝status が pending に戻るたび「これまでに N 回失敗しています」が画面から消えていた（**実機の「見えたのに消えた」の正体**）。失敗は DB に残っているのに**見えるのは error の時だけ**＝残した意味が半分無かった（r30 と同じ穴）。やり直している最中こそ「前も失敗している」が見えるべき＝そこが「待っても無駄かも」の判断材料。🧾🍽🩺💊 の4画面すべてに 📋 コピー付きで出す。④🕒 **いつから待っているかを出す**＝AI の返事は**最長3分**待つ決まりなので、1〜2分「読み取り中」なのは**正常**。それが分からないと正常な待ちと止まったのを見分けられず閉じてしまう。⚠ 「あと何分」でなく**始まった時刻**を出す（描き直さなくても古くならない）。⑤📷 保存サイズについて＝**縮小しても解像度は落ちていない**（2576px＝Claude が見る上限ぴったり）ので、縮小が読み取りを失敗させる筋道は無い。効くのは2回目の JPEG 圧縮による小さい印字の潰れだけ＝**失敗の原因は 📋 の記録に残っている**（提供元・モデル・HTTP・分類）。ブラウザ実測 green（見張り＝止まった約束を stalled で捕まえる/正常は素通り/元のエラーは保たれる、起動回収＝キー無しで pending→todo に戻り記録は残る・キー有りで読み直して error に落ち着く＝二度と pending で固まらない、履歴＝pending 中も4画面で出る・375pxで横スクロールなし） · 2026-08-19';
+const BUILD = 'r80 ✍️🧾 **写真なしで食事を記録できるようにした**（要望＝「食事の写真を撮り忘れたときのために、食事の画像なしに手入力やレシートの画像解析とかで食事を記録できるようにしたい」）。**入口は2つ・作る画面は1つ**＝①**✍️ 手入力**（🍽 の画面の「✍️ 写真なしで記録する」＝**見ている日**に、日付・時刻・何を食べたか・手作り/中食/外食・🗒ひとことを入れる。⚠ その時刻が**どの区分に入るかを押す前に出す**／⚠ **未来の時刻には入れられない**＝記録は「食べた」もの）②**🧾 レシートから**（🧾 の詳細の「🍽 この買い物から食事を記録する」＝**読み取り済みの品目にチェックを付けて選ぶ**だけ。日付・時刻はレシートの印字、手作り/中食/外食はレシートの分類から見当をつける。⚠ **日用品を外せる**＝食べたものだけを食事にする）。🥇 **②では AI をもう一度呼ばない**＝レシートはもう読んであるので、同じ写真を食事として読ませ直すと**料金が2回**かかるうえ、**品目は印字の方が確か**（写真から見た目で当てるより外さない）。⚠ **写真が無いことを黙らない**＝どうやって作ったか（madeBy＝repeat/copy/**hand**/**receipt**）を**表1つ**にまとめ、一覧・週・🔗仲間・🔍検索・詳細・📄文字コピー・📤書き出し（no_photo: true）で必ず言う（r73 で 🔁/📋 の2値を画面4か所に三項演算子で散らし、種類を足すと直し漏れが必ず出る形になっていたのを、ここで表引きに直した）。⚠ **写真の枠は残して中身を変える**（.noimg ＝作り方の印を枠の中に出す）＝空の画像枠を残すと「読み込みに失敗した写真」に見える＝壊れていないのに壊れて見える。⚠ **できないことをボタンに出さない**＝写真の無い記録では 📝 書き起こしを**押せなくする**（押せば必ず失敗して status が error になり、**手で入れた内容が画面から消えて見える**＝r29 の線引き）／まとめて書き起こし（mealTodo）からも**構造で外す**（当たらないはずだが、当たった時に起きることが悪すぎる＝r76 で踏んだ形）。🩹 あわせて **tsSrc の manual（自分で入れた時刻・週で別の日へ動かした時）がどの枝にも無く、「⚠ 撮影時刻が読めなかったので取り込んだ時刻」と出ていた**のを直した（自分で入れた時刻を「読めなかった」と言われる嘘。写真なしの記録は必ず manual なので、直さないと全部に警告が出る）。⚠ 📊 食事の統計の文言も直した＝「**書き起こした**食事」「**AI が見分けた**」と言い切ると嘘になるので、**写真なしの件数**と、**AI が見分けた件数／自分で入れた件数**を分けて出す。⚠ 📤 の読み方に「no_photo の食事は**情報が少ないだけで、食べた物が乏しかったのではない**」と書いた（受け取った AI が「粗末な食事」と読み替えるのを止める）。ブラウザ実測 green（✍️ 保存→一覧・週・🔍検索に ✍️ の印が出る・未来の時刻は止まる／🧾 品目のチェックを外すと要約が作り直される・🍽↔🧾 が両側から行き来できる・**結び付いたレシートには 🍽 ボタンを出さない**（二重に作らない）／📋 コピーしても写真なしのまま・案内が「写真は入りません」に変わる／📝 は押せず理由が出る／📏 は写真なしを数えない／375px で横スクロールなし・コンソール 0） · 2026-08-20｜r79 💬 「写真を読み出せませんでした」の案内に「**これは通信の問題ではありません**」を足した（実機で本人が「通信状態がわるかったのかも」と推測したため＝**いちばん自然な誤解**なので、聞かれる前に画面で答える）。⚠ この失敗は **AI に送る前**に、写真を端末の中で読み出す所で止まっている＝**通信は1バイトも使っておらず、料金もかかっていない**。だから「回線を確かめる」方向に時間を使わせない。⚠ 通信まわりの失敗とは**別の名前が付いている**ことも実測で確認（届きませんでした(net)／時間切れ(timeout)／返事が届く途中で途切れました(trunc)／AI側の不調(server)／写真を読み出せませんでした(gone)＝5つとも別の分類・別の次の手）。🩹 あわせて、この欄は**マークダウンを解釈しない**（esc してから出す）ので、書いた 二重アスタリスクの強調 が星のまま出るところだった＝外した。⚠ **注意書きを足す時は、その欄が記法を解釈するかを確かめる**（同じ文字列でも、置く場所で見え方が変わる）。 · 2026-08-19｜r78 ⏳ 自動でやり直す**回数と待ち時間を、失敗の種類ごとに**変えた（実機の記録で r77 の見立てが裏取りされ、同時に不足も分かった）。実機＝**14:29:54 と 14:29:55 に連続で失敗 → そのあと押し直したら読めた**、画面には「⚠ この写真は 2 回書き起こしに失敗してから読めました」＋書き起こし本文（白米・回鍋肉・お茶）。①✅ **r77 の見立ては当たっていた**＝写真は消えていない・**一時的に読み出せないだけ**（同じ写真が数十秒後に読めている）。②🥇 **しかし r77 の自動やり直し（800ms を1回）では足りなかった**＝2回とも失敗している。**もっと待って、もっと粘る**のが正しい → **種類ごとの計画表**にした（RETRY_PLAN）＝**gone は 400ms → 1200ms → 3000ms の3回**（＝最大4回・約4.6秒）／**trunc（通信の途中切れ）は今までどおり1回だけ**。⚠ 粘ってよいのは gone だけ＝**AI に届く手前で落ちる＝お金がかからない**。trunc は**もう AI に届いている**ので粘ると二重課金（r27 の約束）。⚠ 表は「待つミリ秒の並び」＝**並びの長さがそのままやり直す回数**（増やす時はここだけ触る）。③🩹 **文言の食い違いを直した**＝r77 でラベルは「写真を読み出せませんでした」に直したのに、**中身の文は「写真の中身が端末から消えています」と断定したまま**だった（同じ記録の中で label と msg が矛盾）→「その時は読み出せませんでした（記録も写真も残っています）」に。⚠ **直す時は、同じことを言っている場所を全部探す**（片方だけ直すと、余計に信用できない画面になる）。ブラウザ実測 green（実機と同じ「2回失敗」を再現すると**3回目で成功**（約2.9秒）／ずっと駄目でも**4回で諦める**（無限に粘らない）／trunc は1回のまま／rate は自動やり直し無し（据え置き）） · 2026-08-19｜r77 🔁 「写真を読み出せなかった」を**直らない失敗と決めつけていた**のを撤回した（r76 の直しすぎ）。実機で ⚙ の 📏 を押した結果＝**70枚 23.6MB・すべて読めます**＝**写真は無事**で、あの失敗は**その瞬間だけ読み出せなかった**（アプリを開き直した直後などに起きる一時的なもの）。⚠ r76 は文言（The object can not be found here.）だけを見て「中身が消えた＝二度と直らない」と断定し、**📝 のボタンを消して「🗑 で消してください」と案内していた**＝**無事な記録を捨てさせかねなかった**。①🏷 ラベルを「保存した写真が読めません」→「**写真を読み出せませんでした**」（その回の出来事として言う・永久の宣告にしない）。②▶ 次の手を**「まず もう一度お試しください（一時的なことがあります）」**に。🥇 **見分け方を案内に書いた**＝⚙ の 📏 で「すべて読めます」なら写真は無事（＝もう一度で通る）・📏 でも読めないと出た時にはじめて「中身が消えている」と言える＝**人が自分で確かめられる道**にした。③📝 **ボタンを戻した**（🍽🩺💊）。④📝 **まとめて書き起こしからも外さない**＝代わりに「同じ理由で2回続いたら打ち切り」の**数に入れない**（FREE_FAIL_TAGS＝gone/stalled）。🥇 **打ち切りの目的は無駄な課金を止めること**で、これらは **AI に届く手前で落ちる＝お金がかかっていない**＝止める理由が無い（目的に照らすと、外すのでなく数えないのが正しかった）。⑤🔄 **自動で1回だけやり直す**（AUTO_RETRY_TAGS に gone を追加）＝課金ゼロなのでやり直しがいちばん安い種類。⑥📏 の結果に**意味を書いた**＝「✅ なら、読み出せなかった記録があっても写真は無事＝もう一度で通る」（この点検が実際に**原因を確定させた道具**になったので、次に見た人が同じ判断をできるように）。教訓＝**エラーの文言は「何が起きたか」は教えるが「もう直らないか」は教えない**。断定する前に、**確かめる道具（📏）の答えを見る**。ブラウザ実測 green（案内が「まず試す」に・自動やり直しは1回だけ・📝 が戻る・まとめに3枚とも入る・帯が「もう一度押せばやり直します」に・📏 の✅に意味の説明） · 2026-08-19｜r76 🕳 「保存した写真が読めない」を名前のある失敗にした（実機の記録＝The object can not be found here. ／ 🍽 の書き起こしが失敗・分類は「読み取り失敗(other)」・次の手は「同じ文言が続くなら相談してください」＝**次に何をすればいいかがどこにも出ていなかった**）。①🔎 **正体**＝WebKit が「そのデータの中身がもう無い」時に出す文言。**IndexedDB に記録は残っているのに、写真の中身だけが端末から消えている**（ブラウザの保存領域の掃除／容量不足での追い出し／File 参照の期限切れ）。⚠ 記録が残るので**一覧には出るしサムネも出る**＝「写真はあるのに読めない」といういちばん気付きにくい壊れ方。⚠ **やり直しても絶対に直らない唯一の種類**なのに、案内は「もう一度お試しください」だった＝永久に同じ所をぐるぐるさせていた。②🏷 **gone という分類を足した**＝ラベル「保存した写真が読めません」・次の手は**撮り直す／✏️手入力／🗑消す**（「もう一度」と言わない）。⚠ **文言での見分けを名乗り(tag)より先に**置いた＝すでに other として控えてある**古い記録も正しく直る**（いちばん次の手がはっきりしている失敗なのに道が出ない、を過去分ごと解消）。③🚫 **できないことをボタンに出さない**＝🍽🩺💊 の詳細で写真が消えている時は 📝 を出さない（押しても必ず同じ所に戻る）。🧾 は既存の ✏️ 手入力がそのまま逃げ道。④📝 **まとめて書き起こしから外す**＝直らないものが混ざると「同じ理由で2回失敗したら止める」に毎回引っかかり、**本当に読める写真まで進まなくなる**。除いた件数は帯に書く（黙って飛ばさない）。⑤📏 ⚙ の「保存している写真を数える」を「**数える・読めるか調べる**」にした＝⚠ **blob.size は記録の見出しだけで分かるので、中身が消えていても正しい数字が出る**（大きさを数えるだけではこの壊れ方は絶対に見つからない）→ **1バイトだけ実際に読む**。読めない枚数を種類ごとに出し、直し方とブラウザ版の弱点（ホーム画面に追加／アプリ版）まで書く。⑥🛡 **原本のまま保存する時、File をそのまま保存しない**＝File は「端末のこのファイル」への**参照**なので、元が消える・移動すると読めなくなる。中身を1回読んで**自前の Blob** にしてから保存する（この壊れ方の片方を構造で消す）。⚠ 読めなければ今までどおり作り直す（原本を諦めてでも読める写真を残す）。⑦❓ 「再度読み取る時に新しいファイルを上げていないのが原因？」への答え＝**違う**。読み直しは保存済みの写真を使う設計で、**上げ直しは要らない**。問題は保存済みの写真の中身が消えていたこと。ブラウザ実測 green（実機の文言が gone に分類される・**old な other 記録も直る**／sendB64 が名乗る／photoGone は gone だけ true・レート制限は false／📝 が消える・レート制限では残る／帯に除外1枚と理由／⚙ の点検が✅と枚数を出す・375px 横スクロールなし） · 2026-08-19';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1923,6 +1967,23 @@ const ORIGIN_ENUM = ['手作り', '中食', '外食'];   // AI が返す値（�
 const ORIGIN_CODE = v => (MEAL_ORIGIN.find(x => x[2] === String(v || '').trim()) || [])[0] || null;
 const ORIGIN_LABEL = o => (MEAL_ORIGIN.find(x => x[0] === o) || [])[2] || null;
 const ORIGIN_ICON  = o => (MEAL_ORIGIN.find(x => x[0] === o) || [])[1] || '';
+/* r80: この食事が **どうやって作られたか**（写真を撮ったもの以外は必ず印を付ける）。
+   ⚠ **表を1つにする**＝r73 で 🔁/📋 の2つを画面4か所に ternary で散らしたので、種類を足すと
+      直し漏れが必ず出る形になっていた（一覧には出るが詳細には出ない、など）。出す側はこの表を引く。
+   ⚠ 出どころを黙らない、は r68（AI の判定は必ず見せる）・r73（写真はこの日のものではない）と同じ約束。
+      ✍️ 手入力・🧾 レシートからは **写真が無い**＝「AI が写真から読んだ」のではないことを見せ続ける必要がある。 */
+const MADE_BY = {
+  repeat:  ['🔁', '繰り返し',     '🔁 <b>繰り返しで入れた記録です</b>'],
+  copy:    ['📋', 'コピー',       '📋 <b>ほかの食事からコピーした記録です</b>'],
+  hand:    ['✍️', '手入力',       '✍️ <b>写真なしで、手で入力した記録です</b>（AI は使っていません）'],
+  receipt: ['🧾', 'レシートから', '🧾 <b>レシートの品目から作った記録です</b>（料理の写真はありません）'],
+};
+const madeIcon  = m => (MADE_BY[m.madeBy] || [])[0] || '';
+const madeLabel = m => (MADE_BY[m.madeBy] || [])[1] || '';
+/* 写真そのものが無い記録か。⚠ **フラグを新しく持たない**＝「写真が無い」は thumb が無いことそのもの
+   （2か所に同じことを書くと必ずずれる）。⚠ 写真が読み出せないだけの記録（gone）はここに入らない
+   ＝あちらは Blob が在る（中身が読めないだけ）＝直る見込みがある別の話。 */
+const mealNoPhoto = m => !m.thumb && !m.img;
 const mealMultiOn = () => localStorage.getItem(ML.multi) === '1';
 /* 人が足した手がかりが1つでもあるか（＝詳細の「➕」を開いた状態で見せる・一覧に 📎 を出す）。
    ⚠ r68: origin は**AI が見分けたもの**なので、ここには入れない（入れると全部の食事に 📎 が付く）。 */
@@ -2079,7 +2140,10 @@ const DATA_NOTES = {
     'receipt_id が付いている食事は、本人がその食事のレシートだと結び付けたもの＝その receipt_id のレシートは 🧾 の一覧にも入っている（同じ物なので、金額を二重に数えない）。結び付いていない食事の金額を推測しない。',
     /* r73: 🔁/📋 で入れた記録は「同じ内容をもう一度記録したもの」＝写真はその日のものではない。
        ⚠ ここを黙っていると、AI が「同じ写真＝同じ日」と読んで日付を疑い始める。 */
-    'made_by が付いている食事は、本人が別の食事から作ったもの＝ made_by:"repeat" は繰り返しの決まりで自動的に入ったもの、"copy" は本人が1回コピーしたもの。どちらも「その日にそれを食べた」という本人の記録なので、そのまま1食として数えてよい。ただし写真は photo_date の日に撮ったもので、その日に撮り直したものではない（写真の細部＝盛り付けや器から、その日のことを読み取らない）。',
+    'made_by が付いている食事は、その日に料理の写真を撮って AI が読んだものではない。"repeat" は繰り返しの決まりで自動的に入ったもの、"copy" は本人が別の食事から1回コピーしたもの（どちらも写真は photo_date の日に撮ったもので、その日に撮り直したものではない＝写真の細部＝盛り付けや器から、その日のことを読み取らない）。"hand" は本人が写真なしで手入力したもの、"receipt" は本人がレシートの品目から起こしたもの。⚠ どれも「その日にそれを食べた」という本人の記録なので、そのまま1食として数えてよい。',
+    /* r80: 写真の無い記録は**中身が薄い**（items の kind が「その他」だらけ・amount が無い・detail が空）。
+       ⚠ ここを言っておかないと、受け取った AI が「粗末な食事だった」「量が少なかった」と読み替える。 */
+    'no_photo:true の食事には料理の写真が無い（本人が撮り忘れて手で入れたか、レシートの品目から起こしたもの）。summary と items は本人が書いたか、レシートに印字された品名を写したものなので、AI が写真から読んだ食事にくらべて情報が少ない＝ items の kind が「その他」ばかり、amount が無い、detail が空、ということがある。⚠ これは「食べた物が乏しかった」ことではなく「写真が無いので分からない」ことなので、量が少なかった・偏っていた、と読み替えない。分からないものは分からないまま扱う。',
     'group_id が同じ食事は、コピー・繰り返しでつながっている＝内容（summary・items）がわざと同じにしてある。同じ内容が並ぶのは重複ではなく「同じものを繰り返し食べた」という事実なので、まとめたり間引いたりしない。',
   ],
   /* r65: 🩺 健康診断。⚠ **期間で拾いきれない**ものなので、期間外の直近1件が混ざる（in_period で分かる）。
@@ -2556,13 +2620,25 @@ const mealLine = m => m.status === 'done' ? (m.data?.summary || '（書き起こ
                     : m.status === 'todo'  ? '📷 写真だけ記録しました（まだ書き起こしていません）'
                     : m.status === 'error' ? '❌ 読み取りに失敗しました'
                     : '🤖 書き起こし中…';
+/* r80: その食事の「絵」＝写真が無ければ**何で作ったかの印**を出す（.mlCard / .mlMate / .mlX で共通）。
+   ⚠ 出す側4か所で同じ if を書かない＝1か所にすると、あとで印を足しても全部の画面が揃う。
+   ⚠ 作った URL は必ず控えに積む（積み忘れ＝revoke 漏れ＝r5 で踏んだメモリ事故）。 */
+const mealThumbHtml = (m, urls) => {
+  if (mealNoPhoto(m)) return `<div class="noimg" aria-hidden="true">${madeIcon(m) || '✍️'}</div>`;
+  const u = URL.createObjectURL(m.thumb || m.img); urls.push(u);
+  return `<img src="${u}" alt="">`;
+};
 // 書き起こせる（＝まだ中身が無い）写真＝失って困るものが無いので、まとめてやり直してよい（r29 の線引き）
 /* r77: 写真を読み出せなかったものも**外さない**（r76 では外していた）。
    ⚠ 実機で確かめたら**写真は無事だった**＝一時的な失敗を「もう直らない」と決めつけて、
       やり直す道ごと畳んでいた。**直らないと言い切れるのは、⚙ の 📏 で読めないと出た時だけ**。
    ⚠ 代わりに「同じ理由で2回続いたら打ち切り」の**数に入れない**ようにした（下の FREE_FAIL_TAGS）＝
       打ち切りの目的は**無駄な課金を止めること**で、gone は課金が発生していないので止める理由が無い。 */
-const mealTodo = m => m.status === 'todo' || m.status === 'error';
+/* ⚠ r80: 写真の無い記録（✍️ 手入力・🧾 レシートから）は**ここに入れない**。
+   いまの作りでは必ず done で作られるので当たらないはずだが、当たった時に起きることが悪すぎる
+   （まとめて書き起こしが毎回それを読みに行って必ず失敗し、打ち切りに引っかかって
+    本当に読める写真が進まなくなる＝r76 で踏んだのと同じ形）＝**構造で消しておく**。 */
+const mealTodo = m => (m.status === 'todo' || m.status === 'error') && !mealNoPhoto(m);
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
 /* 📷 撮る入口の一言（r38）。⚠ 画面（週／1日）で言うことが違っても、**撮り方の話は同じ**なので1か所に持つ。
    「大きさの分かるものを一緒に写す」は、似たサービスを調べて出てきた実用的な工夫＝
@@ -2585,6 +2661,12 @@ const MEAL_TIP = () =>
 const MEAL_AGAIN_TIP =
   '<br>🔁 <b>同じ食事をよく記録するなら</b>: その食事を開いて「<b>📋 この食事をもう一度</b>」から、'
   + '別の日にコピーしたり、<b>時刻・曜日・いつまで</b>を決めて繰り返し入れたりできます。';
+/* r80: 撮り忘れた時の道を、写真の画面にも書いておく（入口のボタンだけだと「何ができるか」が伝わらない）。
+   ⚠ 2本あることを必ず両方言う＝レシートがある時は 🧾 からの方が速い（品目を選ぶだけで入る）。 */
+const MEAL_HAND_TIP =
+  '<br>✍️ <b>写真を撮り忘れた食事</b>は、上の「<b>✍️ 写真なしで記録する</b>」から入れられます。'
+  + '<br>🧾 <b>レシートがあるなら</b>、🧾 の一覧でそのレシートを開いて「<b>🍽 この買い物から食事を記録する</b>」の方が早いです'
+  + '（<b>読み取り済みの品目から選ぶだけ</b>・AI は使いません＝料金もかかりません）。';
 
 async function renderMeals(){
   /* r42: 🔍 の結果から開いた食事を直した時も、その場で反映する。
@@ -2614,13 +2696,12 @@ async function renderDay(){
       <div class="h">${icon} ${label}${cfg ? `<small>${esc(cfg[0])}〜${esc(cfg[1])}</small>` : '<small>時間帯の外</small>'}`
       + `<span class="n">${rows.length ? `${rows.length}枚` : ''}</span></div>`
       + (rows.length ? rows.map(m => {
-          const u = URL.createObjectURL(m.thumb); mlThumbUrls.push(u);
-          return `<div class="mlCard" data-meal="${esc(m.id)}"><img src="${u}" alt="">`
+          return `<div class="mlCard" data-meal="${esc(m.id)}">${mealThumbHtml(m, mlThumbUrls)}`
             + `<div class="bd"><div class="t">${esc(mealLine(m))}</div>`
             + (m.memo ? `<div class="t" style="color:var(--dim); font-size:12.5px">🗒 ${esc(m.memo)}</div>` : '')
             + `<div class="s">${mealHM(m)}${m.slotAuto ? '' : ' ・ ✏️ 手で直した'}${mealHasExtras(m) ? ' ・ 📎 手がかりあり' : ''}`
-            // r73: 🔁/📋 で入れたものは一覧でも分かるようにする（写真がこの日のものではないので）
-            + `${m.madeBy === 'repeat' ? ' ・ 🔁 繰り返し' : m.madeBy === 'copy' ? ' ・ 📋 コピー' : ''}`
+            // r73/r80: 撮った写真から作ったもの以外は、一覧でもそう言う（r80 で表引きに変えた）
+            + `${m.madeBy ? ` ・ ${madeIcon(m)} ${esc(madeLabel(m))}` : ''}`
             + `${m.tsSrc === 'now' ? ' ・ ⚠ 撮影時刻が読めず取り込んだ時刻' : ''}</div></div></div>`;
         }).join('')
       : '<div class="mlNone">まだありません</div>')
@@ -2629,9 +2710,10 @@ async function renderDay(){
   document.getElementById('mlNote').innerHTML = (await mlAll()).length
     ? '写真の<b>撮影時刻</b>で自動的に振り分けます（時間帯は ⚙ で変えられます）。違っていたら、その食事を開いて区分を選び直してください。'
       + '<br>📷 <b>撮り方のコツ</b>: 箸やスプーンなど<b>大きさの分かるものを一緒に写す</b>と、量まで書き起こせます。'
-      + MEAL_AGAIN_TIP
+      + MEAL_AGAIN_TIP + MEAL_HAND_TIP
     : '食事の写真を選ぶと、写っているものを AI が書き起こして、<b>撮影時刻</b>から 朝食／昼食／夕食／間食 に振り分けます。'
-      + '<br>📷 <b>まず撮るだけで大丈夫です。</b>書き起こしは、あとからまとめてできます。';
+      + '<br>📷 <b>まず撮るだけで大丈夫です。</b>書き起こしは、あとからまとめてできます。'
+      + MEAL_HAND_TIP;
 }
 /* ---------- 📅 週のカレンダー（r36） ----------
    縦が日・横が 朝/昼/夕/間食。⚠ 1日の画面（r35）は消さない＝要約を読むにはこちらが要る。
@@ -2652,10 +2734,13 @@ async function renderWeek(){
     for (const [slot] of MEAL_SLOTS) {
       const rows = all.filter(m => mealDate(m) === day && m.slot === slot);
       html += `<div class="cell" data-cell="${day}|${slot}">` + rows.map(m => {
+        const cls = 'mlThumb' + (m.status === 'pending' ? ' pend' : m.status === 'error' ? ' err' : m.status === 'todo' ? ' todo' : '');
+        const tip = `title="${esc(mealHM(m))} ${esc(mealLine(m))}${m.memo ? ' 🗒 ' + esc(m.memo) : ''}"`;
+        /* r80: 写真なしの記録も**1マスとして出す**＝出さないと「入れたのに週に居ない」になる。
+           ⚠ <img> でなく <div> になるので、長押しの持ち上げ（ghost）は複製で作る（下の pointerdown）。 */
+        if (mealNoPhoto(m)) return `<div class="${cls} noimg" data-meal="${esc(m.id)}" ${tip}>${madeIcon(m) || '✍️'}</div>`;
         const u = URL.createObjectURL(m.thumb); mlThumbUrls.push(u);
-        return `<img class="mlThumb${m.status === 'pending' ? ' pend' : m.status === 'error' ? ' err' : m.status === 'todo' ? ' todo' : ''}"`
-             + ` draggable="false" src="${u}" data-meal="${esc(m.id)}" alt="${esc(mealLine(m)).slice(0, 30)}"`
-             + ` title="${esc(mealHM(m))} ${esc(mealLine(m))}${m.memo ? ' 🗒 ' + esc(m.memo) : ''}">`;
+        return `<img class="${cls}" draggable="false" src="${u}" data-meal="${esc(m.id)}" alt="${esc(mealLine(m)).slice(0, 30)}" ${tip}>`;
       }).join('') + '</div>';
     }
   }
@@ -2771,8 +2856,10 @@ document.getElementById('mlWeek').addEventListener('pointerdown', e => {
   mlDrag.timer = setTimeout(() => {
     if (!mlDrag) return;
     mlDrag.on = true;
-    const g = document.createElement('img');
-    g.id = 'mlDragGhost'; g.src = img.src;
+    /* ⚠ r80: 掴む対象が <img> とは限らない（写真なしの記録は <div>）＝**複製して浮かせる**。
+       <img> に src を入れるだけの作りだと、写真なしを掴んだ瞬間に**中身の無い幽霊**が出る。 */
+    const g = img.cloneNode(true);
+    g.id = 'mlDragGhost'; g.removeAttribute('data-meal'); g.removeAttribute('title');
     g.style.left = mlDrag.x0 + 'px'; g.style.top = mlDrag.y0 + 'px';
     document.body.appendChild(g);
     img.classList.add('lift');
@@ -2860,14 +2947,22 @@ document.getElementById('mlBody').addEventListener('click', async e => {
 function openMeal(m){
   mlCur = m;
   const img = document.getElementById('mlImg');
-  if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
-  const u = URL.createObjectURL(m.img); img.src = u; img.dataset.url = u;
+  if (img.dataset.url) { URL.revokeObjectURL(img.dataset.url); delete img.dataset.url; }
+  /* r80: 写真の無い記録（✍️ 手入力・🧾 レシートから）は**枠ごと隠す**。
+     ⚠ 空の <img> を残すと「読み込みに失敗した写真」に見える＝壊れていないのに壊れて見える。 */
+  img.hidden = mealNoPhoto(m);
+  if (img.hidden) img.removeAttribute('src');
+  else { const u = URL.createObjectURL(m.img || m.thumb); img.src = u; img.dataset.url = u; }
   document.getElementById('mlTitle').textContent = `${SLOT_ICON(m.slot)} ${SLOT_LABEL(m.slot)}`;
   const d = new Date(m.ts);
   document.getElementById('mlHead').innerHTML =
     `<div class="note" style="margin-top:0">${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}（${WD[d.getDay()]}）${mealHM(m)}`
+    /* ⚠ r80: 'manual'（日付・時刻を人が入れた／週で別の日へ動かした）が**どの枝にも無く**、
+       「⚠ 撮影時刻が読めなかった」と出ていた＝自分で入れた時刻を「読めなかった」と言われる嘘。
+       写真なしの記録は必ず manual なので、ここを直さないと全部に警告が出る。 */
     + `${m.tsSrc === 'exif' ? ' ・ 写真の撮影時刻' : m.tsSrc === 'file' ? ' ・ ファイルの時刻'
-        : m.tsSrc === 'made' ? ' ・ 自分で決めた時刻' : ' ・ ⚠ 撮影時刻が読めなかったので取り込んだ時刻'}`
+        : m.tsSrc === 'made' ? ' ・ 自分で決めた時刻' : m.tsSrc === 'manual' ? ' ・ 自分で入れた時刻'
+        : ' ・ ⚠ 撮影時刻が読めなかったので取り込んだ時刻'}`
     + `${m.meta ? ` ・ ${esc(m.meta.model || '')}` : ''}`
     // r67: 何を渡して何秒かかったか（手がかりを足すと遅くなるか・高くなるかを、この行で見られる）
     + `${m.meta?.ms ? ` ・ 画像${m.meta.imgs || 1}枚${m.meta.hinted ? '＋一言' : ''}を ${(m.meta.ms / 1000).toFixed(1)}秒で読取` : ''}</div>`
@@ -2905,13 +3000,16 @@ function openMeal(m){
     /* r68: AI が見分けた 手作り/中食/外食 を必ず出す（人に選ばせない代わりに、判定は見えるようにする）。
        ⚠ 「分からない」も出す＝黙って抜けると、📊 の比率がなぜ合わないか分からなくなる。 */
     const o = m.data.origin, ow = m.data.originWhy, byHuman = m.data.originSrc === 'human';
-    body.innerHTML = `<div class="row"><label>どんな食事か（${byHuman ? '自分で直しました' : 'AI が写真から見分けました'}）</label>
+    // ⚠ r80: 写真の無い記録は「直した」のではなく**最初から自分で入れた**もの＝言葉を事実に合わせる
+    const oBy = !byHuman ? 'AI が写真から見分けました' : mealNoPhoto(m) ? '自分で入れました' : '自分で直しました';
+    body.innerHTML = `<div class="row"><label>どんな食事か（${oBy}）</label>
         <div class="mlDetail">${o ? `${ORIGIN_ICON(o)} <b>${esc(ORIGIN_LABEL(o))}</b>` : '❓ <b>分かりませんでした</b>'}`
       + `${ow && !byHuman ? ` <small style="color:var(--dim)">${esc(ow)}</small>` : ''}`
       + `<br><small style="color:var(--dim)">${byHuman ? '📊 統計にはこの値で入ります。' : '違っていたら、下の ✏️ で直すか、上の「➕ 手がかり」の 📝 に「これは手作りです」と書いて読み直してください。'}</small></div></div>`
       + `<div class="row"><label>要約（📈 分析にはこれを渡します）</label>
         <div class="mlDetail">${esc(m.data.summary || '')}</div></div>`
-      + (it ? `<div class="row"><label>写っていたもの</label>${it}</div>` : '')
+      // ⚠ r80: 写真が無い記録で「写っていたもの」と書かない（写真そのものが無い）
+      + (it ? `<div class="row"><label>${mealNoPhoto(m) ? (m.madeBy === 'receipt' ? 'レシートの品目から入れた料理' : '記録した料理') : '写っていたもの'}</label>${it}</div>` : '')
       + `<details class="adv"><summary>📄 詳細な書き起こし（深掘りの時に渡します）</summary>
         <div class="mlDetail">${esc(m.data.detail || '')}</div></details>`
       + '<div id="mlRcpt"></div>'   // r70: 🧾 レシートとの結び付き（あとから非同期で埋める）
@@ -2931,8 +3029,10 @@ function openMeal(m){
       （r68 で「AI が見分けた判定は必ず見せる」と決めたのと同じ考え＝見えない出どころは信用できない）。 */
 const mealMadeNote = m => !m.madeBy ? '' :
   '<div class="note" style="margin-top:6px; border-left:3px solid var(--acc); padding-left:8px">'
-  + (m.madeBy === 'repeat' ? '🔁 <b>繰り返しで入れた記録です</b>' : '📋 <b>ほかの食事からコピーした記録です</b>')
-  + (m.photoAt ? `（写真は <b>${esc(md(ymdLocal(new Date(m.photoAt))))}</b> に撮ったもの＝この日に撮ったものではありません）` : '')
+  + ((MADE_BY[m.madeBy] || [])[2] || '')
+  /* ⚠ r80: 写真の日付は**写真がある時だけ**言う（写真の無い記録に「写真は◯/◯に撮ったもの」と
+     書くと、在りもしない写真の話になる＝黙るのと同じくらい信用を壊す）。 */
+  + (m.photoAt && !mealNoPhoto(m) ? `（写真は <b>${esc(md(ymdLocal(new Date(m.photoAt))))}</b> に撮ったもの＝この日に撮ったものではありません）` : '')
   + '</div>';
 /* r73: 🔗 同じ束の仲間を出す（どちらから開いても行き来できる＝r70 の 🍽↔🧾 と同じ作り）。
    ⚠ 仲間が居ない時は**丸ごと出さない**（「つながっていません」と書いても誰の役にも立たない）。 */
@@ -2945,12 +3045,11 @@ async function renderMealGroup(m){
   const rules = await rpOfGroup(m.gid);
   mates.sort((a, b) => b.ts - a.ts);
   el.innerHTML = `<div class="row"><label>🔗 つながっている食事（${mates.length}件）</label>`
-    + mates.slice(0, 12).map(x => {
-        const u = URL.createObjectURL(x.thumb); mlGrpUrls.push(u);
-        return `<div class="mlMate" data-mategoto="${esc(x.id)}"><img src="${u}" alt="">`
-          + `<span>${esc(mealDate(x))} ${esc(mealHM(x))}<br><small style="color:var(--dim)">${esc(SLOT_LABEL(x.slot))}${x.madeBy === 'repeat' ? ' ・ 🔁' : x.madeBy === 'copy' ? ' ・ 📋' : ' ・ 📷 もと'}</small></span>`
-          + '<span class="s">見る</span></div>';
-      }).join('')
+    + mates.slice(0, 12).map(x =>
+        `<div class="mlMate" data-mategoto="${esc(x.id)}">${mealThumbHtml(x, mlGrpUrls)}`
+          + `<span>${esc(mealDate(x))} ${esc(mealHM(x))}<br><small style="color:var(--dim)">${esc(SLOT_LABEL(x.slot))}`
+          + `${x.madeBy ? ` ・ ${madeIcon(x)}` : ' ・ 📷 もと'}</small></span>`
+          + '<span class="s">見る</span></div>').join('')
     + (mates.length > 12 ? `<div class="mlNone">ほか ${mates.length - 12}件</div>` : '')
     + `<div class="note" style="margin-top:6px">直す時・消す時に「この食事だけ／つながっている全部」を選べます。`
     + (rules.length ? `<br>🔁 この束には<b>繰り返しの決まりが ${rules.length}件</b>あります（🍽 の画面の下で止められます）。` : '')
@@ -2993,9 +3092,12 @@ async function renderMealRcpt(m){
       <div class="note">結び付けると、📤 書き出しで「この食事にいくら使ったか」が一緒に渡ります。</div></div>`;
     return;
   }
-  el.innerHTML = m.data?.origin === 'out'
-    ? `<div class="note">🧾 <b>この食事のレシートは、まだありません。</b>上の「➕ 手がかり」から <b>🧾 レシート・伝票</b> を足して 📝 を押すと、<b>🧾 レシートの一覧にも記録します</b>（撮ったのに上げ忘れる、が無くなります）。</div>`
-    : '';
+  /* ⚠ r80: 写真の無い記録に「➕ から足して 📝 を押す」と案内しない＝その 📝 は押せない（行き止まり）。
+     この記録から言えるのは「レシートを 🧾 として読み取れば、ここで聞きます」までにする。 */
+  el.innerHTML = m.data?.origin !== 'out' ? ''
+    : mealNoPhoto(m)
+    ? '<div class="note">🧾 <b>この食事のレシートは、まだありません。</b>レシートを 📷 で撮って読み取ると、<b>同じ日の近い時刻のもの</b>をここで「これですか？」と聞きます。</div>'
+    : `<div class="note">🧾 <b>この食事のレシートは、まだありません。</b>上の「➕ 手がかり」から <b>🧾 レシート・伝票</b> を足して 📝 を押すと、<b>🧾 レシートの一覧にも記録します</b>（撮ったのに上げ忘れる、が無くなります）。</div>`;
 }
 // 📝 1枚だけ書き起こす（詳細から）
 document.getElementById('mlBodyDetail').addEventListener('click', async e => {
@@ -3078,9 +3180,17 @@ function renderMealExtras(m){
   const hintEl = document.getElementById('mlHint');
   if (document.activeElement !== hintEl) hintEl.value = m.hint || '';
   const key = !!ctxFor('meal').key, run = document.getElementById('btnMlRunX');
-  run.disabled = !key || mlExtraBusy > 0; run.style.opacity = run.disabled ? '.5' : '';
-  run.textContent = mlExtraBusy > 0 ? '🖼 写真を準備中…' : m.status === 'done' ? '📝 この手がかりで書き起こし直す' : '📝 この手がかりで書き起こす';
-  document.getElementById('mlExtraNote').innerHTML = !key
+  /* ⚠ r80: 写真の無い記録（✍️ 手入力・🧾 レシートから）では **📝 を押せなくする**。
+     押すと「料理の写真」が無いまま AI を呼びに行って必ず失敗し、status が error になって
+     **せっかく手で入れた内容が画面から消えて見える**（r29 の線引き＝読めているものを壊せるボタンにしない）。 */
+  const noPhoto = mealNoPhoto(m);
+  run.disabled = noPhoto || !key || mlExtraBusy > 0; run.style.opacity = run.disabled ? '.5' : '';
+  run.textContent = noPhoto ? '📝 料理の写真がないので書き起こせません'
+    : mlExtraBusy > 0 ? '🖼 写真を準備中…' : m.status === 'done' ? '📝 この手がかりで書き起こし直す' : '📝 この手がかりで書き起こす';
+  document.getElementById('mlExtraNote').innerHTML = noPhoto
+    ? '⚠ この記録には<b>料理の写真がありません</b>（✍️ 手入力・🧾 レシートから作ったもの）＝AI が読むものが無いので書き起こせません。'
+      + '<br>内容を足すなら下の <b>✏️ 手で直す</b>から。写真を撮ってある食事なら、下の帯の <b>🍽 料理</b> から別の記録として入れてください。'
+    : !key
     ? '⚙ で APIキーを登録すると書き起こせます（手がかりは今のうちに足しておけます）。'
     : (mealMultiOn() ? '' : '毎回、撮った直後にこの欄を開くには ⚙ の「🍽 料理を撮ったあと」に ☑ を入れてください。');
 }
@@ -3140,6 +3250,8 @@ document.getElementById('mlHint').addEventListener('input', () => { clearTimeout
 document.getElementById('btnMlRunX').onclick = async e => {
   if (!mlCur) return;
   const id = mlCur.id;
+  // ⚠ r80: 見た目で止めるだけにしない＝描き直す前の画面から押されても、ここで止める
+  if (mealNoPhoto(mlCur)) { toast('料理の写真がない記録は書き起こせません（✏️ 手で直す から書けます）'); return; }
   if (!okToOverwrite(await mlGet(id))) return;   // r69
   e.target.disabled = true; e.target.textContent = '🤖 書き起こし中…';
   await mlExtraPending;    // ⚠ 足している最中の写真を待ってから（待たないと手がかり無しで読みに行く）
@@ -3252,7 +3364,9 @@ document.getElementById('btnMlDel').onclick = async () => {
   if (!mlCur) return;
   const mates = await mealMates(mlCur);
   if (!mates.length) {
-    if (!confirm('この食事の記録を削除しますか？（写真もいっしょに消えます）')) return;
+    // ⚠ r80: 写真の無い記録に「写真もいっしょに消えます」と言わない（在りもしない物の話をしない）
+    if (!confirm(mealNoPhoto(mlCur) ? 'この食事の記録を削除しますか？（元に戻せません）'
+                                    : 'この食事の記録を削除しますか？（写真もいっしょに消えます）')) return;
     await mlDel(mlCur.id); hide('ovMeal'); mlCur = null; return renderMeals();
   }
   const rules = await rpOfGroup(mlCur.gid);
@@ -3276,11 +3390,166 @@ document.getElementById('btnMlCopy').onclick = async () => {
   const m = mlCur, d = new Date(m.ts);
   const txt = `🍽 ${SLOT_LABEL(m.slot)}　${ymdLocal(d)} ${mealHM(m)}\n`
     + `要約: ${m.data?.summary || '（未読み取り）'}\n`
+    // ⚠ r80: 貼った先の AI が「写真から読んだ内容」と思い込まないように、写真が無いことは文にも入れる
+    + (mealNoPhoto(m) ? `※ 料理の写真はありません（${madeLabel(m) || '手入力'}の記録）\n` : '')
     + (m.memo ? `ひとこと: ${m.memo}\n` : '')
     + (m.data?.items?.length ? `\n${m.data.items.map(x => `- [${x.kind || ''}] ${x.name}${x.amount ? `（${x.amount}）` : ''}${x.note ? ` ※${x.note}` : ''}`).join('\n')}\n` : '')
     + (m.data?.detail ? `\n詳細:\n${m.data.detail}\n` : '');
   try { await navigator.clipboard.writeText(txt); toast('📄 文字をコピーしました'); }
   catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
+};
+
+/* ---------- ✍️🧾 写真なしで記録する（r80） ----------
+   要望（2026-08-20）＝「**食事の写真を撮り忘れたとき**のために、食事の画像なしに、手入力や
+   レシートの画像解析とかで食事を記録できるようにしたい」。
+   入口は2つ・作る画面は1つ:
+     ✍️ 手入力     ＝🍽 の画面から。**見ている日**に、何を食べたかを打って入れる
+     🧾 レシートから ＝**読み取り済みのレシート**の詳細から。品目のうち「食べたもの」を選んで食事にする
+   🥇 レシートの側は **もう AI が読んである**（店名・日付・時刻・品目）＝**AI をもう一度呼ばない**。
+      同じ写真を食事としてもう一度読ませると料金が2回かかるうえ、品目は**印字の方が確か**
+      （写真から見た目で当てるより、レシートに印字された品名の方が外さない）。
+   ⚠ どちらも **AI が写真から読んだものではない**＝ madeBy に印を残し、一覧・詳細・📤 で必ず言う。
+      黙ると、あとで見返した自分が「AI が写真から読んだ内容」と取り違える（r68・r73 と同じ約束）。
+   ⚠ status は 'done'（中身がもう入っている）＝ todo にすると 📝 まとめて書き起こし が
+      **写真の無い記録を読ませようとして必ず失敗する**（しかも毎回・打ち切りにも引っかかる）。 */
+let mlNewSrc = null;        // null＝✍️ 手入力／{ rec, rc }＝🧾 レシートから
+let mlNewOrg = null;        // 選んでいる 手作り/中食/外食（null＝分からない）
+let mlNewTouched = false;   // 要約を人が打ったか＝打っていない間だけ、選んだ品目から作り直す
+const mlNewEl = id => document.getElementById(id);
+/* レシートの分類から「どんな食事か」の見当をつける。⚠ **決めつけない**＝分からない分類は null のまま。
+   ⚠ ここで当てた値も、人が画面で見て 記録する を押して初めて入る＝だから originSrc は 'human'
+      （AI が写真から見分けたわけではないので 'ai' と書くと嘘になる）。 */
+const originGuessOf = rc => rc?.category === '外食' ? 'out' : rc?.category === '食費' ? 'store' : null;
+/* 選んだ品目名から要約を作る。⚠ 長くなりすぎたら**切らずに「ほか N品」**にする
+   （途中で切れた料理名は、あとで読んだ時に何のことか分からない）。 */
+function summaryOfNames(names){
+  const out = [];
+  let len = 0;
+  for (const n of names) {
+    if (out.length && len + n.length > 40) break;
+    out.push(n); len += n.length + 1;
+  }
+  const rest = names.length - out.length;
+  return out.join('、') + (rest > 0 ? `　ほか ${rest}品` : '');
+}
+const mlNewNames = () => [...document.querySelectorAll('#mlNewItemList input:checked')]
+  .map(el => el.dataset.name).filter(Boolean);
+function renderMlNewSummary(){
+  if (mlNewTouched) return;                       // 人が打ったものを上書きしない
+  mlNewEl('mlNewSummary').value = summaryOfNames(mlNewNames());
+}
+// いま入れている時刻がどの区分に入るかを、押す前に見せる（あとで「朝食に入っていた」と驚かない）
+function renderMlNewSlot(){
+  const t = mlNewTime();
+  const s = t ? slotOfTime(t) : null;
+  mlNewEl('mlNewSlot').innerHTML = s
+    ? `この時刻は <b>${SLOT_ICON(s)} ${esc(SLOT_LABEL(s))}</b> に入ります（あとで変えられます）。`
+    : '⚠ 日付と時刻を入れてください。';
+}
+function mlNewTime(){
+  const d = mlNewEl('mlNewDate').value, t = mlNewEl('mlNewTime').value;
+  if (!d || !t) return null;
+  const ms = new Date(`${d}T${t}:00`).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+function renderMlNewOrigin(){
+  mlNewEl('mlNewOrigin').innerHTML = [...MEAL_ORIGIN, [null, '❓', '分からない']].map(([k, icon, label]) =>
+    `<button type="button" data-mlnewo="${k || ''}"${mlNewOrg === k ? ' class="on"' : ''}>${icon} ${esc(label)}</button>`).join('');
+}
+/* 画面を開く。src が無ければ ✍️ 手入力、あれば 🧾 レシートから。
+   ⚠ 既定の日は **見ている日**（撮った時刻が無いので、そこしか手がかりが無い）。
+      今日を見ているなら時刻も今＝いちばん多い「さっき食べた」を1回も触らずに出せる。 */
+function openMlNew(src){
+  mlNewSrc = src || null;
+  mlNewTouched = false;
+  const rc = src?.rc;
+  const day = rc ? (rc.date || capDate(src.rec)) : mlDayNow();
+  const now = new Date();
+  mlNewEl('mlNewDate').value = day;
+  mlNewEl('mlNewTime').value = rc ? (rc.time || '12:00')
+    : (day === todayStr() ? `${pad2(now.getHours())}:${pad2(now.getMinutes())}` : '12:00');
+  mlNewEl('mlNewTitle').textContent = rc ? '🧾 レシートから食事を記録' : '✍️ 写真なしで記録';
+  mlNewEl('mlNewNote').innerHTML = rc
+    ? `<b>${esc(rcptTitle(rc))}</b> の品目から食事の記録を作ります。`
+      + '<br>🧾 <b>このレシートはもう読み取ってあるので、AI は使いません</b>（料金はかかりません）。'
+      + '<br>⚠ できるのは<b>料理の写真が無い記録</b>です（レシートの写真は 🧾 の側に残ります）。作ったあと ✏️ で足せます。'
+    : '写真を撮り忘れた食事を、あとから入れられます。'
+      + '<br>⚠ <b>AI は使いません</b>（写真が無いので読み取るものがありません）＝書いたものがそのまま記録になります。'
+      + '<br>🧾 <b>レシートがあるなら</b>、🧾 の一覧からそのレシートを開いて「🍽 この買い物から食事を記録する」の方が早いです（品目を選ぶだけで入ります）。';
+  mlNewOrg = rc ? originGuessOf(rc) : null;
+  renderMlNewOrigin();
+  mlNewEl('mlNewOriginNote').innerHTML = rc
+    ? `レシートの分類（${esc(rc.category || '—')}）から見当をつけました。違っていたら選び直してください。`
+      + '<br>⚠ 選ばなければ「分からない」のまま入ります（📊 統計では<b>分母から外れます</b>＝当てずっぽうで比率を汚しません）。'
+    : '⚠ 選ばなければ「分からない」のまま入ります（📊 統計では<b>分母から外れます</b>）。';
+  // 🧾 の時だけ品目を選ぶ欄を出す（✍️ 手入力には選ぶものが無い）
+  const items = (rc?.items || []).filter(x => String(x.name || '').trim());
+  mlNewEl('mlNewItems').innerHTML = !items.length ? '' :
+    `<div class="row"><label>この買い物のうち、食べたもの（${items.length}品）</label>
+      <div id="mlNewItemList">` + items.map((x, i) =>
+        `<label class="mlChk"><input type="checkbox" data-mlni="${i}" data-name="${esc(x.name)}" checked>`
+        + `<span class="n">${esc(x.name)}${x.qty > 1 ? ` ×${esc(x.qty)}` : ''}</span>`
+        + `<span class="p">${x.price != null ? esc(yen(x.price)) : ''}</span></label>`).join('')
+    + `</div><button class="btn" type="button" id="btnMlNewNone" style="margin-top:6px">☐ 全部はずす</button>
+       <div class="note" style="margin-top:4px">⚠ <b>食べていないもの（日用品など）は外してください。</b>外した品目はレシートの側にそのまま残ります（金額は動きません）。</div></div>`;
+  mlNewEl('mlNewSummary').value = '';
+  mlNewEl('mlNewMemo').value = '';
+  renderMlNewSummary();
+  renderMlNewSlot();
+  mlNewEl('ovMlNew').querySelector('.sheet').scrollTop = 0;
+  show('ovMlNew');
+}
+mlNewEl('mlNewOrigin').addEventListener('click', e => {
+  const b = e.target.closest('[data-mlnewo]'); if (!b) return;
+  mlNewOrg = b.dataset.mlnewo || null;
+  renderMlNewOrigin();
+});
+mlNewEl('mlNewItems').addEventListener('change', e => {
+  if (e.target.closest('#mlNewItemList')) renderMlNewSummary();
+});
+mlNewEl('mlNewItems').addEventListener('click', e => {
+  if (!e.target.closest('#btnMlNewNone')) return;
+  const boxes = [...document.querySelectorAll('#mlNewItemList input')];
+  const anyOn = boxes.some(b => b.checked);
+  boxes.forEach(b => { b.checked = !anyOn; });
+  e.target.textContent = anyOn ? '☑ 全部えらぶ' : '☐ 全部はずす';
+  renderMlNewSummary();
+});
+mlNewEl('mlNewSummary').addEventListener('input', () => { mlNewTouched = true; });
+['mlNewDate', 'mlNewTime'].forEach(id => mlNewEl(id).addEventListener('change', renderMlNewSlot));
+mlNewEl('btnMlHand').onclick = () => openMlNew(null);
+mlNewEl('btnMlNewSave').onclick = async () => {
+  const ts = mlNewTime();
+  if (!ts) { toast('日付と時刻を入れてください'); return; }
+  if (ts > Date.now()) { toast('⚠ 未来の時刻には入れられません（記録は「食べた」ものです）'); return; }
+  const summary = mlNewEl('mlNewSummary').value.trim();
+  if (!summary) { toast('何を食べたかを1行だけ入れてください'); return; }
+  const rc = mlNewSrc?.rc;
+  /* レシートの品目 → 料理の行。⚠ **種類（主食/主菜…）は「その他」**にする＝レシートの品名からは分からない。
+     分かったふりで割り振ると、あとで種類ごとに数えた時に嘘になる（✏️ で直せる）。
+     ⚠ **金額は入れない**＝金額はレシートの側の事実（結び付けてあるので二重に数えない）。 */
+  const names = rc ? mlNewNames() : [];
+  const items = names.map(n => ({ name: n, kind: 'その他', amount: null, note: null }));
+  const memo = mlNewEl('mlNewMemo').value.trim();
+  const rec = { id: newId('m'), ts, tsSrc: 'manual', addedAt: Date.now(),
+                slot: slotOfTime(ts), slotAuto: true,
+                status: 'done',
+                img: null, thumb: null,          // ⚠ 写真は無い（mealNoPhoto がこれを見る）
+                data: { summary, detail: '', origin: mlNewOrg, originSrc: 'human', originWhy: null, items },
+                error: null, errors: [], meta: null,
+                origin: mlNewOrg, hint: null, extras: [], memo: memo || null,
+                madeBy: rc ? 'receipt' : 'hand' };
+  await mlPut(rec);
+  if (mlNewSrc?.rec) await linkMealRcpt(rec.id, mlNewSrc.rec.id);   // 🧾 と 🍽 を両側から行き来できるように
+  hide('ovMlNew');
+  hide('ovDetail');
+  // ⚠ 入った日へ移動してから開く＝「入れたのに出てこない」を作らない（r35 と同じ作法）
+  const day = mealDate(rec);
+  if (day !== mlDayNow()) { mlDay = day; localStorage.setItem(ML.day, mlDay); }
+  await setTopTab('meals');
+  await renderMeals();
+  toast(rc ? '🧾 レシートから食事を記録しました' : '✍️ 記録しました');
+  openMeal(await mlGet(rec.id) || rec);
 };
 
 /* ---------- 🔁 繰り返し と 📋 コピー（r73） ----------
@@ -3425,6 +3694,7 @@ const rpOfGroup = async gid => !gid ? [] : (await rpAll()).filter(r => r.gid ===
 
 /* ---------- 📋🔁 「この食事をもう一度」の画面（r73） ---------- */
 let mlRepSrcId = null, mlRepEditId = null, mlRepMode = 'once', mlRepAuto = 'ask', mlRepDaysSel = new Set();
+let mlRepNoPhoto = false;   // r80: もとの食事に写真が無いか（案内文の言い方が変わる）
 function renderMlRepDays(){
   document.getElementById('mlRepDays').innerHTML =
     WD.map((w, i) => `<button type="button" data-repday="${i}"${mlRepDaysSel.has(i) ? ' class="on"' : ''}>${w}</button>`).join('');
@@ -3440,15 +3710,19 @@ function renderMlRep(){
   document.getElementById('btnMlRepSave').textContent = mlRepEditId ? '🔁 この内容に直す'
     : mlRepMode === 'once' ? '📋 この日に入れる' : '🔁 この繰り返しを始める';
   document.getElementById('mlRepNote').innerHTML =
-      '⚠ 入るのは<b>何を食べたか</b>（要約・詳細・料理・手作り/中食/外食）と<b>写真</b>です。'
+      `⚠ 入るのは<b>何を食べたか</b>（要約・詳細・料理・手作り/中食/外食）${mlRepNoPhoto ? '' : 'と<b>写真</b>'}です。`
     + '<b>🗒 ひとこと・📎 手がかり・🧾 レシートの結び付きは入りません</b>（その日その1回きりのものなので）。'
-    + '<br>⚠ 写真は<b>もとの食事のもの</b>を使います（その日に撮ったものではないことは、食事を開くと書いてあります）。'
+    // ⚠ r80: もとに写真が無い（✍️ 手入力・🧾 レシートから）時に「写真を使います」と言わない
+    + (mlRepNoPhoto
+        ? '<br>⚠ もとの食事には<b>写真がありません</b>（✍️ 手入力・🧾 レシートから作ったもの）＝入る記録にも写真は付きません。'
+        : '<br>⚠ 写真は<b>もとの食事のもの</b>を使います（その日に撮ったものではないことは、食事を開くと書いてあります）。')
     + '<br>⚠ 区分（朝食／昼食／夕食／間食）は<b>時刻から決まります</b>（あとで食事を開いて直せます）。'
     + '<br>⚠ 入れられるのは<b>今日まで</b>です（記録は「食べた」ものなので、先の日には作りません）。'
     + '<br>🔗 ここから作った食事は<b>もとの食事とつながります</b>＝直す時・消す時に「この食事だけ／つながっている全部」を選べます。';
 }
 function openMlRep(m){
   mlRepSrcId = m.id; mlRepEditId = null; mlRepMode = 'once'; mlRepAuto = 'ask'; mlRepDaysSel = new Set();
+  mlRepNoPhoto = mealNoPhoto(m);   // r80: 案内文で「写真も入ります」と言ってよいか
   document.getElementById('mlRepTitle').textContent = '📋 この食事をもう一度';
   document.getElementById('mlRepSrc').innerHTML =
     `もとにする食事: <b>${esc(m.data?.summary || '（書き起こしていない食事）')}</b>`
@@ -3475,6 +3749,7 @@ function openMlRep(m){
 // 既にある繰り返しを直す（🔁 の一覧の ✏️ から）。⚠ 同じ画面を使う＝2つ作らない
 function openMlRepEdit(rp){
   mlRepSrcId = null; mlRepEditId = rp.id; mlRepMode = 'every'; mlRepAuto = rp.mode === 'auto' ? 'auto' : 'ask';
+  mlRepNoPhoto = !rp.thumb && !rp.img;   // r80: 決まりの側にも写真が無いことがある
   mlRepDaysSel = new Set(rp.days || []);
   document.getElementById('mlRepTitle').textContent = '🔁 繰り返しを直す';
   document.getElementById('mlRepSrc').innerHTML = `くり返している食事: <b>${esc(rpTitleOf(rp))}</b>`;
@@ -4592,9 +4867,8 @@ async function renderMealHits(on){
   if (!hits.length) { box.hidden = true; box.innerHTML = ''; return { hits: 0, off, skipped }; }
   box.innerHTML = `<div class="mon"><b>🍽 食事 ${hits.length}件</b><span>タップで書き起こしを読む</span></div>`
     + hits.map(m => {
-        const u = URL.createObjectURL(m.thumb); sMealUrls.push(u);
         return `<div class="rec" data-mealhit="${esc(m.id)}">
-          <img src="${u}" alt="">
+          ${mealThumbHtml(m, sMealUrls)}
           <div class="mid"><div class="st">${SLOT_ICON(m.slot)} ${esc(mealLine(m))}</div>
           <div class="sub">${mealDate(m)} ${mealHM(m)} ・ ${esc(SLOT_LABEL(m.slot))}${m.memo ? ' ・ 🗒 ' + esc(m.memo) : ''}</div></div>
         </div>`;
@@ -4849,7 +5123,12 @@ async function openDetail(id, i = 0){
           + `<td>${it.price != null ? yen(it.price) : ''}</td></tr>`).join('') + '</table>' : '')
       + (receiptIssues(d).length
           ? `<div class="note warn">⚠ 数字が合いません（読み違いの可能性）<br>${receiptIssues(d).map(esc).join('<br>')}<br>✏️ で直せます。</div>` : '')
-      + editBtn(rcs.length > 1 ? `この 🧾 ${detailIdx + 1}枚目 を手で直す` : '手で直す'))
+      + editBtn(rcs.length > 1 ? `この 🧾 ${detailIdx + 1}枚目 を手で直す` : '手で直す')
+      /* r80: 撮り忘れた食事を、このレシートから起こす。⚠ **もう読み取ってあるので AI は呼ばない**
+         （同じ写真を食事として読ませ直すと料金が2回・品目は印字の方が確か）。
+         ⚠ すでに食事が結び付いているレシートには出さない＝押すと2件目ができて二重に数える。 */
+      + (r.mealId ? '' : `<button class="btn" id="btnRcptMeal" style="margin-top:10px">🍽 この買い物から食事を記録する（写真なし）</button>
+          <div class="note">🍽 料理の写真を撮り忘れた時に。品目のうち<b>食べたものを選ぶだけ</b>で、食事の記録になります。</div>`))
       // 失敗してから読めた記録（r30）。⚠ 文面は 🍽 と共通の部品から（r49＝片方だけ直る事故を構造で防ぐ）
       + (d ? recoveredNote(r, 'ocr') : '')
       + (r.edited ? '<div class="note">✏️ 手で直したレシートです</div>' : '')
@@ -4868,14 +5147,21 @@ async function renderRcptMeal(r){
   dMealUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
   const m = r.mealId ? await mlGet(r.mealId) : null;
   if (!m) { el.innerHTML = ''; return; }
-  const u = URL.createObjectURL(m.thumb); dMealUrls.push(u);
   el.innerHTML = `<div class="row"><label>🍽 この食事の記録</label>
-    <div class="mlX"><img src="${u}" alt=""><span class="k">${esc(mealLine(m))}<br><small style="color:var(--dim)">${esc(mealDate(m))} ${esc(mealHM(m))}</small></span>
+    <div class="mlX">${mealThumbHtml(m, dMealUrls)}<span class="k">${esc(mealLine(m))}<br><small style="color:var(--dim)">${esc(mealDate(m))} ${esc(mealHM(m))}`
+    + `${m.madeBy ? ` ・ ${madeIcon(m)} ${esc(madeLabel(m))}` : ''}</small></span>
     <button type="button" data-mealgo="${esc(m.id)}">見る</button></div></div>`;
 }
 document.getElementById('dBody').onclick = async e => {
   const mg = e.target.closest('[data-mealgo]');
   if (mg) { const m = await mlGet(mg.dataset.mealgo); if (m) { hide('ovDetail'); await setTopTab('meals'); openMeal(m); } return; }
+  // r80: 🧾 → 🍽（写真なしの食事を、いま開いているレシートから作る）
+  if (e.target.closest('#btnRcptMeal')) {
+    const r = await dbGet(detailId); if (!r) return;
+    const rc = receiptsOf(r)[detailIdx]; if (!rc) { toast('まだ読み取れていません'); return; }
+    openMlNew({ rec: r, rc });
+    return;
+  }
   const go = e.target.closest('[data-go]');
   if (go) { openDetail(detailId, +go.dataset.go); return; }   // 同じ写真の別のレシートへ（r28）
   // 📋 失敗の記録を持ち出す＝r29 の宿題「❌ の文言を控える」をボタン1つにする（r30）
@@ -6115,13 +6401,19 @@ const ORIGIN_OPTS = [['', '（分からない）'], ...MEAL_ORIGIN.map(([k,, lab
 const EDIT_SPECS = {
   meal: {
     title: '🍽 食事を直す', get: mlGet, put: mlPut,
-    note: 'AI の書き起こしが違っていたら、ここで直せます。<b>要約</b>は 📈 分析と 📤 書き出しにそのまま渡ります。',
+    /* ⚠ r80: 写真の無い記録に「AI の書き起こしが違っていたら」と言わない（AI は何も書いていない）。
+       案内は**その記録がどうやってできたか**で変わる＝note を関数にした（tables と同じ作法）。 */
+    note: rec => (mealNoPhoto(rec)
+        ? '<b>写真のない記録</b>です（✍️ 手入力・🧾 レシートから）＝ここに書いたものが、そのまま記録になります。'
+          + '<br>🍽 <b>料理の行は自由に足せます</b>（種類・量も入れられます。レシートから作った行は種類が「その他」のままです）。'
+        : 'AI の書き起こしが違っていたら、ここで直せます。')
+      + '<br><b>要約</b>は 📈 分析と 📤 書き出しにそのまま渡ります。',
     fields: [
       { k: 'data.summary', label: '要約（📈 分析に渡ります）', type: 'text' },
       { k: 'data.origin',  label: '手作り / 中食 / 外食', type: 'select', opts: ORIGIN_OPTS },
       { k: 'data.detail',  label: '詳細な書き起こし（深掘りの時に渡ります）', type: 'area', rows: 5 },
     ],
-    tables: [{ k: 'data.items', label: '写っていた料理（行を足せます）', add: '＋ 料理を足す', key: 'name',
+    tables: rec => [{ k: 'data.items', label: `${mealNoPhoto(rec) ? '料理' : '写っていた料理'}（行を足せます）`, add: '＋ 料理を足す', key: 'name',
       cols: [{ k: 'name', label: '料理名', flex: 3 }, { k: 'kind', label: '種類', type: 'select', opts: MEAL_KINDS, w: 92 },
              { k: 'amount', label: '量', flex: 2 }, { k: 'note', label: 'メモ', flex: 2 }] }],
     /* ⚠ 人が直したら「AI が見分けました」と言い続けない＝**表示が嘘になる**（AI の理由もその判定のものなので消す）。
@@ -6194,7 +6486,8 @@ async function openEditor(kind, id){
   if (!rec || !rec.data) { toast('まだ書き起こしていないので直せません'); return; }
   ed2Kind = kind; ed2Id = id;
   document.getElementById('ed2Title').textContent = '✏️ ' + spec.title;
-  document.getElementById('ed2Note').innerHTML = spec.note;
+  // r80: 案内はその記録によって変わることがある（写真がある/ない）＝関数でも書けるようにした
+  document.getElementById('ed2Note').innerHTML = typeof spec.note === 'function' ? spec.note(rec) : spec.note;
   renderEd2(spec, rec);
   document.getElementById('ovEd2').querySelector('.sheet').scrollTop = 0;
   show('ovEd2');
@@ -6291,20 +6584,31 @@ async function renderMealStats(){
     const o = ks.filter(m => m.origin === 'out').length;
     return { label, icon, n: ks.length, o, p: ks.length ? Math.round(o / ks.length * 100) : 0 };
   }).filter(x => x.n);
+  /* r80: 写真から書き起こしたものと、写真なしで入れたもの（✍️/🧾）が混ざるようになった。
+     ⚠ 「書き起こした食事」「AI が見分けた」と言い切ると**嘘になる**＝件数を分けて言う。 */
+  const noPhotoN = all.filter(mealNoPhoto).length;
+  const humanN = known.filter(m => m.data?.originSrc === 'human').length, aiN = known.length - humanN;
   pane.innerHTML =
-    `<div class="note" style="margin-top:0">${esc(per.label)}・書き起こした食事 <b>${all.length}件</b>`
-      + `${unknown ? `（うち <b>${unknown}件</b>は AI が見分けられませんでした＝下の比率の母数から外しています）` : ''}</div>`
+    `<div class="note" style="margin-top:0">${esc(per.label)}・記録した食事 <b>${all.length}件</b>`
+      + `${noPhotoN ? `（うち <b>${noPhotoN}件</b>は写真なし＝✍️ 手入力・🧾 レシートから）` : ''}`
+      + `${unknown ? `（うち <b>${unknown}件</b>は手作り/中食/外食が分かりません＝下の比率の母数から外しています）` : ''}</div>`
     + (known.length ? `<div class="stBar" style="height:14px; border-radius:7px; margin:10px 0">${bar}</div>`
         + rows.map(r => `<div class="stRow"><span class="dot" style="background:${ORIGIN_COLOR[r.k]}"></span>`
             + `<span class="nm">${r.icon} ${esc(r.label)}</span><span class="pct">${r.p}%</span>`
             + `<span class="val">${r.n}件</span></div>`).join('')
-        + `<div class="note">🍴 <b>外食は ${pct(cnt('out'))}%</b>（${cnt('out')}件 / 見分けられた ${known.length}件）</div>`
+        // ⚠ r80: 「見分けられた」は AI だけの言い方＝自分で入れたものも母数に居るので「分かっている」に
+        + `<div class="note">🍴 <b>外食は ${pct(cnt('out'))}%</b>（${cnt('out')}件 / 分かっている ${known.length}件）</div>`
         + (bySlot.length > 1 ? `<div class="row" style="margin-top:14px"><label>区分ごとの外食率</label>`
             + bySlot.map(s => `<div class="stBarRow"><span class="lab">${s.icon} ${esc(s.label)}</span>`
                 + `<span class="stBar"><i style="width:${s.p}%; background:${ORIGIN_COLOR.out}"></i></span>`
                 + `<span class="pct">${s.p}%（${s.o}/${s.n}）</span></div>`).join('') + `</div>` : '')
-      : '<div class="hEmpty">この期間は、AI が手作り/中食/外食を見分けられた食事がありません。</div>')
-    + `<div class="note" style="margin-top:14px">⚠ 手作り／中食／外食は <b>AI が写真から見分けた</b>ものです（容器から家の皿に移した物などは「見分けられません」になります）。個々の食事を開くと、何をもとにそう見たかが出ます。違っていたら 📝 の一言で直せます。</div>`;
+      : '<div class="hEmpty">この期間は、手作り/中食/外食が分かっている食事がありません。</div>')
+    // ⚠ r80: どこから来た判定かを件数で言う（全部 AI のように書かない）
+    + `<div class="note" style="margin-top:14px">⚠ 手作り／中食／外食は`
+      + `${aiN ? ` <b>AI が写真から見分けたもの ${aiN}件</b>` : ''}${aiN && humanN ? ' と' : ''}`
+      + `${humanN ? ` <b>自分で入れた・直したもの ${humanN}件</b>` : ''}です`
+      + `${aiN ? '（AI は、容器から家の皿に移した物などを「見分けられません」にします）' : ''}。`
+      + '個々の食事を開くと、どちらなのかが出ます。AI の見分けが違っていたら 📝 の一言か ✏️ で直せます。</div>';
 }
 
 /* ---------- 💴 支出マップ（統計 × 地図） ----------
@@ -6992,8 +7296,12 @@ function exportMealsJson(meals, withDetail){
     ...(m.rcptId ? { receipt_id: m.rcptId } : {}),   // r70: 本人が結び付けたレシート（🧾 の一覧にも同じ物が居る）
     /* r73: 🔁 繰り返し・📋 コピーで作った記録＝**その日に撮った写真ではない**ことを必ず添える
        （黙っていると、受け取った AI が「同じ写真が別の日にある」と読んで日付を疑い始める） */
-    ...(m.madeBy ? { made_by: m.madeBy === 'repeat' ? 'repeat' : 'copy',
-                     photo_date: m.photoAt ? ymdLocal(new Date(m.photoAt)) : null } : {}),
+    ...(m.madeBy ? { made_by: m.madeBy } : {}),
+    // ⚠ 写真の日付は**写真がある時だけ**（写真の無い記録に写真の日付を書かない）
+    ...(m.madeBy && !mealNoPhoto(m) && m.photoAt ? { photo_date: ymdLocal(new Date(m.photoAt)) } : {}),
+    /* r80: 料理の写真そのものが無い記録（✍️ 手入力・🧾 レシートから）。
+       ⚠ 受け取った AI が「中身が薄い＝食事が貧しい」と読み違えないように、印を必ず付ける。 */
+    ...(mealNoPhoto(m) ? { no_photo: true } : {}),
     ...(m.gid ? { group_id: m.gid } : {}),
     items: (m.data.items || []).map(x => ({ name: x.name, kind: x.kind, amount: x.amount ?? null })),
     ...(withDetail ? { detail: m.data.detail || '' } : {}),
