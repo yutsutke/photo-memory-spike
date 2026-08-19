@@ -175,6 +175,17 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 .stItem{display:flex; gap:8px; font-size:13px; color:var(--dim); padding:5px 0; border-bottom:1px solid var(--line);}
 .stItem .s{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .stItem .a{color:var(--fg); white-space:nowrap;}
+/* 📈 r74: 推移の1行＝区切りの名前／棒／金額／前の区切りとの差。⚠ 差の列を独立させる（推移の値打ちはここ） */
+#stTabs button{font-size:14.5px; padding:10px 2px;}
+.trRow{display:flex; align-items:center; gap:8px; font-size:12.5px; padding:7px 0 3px; min-height:44px;}
+.trRow .lab{width:60px; color:var(--dim); flex:none;}
+.trRow .stBar{flex:1; height:12px;}
+.trRow .v{width:74px; text-align:right; white-space:nowrap; flex:none; font-size:13px;}
+.trRow .d{width:66px; text-align:right; white-space:nowrap; flex:none; color:var(--dim); font-size:11.5px;}
+.trRow .d.up{color:var(--err);} .trRow .d.dn{color:var(--ok);}
+.trRow.zero .lab,.trRow.zero .v{opacity:.45;}
+#trCatSeg button{flex:1 1 30%; font-size:13.5px; padding:9px 4px; min-height:44px;}
+#trCatSeg button .dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle;}
 .stShop{margin-left:18px; font-size:13.5px;}
 .stEmpty{color:var(--dim); font-size:13.5px; padding:10px 0;}
 /* 💴 支出マップ */
@@ -669,6 +680,17 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <label class="anChk"><input type="checkbox" id="autoGeoChk"><span>レシートの<b>印字住所から自動で場所を決める</b></span></label>
   </div>
   <div class="note">🌏 オンの間は、読み取りが終わるたびに<b>住所の文字だけ</b>を <b>国土地理院</b>（日本の住所に強い）へ送り、見つからなければ <b>OpenStreetMap</b> にも送って座標を返してもらいます（<b>写真・金額・品目は送りません</b>）。決まった位置は<b>この端末の中だけ</b>に保存されます。オフにすると、💴 の 🔎 ボタンを押した時だけ送ります。<b>見つからなかった住所・ずれている店は、💴 からタップして手で置けます</b>（手で置いた位置が優先されます）。⚠ 地理院でも<b>号（建物単位）までは出ません</b>＝同じ番地に複数の店があると重なります。</div>
+  <!-- 📷 写真の保存サイズ（r75）＝要望「そのままか、縮小か選べるように」 -->
+  <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
+    <label>📷 写真の保存サイズ</label>
+    <div class="seg" id="imgKeepSeg">
+      <button type="button" data-ik="std">🗜 縮小して保存</button>
+      <button type="button" data-ik="orig">🖼 原本のまま</button>
+    </div>
+    <div class="note" id="imgKeepNote" style="margin-top:6px"></div>
+    <button class="btn" id="btnImgSize" style="margin-top:8px">📏 いま保存している写真の合計を数える</button>
+    <div class="note" id="imgSizeOut" hidden></div>
+  </div>
   <!-- r67: ☑ 撮ったらすぐ読ませず、手がかりを足してから読ませる（精度重視の人向け） -->
   <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
     <label>🍽 料理を撮ったあと</label>
@@ -1055,10 +1077,13 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 <!-- 📊 統計 -->
 <div class="overlay" id="ovStats"><div class="sheet tall">
   <button class="x" data-close>✕</button><h2 id="stHead">📊 統計</h2>
+  <!-- r74: 4つ目「📈 推移」を足した。⚠ 名前を短くして1行に収める（折り返すくらいなら短くする＝r33）。
+       ⚠ 「💴 マップ」の正式な名前は見出し（stHead）が「💴 支出マップ」と出すので意味は落ちない。 -->
   <div class="seg" id="stTabs" style="margin-bottom:8px">
     <button type="button" data-tab="stats">📊 統計</button>
+    <button type="button" data-tab="trend">📈 推移</button>
     <button type="button" data-tab="meal">🍽 食事</button>
-    <button type="button" data-tab="map">💴 支出マップ</button>
+    <button type="button" data-tab="map">💴 マップ</button>
   </div>
   <div class="seg wrap" id="stPeriodSeg">
     <button type="button" data-pm="day">今日</button>
@@ -1074,6 +1099,18 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <div class="row" style="flex:1"><label>まで</label><input type="date" id="stTo"></div>
   </div>
   <div id="stBody"></div>
+  <!-- r74: 📈 推移＝分類ごとに「週／月／年」の区切りで並べる（要望）。
+       ⚠ 上の期間セグメント（1つの期間を選ぶ）は**使わない**＝推移は「複数の区切りを並べる」別の考え方。
+          同じ画面に2つの期間の考え方を出すと、どちらの数字を見ているのか分からなくなる。 -->
+  <div id="trendPane" hidden>
+    <div class="seg" id="trGrainSeg" style="margin-bottom:8px">
+      <button type="button" data-tg="week">週ごと</button>
+      <button type="button" data-tg="month">月ごと</button>
+      <button type="button" data-tg="year">年ごと</button>
+    </div>
+    <div class="seg wrap" id="trCatSeg" style="margin-bottom:10px"></div>
+    <div id="trBody"></div>
+  </div>
   <!-- r68: 🍽 食事の統計＝外食・中食・手作りの比率（要望「外食がどれくらいの比率かすぐ分かるように」） -->
   <div id="mealStatPane" hidden></div>
   <div id="mapPane" hidden>
@@ -1169,7 +1206,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r73 🔁📋 同じ食事を「もう一度」入れられるようにした（要望＝毎回同じ食事を登録するのは面倒／他の食事の内容をコピペしたい・削除や変更の影響範囲を選びたい）。🥇 **2つの要望を1つの仕組みに寄せた**＝どちらも「ある食事をもう一度作る」こと。作られた食事は**束（gid）でつながり**、直す時・消す時に「この食事だけ／つながっている全部」を選べる（カレンダーの繰り返し予定と同じ手触り）。**繰り返し**は、その束に「いつ作るか」の決まりが付いただけ＝画面も仕組みも2つ作らない。①📋 **1回だけコピー**（日付と時刻を選ぶ）②🔁 **繰り返す**（時刻・曜日・いつから・いつまで）。⚠ その日が来た時の入り方を**繰り返しごとに選べる**（⚡確かめずに入れる／🙋毎回確かめる）＝サプリのような確実なものは自動、ゆらぐものは 🍽 の上に「入れますか？」が出て押すまで作られない（📊 統計を嘘にしない道を残す）。③写真は**もとの食事のもの**を使い、**必ずそう書く**（🔁/📋 の印＋「写真は N/N に撮ったもの」）＝黙って使うと、あとで見た自分が騙される。④配るのは**何を食べたか（要約・詳細・料理・手作り/中食/外食）だけ**＝日付・時刻・区分・🗒ひとこと・📎手がかり・🧾レシートの結び付きは**その日その1回きりのもの**なので配らない（上書きすると消える）。⚠ 束の中身は**各食事が自分で持つ**（決まりを参照する形にしない）＝📊📤🔍🧹 が今までどおり「食事1件を見れば分かる」まま。⚠ **決まりは食事と別の箱**（REPEATS・DB v6）＝同じ箱だと 📊 と 📤 が「まだ食べていない予定」を数える。⚠ **未来の日には作らない**（記録は「食べた」もの＝コピーの日付も今日まで）／**遡りは31日まで**（何日も開かなかった時に黙って数百件作らない・飛ばした日数は言う）／⚠ **日をまたいだら回す**（アプリは開きっぱなしで翌朝になる＝起動時1回では入らない）。⚠ **まだ書き起こしていない食事をもとにすると、同じ写真に料金がもう1回かかる**ので、その場で言う（🔁 なら日数ぶん）。⑤📤 に made_by・photo_date・group_id ＋読み方（「同じ内容が並ぶのは重複でなく、繰り返し食べた事実＝まとめない」「写真はその日のものではない＝盛り付けからその日を読み取らない」）。⑥🧹 に「🔁 繰り返しの決まり」を追加（⚠ 決まりは日付を持たない＝📍 と同じで全期間の時だけ消える）。⑦⏸ で止める・✏️ で直す・🗑 でやめる（⚠ やめても入った食事は残す＝別のもの）。ブラウザ実測 green・コンソール0（コピー→束が元にも付く／2択で配る・配らない／⚡は4日ぶん遡って作る・2回回しても増えない／🙋は作らず問いかけ・入れる/いらない／曜日で月だけ・逆さま期間は止まる／⏸で問いかけも消える／全部削除でも決まりは残り復活しない／📤の3項目／🧹は全期間だけ2件／375pxで横スクロールなし・押す所は全部44px） · 2026-08-19｜r72 📄 プライバシーポリシーとサポートのページを作り、⚙ から開けるようにした（Play の必須項目・Apple の提出にも要る）。①`privacy.html` / `support.html`（日英・あの日と同じ作り）。🥇 **いちばん大事な項目を独立させた**＝「**AI に読ませるとき、写真は端末の外へ出る**」を正面から書く（BYOK＝本人のキーで本人が選んだ事業者へ**直接**・**その事業者の方針が適用される**・各社のポリシーへリンク・料金も本人と事業者の間）。⚠ **何を送らないか**も同じ強さで書く（写真の GPS は読まない／お店の場所は**住所の文字だけ**を国土地理院・OpenStreetMap へ／地図タイルは IP と表示範囲／広告・解析 SDK は無し）。②🩹 **🩺 の説明文が嘘だった**＝「AI に送るのは 📤/📈 で自分が渡した時だけ」と書いていたが、**写真を読み取る時点で健診も薬も外へ出ている**。機微な情報でここを曖昧にしない＝直した（外へ出るのは「読み取る時」と「📤/📈 で渡した時」の2つ、と書く）。③🩺 に「**医療機器ではなく医学的な助言をしない・AI の要約は参考・診断と治療の判断は医師へ**」を明記（健康を扱うアプリの審査で要る）。④⚙ の下に2つのリンク。⚠ **絶対URL＋target=_blank**＝アプリ版で WebView を乗っ取らず OS のブラウザで開く（相対リンクだと戻るボタンが無くてアプリに戻れない）。⑤ `SUBMIT-appstore.md`＝提出の台本を書いた。🔴 **BYOK の最大の関門＝審査担当者がキー無しでは中心機能を1回も試せない**（Guideline 2.1 の定番落ち）→**審査専用のキーを1本（支出上限つき）発行して審査メモに書く・終わったら失効**。App のプライバシーは**「収集する」で申告**＝写真／購入履歴（店名・金額・品目）／健康（健診・薬）／その他のユーザーコンテンツ、すべて「アプリの機能・本人に紐付けない・追跡しない」＝**実態より広めに申告する**（狭すぎる申告は差し戻しの定番・広めで落ちることはほぼ無い）。位置情報は申告しない（権限を要求せず GPS も読まない・支出マップの座標は**店の住所**であって本人の居場所ではない）＝その理由も審査メモに書く。審査メモの日英・掲載文・キーワード・年齢レーティングの答え方まで下書きずみ｜r71 🧹⚙ の一番下に「まとめて削除」を置いた（要望＝全データ／期間を決めて／データの種類を決めて、まとめて消せるボタン）。①期間（直近7日/30日・今月・先月・今年・全期間・期間を選ぶ）×②種類（🧾レシート・🍽料理・🩺健診・💊薬・📈分析の履歴・📍店の場所＋「すべての種類」）の掛け算で消す。🥇 **消す前に必ず件数を出す**＝ボタンの文字がそのまま「何を何件消すか」になっていて、0件なら押せない。確認の文にも**種類ごとの件数**を出す（合計だけだと中身を見ずに押せてしまう）。⚠ **開くたび白紙**＝既定は何も選ばれていない（元に戻せない操作の既定を「全部」にしない）・覚えもしない＝これは設定でなく「今やる操作」だから（r32 の検索と同じ考え）。⚠ **全期間の時だけ**同意のチェックをもう1つ挟む（期間を変えたら同意は取り消し＝前の同意を持ち越さない）。⚠ **日付を持たないもの**（📍店の場所・検査日が未確定の健診・服用開始日が無い薬）は**全期間の時だけ**消す＝期間で消せるふりをしない。除いた件数は画面に必ず書く（黙って残さない）。⚠ 💊 は**服用開始日**で見る＝期間をまたいで飲み続けている薬を巻き込まない（狭い方に倒す）。⚠ 🧾 は「レシート1枚」で数えるが**消す単位は写真**（r28）＝同じ写真に期間外のレシートが残る時は、写真を消さず**その1枚だけ抜く**（既存の 🗑 と同じ形・人が触った印 edited を立てる）。⚠ 消したものへの**結び付き（r70 の 🍽↔🧾）も外す**＝宙に浮いたままだと 📤 の receipt_id が「🧾 の一覧にも同じ物が居る」と嘘をつく。ただし**手がかりの印（extras[].rcptId）は消さない**＝消したレシートが 📝 のたびに作り直され（課金され）よみがえるのを防ぐ。⚠ **1つのトランザクションでまとめて**消す（1件ずつだと数千件で待たされる）／消したものを出したままの画面（詳細・編集）は閉じる＝**開いたまま保存されると消したはずのものが戻る**。期間の決まりは presetPeriod(mode) に切り出した（既存3つ expPeriod/anPeriod/statsPeriod は**選べる期間が違う**のでまとめない＝まとめると3画面が同時に壊れる）。ブラウザ実測 green・コンソール0（今月4件／全期間16件・またぎ写真は1枚だけ抜けた・結び付いた食事は残ってリンクだけ外れた・全部消すと0件で押せなくなる・逆さまの期間はボタンが直し方を言う）｜r70 🧾🍽食事とレシートを連動させた（要望＝アップし忘れをなくす）。道は2本＝①**一緒に上げる**＝🍽 の手がかりに足した 🧾 レシートを、**レシート側の記録としても登録して読む**（食事を📝で読ませた時に一緒に・⚠ 読む仕事が2つ＝料金も2回ぶん・書き起こしが成功してからレシートを作る＝失敗した時にレシートだけ課金して残らない・手がかりに印を付けて**何度📝を押しても増やさない**）②**先に上げてある**＝同じ日・前後4時間・まだどの食事にも付いていないレシートから**いちばん近い1件**を見つけて「この食事のレシートは、これですか？」と聞く（結び付けるだけ・読み直さない＝課金しない）。「ちがう」を押したらもう聞かない。③**外食なのにレシートが無い時は、無いと言う**＝黙って空白にしない（アップし忘れを減らすのが目的なので、無い時こそ道を書く）。手作り・中食では出さない。④**両側から見える**＝食事の詳細に🧾（店名と金額・見る・外す）、レシートの詳細に🍽（食事のサムネと要約・見る）＝どちらから入っても行き来できる。⑤**結び付けるだけで、片方を消してももう片方は残す**（レシートは金額の原本・食事は食べた記録＝別物）。消えたレシートを指していたら結び付きだけ静かに外す。⑥📤 JSON に receipt_id・読み方に「結び付いたレシートは🧾の一覧にも同じ物が居る＝**金額を二重に数えない**」｜r69 ✏️食事・健康診断・薬を「項目ごとに」手で直せるようにした（要望）＝🥇画面を3つ作らず**「直せる項目の一覧（spec）」から描く1つの編集画面**にした＝単独の項目（文字/長い文/選ぶ/1行に1つの箇条書き）と**表（行を自由に足す・消す）**。⚠ **検査項目が増えても後々対応できるように**という要望への答えがこれ＝①健診の検査項目は**行を足せる**（AI が読み落とした項目・新しく増えた項目が入る）②あとでアプリに項目が増えても spec に1行足すだけで画面のコードは触らない。①🍽 食事＝要約・詳細・手作り/中食/外食・料理の表（料理名/種類/量/メモ）。⚠ originを人が直したら「AI が見分けました」と言うのをやめ「自分で直しました」に変えて AI の理由を消す（**表示が嘘になる**）・📤 の origin_decided_by も human に。②🩺 健診＝総合判定・要約・所見（1行に1つ）・検査項目の表（区分/項目名/値/単位/基準範囲/判定/備考）・再検査があれば再検査の表も。③💊 薬＝**処方日数（N日分）の欄**を足した（今まで AI しか書けず、これが「終了にしますか」の予定日のもと）＝打つとその場に予定の終わりが出る・日数を直すと「まだ飲んでいる」の答えは白紙に戻ってまた聞く。🥇 **手で直したものを 📝 で読ませ直す時・➕ でページを足す時は確かめる**（黙って上書きしない）。🩹 スマホで7列が並びきらず欄が20pxまで潰れていた→**各欄に小さな見出しを付けて折り返す**（潰さない・折り返してもどの欄か分かる）';
+const BUILD = 'r74 📈 分類ごとの推移（週/月/年）＋📷 写真の保存サイズを選べるようにした（要望2つ）。①**📊 に4つ目のタブ「📈 推移」**＝分類ごとに **週ごと／月ごと／年ごと**で並べる。🥇 **既存の期間セグメント（1つの期間を選ぶ）とは別の考え方なので、同じ画面に混ぜず別タブにした**（📊＝この期間の中の内訳／📈＝区切りを並べて増えたか減ったか。1画面に2つの期間の考え方が並ぶと、出ている数字がどちらのものか分からなくなる）＝推移タブでは期間の選択・◀▶を丸ごと隠す。🥇 **推移の値打ちは「前の区切りとの差」**なので金額とは別の列にして必ず出す（合計だけ並べても「先月より増えた」は目で引き算しないと分からない）。⚠ **記録が無い区切りも出す**（📊 の「記録のある日だけ」と逆）＝推移では**0だったことが情報**・空を飛ばすと抜けた並びが「ずっと使い続けている」ように見える。⚠ **いちばん古い行に差を出さない**＝その前はまだ記録が無いだけで「0円だった」のではない（嘘をつかない）。⚠ 数えるのは支出だけ（収入と金額が読めなかったレシートは入れない＝📊 の内訳と同じ数え方で2画面の数字が食い違わない）。分類チップは**データのある分類だけ**を多い順に・区切りをタップで明細・「◀ もっと前を見る」。②**📷 写真の保存サイズ**（⚙）＝🗜 縮小して保存（今までどおり）／🖼 原本のまま。🥇 **要望の「再読取りを確実にしたいならそのままがよいのでは？」に、当たっている所と外れている所を分けて答えた**（Anthropic の資料で確認）＝⚠ **大きさは理由にならない**（AI が見るのは長辺2576px・視覚トークン4784が上限＝それより大きく送っても向こうで縮小され、**料金も増えない**。いまレシートに使っている2576pxは**ちょうどその上限**）。🥇 **効くのは「もう一度JPEGに圧縮している」こと**＝canvas で品質85%に作り直す＝カメラのJPEGに対して2回目の圧縮で、資料が名指しで警告している劣化（「強い圧縮は文字を読みにくくする・とくに重ねた時」）＝**レシートの小さい印字・成分表示がここで潰れうる**。原本ならこの1回が消える。⚠ 効くのは**JPEGの時だけ**（AI へは media_type を image/jpeg で送るので PNG 等は今までどおり作り直す）／⚠ **端末の容量は3〜4倍**なので既定は今までどおり。⚠ **送る時は上限を守る**（1枚10MB base64・Amazon/Google経由は5MB・リクエスト全体32MB）＝**超える時だけ**縮めて送る（収まっていれば原本のまま＝作り直しの劣化を足さない）・複数枚の仕事（🩺 の複数ページ・🍽 の手がかり）は**枚数で割った予算**を渡す。⚠ 保存してある原本はそのまま残る。③⚙ に「📏 いま保存している写真の合計を数える」＝**押した時だけ数える**（⚙ を開くたび全部の Blob を読むと枚数が増えた人ほど設定が重くなる）。ブラウザ実測 green・コンソール0（12か月/12週/5年・空の区切りは—・最古行に差なし・空月は−で正しく出る・収入は入らない・分類で絞ると単色・明細タップ・もっと前で24行・タブ4つが1行80px・原本は同一オブジェクトで返る/PNGは作り直す/予算超過だけ縮む/375pxで横スクロールなし） · 2026-08-19｜r73 🔁📋 同じ食事を「もう一度」入れられるようにした（要望＝毎回同じ食事を登録するのは面倒／他の食事の内容をコピペしたい・削除や変更の影響範囲を選びたい）。🥇 **2つの要望を1つの仕組みに寄せた**＝どちらも「ある食事をもう一度作る」こと。作られた食事は**束（gid）でつながり**、直す時・消す時に「この食事だけ／つながっている全部」を選べる（カレンダーの繰り返し予定と同じ手触り）。**繰り返し**は、その束に「いつ作るか」の決まりが付いただけ＝画面も仕組みも2つ作らない。①📋 **1回だけコピー**（日付と時刻を選ぶ）②🔁 **繰り返す**（時刻・曜日・いつから・いつまで）。⚠ その日が来た時の入り方を**繰り返しごとに選べる**（⚡確かめずに入れる／🙋毎回確かめる）＝サプリのような確実なものは自動、ゆらぐものは 🍽 の上に「入れますか？」が出て押すまで作られない（📊 統計を嘘にしない道を残す）。③写真は**もとの食事のもの**を使い、**必ずそう書く**（🔁/📋 の印＋「写真は N/N に撮ったもの」）＝黙って使うと、あとで見た自分が騙される。④配るのは**何を食べたか（要約・詳細・料理・手作り/中食/外食）だけ**＝日付・時刻・区分・🗒ひとこと・📎手がかり・🧾レシートの結び付きは**その日その1回きりのもの**なので配らない（上書きすると消える）。⚠ 束の中身は**各食事が自分で持つ**（決まりを参照する形にしない）＝📊📤🔍🧹 が今までどおり「食事1件を見れば分かる」まま。⚠ **決まりは食事と別の箱**（REPEATS・DB v6）＝同じ箱だと 📊 と 📤 が「まだ食べていない予定」を数える。⚠ **未来の日には作らない**（記録は「食べた」もの＝コピーの日付も今日まで）／**遡りは31日まで**（何日も開かなかった時に黙って数百件作らない・飛ばした日数は言う）／⚠ **日をまたいだら回す**（アプリは開きっぱなしで翌朝になる＝起動時1回では入らない）。⚠ **まだ書き起こしていない食事をもとにすると、同じ写真に料金がもう1回かかる**ので、その場で言う（🔁 なら日数ぶん）。⑤📤 に made_by・photo_date・group_id ＋読み方（「同じ内容が並ぶのは重複でなく、繰り返し食べた事実＝まとめない」「写真はその日のものではない＝盛り付けからその日を読み取らない」）。⑥🧹 に「🔁 繰り返しの決まり」を追加（⚠ 決まりは日付を持たない＝📍 と同じで全期間の時だけ消える）。⑦⏸ で止める・✏️ で直す・🗑 でやめる（⚠ やめても入った食事は残す＝別のもの）。ブラウザ実測 green・コンソール0（コピー→束が元にも付く／2択で配る・配らない／⚡は4日ぶん遡って作る・2回回しても増えない／🙋は作らず問いかけ・入れる/いらない／曜日で月だけ・逆さま期間は止まる／⏸で問いかけも消える／全部削除でも決まりは残り復活しない／📤の3項目／🧹は全期間だけ2件／375pxで横スクロールなし・押す所は全部44px） · 2026-08-19｜r72 📄 プライバシーポリシーとサポートのページを作り、⚙ から開けるようにした（Play の必須項目・Apple の提出にも要る）。①`privacy.html` / `support.html`（日英・あの日と同じ作り）。🥇 **いちばん大事な項目を独立させた**＝「**AI に読ませるとき、写真は端末の外へ出る**」を正面から書く（BYOK＝本人のキーで本人が選んだ事業者へ**直接**・**その事業者の方針が適用される**・各社のポリシーへリンク・料金も本人と事業者の間）。⚠ **何を送らないか**も同じ強さで書く（写真の GPS は読まない／お店の場所は**住所の文字だけ**を国土地理院・OpenStreetMap へ／地図タイルは IP と表示範囲／広告・解析 SDK は無し）。②🩹 **🩺 の説明文が嘘だった**＝「AI に送るのは 📤/📈 で自分が渡した時だけ」と書いていたが、**写真を読み取る時点で健診も薬も外へ出ている**。機微な情報でここを曖昧にしない＝直した（外へ出るのは「読み取る時」と「📤/📈 で渡した時」の2つ、と書く）。③🩺 に「**医療機器ではなく医学的な助言をしない・AI の要約は参考・診断と治療の判断は医師へ**」を明記（健康を扱うアプリの審査で要る）。④⚙ の下に2つのリンク。⚠ **絶対URL＋target=_blank**＝アプリ版で WebView を乗っ取らず OS のブラウザで開く（相対リンクだと戻るボタンが無くてアプリに戻れない）。⑤ `SUBMIT-appstore.md`＝提出の台本を書いた。🔴 **BYOK の最大の関門＝審査担当者がキー無しでは中心機能を1回も試せない**（Guideline 2.1 の定番落ち）→**審査専用のキーを1本（支出上限つき）発行して審査メモに書く・終わったら失効**。App のプライバシーは**「収集する」で申告**＝写真／購入履歴（店名・金額・品目）／健康（健診・薬）／その他のユーザーコンテンツ、すべて「アプリの機能・本人に紐付けない・追跡しない」＝**実態より広めに申告する**（狭すぎる申告は差し戻しの定番・広めで落ちることはほぼ無い）。位置情報は申告しない（権限を要求せず GPS も読まない・支出マップの座標は**店の住所**であって本人の居場所ではない）＝その理由も審査メモに書く。審査メモの日英・掲載文・キーワード・年齢レーティングの答え方まで下書きずみ｜r71 🧹⚙ の一番下に「まとめて削除」を置いた（要望＝全データ／期間を決めて／データの種類を決めて、まとめて消せるボタン）。①期間（直近7日/30日・今月・先月・今年・全期間・期間を選ぶ）×②種類（🧾レシート・🍽料理・🩺健診・💊薬・📈分析の履歴・📍店の場所＋「すべての種類」）の掛け算で消す。🥇 **消す前に必ず件数を出す**＝ボタンの文字がそのまま「何を何件消すか」になっていて、0件なら押せない。確認の文にも**種類ごとの件数**を出す（合計だけだと中身を見ずに押せてしまう）。⚠ **開くたび白紙**＝既定は何も選ばれていない（元に戻せない操作の既定を「全部」にしない）・覚えもしない＝これは設定でなく「今やる操作」だから（r32 の検索と同じ考え）。⚠ **全期間の時だけ**同意のチェックをもう1つ挟む（期間を変えたら同意は取り消し＝前の同意を持ち越さない）。⚠ **日付を持たないもの**（📍店の場所・検査日が未確定の健診・服用開始日が無い薬）は**全期間の時だけ**消す＝期間で消せるふりをしない。除いた件数は画面に必ず書く（黙って残さない）。⚠ 💊 は**服用開始日**で見る＝期間をまたいで飲み続けている薬を巻き込まない（狭い方に倒す）。⚠ 🧾 は「レシート1枚」で数えるが**消す単位は写真**（r28）＝同じ写真に期間外のレシートが残る時は、写真を消さず**その1枚だけ抜く**（既存の 🗑 と同じ形・人が触った印 edited を立てる）。⚠ 消したものへの**結び付き（r70 の 🍽↔🧾）も外す**＝宙に浮いたままだと 📤 の receipt_id が「🧾 の一覧にも同じ物が居る」と嘘をつく。ただし**手がかりの印（extras[].rcptId）は消さない**＝消したレシートが 📝 のたびに作り直され（課金され）よみがえるのを防ぐ。⚠ **1つのトランザクションでまとめて**消す（1件ずつだと数千件で待たされる）／消したものを出したままの画面（詳細・編集）は閉じる＝**開いたまま保存されると消したはずのものが戻る**。期間の決まりは presetPeriod(mode) に切り出した（既存3つ expPeriod/anPeriod/statsPeriod は**選べる期間が違う**のでまとめない＝まとめると3画面が同時に壊れる）。ブラウザ実測 green・コンソール0（今月4件／全期間16件・またぎ写真は1枚だけ抜けた・結び付いた食事は残ってリンクだけ外れた・全部消すと0件で押せなくなる・逆さまの期間はボタンが直し方を言う）｜r70 🧾🍽食事とレシートを連動させた（要望＝アップし忘れをなくす）。道は2本＝①**一緒に上げる**＝🍽 の手がかりに足した 🧾 レシートを、**レシート側の記録としても登録して読む**（食事を📝で読ませた時に一緒に・⚠ 読む仕事が2つ＝料金も2回ぶん・書き起こしが成功してからレシートを作る＝失敗した時にレシートだけ課金して残らない・手がかりに印を付けて**何度📝を押しても増やさない**）②**先に上げてある**＝同じ日・前後4時間・まだどの食事にも付いていないレシートから**いちばん近い1件**を見つけて「この食事のレシートは、これですか？」と聞く（結び付けるだけ・読み直さない＝課金しない）。「ちがう」を押したらもう聞かない。③**外食なのにレシートが無い時は、無いと言う**＝黙って空白にしない（アップし忘れを減らすのが目的なので、無い時こそ道を書く）。手作り・中食では出さない。④**両側から見える**＝食事の詳細に🧾（店名と金額・見る・外す）、レシートの詳細に🍽（食事のサムネと要約・見る）＝どちらから入っても行き来できる。⑤**結び付けるだけで、片方を消してももう片方は残す**（レシートは金額の原本・食事は食べた記録＝別物）。消えたレシートを指していたら結び付きだけ静かに外す。⑥📤 JSON に receipt_id・読み方に「結び付いたレシートは🧾の一覧にも同じ物が居る＝**金額を二重に数えない**」';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1371,6 +1408,50 @@ async function downscale(blob, maxLong, quality){
     if (!out) throw new Error('画像の縮小に失敗しました');
     return out;
   } finally { URL.revokeObjectURL(url); }
+}
+
+/* ---------- 📷 写真の保存サイズ（r75） ----------
+   要望＝「アップする写真の保存サイズ。そのままか、縮小か選べるようにする。
+          **再読取りを確実にしたい場合はそのままがよいのでは？**」
+
+   🥇 **答え＝「そのまま」に意味はある。ただし理由は解像度ではなく「作り直しの劣化」**（2026-08-19 に
+      Anthropic の資料で確認）。
+      ・**解像度は理由にならない**＝Claude が実際に見る大きさは **長辺 2576px・視覚トークン 4784** が上限
+        （Claude 4.7 以降の高解像度）。これを超える画像は**送っても向こうで縮小される**。
+        いまレシートに使っている 2576px は**ちょうどその上限**なので、これ以上大きくしても
+        読み取りは良くならず、**料金も増えない**（トークンは縮小後のピクセル数 ⌈w/28⌉×⌈h/28⌉ で決まる）。
+      ・🥇 **効くのは「もう一度 JPEG にしている」こと**＝いまは canvas で品質85%に**作り直して**保存している。
+        カメラの JPEG に対して**2回目の圧縮**になる。資料が名指しで警告しているのがここで、
+        「強い JPEG 圧縮は文字を読みにくくする・とくに圧縮を重ねた時」。
+        レシートの小さい印字・成分表示は、この1回で潰れうる。**原本ならその1回が消える**。
+   ⚠ **原本のままが効くのは JPEG の時だけ**＝AI へは media_type を `image/jpeg` で送っているので、
+      PNG や WebP は今までどおり作り直す（形式を偽って送ると読めない）。
+   ⚠ 引き換えに**端末の容量**を食う（原本は作り直した物のおおよそ3〜4倍）。だから既定は今までどおり。 */
+const IMG = { keep: 'rcpt.img.keep' };
+const imgKeepOrig = () => localStorage.getItem(IMG.keep) === 'orig';
+/* 保存する画像を作る。⚠ サムネは対象外（一覧に出すだけなので常に小さく作る）。 */
+async function prepImage(f, maxLong){
+  // ⚠ JPEG 以外は作り直す＝送る時の media_type と食い違わせない
+  if (imgKeepOrig() && f && f.type === 'image/jpeg') return f;
+  return downscale(f, maxLong, 0.85);
+}
+/* AI へ送る時の大きさ。
+   ⚠ 原本を保存していると、そのまま送ると上限に当たる＝**Claude API は 1枚 10MB（base64）**、
+      Amazon/Google 経由は 5MB、**リクエスト全体は 32MB**。
+   ⚠ だから **超える時だけ縮める**＝収まっているなら原本のまま送る（作り直しの劣化を足さない）。
+   ⚠ 複数枚を1回で送る仕事（🩺 の複数ページ・🍽 の手がかり）は、枚数で割った予算を渡す。 */
+const SEND_MAX_1 = Math.floor(3.6 * 1024 * 1024);   // 1枚だけの時（base64 で約4.8MB＝どの経路でも通る）
+const SEND_TOTAL = 22 * 1024 * 1024;                // まとめて送る時の合計の目安（base64 で約30MB＝32MB の手前）
+const sendBudget = n => Math.min(SEND_MAX_1, Math.floor(SEND_TOTAL / Math.max(1, n)));
+async function sendB64(blob, budget = SEND_MAX_1){
+  if (!blob) return '';
+  if (blob.size <= budget) return blobToB64(blob);
+  // ⚠ 2576px から下げる＝それより大きく送っても向こうで縮小されるので、上から試す意味が無い
+  for (const long of [2576, 2000, 1568]) {
+    const small = await downscale(blob, long, 0.85);
+    if (small.size <= budget) return blobToB64(small);
+  }
+  return blobToB64(await downscale(blob, 1280, 0.8));
 }
 /* ---------- 📸 いつ撮った写真か（r35） ----------
    食事の区分（朝/昼/夕/間食）は**撮った時刻**で決まる。ここを取り違えると分類が全部狂う。
@@ -2266,7 +2347,7 @@ function parseJsonLoose(text){
 async function analyzeReceipt(rec){
   const ctx = ctxFor('ocr');
   if (!ctx.model) throw new Error('読み取りモデルが未選択です（⚙ の詳細設定から選んでください）');
-  const r = await ctx.p.analyze(ctx, await blobToB64(rec.img));
+  const r = await ctx.p.analyze(ctx, await sendB64(rec.img));
   // 上限で切れた＝JSON は必ず途中で終わっている。「読めませんでした」より原因が分かる言い方で先に止める
   if (isCut(r.stop)) throw new Error('読み取りが上限に達しました（レシートが長い／明細が多い可能性）。⚙ の詳細設定で別のモデルもお試しください');
   return { data: parseJsonLoose(r.text),
@@ -2280,11 +2361,13 @@ async function mealPayload(rec){
   const extras = rec.extras || [];
   const lines = [];
   if (rec.hint) lines.push(rec.hint);   // r68: 手作り/中食/外食 は人に選ばせず AI が見分ける（一言で伝えれば優先される）
-  if (!extras.length && !lines.length) return { b64: await blobToB64(rec.img), job: MEAL_JOB, imgs: 1, hinted: false };
-  const imgs = [{ label: '【料理の写真】', b64: await blobToB64(rec.img) }];
+  if (!extras.length && !lines.length) return { b64: await sendB64(rec.img), job: MEAL_JOB, imgs: 1, hinted: false };
+  // ⚠ r75: 原本を保存していると1枚が大きい＝**枚数で割った予算**で送る（リクエスト全体の 32MB に当てない）
+  const budget = sendBudget(1 + extras.length);
+  const imgs = [{ label: '【料理の写真】', b64: await sendB64(rec.img, budget) }];
   for (const x of extras) {
     const k = MEAL_EXTRA.find(e => e[0] === x.kind);
-    imgs.push({ label: k ? k[3] : '【関連する写真】', b64: await blobToB64(x.img) });
+    imgs.push({ label: k ? k[3] : '【関連する写真】', b64: await sendB64(x.img, budget) });
   }
   const ask = MEAL_JOB.ask + (lines.length ? `\n\n【本人からの情報】\n${lines.join('\n')}` : '');
   return { b64: imgs, job: { ...MEAL_JOB, ask }, imgs: imgs.length, hinted: lines.length > 0 };
@@ -2316,8 +2399,9 @@ async function analyzeCheckup(rec){
   if (!ctx.model) throw new Error('読み取りモデルが未選択です（⚙ の詳細設定から選んでください）');
   const main = rec.pages.filter(p => p.part !== 'recheck'), re = rec.pages.filter(p => p.part === 'recheck');
   const imgs = [];
-  for (let i = 0; i < main.length; i++) imgs.push({ label: `【本検査 ${i + 1}/${main.length}】`, b64: await blobToB64(main[i].img) });
-  for (let i = 0; i < re.length; i++)   imgs.push({ label: `【再検査 ${i + 1}/${re.length}】`,   b64: await blobToB64(re[i].img) });
+  const budget = sendBudget(main.length + re.length);   // r75: ページ数で割る（健診は何枚にもなる）
+  for (let i = 0; i < main.length; i++) imgs.push({ label: `【本検査 ${i + 1}/${main.length}】`, b64: await sendB64(main[i].img, budget) });
+  for (let i = 0; i < re.length; i++)   imgs.push({ label: `【再検査 ${i + 1}/${re.length}】`,   b64: await sendB64(re[i].img, budget) });
   const r = await ctx.p.analyze(ctx, imgs, CHK_JOB);
   if (isCut(r.stop)) throw new Error('書き起こしが上限に達しました（項目が多い可能性）。⚙ の詳細設定で別のモデルもお試しください');
   const d = parseJsonLoose(r.text);
@@ -2334,7 +2418,7 @@ async function analyzeCheckup(rec){
 async function analyzeMedPhoto(img){
   const ctx = ctxFor('med');
   if (!ctx.model) throw new Error('読み取りモデルが未選択です（⚙ の詳細設定から選んでください）');
-  const r = await ctx.p.analyze(ctx, await blobToB64(img), MED_JOB);
+  const r = await ctx.p.analyze(ctx, await sendB64(img), MED_JOB);
   if (isCut(r.stop)) throw new Error('書き起こしが上限に達しました（薬が多い可能性）。⚙ の詳細設定で別のモデルもお試しください');
   const d = parseJsonLoose(r.text);
   return { data: { date: cleanStr(d.date), source: cleanStr(d.source),
@@ -2359,7 +2443,7 @@ const onMealPicked = async e => {
     for (const f of files) {
       // ⚠ 縮小する前に撮影時刻を読む（canvas に描くと EXIF が消える）
       const shot = await shotAtOf(f);
-      const [img, thumb] = [await downscale(f, 1568, 0.85), await downscale(f, 320, 0.7)];
+      const [img, thumb] = [await prepImage(f, 1568), await downscale(f, 320, 0.7)];
       const rec = { id: 'm' + Date.now() + Math.random().toString(36).slice(2, 7),
                     ts: shot.at, tsSrc: shot.src, addedAt: Date.now(),
                     slot: slotOfTime(shot.at), slotAuto: true,
@@ -2990,7 +3074,7 @@ document.getElementById('mlExtraAdd').addEventListener('change', e => {
         // ⚠ レシート・成分表示は**印字を読む**ので料理より大きめ（2000px）。別の角度の料理写真は本体と同じ 1568px
         const long = kind === 'photo' ? 1568 : 2000;
         add.push({ id: 'x' + Date.now() + Math.random().toString(36).slice(2, 5), kind, addedAt: Date.now(),
-                   img: await downscale(f, long, 0.85), thumb: await downscale(f, 240, 0.7) });
+                   img: await prepImage(f, long), thumb: await downscale(f, 240, 0.7) });
       }
       const m = await patchMeal(id, x => { x.extras = [...(x.extras || []), ...add]; });
       if (m && mlCur && mlCur.id === id) toast(`＋ ${add.length}枚 足しました。📝 で読ませると反映されます`);
@@ -3021,6 +3105,56 @@ document.getElementById('btnMlRunX').onclick = async e => {
   await runMealAnalysis(id);
   const m = await mlGet(id); if (m) openMeal(m);
 };
+/* 📷 写真の保存サイズ（r75）の画面。
+   🥇 **文言で正確に答える**＝要望に「再読取りを確実にしたい場合はそのままがよいのでは？」という
+      問いが入っていたので、**当たっている所と外れている所を分けて書く**（曖昧にすると次に迷う）。 */
+function renderImgKeep(){
+  const orig = imgKeepOrig();
+  document.querySelectorAll('#imgKeepSeg button').forEach(b => b.classList.toggle('on', (b.dataset.ik === 'orig') === orig));
+  document.getElementById('imgKeepNote').innerHTML = orig
+    ? '🖼 <b>撮った（選んだ）ファイルをそのまま保存します。</b>'
+      + '<br>🥇 効くのは<b>作り直しの劣化が無くなる</b>ことです＝縮小して保存すると、カメラの JPEG を<b>もう一度 JPEG に圧縮</b>することになり、'
+      + '<b>レシートの小さい印字や成分表示が潰れる</b>ことがあります（AI の資料も「圧縮を重ねると文字が読みにくくなる」と注意しています）。'
+      + '<br>⚠ <b>大きさ（画素数）は理由になりません</b>＝AI が実際に見るのは<b>長辺 2576px まで</b>で、それより大きい画像は<b>送っても向こうで縮められます</b>。'
+      + 'だから原本にしても<b>料金は増えません</b>し、大きさのぶんだけ読み取りが良くなるわけでもありません。'
+      + '<br>⚠ <b>端末の容量を食います</b>（縮小した時のおおよそ3〜4倍）。⚠ 効くのは<b>JPEG の写真だけ</b>です（PNG などは今までどおり作り直します）。'
+      + '<br>⚠ AI へ送る時、大きすぎるものは<b>その時だけ</b>縮めて送ります（1回に送れる大きさに上限があるため）。保存してある原本はそのまま残ります。'
+    : '🗜 <b>取り込む時に縮小して保存します（今までどおり）。</b>'
+      + '<br>大きさは <b>🧾 レシート・🩺 健診・💊 薬 が長辺 2576px</b>（AI が見られる上限ぴったり）、<b>🍽 料理が 1568px</b>。JPEG の品質は85%です。'
+      + '<br>⚠ この時<b>もう一度 JPEG に圧縮</b>するので、<b>小さい印字がわずかに潰れます</b>。読み取りに失敗しがちなレシートがあるなら「🖼 原本のまま」を試す価値があります。';
+}
+document.getElementById('imgKeepSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-ik]'); if (!b) return;
+  localStorage.setItem(IMG.keep, b.dataset.ik);
+  renderImgKeep();
+  // ⚠ すでに保存した写真は変わらない＝これから撮るぶんの話だと言う（黙っていると「増えない」と誤解される）
+  toast(b.dataset.ik === 'orig' ? '🖼 これから取り込む写真を原本のまま保存します' : '🗜 これから取り込む写真を縮小して保存します');
+});
+/* 📏 いま保存している写真の合計。⚠ **押した時だけ数える**＝⚙ を開くたびに全部の Blob を読むと、
+   枚数が増えた人ほど設定画面が重くなる（設定は毎日開く場所）。 */
+document.getElementById('btnImgSize').onclick = async () => {
+  const btn = document.getElementById('btnImgSize'), out = document.getElementById('imgSizeOut');
+  btn.disabled = true; btn.textContent = '📏 数えています…';
+  try {
+    // ⚠ 1MB 未満を「0.0MB」と出さない＝数えたのに何も分からない字面になる
+    const mb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB';
+    const add = (o, k, b) => { if (b) { o[k].n++; o[k].b += b.size; } };
+    const o = { rcpt: { n: 0, b: 0 }, meal: { n: 0, b: 0 }, chk: { n: 0, b: 0 }, med: { n: 0, b: 0 }, rp: { n: 0, b: 0 } };
+    for (const r of await dbAll()) { add(o, 'rcpt', r.img); add(o, 'rcpt', r.thumb); }
+    for (const m of await mlAll()) { add(o, 'meal', m.img); add(o, 'meal', m.thumb); (m.extras || []).forEach(x => { add(o, 'meal', x.img); add(o, 'meal', x.thumb); }); }
+    for (const c of await ckAll()) (c.pages || []).forEach(p => { add(o, 'chk', p.img); add(o, 'chk', p.thumb); });
+    for (const m of await mdAll()) { add(o, 'med', m.img); add(o, 'med', m.thumb); }
+    for (const r of await rpAll()) { add(o, 'rp', r.img); add(o, 'rp', r.thumb); }
+    const tot = Object.values(o).reduce((s, x) => s + x.b, 0), cnt = Object.values(o).reduce((s, x) => s + x.n, 0);
+    const part = [['🧾 レシート', o.rcpt], ['🍽 料理', o.meal], ['🩺 健診', o.chk], ['💊 薬', o.med], ['🔁 繰り返し', o.rp]]
+      .filter(([, x]) => x.n).map(([k, x]) => `${k} ${mb(x.b)}`).join(' ・ ');
+    out.hidden = false;
+    out.innerHTML = `いま保存している写真は <b>${cnt}枚で ${mb(tot)}</b>${part ? `<br>${part}` : ''}`
+      + '<br><small>（サムネイルも含みます。⚠ ここに出るのは<b>この端末の中</b>の大きさで、写真アプリのもとの写真とは別です）</small>';
+  } catch (err) { out.hidden = false; out.textContent = '数えられませんでした: ' + (err.message || err); }
+  finally { btn.disabled = false; btn.textContent = '📏 いま保存している写真の合計を数える'; }
+};
+
 /* ⚠ ☑ は2か所（⚙ と 🍽 の画面）にあるが**設定は1つ**＝どちらを触っても、もう片方の見た目もそろえる
    （片方だけ変わると「効いていない」に見える＝2つの設定があるように見えるのが最悪）。 */
 function syncMealMulti(){
@@ -3559,7 +3693,7 @@ document.getElementById('mdList').addEventListener('click', async e => {
    ⚠ 📷 は1枚ずつしか撮れないので、撮ったら詳細を開く＝続きのページは ➕ から足せると分かる。 */
 async function newPage(f, part){
   return { id: 'p' + Date.now() + Math.random().toString(36).slice(2, 5), part, addedAt: Date.now(),
-           img: await downscale(f, 2576, 0.85), thumb: await downscale(f, 320, 0.7) };
+           img: await prepImage(f, 2576), thumb: await downscale(f, 320, 0.7) };
 }
 const onChkPicked = async e => {
   const files = [...e.target.files];
@@ -3745,7 +3879,7 @@ const onMedPicked = async e => {
   try {
     for (const f of files) {
       const shot = await shotAtOf(f);
-      const [img, thumb] = [await downscale(f, 2576, 0.85), await downscale(f, 320, 0.7)];
+      const [img, thumb] = [await prepImage(f, 2576), await downscale(f, 320, 0.7)];
       const rec = { id: 'd' + Date.now() + Math.random().toString(36).slice(2, 7), addedAt: Date.now(),
                     name: '', dose: null, usage: null, purpose: null, source: null, days: null,
                     start: ymdLocal(new Date(shot.at)), startSrc: 'photo', end: null, memo: null,
@@ -3914,7 +4048,7 @@ const onPhotoPicked = async e => {
   try {
     for (const f of files) {
       // 2576px＝高解像度visionの上限。住所の印字は低解像度だと読めない（ライフログ実測: 1600pxでほぼ0%・4096pxで31%）
-      const [img, thumb] = [await downscale(f, 2576, 0.85), await downscale(f, 320, 0.7)];
+      const [img, thumb] = [await prepImage(f, 2576), await downscale(f, 320, 0.7)];
       const rec = { id: 'r' + Date.now() + Math.random().toString(36).slice(2, 7),
                     ts: Date.now(), status: 'pending', img, thumb, data: null, error: null, meta: null };
       await dbPut(rec); await renderList();
@@ -5591,24 +5725,152 @@ document.getElementById('stBody').addEventListener('click', e => {
   stOpen.has(k) ? stOpen.delete(k) : stOpen.add(k);
   renderStats();
 });
+/* ---------- 📈 推移（r74） ----------
+   要望＝「**統計分類ごとの推移を、週・月・年で見れるようにしたい**」
+
+   🥇 **既存の期間セグメント（1つの期間を選ぶ）とは別の考え方**なので、同じ画面に混ぜず**別のタブ**にした。
+      📊 統計＝「**この期間の中の内訳**」／📈 推移＝「**区切りを並べて、増えたか減ったか**」。
+      1つの画面に2つの期間の考え方が並ぶと、出ている数字がどちらのものか分からなくなる。
+   🥇 **推移の値打ちは「前の区切りとの差」**なので、金額とは別の列にして必ず出す。
+      合計だけ並べても「先月より増えた」は目で引き算しないと分からない。
+   ⚠ **記録が無い区切りも出す**（📊 の「記録のある日だけ」と逆）＝推移では**0だったことが情報**。
+      空を飛ばすと、間の抜けた並びが「ずっと使い続けている」ように見える。
+   ⚠ 数えるのは**支出だけ**（収入は 📊 と同じく別扱い）＝混ぜると符号が反転して推移が読めない。 */
+const TR = { grain: 'rcpt.trend.grain' };
+let trGrain = ['week', 'month', 'year'].includes(localStorage.getItem(TR.grain)) ? localStorage.getItem(TR.grain) : 'month';
+let trCat = '';    // '' ＝ すべての分類（積み上げ）／分類名 ＝ その分類だけ
+let trMore = 0;    // 「もっと前を見る」を押した回数
+const TR_N = { week: 12, month: 12, year: 5 };
+const trKeyOf = (d, g) => g === 'week' ? weekStart(d) : g === 'month' ? d.slice(0, 7) : d.slice(0, 4);
+/* 1つ前の区切り。⚠ 月は文字列の引き算では出せない（1月の前は前の年の12月）＝数で戻す */
+const trPrevKey = (k, g) => {
+  if (g === 'week') return addDays(k, -7);
+  if (g === 'year') return String(+k - 1);
+  const y = +k.slice(0, 4), m = +k.slice(5, 7);
+  return m === 1 ? `${y - 1}-12` : `${y}-${pad2(m - 1)}`;
+};
+const trLabel = (k, g) => g === 'week' ? `${md(k)}の週` : g === 'month' ? `${+k.slice(0, 4)}/${+k.slice(5, 7)}` : `${k}年`;
+// 今の区切りから n 個ぶん、**古い順**に並べる（空の区切りも作る＝抜けを見せる）
+function trKeys(g, n){
+  const out = [trKeyOf(todayStr(), g)];
+  while (out.length < n) out.unshift(trPrevKey(out[0], g));
+  return out;
+}
+const trDiff = v => v > 0 ? `<span class="d up">+${yen(v)}</span>`
+                  : v < 0 ? `<span class="d dn">−${yen(-v)}</span>` : '<span class="d">±0</span>';
+
+async function renderTrend(){
+  const body = document.getElementById('trBody'), catSeg = document.getElementById('trCatSeg');
+  document.querySelectorAll('#trGrainSeg button').forEach(b => b.classList.toggle('on', b.dataset.tg === trGrain));
+  // ⚠ 収入と、金額が読めなかったレシートは外す（📊 の内訳と同じ数え方＝2つの画面で数字が食い違わない）
+  const all = (await listRows()).filter(x => x.rc && x.rc.kind !== 'income' && x.rc.total != null);
+  if (!all.length) {
+    catSeg.innerHTML = '';
+    body.innerHTML = '<div class="stEmpty">まだ読み取れたレシートがありません。📷 で撮ると推移に入ります。</div>';
+    return;
+  }
+  // 分類のチップ＝**データのある分類だけ**（多い順）。⚠ 使っていない分類まで並べると押す所が探せない
+  const catTotal = {};
+  all.forEach(x => { const c = x.rc.category || CAT_ETC; catTotal[c] = (catTotal[c] || 0) + x.rc.total; });
+  const cats = Object.keys(catTotal).sort((a, b) => catTotal[b] - catTotal[a]);
+  if (trCat && !cats.includes(trCat)) trCat = '';   // 消えた分類が選ばれたままにならない
+  catSeg.innerHTML = `<button type="button" data-tc=""${trCat ? '' : ' class="on"'}>すべての分類</button>`
+    + cats.map(c => `<button type="button" data-tc="${esc(c)}"${trCat === c ? ' class="on"' : ''}>`
+        + `<span class="dot" style="background:${catColor(c)}"></span>${esc(c)}</button>`).join('');
+
+  const rows = trCat ? all.filter(x => (x.rc.category || CAT_ETC) === trCat) : all;
+  const n = TR_N[trGrain] * (1 + trMore);
+  const keys = trKeys(trGrain, n);
+  // 区切りごとの合計は**全期間ぶん**作る＝いちばん古い行の「前の区切りとの差」も出せる
+  const byKey = {};
+  rows.forEach(x => { const k = trKeyOf(x.date, trGrain); (byKey[k] = byKey[k] || []).push(x); });
+  const sum = k => (byKey[k] || []).reduce((s, x) => s + x.rc.total, 0);
+  const firstKey = trKeyOf(all.map(x => x.date).sort()[0], trGrain);   // 記録がある最初の区切り
+
+  const shown = keys.map(k => ({ k, v: sum(k), xs: byKey[k] || [] }));
+  const total = shown.reduce((s, r) => s + r.v, 0);
+  const max = Math.max(1, ...shown.map(r => r.v));
+  const live = shown.filter(r => r.v);
+  const unit = trGrain === 'week' ? '週' : trGrain === 'month' ? 'か月' : '年';
+  const avg = live.length ? Math.round(total / live.length) : 0;
+  const top = live.slice().sort((a, b) => b.v - a.v)[0];
+
+  let html = `<div class="stSec" style="border-top:none;margin-top:0;padding-top:0">
+    <div class="stBig">${yen(total)}</div>
+    <div class="stSub">${esc(trCat || 'すべての分類')} ・ 直近 ${keys.length}${unit}（${esc(trLabel(keys[0], trGrain))} 〜 ${esc(trLabel(keys[keys.length - 1], trGrain))}）</div>
+    <div class="stSub">${live.length ? `記録のある${live.length}${unit}の平均 ${yen(avg)}${top ? ` ・ いちばん多かったのは ${esc(trLabel(top.k, trGrain))} の ${yen(top.v)}` : ''}` : 'この範囲に記録はありません'}</div>
+  </div><div class="stSec">`;
+  // ⚠ 古い順に上から（読む向きを 📊 の日別と同じにする＝どちらを見ても時間の向きが同じ）
+  shown.forEach(r => {
+    const prev = trPrevKey(r.k, trGrain);
+    // ⚠ 記録が始まる前の区切りとは比べない（「前は0円だった」ではなく「まだ使っていなかった」＝増えたと言うと嘘）
+    const diff = prev >= firstKey ? trDiff(r.v - sum(prev)) : '<span class="d"></span>';
+    html += `<div class="trRow${r.v ? '' : ' zero'}"${r.v ? ` data-tk="${esc(r.k)}"` : ''}>`
+      + `<span class="lab">${esc(trLabel(r.k, trGrain))}</span>`
+      + `<span class="stBar">${r.v ? (trCat
+          ? `<i style="width:${(r.v / max * 100).toFixed(2)}%;background:${catColor(trCat)}"></i>`
+          : stackHtml(r.xs, max, cats)) : ''}</span>`
+      + `<span class="v">${r.v ? yen(r.v) : '—'}</span>${diff}</div>`;
+    if (r.v && stOpen.has('t:' + r.k)) html += itemsHtml(r.xs);
+  });
+  html += '</div>';
+  html += `<div class="stSec"><button class="btn" id="trMoreBtn">◀ もっと前を見る（あと ${TR_N[trGrain]}${unit}）</button>`
+    + `<div class="note" style="margin-top:8px">数えているのは<b>支出だけ</b>です（収入と、金額が読めなかったレシートは入りません）。`
+    + `<br>記録の無い区切りも「—」で出します（<b>使わなかった区切りも推移の一部</b>だからです）。`
+    + `<br>区切りをタップすると、その中のレシートが出ます。`
+    + `<br>⚠ いちばん古い行に差が出ないのは、その前に<b>まだ記録が無い</b>ためです（0円だったのではありません）。</div></div>`;
+  body.innerHTML = html;
+  document.getElementById('trMoreBtn').onclick = () => { trMore++; renderTrend(); };
+}
+document.getElementById('trGrainSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-tg]'); if (!b) return;
+  trGrain = b.dataset.tg; localStorage.setItem(TR.grain, trGrain);
+  trMore = 0; stOpen.clear();   // ⚠ 区切りを変えたら開いていた明細は閉じる（別の区切りの鍵が残る）
+  renderTrend();
+});
+document.getElementById('trCatSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-tc]'); if (!b) return;
+  trCat = b.dataset.tc; stOpen.clear(); renderTrend();
+});
+document.getElementById('trBody').addEventListener('click', e => {
+  const open = e.target.closest('[data-open]');
+  if (open) { openDetail(open.dataset.open, +open.dataset.i || 0); return; }   // 明細 → その1枚の詳細へ
+  const row = e.target.closest('[data-tk]'); if (!row) return;
+  const k = 't:' + row.dataset.tk;
+  stOpen.has(k) ? stOpen.delete(k) : stOpen.add(k);
+  renderTrend();
+});
+
 // 期間の見出し・◀▶は 📊統計 と 💴支出マップ で共有する（同じ期間を見たまま行き来できる）
 function syncPeriodUI(){
   const per = statsPeriod();
+  /* r74: 📈 推移は**自分の区切り（週/月/年）で並べる**ので、期間の選択・◀▶・期間指定を丸ごと隠す。
+     ⚠ 出したままにすると「今月」を選んでいるのに12か月ぶん出ている、という食い違いが画面に残る。 */
+  const trend = stTab === 'trend';
+  document.getElementById('stPeriodSeg').hidden = trend;
   document.querySelectorAll('#stPeriodSeg button').forEach(b => b.classList.toggle('on', b.dataset.pm === stMode));
-  document.getElementById('stNav').style.display = (stMode === 'all' || stMode === 'range') ? 'none' : 'flex';
-  document.getElementById('stRangeRow').style.display = stMode === 'range' ? 'flex' : 'none';
+  document.getElementById('stNav').style.display = (trend || stMode === 'all' || stMode === 'range') ? 'none' : 'flex';
+  document.getElementById('stRangeRow').style.display = (!trend && stMode === 'range') ? 'flex' : 'none';
   if (stMode === 'range') { document.getElementById('stFrom').value = stFrom; document.getElementById('stTo').value = stTo; }
   document.getElementById('stLabel').textContent = per.label;
 }
 document.getElementById('stFrom').onchange = e => { stFrom = e.target.value; renderTab(); };
 document.getElementById('stTo').onchange   = e => { stTo   = e.target.value; renderTab(); };
 let stTab = 'stats';
-function renderTab(){ syncPeriodUI(); return stTab === 'map' ? renderSpendMap() : stTab === 'meal' ? renderMealStats() : renderStats(); }
+function renderTab(){
+  syncPeriodUI();
+  return stTab === 'map'   ? renderSpendMap()
+       : stTab === 'meal'  ? renderMealStats()
+       : stTab === 'trend' ? renderTrend()     // r74
+       : renderStats();
+}
 function setTab(t){
   stTab = t;
   document.querySelectorAll('#stTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-  document.getElementById('stHead').textContent = t === 'map' ? '💴 支出マップ' : t === 'meal' ? '🍽 食事の統計' : '📊 統計';
+  document.getElementById('stHead').textContent = t === 'map' ? '💴 支出マップ' : t === 'meal' ? '🍽 食事の統計'
+                                                : t === 'trend' ? '📈 推移' : '📊 統計';
   document.getElementById('stBody').hidden = t !== 'stats';
+  document.getElementById('trendPane').hidden = t !== 'trend';
   document.getElementById('mealStatPane').hidden = t !== 'meal';
   document.getElementById('mapPane').hidden = t !== 'map';
   if (t !== 'map') setMapFull(false); // 📊 に戻ったのに全画面が残っていると、次に 💴 を開いた時いきなり全画面になる
@@ -7384,6 +7646,8 @@ async function openSettings(){
   await fixSlotOverlap();   // r66: 前の版の「重なった設定」を先に直してから描く
   renderSlotCfg();
   syncMealMulti();   // r67/r68: ☑ は ⚙ と 🍽 の2か所にあるが、設定は1つ
+  renderImgKeep();   // r75: 📷 写真の保存サイズ
+  document.getElementById('imgSizeOut').hidden = true;   // ⚠ 前に数えた古い合計を出したままにしない
   resetWipe(); await renderWipe();   // r71: 🧹 は開くたび白紙＋件数を数え直す
   document.getElementById('noteStore').innerHTML = IS_NATIVE
     ? '📱 <b>アプリ版</b>で動作中＝データは端末のアプリ領域に保存され、ブラウザの自動削除の対象外です（消えるのはアプリを削除した時）。'
