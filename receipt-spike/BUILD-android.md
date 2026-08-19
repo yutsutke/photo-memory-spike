@@ -23,6 +23,55 @@
 
 ⚠ **vc2 には r71〜r79 の9版ぶんが入っている**（🧹まとめて削除／📄ポリシー／新アイコン／🔁📋 食事のコピーと繰り返し／📈推移／📷保存サイズ／🩹 書き起こしが止まる件の一連）。
 
+### 🚧 Android デベロッパーの確認（2026-08-19 に vc2 で詰まった所）
+
+Play Console でリリースを進めようとすると、こう出て止まる:
+
+> このリリースを進めるには、Android デベロッパーの確認要件を満たすようすべての鍵を登録してください。
+
+⚠ **アプリの中身の問題ではない**（焼いた AAB は検証3点 green）。**Play アカウント側の新しい要件**で、
+**2026年9月30日までに、すべての Play アプリを「パッケージ名＋署名鍵」で登録**しないと、
+未登録のアプリは Play から削除される（Google のリマインダーメール 2026-08-07）。
+
+**この人の状況（メールの履歴から分かったこと）**
+
+| 日付 | 出来事 |
+|---|---|
+| 2026-07-10 | **本人確認 完了**（済んでいる） |
+| 2026-07-16 | **アプリの自動登録 完了** ⚠ ただし**この時점で レシート は Play に存在しなかった** |
+| 2026-08-17 | レシートの Play アプリを作成（vc1） |
+| 2026-08-19 | vc2 を上げようとして、上のエラー |
+
+→ ⚠ **自動登録は「その時あったアプリ」しか拾わない**＝**あとから作ったアプリは手で登録が要る**。
+あの日（`io.github.yutsutke.photomemory`）は登録済み、**レシートだけ未登録**という状態。
+
+**やること（ブラウザ・本人）**
+
+1. https://play.google.com/console/android-developer-verification を開く
+2. **未登録の Google Play アプリ**（`io.github.yutsutke.receipt`）を登録する
+   - ⚠ Play App Signing を使っているので、**配信用の鍵は Google が持っている**＝ふつうは確認して進めるだけ
+   - ⚠ 「登録の下書きが途中」なら、それを**最後まで完了**させる（メールに名指しで書かれている）
+3. 終わったら内部テストのリリースに戻る
+
+**フォームが鍵の指紋を求めてきた時のための控え（アップロード鍵 `receipt-upload`）**
+
+- SHA-256: `A7:91:11:90:57:94:89:BC:A3:3F:1B:B3:EE:2D:1A:24:A0:40:B2:56:E5:E2:FF:C7:17:3E:81:42:E7:3B:BD:4B`
+- SHA-1: `5B:B4:8F:5E:23:06:2F:40:C3:9F:09:0B:7E:07:49:10:DA:92:42:3F`
+- 指紋の出し方（PowerShell・値は表示しない書き方）:
+  ```powershell
+  $kt = "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe"   # ⚠ keytool は PATH に無い
+  $cred = Get-Content C:\Users\yutsu\Documents\receipt-signing\CREDENTIALS.txt
+  $get = { param($l) ($cred | Where-Object { $_ -match "^$l\s*:" } | Select-Object -First 1) -replace "^$l\s*:\s*", '' }
+  & $kt -list -v -keystore (& $get 'Keystore file') -alias (& $get 'Key alias') -storepass (& $get 'Store password') |
+    Select-String "SHA1:|SHA256:"
+  ```
+
+⚠ **Play 以外で配る（APK を直接渡す）道を続けるなら、そちらは別の登録が要る**＝メールいわく
+「Google Play アプリに対し Google Play 以外での署名に使用する**別の鍵**を追加する」。
+`receipt-1.0-vcN.apk` を人に配る運用をするなら、**アップロード鍵も登録**しておく（自分の端末で試すだけなら急がない）。
+
+---
+
 ### 元の手引き（vc1 を作った時の記録・手順は同じ）
 
 > **debug APK の直接配布とは別の道**。Play に出すには **署名付きの AAB** が要る（debug 鍵では弾かれる）。
