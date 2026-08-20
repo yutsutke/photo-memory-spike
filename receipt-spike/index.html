@@ -57,6 +57,19 @@ main{padding:10px 14px;}
 .monSub{margin:-2px 0 10px; font-size:12.5px; color:var(--dim);}
 .monSub b{color:var(--acc);}
 .monSub .over{color:var(--err); font-weight:600;}
+/* r90: 帯から 💰 予算へ行ける＝「この月だけ増やす」の入口を、数字を見たその場所に置く
+   （設定の奥にしか無いと、使いすぎに気付いた瞬間に手が届かない） */
+.monSub .budGo{color:var(--acc); text-decoration:underline; cursor:pointer;}
+/* r90: 💰 予算の1行（分類名・金額の欄・使った/残り）。⚠ 欄は .row の中ではないので幅を自分で持つ */
+.budRow{display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:8px 0; border-bottom:1px solid var(--line);}
+.budRow .budName{flex:0 0 84px; font-size:14px;}
+.budRow input{flex:1 1 120px; width:auto; min-width:96px; background:var(--card); border:1px solid var(--line);
+  color:var(--fg); border-radius:10px; padding:10px; font-size:16px;}
+.budRow .budUse{flex:1 1 100%; font-size:12px; color:var(--dim);}
+.budRow .budUse b{color:var(--acc);}
+.budRow .budUse .over{color:var(--err); font-weight:600;}
+.budRow.tot .budName{font-weight:700; color:var(--fg);}
+.budRow.tot{background:rgba(255,255,255,.03); border-radius:10px; padding:8px; margin-bottom:4px;}
 .rec{display:flex; gap:10px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:8px; margin-bottom:8px;}
 .rec img{width:52px; height:52px; object-fit:cover; border-radius:8px; background:#000;}
 .rec .noimg{width:52px; height:52px; border-radius:8px; flex:none; font-size:20px;}   /* r80: 写真なしの食事 */
@@ -871,12 +884,14 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <button class="btn" id="btnSlotReset" style="margin-top:8px">↩ 既定の時間帯に戻す</button>
   </div>
   <div class="note"><b>10分きざみ</b>で選べます。⚠ <b>時間帯どうしは重ねられません</b>＝選べる時刻が、となりの時間帯にぶつかる手前までになっています。だから「昼食の始まりを早くしたい」時は、<b>先に朝食の終わりを早く</b>してください。⚠ <b>終わりの時刻は、その時間帯には入りません</b>（次の時間帯の始まりです。時刻表と同じ読み方＝朝食 04:00〜10:30 なら 10:30 は昼食）。<br>どの時間帯にも入らなかったものは <b>🍪 間食</b>になります（例: 既定では 15:00〜16:30 と 00:00〜04:00）。始まりと終わりを<b>同じ時刻</b>にすると、その時間帯は使わない扱いになります。⚠ 終わりが始まりより<b>前</b>なら日をまたぐ扱いです（例 22:00〜01:00）。⚠ ここを変えても、<b>すでに手で直した食事は変わりません</b>（人が決めたものを自動で上書きしません）。まだ手で直していないものは、時間帯を変えると振り分け直します。</div>
-  <!-- 💴 月の予算（r82）＝入れた人にだけ、🧾 一覧の今月の行に「あと ¥N」が出る（既定は出さない＝最小） -->
+  <!-- 💴 月の予算（r82）＝入れた人にだけ、🧾 一覧の今月の行に「あと ¥N」が出る（既定は出さない＝最小）
+       r90: 全体はここに置いたまま、🏷 分類ごと・📅 この月だけ は別画面（💰 予算）へ＝⚙ を欄だらけにしない -->
   <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
-    <label>💴 月の予算（円・空なら表示しません）</label>
+    <label>💴 月の予算・全体（円・空なら表示しません）</label>
     <input type="number" id="inBudget" inputmode="numeric" min="1" placeholder="例: 45000" autocomplete="off">
+    <button class="btn" id="btnBudget" style="margin-top:8px">💰 分類ごとの予算 ／ 📅 この月だけ変える</button>
   </div>
-  <div class="note">入れると 🧾 一覧の<b>今月の行</b>に「予算まで あと ¥N」が出ます（このアプリに撮ったレシートの支出の合計と比べるだけ）。使いすぎに月の途中で気付くための目安で、空に戻せばいつでも消えます。</div>
+  <div class="note">入れると 🧾 一覧の<b>今月の行</b>に「予算まで あと ¥N」が出ます（このアプリに撮ったレシートの支出の合計と比べるだけ）。使いすぎに月の途中で気付くための目安で、空に戻せばいつでも消えます。<br>r90: 上の「💰 予算」から <b>🏷 分類ごと</b>（食費だけ ¥30,000 など）と <b>📅 この月だけ</b>（旅行のある月は増やす、など）も決められます。⚠ <b>収入は数えません</b>／レシートを撮っていない支出は入りません（このアプリが見ているのは撮ったぶんだけ）。</div>
   <!-- 🏷 分類（r31）＝自分で足せる。足したものは読み取りの選択肢として AI にも渡す -->
   <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
     <label>🏷 分類（カテゴリ）</label>
@@ -912,6 +927,27 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <button class="btn dang" id="btnWipe" disabled>🗑 消すものを選んでください</button>
   <div class="note" id="wipeNote"></div>
   <div class="note" id="buildLine"></div>
+</div></div>
+
+<!-- 💰 予算（r90）＝全体＋分類ごと／「毎月（ふだん）」と「この月だけ」を同じ画面で切り替える。
+     ⚠ 2つの画面に分けない＝「ふだん ¥30,000／この月だけ ¥45,000」は**並べて見えないと決められない**
+        （この月だけの欄の下に、ふだんの額をそのまま出す）。 -->
+<div class="overlay" id="ovBudget"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2>💰 予算</h2>
+  <div class="seg" id="budScopeSeg">
+    <button type="button" data-budscope="base">毎月（ふだん）</button>
+    <button type="button" data-budscope="mon">📅 この月だけ</button>
+  </div>
+  <div class="dual" id="budMonNav" style="margin-top:8px">
+    <button class="btn" id="budPrev" style="margin-bottom:0">‹ 前の月</button>
+    <button class="btn" id="budThis" style="margin-bottom:0">今月</button>
+    <button class="btn" id="budNext" style="margin-bottom:0">次の月 ›</button>
+  </div>
+  <div class="note" id="budNote" style="margin-top:10px"></div>
+  <div id="budRows"></div>
+  <div class="note" id="budFoot"></div>
+  <button class="btn dang" id="btnBudClear" hidden>📅 この月だけの設定を消す（ふだんに戻す）</button>
+  <button class="btn" data-close>閉じる</button>
 </div></div>
 
 <!-- 📤 書き出し -->
@@ -1496,7 +1532,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r89 🖼 **📸 の写真を画面いっぱいに（ボタンは写真の上に重ねる）**（方針の訂正・2026-08-20）＝本人「**問題は、シャッターを押すボタンや、透かしのボタンを写真の外にだすことだったかも。ボタンが写真に重なってもありでいいので、画像を大きく見せてください**」。①🔄 **r87 で写真の外へ出した操作を、写真の上に重ねる形へ戻した**（下＝帯／横持ち＝右の柱・どちらも黒のグラデーション）。⚠ ただし r87 の**別の指摘（写真の真ん中に説明の文字が出て邪魔）は維持**＝重ねてよいのは**ボタン**までで、説明の文字は増やさない（日付だけ）。②📐 **「画面」という形を足して既定にした**＝9:16 でも画面（縦持ちで約 0.46）より横長なので上下に黒が残っていた（82%）。「画面」＝**その画面の形そのもの**で撮る＝**100%**（縦持ち 375×812・横持ちでも 98%）。▯ で 画面 → 9:16 → 3:4 と回せる（覚える）。🥇 **保存する形は「いま見えている箱の実寸」から取る**＝画面いっぱいでも2画面でも、**見えているものと保存されるものが必ず一致**する（別々に計算すると必ずどこかでズレる）。長い方を 2048px に収める（横持ちで撮ると横長になるため両対応）。⚠ 形は写真ごとに記録（ar）＝同じ端末・同じ向きなら透かしはぴったり重なる。違う時は contain（全体を出す）＋帯に1行（黙って切らない・r88 の約束）。実測 green・コンソール 0（縦持ち＝画面100%/9:16 82%/3:4 62%と切替・2画面も同じ形で上下・撮った写真の形が画面と一致（0.4618）・横持ち＝98%で横長に撮れ長辺2048内（1279×602）・シャッターは画面内・閲覧は 375×812 でそのままの形・並べると 187×406 ずつ） · 2026-08-20｜r88 🔍 **📸 の写真・撮影の表示をできるだけ大きくした**（要望・2026-08-20）。🥇 **正体＝写真の形**。3:4 は**画面より横長**なので、縦持ちでは**横幅で頭打ち**になり上下に黒が残っていた（実測 375×500＝画面の 62%）。帯を細くしても写真は1mmも大きくならない（黒が増えるだけ）＝**形を変えるしかない**。→ **9:16（縦長）を既定**にした＝**372×661＝画面の 81%**（同じ画面で約1.3倍・全身も入りやすい）。▯ ボタンで **9:16 ↔ 3:4** を切り替えられ、選択は覚える。⚠ **形を混ぜると重ねてもぴったりにはならない**＝形の違う透かしは cover（切り取り）でなく **contain（全体を出す）**にし、「前の写真は 3:4（形が違うのでぴったりは重なりません）」と**帯に**1行出す（写真の上には書かない＝r87 の約束／黙って歪めない・切らない）。写真ごとに形（ar）を持たせ、帯の 📸🖼 から入れた写真は**その写真自身の形**を測って記録（決め打ちしない）。r85-87 の写真は 3:4 として扱う。📐 帯も詰めた（170→150px・シャッター 64→60・余白と間隔）＝9:16 は**高さで頭打ち**なので帯の高さがそのまま写真の高さになる。🖼 **閲覧も大きく**＝詳細の写真と比較を**シートの端まで**広げ（343→375px）、枠を**写真そのものの形**に合わせた（3:4 の枠に 9:16 を入れて上下を黒くしていた）。形の違う2枚を並べる時は**背の高い方**に合わせる（どちらも切らない）。🩹 横持ちは柱の高さが画面の高さそのもの＝注意書きが1行増えるだけではみ出し**シャッターが押せなくなる**ので、はみ出したらスクロールで届くようにした（実測 416 > 360 でスクロール可・シャッターに到達できる）。ブラウザ実測 green・コンソール 0（縦持ち 9:16＝372×661/81%・2画面の各セルも 0.563／3:4 に切り替えると 375×500/62% に戻る／形違いの透かしは contain＋注意書き／閲覧は 375px 幅・比率 0.563・並べると 187×333 ずつ／横持ちは 211×375 で帯からはみ出さず届く／帯は写真の外・文字は写真に重ならない） · 2026-08-20｜r87 🧹📐 **👻カメラの操作を写真の外へ出し、縦持ち・横持ちを作り直した**（要望＝「画面の真ん中に『透かし:日時（＜＞で変更）』がでて邪魔。＜＞ボタンだけで説明不要にして写真外においてください。縦表示、横表示も切り替えに気を付けて」・2026-08-20）。①🧹 **写真の上から文字を消した**＝「透かし: 2026-08-13 07:30（‹ › で変更）」→ **日付だけ**（同じ年なら 08-13）。⚠ 透かす写真が無い時は**行ごと消す**（「1枚目です…」の説明も置かない）。2画面の時は札にも日付を出す（🖼 08-13）。②📐 **操作は写真の外**＝写真の場所と操作の帯を**重ねずに分けた**（今までは写真の上に半透明で乗っていた）。**縦持ち＝下の帯／横持ち＝右の柱**（横持ちで下に置くと写真の高さが無くなる）。③📏 **枠の大きさは JS が実寸から決める**（pcFit）＝**CSS だけでは 3:4 を保てなかった**（実測で両方向とも失敗＝`height:100%`＋`max-width` は 0.584／`width:100%`＋`max-height` は横持ちで 1.805。max- で頭を打つと、もう片方の辺が比率に合わせて縮まない）。⚠ **イベントだけに頼らない**＝preview は resize も ResizeObserver も発火しない（r86 で実測）＝その状態で回すと前の大きさのままの枠が画面からはみ出す（写真の下が切れる）。→ resize/orientationchange **＋ 開いている間だけ 0.5秒ごとの測り直し**（変わった時だけ書く・閉じたら止める）。実測で「イベント無しで回しても 1.2秒後に 375×500・比率 0.750」を確認。🩹 **CSS の順番の罠**＝画面の向きの指定（媒体クエリ）をカメラCSSの真ん中に置いたため、後ろにある `.pcGhostRow button` に負けて横持ちの ‹ › が 25px に潰れていた（**指で当たらない**）＝ブロックを基本規則の後ろへ移し、44px を死守（横持ちは日付を別の行に折り返す）。ブラウザ実測 green・コンソール 0（縦持ち＝重ね 375×500(0.750)／2画面は上下・横持ち＝重ね 281×375(0.749)／2画面は左右、どの組み合わせでも**写真は必ず 3:4**・**帯は写真の外**・文字が写真に重ならない・‹ › は 44px 以上／写真0枚なら行も⊟も出ない／回転の追随） · 2026-08-20｜r86 ⊟ **📸 に「左右に並べて比べる」を足した**（要望「左右に写真を出して、比較もほしい。あの日から核心を移植して」・2026-08-20）。あの日の重ね撮り2画面（v173）の移植＝**比べるビュー**と**👻カメラ**の両方に。①⇆ 比べるに **👻 重ねる／⊟ 並べる** の切替（覚える）。並べる＝**常に左右**（要望どおり。3:4 の縦写真は半分幅でも読める）＝左が相手・右がこの写真（時間が左→右に流れる並び）・各セルに日付の札・‹›はどちらのモードでも効く。⚠ 並べる中は透かしスライダーを visibility で隠す（意味が無い・場所は保ってガタつかせない＝あの日と同じ）。②👻 カメラに **⊟ 2画面**（シャッター右のボタン）＝**縦持ち＝上下・横持ち＝左右**（体の縦写真は上下の方が各セルが大きい＝あの日 v173 の設計を踏襲）。📷いま／🖼前の写真 の札・モードは覚える・前の写真が無ければボタンを出さない。🥇 **どちらのモードでも映像は 3:4 の箱に cover**（.pcCell/.pcBox に包み直した）＝保存の切り出しと常に一致＝見えているものがそのまま残る（2画面にしても写る範囲が変わらない）。⚠ 回転の自動切替は**三重の保険**（resize／ResizeObserver＝枠の大きさの見張り／matchMedia＝縦横の問い合わせ）＝preview 環境は描画ループ停止で前2つが発火しないことを実測（rAF 系の既知の制約・実機では標準動作）。ブラウザ実測 green・コンソール 0（比べる＝並べるで左右171px each・札・‹›・スライダー隠し・モード記憶／カメラ＝重ねはセルが完全重なり・2画面は上下に3:4の箱2つ（304×405）・透かし不透明化・札表示・アイコン⊟↔👻・記憶・0枚ならボタン非表示／375px 横スクロールなし）。⚠ **回転時の上下↔左右の自動切替と撮影そのものは実機待ち** · 2026-08-20｜r85 ⚖📸 **体重を独立タブに・「からだの写真」タブを新設**（要望・2026-08-20）。✅ その前に、**実物の血圧計で 📷 読み取りが実機で通った**（r83 の核心が実証済みに）。①🗂 サブタブを5つに（🫀 血圧／⚖ 体重／📸 写真／💊 薬／🩺 健診）。⚠ 5つは副題を付けると 375px に入らない＝短い語だけ（各63px・切れなし）。🫀 と ⚖ は**保存の箱は1つ（BODY）のまま見せ方だけ分けた**＝1枚の写真に血圧と体重が混ざっていても、読めた数字がそれぞれのタブに出る。⚠ まだ読めていない写真は**両方のタブに出す**（どちらの数字か読むまで分からない＝隠すと消えたように見える）。期間の設定は2タブで共有（どちらで変えても両方が描き直る）。✍️ はタブに合わせた種類で開く。⚠ 期間ボタンが2タブに並ぶので **id → class**（id が重複すると片方しか効かない）。②📸 **からだの写真**＝体型を日々撮りためる。**あの日の重ね撮り（🎞️）の核心だけ移植**＝👻 **前の写真をカメラ映像に透かして出し、同じ角度で撮る**（3:4 の枠に映像と透かしを両方 cover で重ねる＝切り取り方が揃うのでズレない。保存も同じ切り出し＝見えているものがそのまま残る・長辺2048px）。透かしの濃さスライダー・‹›で下敷き変更・🔄前後カメラ・二段構えの getUserMedia（向き指定→無指定）。⇆ **2枚を透かして重ねて比べる**（スライダーで行き来・既定の相手は👻の下敷き＝角度が揃っている・‹›で別の日へ）。🗒ひとこと。🥇 **AI に送らない・書き出しにも入れない**＝完全に端末の中だけ（読み取るものが無い＝料金ゼロ。hNote に明記）。⚠ 👻 が使えない環境（カメラ映像を渡さない WebView 等）は、その場で理由を言い**帯の 📸（OS のカメラ）へ誘導**＝袋小路にしない。帯は 🫀=血圧計／⚖=体重計（どちらも同じ読み取り）／📸=からだ、とサブタブに1組ずつ。🧹（撮った日で数える）・📏・🧹時のモーダル閉じにも接続。ブラウザ実測 green・コンソール 0（サブタブ5つ1行・節と帯が5組とも連動／混在写真が両タブに振り分け・未読は両方に／期間の共有・✍️の種類切替／📸 グリッド・👻印・詳細・⇆比較（既定＝下敷き・スライダー0で相手だけ・‹›）・🗒保存・🗑／カメラはプレビュー環境で権限エラー→案内文の道を確認（**撮影そのものは実機待ち**）／🧹 に📸・📏 に📸／375px 横スクロールなし） · 2026-08-20';
+const BUILD = 'r90 💰 **予算を「分類ごと」「この月だけ」に広げ、保存した瞬間に帯を出す**（要望3つ・2026-08-20）＝「項目ごとに予算をつけられるように。**この月だけ増やす**」「**画像読み取り・手入力の収支を保存したときにも帯を出す**」「**全体の予算の確認は5秒ほど**」。①🏷 **分類ごとの予算**（rcpt.budget.cats）＋📅 **その月だけの上書き**（rcpt.budget.mon）。🥇 **全体の置き場（rcpt.budget）は変えない**＝r82 から入れている人の設定をそのまま使う（移行のコードが要らない）。②💰 **⚙ から開く「予算」の画面**＝「毎月（ふだん）／📅 この月だけ」を**同じ画面の切替**に（別画面に分けると「ふだん ¥30,000 ／ この月だけ ¥45,000」を**並べて見られない＝決められない**）。この月だけの欄は**空が既定**で placeholder に「ふだん ¥N」＝**空 = ふだんのまま**（0 にはならない・消すは空にするだけ＝r82 の「0円の予算に意味が無い」を守る）。各行に**使った額**も並べる（予算だけ並べても決められない）。⚠ 分類の合計と全体は**別の数字**＝揃えないが、超えていたら1行だけ言う。③🧾 **一覧の帯**＝全体はこれまでどおり（上書きの月は「（この月だけ）」）＋**気を付ける分類だけ**（超えた／残り1割）を**3つまで＋「ほか N件」**（全部並べると一覧の頭が予算表になる）。🔗 帯から 💰 へ行ける＝**気付いた場所から「この月だけ増やす」に手が届く**。④💬 **保存したら帯**＝読み取りが終わった時と ✏️ 手で直した時の両方・**5秒**（ふだん4秒・押せる9秒／toast に ms を足した）・まとめて撮っても**0.9秒待って1本にまとめる**・⚠ **予算を入れていない人には出さない**（既定は静か）・収入は「数えません」と言う。🩹 **また あの日の index.html を読んだ（4回目）**＝cd の持ち越しが node --check の cd でリセットされていた（編集は receipt 側だけに入っていたのを両ファイルで確認）→ **Bash は最初から絶対パス固定**。🩹 **BUILD を書き換える正規表現が貪欲に本体を飲み込み、index.html を 752KB→190KB に壊した**（git の版と手元の写しから復旧・パッチを1本のスクリプトにして再適用）→ **BUILD の書き換えは行を1本取り出してその中だけで組む・正規表現を使わない**。🩹 その直しでも 2回踏んだ＝**各版のかたまりは自分の日付を末尾に持っている**のに日付を外して付け直し二重にした／**説明文に単引用符を書いて JS の文字列がそこで閉じた**。→ どちらも node --check で捕まえた（BUILD を上げたら必ず構文を見る）。🩹 sed の区切り文字が中身と衝突してテストを壊した→置き換えは python の str.replace に一本化。⚠ **落ちたテストはまず実装よりテストを疑う**（1回目の 8 red は8つとも私の書き間違い＝await 漏れ／種の合計の足し間違い／トーストは0.9秒後に出るのを0として数えた／自分で決めた仕様を忘れた期待値）。ブラウザ実測 **38 green / 0 red**・アプリ由来のコンソールエラー 0（✏️ は画面から通した／全体 使った¥43,000→あと¥2,000・収入¥50,000を数えない・超過の分類だけ帯に・この月だけ¥80,000で数え直り前の月には効かない・4.2秒では消えず5.5秒で消える・3件まとめても1本・375px 横スクロールなし） · 2026-08-20｜r89 🖼 **📸 の写真を画面いっぱいに（ボタンは写真の上に重ねる）**（方針の訂正・2026-08-20）＝本人「**問題は、シャッターを押すボタンや、透かしのボタンを写真の外にだすことだったかも。ボタンが写真に重なってもありでいいので、画像を大きく見せてください**」。①🔄 **r87 で写真の外へ出した操作を、写真の上に重ねる形へ戻した**（下＝帯／横持ち＝右の柱・どちらも黒のグラデーション）。⚠ ただし r87 の**別の指摘（写真の真ん中に説明の文字が出て邪魔）は維持**＝重ねてよいのは**ボタン**までで、説明の文字は増やさない（日付だけ）。②📐 **「画面」という形を足して既定にした**＝9:16 でも画面（縦持ちで約 0.46）より横長なので上下に黒が残っていた（82%）。「画面」＝**その画面の形そのもの**で撮る＝**100%**（縦持ち 375×812・横持ちでも 98%）。▯ で 画面 → 9:16 → 3:4 と回せる（覚える）。🥇 **保存する形は「いま見えている箱の実寸」から取る**＝画面いっぱいでも2画面でも、**見えているものと保存されるものが必ず一致**する（別々に計算すると必ずどこかでズレる）。長い方を 2048px に収める（横持ちで撮ると横長になるため両対応）。⚠ 形は写真ごとに記録（ar）＝同じ端末・同じ向きなら透かしはぴったり重なる。違う時は contain（全体を出す）＋帯に1行（黙って切らない・r88 の約束）。実測 green・コンソール 0（縦持ち＝画面100%/9:16 82%/3:4 62%と切替・2画面も同じ形で上下・撮った写真の形が画面と一致（0.4618）・横持ち＝98%で横長に撮れ長辺2048内（1279×602）・シャッターは画面内・閲覧は 375×812 でそのままの形・並べると 187×406 ずつ） · 2026-08-20｜r88 🔍 **📸 の写真・撮影の表示をできるだけ大きくした**（要望・2026-08-20）。🥇 **正体＝写真の形**。3:4 は**画面より横長**なので、縦持ちでは**横幅で頭打ち**になり上下に黒が残っていた（実測 375×500＝画面の 62%）。帯を細くしても写真は1mmも大きくならない（黒が増えるだけ）＝**形を変えるしかない**。→ **9:16（縦長）を既定**にした＝**372×661＝画面の 81%**（同じ画面で約1.3倍・全身も入りやすい）。▯ ボタンで **9:16 ↔ 3:4** を切り替えられ、選択は覚える。⚠ **形を混ぜると重ねてもぴったりにはならない**＝形の違う透かしは cover（切り取り）でなく **contain（全体を出す）**にし、「前の写真は 3:4（形が違うのでぴったりは重なりません）」と**帯に**1行出す（写真の上には書かない＝r87 の約束／黙って歪めない・切らない）。写真ごとに形（ar）を持たせ、帯の 📸🖼 から入れた写真は**その写真自身の形**を測って記録（決め打ちしない）。r85-87 の写真は 3:4 として扱う。📐 帯も詰めた（170→150px・シャッター 64→60・余白と間隔）＝9:16 は**高さで頭打ち**なので帯の高さがそのまま写真の高さになる。🖼 **閲覧も大きく**＝詳細の写真と比較を**シートの端まで**広げ（343→375px）、枠を**写真そのものの形**に合わせた（3:4 の枠に 9:16 を入れて上下を黒くしていた）。形の違う2枚を並べる時は**背の高い方**に合わせる（どちらも切らない）。🩹 横持ちは柱の高さが画面の高さそのもの＝注意書きが1行増えるだけではみ出し**シャッターが押せなくなる**ので、はみ出したらスクロールで届くようにした（実測 416 > 360 でスクロール可・シャッターに到達できる）。ブラウザ実測 green・コンソール 0（縦持ち 9:16＝372×661/81%・2画面の各セルも 0.563／3:4 に切り替えると 375×500/62% に戻る／形違いの透かしは contain＋注意書き／閲覧は 375px 幅・比率 0.563・並べると 187×333 ずつ／横持ちは 211×375 で帯からはみ出さず届く／帯は写真の外・文字は写真に重ならない） · 2026-08-20｜r87 🧹📐 **👻カメラの操作を写真の外へ出し、縦持ち・横持ちを作り直した**（要望＝「画面の真ん中に『透かし:日時（＜＞で変更）』がでて邪魔。＜＞ボタンだけで説明不要にして写真外においてください。縦表示、横表示も切り替えに気を付けて」・2026-08-20）。①🧹 **写真の上から文字を消した**＝「透かし: 2026-08-13 07:30（‹ › で変更）」→ **日付だけ**（同じ年なら 08-13）。⚠ 透かす写真が無い時は**行ごと消す**（「1枚目です…」の説明も置かない）。2画面の時は札にも日付を出す（🖼 08-13）。②📐 **操作は写真の外**＝写真の場所と操作の帯を**重ねずに分けた**（今までは写真の上に半透明で乗っていた）。**縦持ち＝下の帯／横持ち＝右の柱**（横持ちで下に置くと写真の高さが無くなる）。③📏 **枠の大きさは JS が実寸から決める**（pcFit）＝**CSS だけでは 3:4 を保てなかった**（実測で両方向とも失敗＝`height:100%`＋`max-width` は 0.584／`width:100%`＋`max-height` は横持ちで 1.805。max- で頭を打つと、もう片方の辺が比率に合わせて縮まない）。⚠ **イベントだけに頼らない**＝preview は resize も ResizeObserver も発火しない（r86 で実測）＝その状態で回すと前の大きさのままの枠が画面からはみ出す（写真の下が切れる）。→ resize/orientationchange **＋ 開いている間だけ 0.5秒ごとの測り直し**（変わった時だけ書く・閉じたら止める）。実測で「イベント無しで回しても 1.2秒後に 375×500・比率 0.750」を確認。🩹 **CSS の順番の罠**＝画面の向きの指定（媒体クエリ）をカメラCSSの真ん中に置いたため、後ろにある `.pcGhostRow button` に負けて横持ちの ‹ › が 25px に潰れていた（**指で当たらない**）＝ブロックを基本規則の後ろへ移し、44px を死守（横持ちは日付を別の行に折り返す）。ブラウザ実測 green・コンソール 0（縦持ち＝重ね 375×500(0.750)／2画面は上下・横持ち＝重ね 281×375(0.749)／2画面は左右、どの組み合わせでも**写真は必ず 3:4**・**帯は写真の外**・文字が写真に重ならない・‹ › は 44px 以上／写真0枚なら行も⊟も出ない／回転の追随） · 2026-08-20｜r86 ⊟ **📸 に「左右に並べて比べる」を足した**（要望「左右に写真を出して、比較もほしい。あの日から核心を移植して」・2026-08-20）。あの日の重ね撮り2画面（v173）の移植＝**比べるビュー**と**👻カメラ**の両方に。①⇆ 比べるに **👻 重ねる／⊟ 並べる** の切替（覚える）。並べる＝**常に左右**（要望どおり。3:4 の縦写真は半分幅でも読める）＝左が相手・右がこの写真（時間が左→右に流れる並び）・各セルに日付の札・‹›はどちらのモードでも効く。⚠ 並べる中は透かしスライダーを visibility で隠す（意味が無い・場所は保ってガタつかせない＝あの日と同じ）。②👻 カメラに **⊟ 2画面**（シャッター右のボタン）＝**縦持ち＝上下・横持ち＝左右**（体の縦写真は上下の方が各セルが大きい＝あの日 v173 の設計を踏襲）。📷いま／🖼前の写真 の札・モードは覚える・前の写真が無ければボタンを出さない。🥇 **どちらのモードでも映像は 3:4 の箱に cover**（.pcCell/.pcBox に包み直した）＝保存の切り出しと常に一致＝見えているものがそのまま残る（2画面にしても写る範囲が変わらない）。⚠ 回転の自動切替は**三重の保険**（resize／ResizeObserver＝枠の大きさの見張り／matchMedia＝縦横の問い合わせ）＝preview 環境は描画ループ停止で前2つが発火しないことを実測（rAF 系の既知の制約・実機では標準動作）。ブラウザ実測 green・コンソール 0（比べる＝並べるで左右171px each・札・‹›・スライダー隠し・モード記憶／カメラ＝重ねはセルが完全重なり・2画面は上下に3:4の箱2つ（304×405）・透かし不透明化・札表示・アイコン⊟↔👻・記憶・0枚ならボタン非表示／375px 横スクロールなし）。⚠ **回転時の上下↔左右の自動切替と撮影そのものは実機待ち** · 2026-08-20';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1517,6 +1553,12 @@ const LS = {
   fmt:   p => `rcpt.fmt.${p}`,    // そのサービスで通った「JSONの頼み方」を覚えておく（r10）
   cats:  'rcpt.cats',             // 自分で足した分類（r31）
   budget: 'rcpt.budget',          // 月の予算・円（r82）。空＝予算の表示なし
+  /* r90: 💰 予算を「分類ごと」「この月だけ」に広げた。⚠ **全体（rcpt.budget）はそのまま**＝
+     r82 から使っている人の設定を作り直させない（移行のコードも要らない）。
+       budCats = {"食費":30000,"外食":10000}          … 毎月おなじ（ふだん）の分類ごとの予算
+       budMon  = {"2026-08":{"_all":120000,"食費":40000}} … その月だけの上書き（旅行のある月など） */
+  budCats: 'rcpt.budget.cats',
+  budMon:  'rcpt.budget.mon',
 };
 /* 📈 分析（r15）の設定。⚠ 写真の読み取りとは別の用途＝別の AI・別のモデルを選べる。
    キー（rcpt.key.*）と APIのURL は AI ごとに1本を読み取りと共有する＝同じ鍵を2回貼らせない。
@@ -5792,7 +5834,10 @@ async function runAnalysis(id){
   }
   await dbPut(rec); await renderList();
   if (isOpen('ovStats')) renderStats(); // 分析が終わったら、開いている統計にも反映する
-  if (rec.status === 'done') autoGeoSweep();  // 印字住所から場所も入れる（r20・待たない）
+  if (rec.status === 'done') {
+    autoGeoSweep();                     // 印字住所から場所も入れる（r20・待たない）
+    budgetSaved(receiptsOf(rec));       // r90: 読めた金額を、その場で予算に照らして帯で出す
+  }
   // ⚠ toast は数秒で消える＝「控えてあります」まで言う（人が慌てて書き写さなくてよい）
   if (rec.status === 'error') toast('❌ ' + rec.error + '（理由は詳細に残しました）');
 }
@@ -6002,23 +6047,99 @@ document.getElementById('sMeals').addEventListener('click', async e => {
    ⚠ 比べるのは**先月の同じ日まで**＝月の途中で先月の丸ごとと比べると、必ず「増えた」に見えて嘘になる。
    ⚠ 予算は ⚙ で入れた人にだけ出す（既定は比べの1行だけ＝情報を増やしすぎない）。
    ⚠ 収入（income）は数えない＝月見出しの合計と同じ決まり（2つの数字が食い違うと信用を失う）。 */
+
+/* ---------- 💰 予算の中身（r90） ----------
+   r82 は「月の全体を 1つ」だけだった。r90 で 2方向に広げる:
+     🏷 分類ごと（食費だけ ¥30,000 など）と 📅 その月だけの上書き（旅行のある月は増やす）。
+   🥇 **全体の置き場（rcpt.budget）は変えない**＝r82 から入れている人の設定を壊さない・移行も要らない。
+   ⚠ 上書きは「入っているかどうか」だけで見る（1以上の数字しか入れられない）。0 円の予算に意味が無いのは r82 と同じ。
+   ⚠ 分類の予算の合計と全体は**別の数字**＝どちらかに揃えない（分類を全部は埋めない使い方が普通）。
+      ただし合計が全体を超えていたら 💰 の画面で 1行言う（黙って矛盾を抱えさせない）。 */
+const BUD_ALL = '_all';                       // 「全体」を指す鍵（分類名と衝突しないよう _ で始める）
+const budNum = v => { const n = Math.round(+v); return Number.isFinite(n) && n > 0 ? n : 0; };
+const budJson = k => { try { const o = JSON.parse(localStorage.getItem(k) || '{}');
+                             return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; }
+                       catch (_) { return {}; } };
+const budCatsAll = () => budJson(LS.budCats);
+const budMonsAll = () => budJson(LS.budMon);
+// ふだんの予算（毎月おなじ）
+const budBase = key => key === BUD_ALL ? budNum(localStorage.getItem(LS.budget)) : budNum(budCatsAll()[key]);
+// その月だけの上書き（0 なら「上書きなし」）
+const budOver = (key, mo) => budNum((budMonsAll()[mo] || {})[key]);
+/* 実際に効いている額と、それが上書きかどうか。
+   ⚠ over を返すのは画面で「（この月だけ）」と言うため＝黙って額だけ変えると、来月見た時に訳が分からなくなる。 */
+const budOf = (key, mo) => { const o = budOver(key, mo);
+                             return o ? { yen: o, over: true } : { yen: budBase(key), over: false }; };
+const budMonSet = mo => !!Object.keys(budMonsAll()[mo] || {}).length;   // この月だけの設定があるか
+function budSetBase(key, yenV){
+  if (key === BUD_ALL) { if (yenV) localStorage.setItem(LS.budget, String(yenV)); else localStorage.removeItem(LS.budget); return; }
+  const o = budCatsAll(); if (yenV) o[key] = yenV; else delete o[key];
+  localStorage.setItem(LS.budCats, JSON.stringify(o));
+}
+function budSetOver(key, mo, yenV){
+  const all = budMonsAll(), m = { ...(all[mo] || {}) };
+  if (yenV) m[key] = yenV; else delete m[key];
+  if (Object.keys(m).length) all[mo] = m; else delete all[mo];   // 空の月は残さない（ごみを溜めない）
+  localStorage.setItem(LS.budMon, JSON.stringify(all));
+}
+const budMonClear = mo => { const all = budMonsAll(); delete all[mo]; localStorage.setItem(LS.budMon, JSON.stringify(all)); };
+// その月に予算が 1つでも効いているか（全体でも分類でも）
+const budAny = mo => budOf(BUD_ALL, mo).yen > 0 || budCatKeys(mo).length > 0;
+// 予算のついている分類（ふだん＋この月だけの両方から集める）
+function budCatKeys(mo){
+  const set = new Set(Object.keys(budCatsAll()).filter(c => budNum(budCatsAll()[c]) > 0));
+  Object.keys(budMonsAll()[mo] || {}).forEach(c => { if (c !== BUD_ALL && budOver(c, mo)) set.add(c); });
+  return [...set];
+}
+/* その月の支出（合計と分類ごと）。
+   ⚠ 収入（income）は数えない＝月見出しの合計と同じ決まり（2つの数字が食い違うと信用を失う）。 */
+function budSpend(rows, mo, dayLimit){
+  const out = { total: 0, byCat: {} };
+  rows.filter(x => x.date.slice(0, 7) === mo && (!dayLimit || x.date.slice(8) <= dayLimit)
+                && x.rc && x.rc.kind !== 'income' && x.rc.total != null)
+      .forEach(x => { out.total += x.rc.total;
+                      const c = x.rc.category || CAT_ETC; out.byCat[c] = (out.byCat[c] || 0) + x.rc.total; });
+  return out;
+}
+// 「あと ¥N」／「¥N 超過」の言い方を 1か所に（帯・トースト・💰 画面で食い違わせない）
+const budLeftText = (budget, used) => budget - used >= 0 ? `あと ${yen(budget - used)}` : `${yen(used - budget)} 超過`;
+
 function monSubLine(rows){
   const today = todayStr(), nowM = today.slice(0, 7), day = today.slice(8);
   const d = new Date(+nowM.slice(0, 4), +nowM.slice(5, 7) - 2, 1);   // 先月の1日
   const lastM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  const spend = (mo, dayLimit) => rows.filter(x => x.date.slice(0, 7) === mo && (!dayLimit || x.date.slice(8) <= dayLimit)
-                                                && x.rc && x.rc.kind !== 'income' && x.rc.total != null)
-                                      .reduce((s, x) => s + x.rc.total, 0);
-  const last = spend(lastM, day);   // ⚠ 先月が短い月（2月など）でも「日 <= 今日の日」で自然に全日入る
-  const budget = +localStorage.getItem(LS.budget) || 0;
+  // ⚠ 先月が短い月（2月など）でも「日 <= 今日の日」で自然に全日入る
+  const last = budSpend(rows, lastM, day).total;
+  const sp = budSpend(rows, nowM);
+  const b = budOf(BUD_ALL, nowM);
   const parts = [];
   if (last) parts.push(`先月の同じ日まで ${yen(last)}`);
-  if (budget) {
-    const left = budget - spend(nowM);
-    parts.push(left >= 0 ? `予算 ${yen(budget)} まで あと <b>${yen(left)}</b>`
-                         : `<span class="over">予算 ${yen(budget)} を ${yen(-left)} 超えています</span>`);
+  if (b.yen) {
+    const left = b.yen - sp.total, only = b.over ? '<small>（この月だけ）</small>' : '';
+    parts.push(left >= 0 ? `予算 ${yen(b.yen)}${only} まで あと <b>${yen(left)}</b>`
+                         : `<span class="over">予算 ${yen(b.yen)}${only} を ${yen(-left)} 超えています</span>`);
   }
-  return parts.length ? `<div class="monSub">${parts.join(' ・ ')}</div>` : '';
+  // 💰 への入口は、予算を入れている人にだけ（既定は増やさない）
+  if (budAny(nowM)) parts.push('<span class="budGo" data-budopen>💰 予算</span>');
+  let html = parts.length ? `<div class="monSub">${parts.join(' ・ ')}</div>` : '';
+  const w = catBudLine(sp, nowM);
+  if (w) html += `<div class="monSub">${w}</div>`;
+  return html;
+}
+/* r90: 分類ごとの予算は**気を付けるものだけ**一覧に出す（超えた・残り1割を切った）。
+   ⚠ 全部並べると、一覧の頭が予算表になる＝探しているレシートが下に押される。
+      「全部見たい」は 💰 の画面が受け持つ（あそこには使った額も残りも全部ある）。 */
+function catBudLine(sp, mo){
+  const hit = budCatKeys(mo).map(c => { const b = budOf(c, mo), used = sp.byCat[c] || 0;
+                                        return { c, b: b.yen, over: b.over, used, left: b.yen - used }; })
+                            .filter(x => x.b > 0 && x.left <= x.b * 0.1)   // 超過・残り1割以下
+                            .sort((a, b) => a.left - b.left);              // ひどい順
+  if (!hit.length) return '';
+  const show = hit.slice(0, 3).map(x => x.left < 0
+    ? `<span class="over">🏷 ${esc(x.c)} ${yen(-x.left)} 超過</span>`
+    : `🏷 ${esc(x.c)} あと <b>${yen(x.left)}</b>`);
+  if (hit.length > 3) show.push(`ほか ${hit.length - 3}件`);
+  return show.join(' ・ ');
 }
 async function renderList(){
   const all = await listRows();
@@ -6084,6 +6205,8 @@ async function renderList(){
 document.getElementById('list').addEventListener('click', e => {
   const retry = e.target.closest('[data-retry]');
   if (retry) { runAnalysis(retry.dataset.retry); return; }
+  // r90: 帯の「💰 予算」＝使いすぎに気付いたその場から「この月だけ増やす」へ行ける
+  if (e.target.closest('[data-budopen]')) { openBudget('mon'); return; }
   const row = e.target.closest('.rec');
   if (row) openDetail(row.dataset.id, +row.dataset.i || 0);
 });
@@ -6400,7 +6523,9 @@ document.getElementById('edSave').onclick = async () => {
   r.data = { receipts: rcs };                                // 形を receipts 配列に揃える（r2 以前の形も吸収）
   r.status = 'done'; r.error = null; r.edited = Date.now();
   await dbPut(r);
-  hide('ovEdit'); toast('✏️ 直しました');
+  hide('ovEdit');
+  // r90: 手で入れ直した金額・分類も、その場で予算に照らして帯にする（読み取りと同じ扱い）
+  if (!budgetSaved([rcs[edIdx]], '✏️ 直しました')) toast('✏️ 直しました');
   await renderList();
   if (isOpen('ovDetail')) await openDetail(edId, edIdx); // 直した本人の1枚に戻る（r28）
   if (isOpen('ovStats')) renderTab();
@@ -7036,6 +7161,145 @@ document.getElementById('inBudget').onchange = e => {
   else { localStorage.removeItem(LS.budget); e.target.value = ''; }
   renderList();   // 🧾 一覧の今月の行にすぐ効かせる（⚙ を閉じたら変わっているように）
 };
+
+/* ---------- 💰 予算の画面（r90） ----------
+   ⚠ 「毎月（ふだん）」と「この月だけ」を**同じ画面の切替**にした＝別々の画面に分けると
+      「ふだん ¥30,000 ／ この月だけ ¥45,000」を**見比べられない**（見比べられないと決められない）。
+      この月だけの欄は**空が既定**で、placeholder に「ふだん ¥N」を出す＝空 = ふだんのまま。
+   ⚠ 「消す」は**空にするだけ**（0 を入れさせない）＝r82 の「0 円の予算に意味が無い」をそのまま守る。
+   ⚠ 使った額を各行に出す＝予算だけ並べても決められない（いくら使う人なのかが要る）。 */
+let budScope = 'base', budMo = '';
+function openBudget(scope){
+  budScope = scope === 'mon' ? 'mon' : 'base';
+  if (!budMo) budMo = todayStr().slice(0, 7);
+  show('ovBudget');
+  renderBudget();
+}
+const budMoShift = (mo, n) => { const d = new Date(+mo.slice(0, 4), +mo.slice(5, 7) - 1 + n, 1);
+                                return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; };
+const budMoLabel = mo => `${mo.slice(0, 4)}年${+mo.slice(5, 7)}月`;
+
+function budRowHtml(key, label, sp, mo, base){
+  const cur = base ? budBase(key) : budOver(key, mo);       // 欄に出す数（この月だけは、上書きした時だけ入る）
+  const eff = budOf(key, mo);                               // 実際に効いている額
+  const used = key === BUD_ALL ? sp.total : (sp.byCat[key] || 0);
+  const ph = base ? '（決めない）'
+                  : budBase(key) ? `ふだん ${yen(budBase(key))}` : 'ふだんは決めていません';
+  const use = eff.yen
+    ? `使った ${yen(used)} ／ ` + (eff.yen - used >= 0 ? `あと <b>${yen(eff.yen - used)}</b>`
+                                                      : `<span class="over">${yen(used - eff.yen)} 超過</span>`)
+      + (eff.over ? '<small>（この月だけ）</small>' : '')
+    : `使った ${yen(used)}`;
+  return `<div class="budRow${key === BUD_ALL ? ' tot' : ''}">
+    <div class="budName">${label}</div>
+    <input type="number" inputmode="numeric" min="1" data-budkey="${esc(key)}" value="${cur || ''}"
+           placeholder="${esc(ph)}" autocomplete="off" aria-label="${esc(label)} の予算">
+    <div class="budUse">${use}</div>
+  </div>`;
+}
+async function renderBudget(){
+  const base = budScope === 'base';
+  // ⚠ ふだんの画面で見せる「使った」は**今月**（月を選ぶ道具はこの画面には出ていない）
+  const mo = base ? todayStr().slice(0, 7) : budMo;
+  document.querySelectorAll('#budScopeSeg button').forEach(b =>
+    b.classList.toggle('on', (b.dataset.budscope === 'base') === base));
+  document.getElementById('budMonNav').hidden = base;
+  document.getElementById('budThis').textContent = budMoLabel(mo);
+  const sp = budSpend((await listRows()).filter(x => x.rc), mo);
+  /* ⚠ もう選べない分類でも、予算が付いていれば出す（消した分類・別の端末で付けた分類）
+        ＝黙って予算だけ残ると、合わない数字の出どころが分からなくなる。 */
+  const cats = [...new Set([...catList(), ...budCatKeys(mo)])];
+  document.getElementById('budRows').innerHTML =
+    budRowHtml(BUD_ALL, '🧮 全体', sp, mo, base)
+    + cats.map(c => budRowHtml(c, `🏷 ${esc(c)}`, sp, mo, base)).join('');
+  document.getElementById('budNote').innerHTML = base
+    ? '<b>毎月おなじ</b>予算です。空にすると外れます。<br>🧾 一覧の今月の行には、<b>全体</b>と、<b>超えた・残りが1割を切った分類だけ</b>が出ます（全部の残りはこの画面で見られます）。'
+    : `<b>${budMoLabel(mo)} だけ</b>の予算です（旅行・引っ越しなど、その月だけ増やす／減らす時に）。<br>`
+      + '⚠ <b>空の欄は「ふだんのまま」</b>です（0 にはなりません）。入れた欄だけがこの月で置き換わり、一覧にも「（この月だけ）」と出ます。';
+  // 分類の合計と全体は別の数字＝揃えないが、食い違っていたら1行だけ言う（黙って矛盾を抱えさせない）
+  const catSum = cats.reduce((n, c) => n + budOf(c, mo).yen, 0), allYen = budOf(BUD_ALL, mo).yen;
+  document.getElementById('budFoot').innerHTML =
+    !catSum ? '' :
+    !allYen ? `🏷 分類の合計 <b>${yen(catSum)}</b>（全体は決めていません）` :
+    catSum > allYen ? `<span class="over">⚠ 🏷 分類の合計 ${yen(catSum)} が 🧮 全体 ${yen(allYen)} を超えています</span>`
+                      + '（どちらもそのまま使います＝分類は分類、全体は全体で数えます）'
+    : `🏷 分類の合計 <b>${yen(catSum)}</b> ／ 🧮 全体 ${yen(allYen)}（残り ${yen(allYen - catSum)} は分類を決めていないぶんです）`;
+  const clr = document.getElementById('btnBudClear');
+  clr.hidden = base || !budMonSet(mo);
+  clr.textContent = `📅 ${budMoLabel(mo)} だけの設定を消す（ふだんに戻す）`;
+}
+document.querySelectorAll('#budScopeSeg button').forEach(b => b.onclick = () => {
+  budScope = b.dataset.budscope; renderBudget();
+});
+document.getElementById('budPrev').onclick = () => { budMo = budMoShift(budMo, -1); renderBudget(); };
+document.getElementById('budNext').onclick = () => { budMo = budMoShift(budMo,  1); renderBudget(); };
+document.getElementById('budThis').onclick = () => { budMo = todayStr().slice(0, 7); renderBudget(); };
+document.getElementById('budRows').addEventListener('change', async e => {
+  const el = e.target.closest('[data-budkey]'); if (!el) return;
+  const key = el.dataset.budkey, v = budNum(el.value);
+  if (budScope === 'base') budSetBase(key, v); else budSetOver(key, budMo, v);
+  // 全体は ⚙ の欄と同じ置き場＝どちらで変えても、もう片方がすぐ同じ数字になる（2か所で食い違わせない）
+  if (key === BUD_ALL) document.getElementById('inBudget').value = localStorage.getItem(LS.budget) || '';
+  await renderBudget();
+  await renderList();
+});
+document.getElementById('btnBudClear').onclick = async () => {
+  if (!confirm(`${budMoLabel(budMo)} だけの予算の設定を消して、ふだんの予算に戻しますか？`)) return;
+  budMonClear(budMo);
+  document.getElementById('inBudget').value = localStorage.getItem(LS.budget) || '';
+  await renderBudget(); await renderList();
+  toast(`📅 ${budMoLabel(budMo)} をふだんの予算に戻しました`);
+};
+document.getElementById('btnBudget').onclick = () => openBudget('base');
+
+/* ---------- 💰 収支を保存したら、予算の帯を出す（r90） ----------
+   要望＝「画像読み取り・手入力の収支を保存したときにも帯を出す」「全体の予算の確認は5秒ほど」。
+   ⚠ 予算を入れていない人には**出さない**（既定は静か＝r82 の決まりのまま）。
+   ⚠ **1枚ずつ出さない**＝まとめて撮ると読み取りが次々終わり、トーストが流れて最後の1つしか読めない。
+      少し待って**1回にまとめる**（その間に触った分類はぜんぶ言う）。
+   ⚠ 5秒＝ふだんの 4秒より長い（金額は読んで飲み込むのに一拍要る）。押せるトーストの 9秒よりは短い。 */
+const BUD_TOAST_MS = 5000;
+let budToastTimer = null, budToastHits = [], budToastLead = '';
+/* 保存したレシートを渡す。⚠ **戻り値が true なら、呼んだ側は自分でトーストを出さない**
+     ＝「✏️ 直しました」と予算の帯が 1秒差で入れ替わると、どちらも読めない。 */
+function budgetSaved(rcs, lead){
+  const list = (Array.isArray(rcs) ? rcs : [rcs]).filter(Boolean);
+  let added = 0;
+  list.forEach(rc => {
+    const mo = String(rc.date || '').slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(mo)) return;   // 日付が読めていない＝どの月の予算に効くか言えない
+    budToastHits.push({ mo, cat: rc.category || CAT_ETC, income: rc.kind === 'income' });
+    added++;
+  });
+  if (!added) return false;
+  if (lead) budToastLead = lead;
+  clearTimeout(budToastTimer);
+  budToastTimer = setTimeout(budgetToastFlush, 900);
+  return true;
+}
+async function budgetToastFlush(){
+  const hits = budToastHits, lead = budToastLead;
+  budToastHits = []; budToastLead = '';
+  if (!hits.length) return;
+  // ⚠ 月をまたいで保存された時は**新しい方の月**で言う（2か月ぶんを1行に並べると読めない）
+  const mo = hits.map(h => h.mo).sort().pop();
+  const mine = hits.filter(h => h.mo === mo);
+  const parts = [];
+  if (budAny(mo)) {
+    const sp = budSpend((await listRows()).filter(x => x.rc), mo);
+    // 触った分類のうち、予算があるものだけ（予算の無い分類に「あと」は言えない）
+    [...new Set(mine.filter(h => !h.income).map(h => h.cat))].forEach(c => {
+      const b = budOf(c, mo); if (b.yen) parts.push(`${c} ${budLeftText(b.yen, sp.byCat[c] || 0)}`);
+    });
+    const all = budOf(BUD_ALL, mo);
+    if (all.yen) parts.push(`全体 ${budLeftText(all.yen, sp.total)}`);
+  }
+  if (!parts.length) { if (lead) toast(lead); return; }   // 予算が無い月＝ふだんの知らせだけ出す
+  const now = todayStr().slice(0, 7);
+  const head = `💰${mo === now ? '' : ' ' + budMoLabel(mo)}`;
+  const inc = mine.some(h => h.income) ? '（収入は数えません）' : '';
+  toast(`${lead ? lead + ' ・ ' : ''}${head} ${parts.join(' ／ ')}${inc}`, null, BUD_TOAST_MS);
+}
 
 /* ---------- 🔌 接続テスト / 🔄 一覧の取得 / 🛠 詳細設定（r53：役割ごとに1組） ----------
    ⚠ **これまで両方のボタンが `ctxFor('ocr')` 決め打ちだった**＝🍽 や 📈 に別の AI を選ぶと、
@@ -9374,14 +9638,15 @@ async function recoverStuck(){
 let toastTimer = null;
 /* r43: 押せるトーストを足した（`onTap` を渡した時だけ）。
    ⚠ 押せる時は**長めに出す**（4秒は読んで押すには短い）。
-   ⚠ **毎回 onclick を消す**＝次の普通のトーストが押せるまま残ると、関係ない文言で設定が開く。 */
-function toast(msg, onTap){
+   ⚠ **毎回 onclick を消す**＝次の普通のトーストが押せるまま残ると、関係ない文言で設定が開く。
+   r90: `ms` で出しておく長さを指定できる（💰 予算の帯は 5秒＝金額は読んで飲み込むのに一拍要る）。 */
+function toast(msg, onTap, ms){
   const t = document.getElementById('toast');
   t.textContent = msg; t.style.display = 'block';
   t.classList.toggle('tap', !!onTap);
   t.onclick = onTap ? () => { t.style.display = 'none'; onTap(); } : null;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.style.display = 'none'; }, onTap ? 9000 : 4000);
+  toastTimer = setTimeout(() => { t.style.display = 'none'; }, ms || (onTap ? 9000 : 4000));
 }
 
 /* ---------- 起動: 中断されていた分析を再開 ---------- */
