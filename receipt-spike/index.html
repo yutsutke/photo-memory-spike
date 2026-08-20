@@ -334,6 +334,9 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 .hSec .hH{display:flex; align-items:baseline; gap:8px; font-size:15px; font-weight:600; margin:6px 0 8px;}
 .hSec .hH small{color:var(--dim); font-weight:400; font-size:12px;}
 .hSec .hH button{margin-left:auto; flex:none; background:none; border:1px solid var(--line); color:var(--acc); border-radius:8px; padding:4px 10px; font-size:13px;}
+/* r83: 🫀 の折れ線（ローカルSVG）。カードの見た目は .rec と揃える */
+.bdChart{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:8px 10px; margin-bottom:8px;}
+.bdChartT{display:flex; gap:10px; align-items:baseline; font-size:12.5px; color:var(--dim); margin-bottom:2px;}
 .hEmpty{color:var(--dim); font-size:13px; padding:8px 4px 4px;}
 .rec .chip.ok{color:var(--ok); border-color:var(--ok);}
 .rec .chip.bad{color:var(--err); border-color:var(--err);}
@@ -526,6 +529,18 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
        ⚠ レシート・食事と同じ箱に入れない（金額も日々の記録も無い・数え方も違う）。
        ⚠ AI に渡す時は「期間」で拾いきれない（健診は年1回）＝📤/📈 で**期間より前の直近の健診も一緒に**渡す。 -->
   <div id="healthPane" hidden>
+    <!-- 🫀 からだの数字（r83）＝血圧・体重。健診（年1回の点）の間を埋める毎日の線。
+         ⚠ 1日に何回でも（仕事前・仕事後など）＝1回の計測が1件。
+         ⚠ 撮る入口は下の帯に足さない（🩺タブの帯はすでに2組＝もう1組足すと幅が足りない・r33）＝この節の中に置く。 -->
+    <div class="hSec">
+      <div class="hH">🫀 からだの数字<small>血圧・体重（1日に何回でも）</small><button id="btnBodyNew">✍️ 手で入れる</button></div>
+      <div class="dual" style="margin-bottom:8px">
+        <label class="btn" style="text-align:center; margin:0">📷 血圧計・記録の紙を撮る<input type="file" accept="image/*" capture="environment" id="bodyShoot" hidden></label>
+        <label class="btn" style="text-align:center; margin:0">🖼 写真から選ぶ<input type="file" accept="image/*" multiple id="bodyPick" hidden></label>
+      </div>
+      <div id="bodyChart"></div>
+      <div id="bodyList"></div>
+    </div>
     <div class="hSec">
       <div class="hH">🩺 健康診断<small>年1回の結果と、再検査</small></div>
       <div id="ckList"></div>
@@ -807,6 +822,10 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <label class="anChk"><input type="checkbox" id="expMedChk"><span>💊 <b>薬を入れる</b>（<span id="expMedN"></span>）</span></label>
     <label class="anChk" style="margin-left:26px"><input type="checkbox" id="expMedAllChk"><span>🗂 <b>終わった薬も全部入れる</b>（履歴として）</span></label>
   </div>
+  <!-- r83: 🫀 からだの数字＝計測の日付で期間に入るものを出す（🩺💊 と行を分ける＝1件も無い人には出さない） -->
+  <div class="row" id="expBodyRow" hidden><label>🫀 からだの数字</label>
+    <label class="anChk"><input type="checkbox" id="expBodyChk"><span>🫀 <b>血圧・体重を入れる</b>（<span id="expBodyN"></span>）</span></label>
+  </div>
   <!-- r62: ファイルを1次に・文字貼りを2次に（実際に試して「ファイル→AIに読ませる」が本命になった）。
        ⚠ 全期間で出して毎回上書きすれば、古いファイルと重なる心配がない＝その使い方をここで言う -->
   <!-- r64: 実機で分かった一番短い道を先に書く（共有シートに Claude が直接出る）。
@@ -1004,6 +1023,33 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <div id="mdBody"></div>
   <button class="btn pri" id="btnMdSave" style="margin-top:12px">この内容にする</button>
   <button class="btn" id="btnMdDel">🗑 この薬を削除</button>
+</div></div>
+
+<!-- 🫀 からだの数字の詳細（r83）＝1回の計測を見る・直す・写真から読み直す -->
+<div class="overlay" id="ovBody"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2 id="bdTitle">🫀 からだの数字</h2>
+  <img id="bdImg" alt="" hidden>
+  <div id="bdHead"></div>
+  <div class="row"><label>種類</label>
+    <div class="seg" id="bdKindSeg">
+      <button type="button" data-bdkind="bp">🫀 血圧</button>
+      <button type="button" data-bdkind="weight">⚖ 体重</button>
+    </div></div>
+  <div class="dual">
+    <div class="row" style="flex:1"><label>日付</label><input type="date" id="bdDate"></div>
+    <div class="row" style="flex:1"><label>時刻</label><input type="time" id="bdTime"></div>
+  </div>
+  <div class="dual" id="bdBpRow">
+    <div class="row" style="flex:1"><label>上（最高）</label><input type="number" inputmode="numeric" min="1" id="bdSys" placeholder="例: 128"></div>
+    <div class="row" style="flex:1"><label>下（最低）</label><input type="number" inputmode="numeric" min="1" id="bdDia" placeholder="例: 84"></div>
+    <div class="row" style="flex:1"><label>脈（任意）</label><input type="number" inputmode="numeric" min="1" id="bdPulse" placeholder="例: 72"></div>
+  </div>
+  <div class="row" id="bdWtRow"><label>体重（kg）</label><input type="number" inputmode="decimal" min="0.1" step="0.1" id="bdWeight" placeholder="例: 68.4"></div>
+  <div class="row"><label>🗒 ひとこと（任意）</label>
+    <input id="bdMemo" autocomplete="off" maxlength="100" placeholder="例: 仕事前／仕事後／朝いちばん"></div>
+  <div id="bdBody"></div>
+  <button class="btn pri" id="btnBdSave" style="margin-top:12px">この内容にする</button>
+  <button class="btn" id="btnBdDel">🗑 この計測を削除</button>
 </div></div>
 
 <!-- 🍽 食事の詳細（書き起こしと、区分の手直し） -->
@@ -1262,7 +1308,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r82 💴⏳🔗 **人気の類似アプリと比べて、無い3つを足した**（調査＝家計簿:マネーフォワード/Zaim・食事:あすけん/カロミル/Cal AI・薬:お薬手帳系。写真AI読み取り・健診の要注意強調・入力を軽くする工夫は既に同等以上＝**差分だけ**作る。「今週の食バランス1行」案は情報を増やしすぎる懸念で本人が見送り）。①💴 **🧾 一覧の今月の行の下に「先月の同じ日まで ¥N ・ 予算まで あと ¥N」の1行**（monSub）＝人気家計簿の核心「使いすぎに**月の途中で**気付く」を、AIを呼ばずローカルの足し算だけで。⚠ 比べるのは**先月の同じ日まで**＝月の丸ごとと比べると月の途中では必ず「増えた」に見えて嘘になる。⚠ 予算は ⚙ で入れた人にだけ出す（既定は比べの1行だけ＝情報を増やしすぎない）。0以下を入れたら「予算なし」に戻す。⚠ 収入は数えない＝月見出しの合計と同じ決まり（並んだ2つの数字が食い違うと信用を失う）。⚠ 検索中は出さない（絞った結果の下に全体の数字を置くと「結果の合計」に見える）。月初でまだレシートが無くても今月の見出しごと出す。②⏳ **薬に「あと約N日ぶん」**（medDaysLeft）＝**切らす前に**気付く（人気の薬アプリの核心の、通知を使わない受動版＝開けば見えるだけ）。🩺一覧のカード・💊詳細の頭・日数入力の説明の3か所に。3日を切ったら太字＝次の処方の相談どき。予定の最終日も「あと1日ぶん」（その日のぶんは残っている）。終了済み・予定が過ぎた・日数不明は出さない（過ぎたものは既存の「終了にしますか」が受け持つ）。③🔗 **📤 の例文に「3つをまたいで」を追加**（7種類目）＝レシート×食事×健診×薬の**突き合わせ**。この横断は他のどのアプリにもない強み（家計簿アプリは食事を知らず、食事アプリは支出を知らない）＝使い方を例文ごと渡す。⚠ 🍽🩺💊 のチェックを入れて書き出したファイルで使う注意も note に追記。**真似しないと決めたもの**＝ストリーク/push通知（急かすアプリは疲れて捨てられる）・栄養素の数値化（AIを毎回呼ぶ＝課金が跳ねる・あすけんの土俵で戦わない）・銀行連携（サーバーが要る＝ローカル完結が壊れる）。ブラウザ実測 green・コンソール 0（今月¥5,680/先月同日まで¥4,700 が期待どおり・収入除外・予算45000→「あと¥39,320」・5000→「¥680 超えています」・0で消える・検索中は出ない・月初ケースも見出しごと出る／薬=14日分8/15開始→「あと約9日ぶん」・3日分→「あと約2日ぶん」太字・予定切れ/頓服は出ない・詳細と日数説明にも／例文7種類・🔗の全文組み立てOK／375px 横スクロールなし） · 2026-08-20｜r81 📅 **写真なしの記録に「その日のレシート」を並べた**（実機の指摘3つ・2026-08-20）。①🩹 **🧾 の「🍽 この買い物から食事を記録する」を押すと、食事の画面が背後に出ていた**（本人＝「モーダルが背後にあり一瞬気づかなかった」）。⚠ 重なりの順番は **HTML の並び順**で決まり、レシートの詳細の方が後ろに書いてあるので**必ず上に乗る**＝新しい画面が隠れる。→ **開く前にレシートの詳細を閉じる**（どのレシートから作っているかは、開いた画面の1行目に店名と金額が出るので迷子にならない）。②✂️ ボタンの字を「✍️ 写真なしで記録する（撮り忘れた食事）」→「**✍️ 写真なしで記録**」に（本人＝これで十分）。③📅 **日を選ぶと、その日のレシートが候補として並ぶ**（要望）＝店名・時刻・金額・分類。「品目から選ぶ」を押すと、そのレシートの品目にチェックを付ける欄が開く（＝🧾 の詳細から入った時と**同じ状態**にする。時刻・手作り中食外食の見当も入れ直す。⚠ 自分で打った要約は残す）。🥇 **⚠ 勝手に食事にはしない**（本人＝「スーパーの食材の買い物が多いため」）＝**既定でチェックを付けるのは 外食 のレシートだけ**。外食なら並んでいるのは食べた物そのものだが、**食費（食材）は買い物であって食事ではない**＝全部オンにすると食材の山がそのまま1食になる。チェックが1つも無ければ要約が空のままなので**保存できない**＝人が選ぶまで先へ進まない。⚠ 選ばない理由も画面に書く（「このレシートは外食ではないので（分類: 食費）、どれにもチェックを付けていません」）。🥇 **すでに食事と結び付いているレシートには「✅ もう記録があります：（その食事の要約）」**と出し、「品目から選ぶ」を出さない（要望）＝**二重に作らないための材料を、作ろうとしているその場に置く**（あとで気付いても遅い）。⚠ 日を変えたら候補を入れ替え、選んでいたレシートが別の日なら**結び付けをはずす**（食い違いを残さない・はずしたことは言う）。⚠ 続けて日を変えた時に**古い読み出しの結果で描き直さない**（番号で見張る）。ブラウザ実測 green・コンソール 0（🧾 から開くと**開いている画面は1つだけ**／食費のレシートは**4品ともチェックなし**・外食は全部チェック＋要約が自動で入る／保存すると同じレシートが「✅ もう記録があります：しまほっけ定食」に変わりボタンが消える／「はずす」で手入力に戻る／日を変えるとはずれて候補も入れ替わる／375px 横スクロールなし） · 2026-08-20｜r80 ✍️🧾 **写真なしで食事を記録できるようにした**（要望＝「食事の写真を撮り忘れたときのために、食事の画像なしに手入力やレシートの画像解析とかで食事を記録できるようにしたい」）。**入口は2つ・作る画面は1つ**＝①**✍️ 手入力**（🍽 の画面の「✍️ 写真なしで記録する」＝**見ている日**に、日付・時刻・何を食べたか・手作り/中食/外食・🗒ひとことを入れる。⚠ その時刻が**どの区分に入るかを押す前に出す**／⚠ **未来の時刻には入れられない**＝記録は「食べた」もの）②**🧾 レシートから**（🧾 の詳細の「🍽 この買い物から食事を記録する」＝**読み取り済みの品目にチェックを付けて選ぶ**だけ。日付・時刻はレシートの印字、手作り/中食/外食はレシートの分類から見当をつける。⚠ **日用品を外せる**＝食べたものだけを食事にする）。🥇 **②では AI をもう一度呼ばない**＝レシートはもう読んであるので、同じ写真を食事として読ませ直すと**料金が2回**かかるうえ、**品目は印字の方が確か**（写真から見た目で当てるより外さない）。⚠ **写真が無いことを黙らない**＝どうやって作ったか（madeBy＝repeat/copy/**hand**/**receipt**）を**表1つ**にまとめ、一覧・週・🔗仲間・🔍検索・詳細・📄文字コピー・📤書き出し（no_photo: true）で必ず言う（r73 で 🔁/📋 の2値を画面4か所に三項演算子で散らし、種類を足すと直し漏れが必ず出る形になっていたのを、ここで表引きに直した）。⚠ **写真の枠は残して中身を変える**（.noimg ＝作り方の印を枠の中に出す）＝空の画像枠を残すと「読み込みに失敗した写真」に見える＝壊れていないのに壊れて見える。⚠ **できないことをボタンに出さない**＝写真の無い記録では 📝 書き起こしを**押せなくする**（押せば必ず失敗して status が error になり、**手で入れた内容が画面から消えて見える**＝r29 の線引き）／まとめて書き起こし（mealTodo）からも**構造で外す**（当たらないはずだが、当たった時に起きることが悪すぎる＝r76 で踏んだ形）。🩹 あわせて **tsSrc の manual（自分で入れた時刻・週で別の日へ動かした時）がどの枝にも無く、「⚠ 撮影時刻が読めなかったので取り込んだ時刻」と出ていた**のを直した（自分で入れた時刻を「読めなかった」と言われる嘘。写真なしの記録は必ず manual なので、直さないと全部に警告が出る）。⚠ 📊 食事の統計の文言も直した＝「**書き起こした**食事」「**AI が見分けた**」と言い切ると嘘になるので、**写真なしの件数**と、**AI が見分けた件数／自分で入れた件数**を分けて出す。⚠ 📤 の読み方に「no_photo の食事は**情報が少ないだけで、食べた物が乏しかったのではない**」と書いた（受け取った AI が「粗末な食事」と読み替えるのを止める）。ブラウザ実測 green（✍️ 保存→一覧・週・🔍検索に ✍️ の印が出る・未来の時刻は止まる／🧾 品目のチェックを外すと要約が作り直される・🍽↔🧾 が両側から行き来できる・**結び付いたレシートには 🍽 ボタンを出さない**（二重に作らない）／📋 コピーしても写真なしのまま・案内が「写真は入りません」に変わる／📝 は押せず理由が出る／📏 は写真なしを数えない／375px で横スクロールなし・コンソール 0） · 2026-08-20｜r79 💬 「写真を読み出せませんでした」の案内に「**これは通信の問題ではありません**」を足した（実機で本人が「通信状態がわるかったのかも」と推測したため＝**いちばん自然な誤解**なので、聞かれる前に画面で答える）。⚠ この失敗は **AI に送る前**に、写真を端末の中で読み出す所で止まっている＝**通信は1バイトも使っておらず、料金もかかっていない**。だから「回線を確かめる」方向に時間を使わせない。⚠ 通信まわりの失敗とは**別の名前が付いている**ことも実測で確認（届きませんでした(net)／時間切れ(timeout)／返事が届く途中で途切れました(trunc)／AI側の不調(server)／写真を読み出せませんでした(gone)＝5つとも別の分類・別の次の手）。🩹 あわせて、この欄は**マークダウンを解釈しない**（esc してから出す）ので、書いた 二重アスタリスクの強調 が星のまま出るところだった＝外した。⚠ **注意書きを足す時は、その欄が記法を解釈するかを確かめる**（同じ文字列でも、置く場所で見え方が変わる）。 · 2026-08-19｜r78 ⏳ 自動でやり直す**回数と待ち時間を、失敗の種類ごとに**変えた（実機の記録で r77 の見立てが裏取りされ、同時に不足も分かった）。実機＝**14:29:54 と 14:29:55 に連続で失敗 → そのあと押し直したら読めた**、画面には「⚠ この写真は 2 回書き起こしに失敗してから読めました」＋書き起こし本文（白米・回鍋肉・お茶）。①✅ **r77 の見立ては当たっていた**＝写真は消えていない・**一時的に読み出せないだけ**（同じ写真が数十秒後に読めている）。②🥇 **しかし r77 の自動やり直し（800ms を1回）では足りなかった**＝2回とも失敗している。**もっと待って、もっと粘る**のが正しい → **種類ごとの計画表**にした（RETRY_PLAN）＝**gone は 400ms → 1200ms → 3000ms の3回**（＝最大4回・約4.6秒）／**trunc（通信の途中切れ）は今までどおり1回だけ**。⚠ 粘ってよいのは gone だけ＝**AI に届く手前で落ちる＝お金がかからない**。trunc は**もう AI に届いている**ので粘ると二重課金（r27 の約束）。⚠ 表は「待つミリ秒の並び」＝**並びの長さがそのままやり直す回数**（増やす時はここだけ触る）。③🩹 **文言の食い違いを直した**＝r77 でラベルは「写真を読み出せませんでした」に直したのに、**中身の文は「写真の中身が端末から消えています」と断定したまま**だった（同じ記録の中で label と msg が矛盾）→「その時は読み出せませんでした（記録も写真も残っています）」に。⚠ **直す時は、同じことを言っている場所を全部探す**（片方だけ直すと、余計に信用できない画面になる）。ブラウザ実測 green（実機と同じ「2回失敗」を再現すると**3回目で成功**（約2.9秒）／ずっと駄目でも**4回で諦める**（無限に粘らない）／trunc は1回のまま／rate は自動やり直し無し（据え置き）） · 2026-08-19';
+const BUILD = 'r83 🫀 **からだの数字（血圧・体重）を 🩺 に足した**（重い提案①・要望2つ込み＝「血圧は1日数回測る（仕事前後・もっとの人も）」「血圧計のデジタル表示や印字の紙を写メ→時刻と数値の自動記録」・2026-08-20）。**健診（年1回の点）の間を埋める毎日の線**＝どのアプリにもない3本柱の横断（食費×食事×体）がこれで完成する。🥇 **1回の計測＝1件**（1日1行にしない）＝仕事前・仕事後・何回でも。🗒ひとことに「仕事前」等の文脈を残せる。記録の形は**レシートと同じ**＝1件（写真1枚 or 手入力1回）が中に計測の配列（readings）を持ち、画面で1計測ずつ展開（印字の紙には複数回が並ぶため）。📷 **写真→AI**＝血圧計・体重計の表示、印字の紙（複数行も全部）。⚠ **日時は印字されているものだけ AI に書かせ**（推測で埋めさせない）、無い分は**撮影時刻**で補う＝どちらを使ったかを tSrc（printed/photo/human）に残し、一覧・詳細・📤 で言う（黙らない）。⚠ AI 設定は 🩺 と共通（役割を6つ目に増やさない）。✍️ 手入力もあり（キー無しでも使える・前回の種類を覚える・未来の時刻は止める＝r80 と同じ線引き）。📈 折れ線は**ローカル SVG**（AI なし・上下2本＋家庭血圧の目安 135/85 の破線＝参考・30日/半年/全部）。組み込み＝📤 body_log（読み方 DATA_NOTES.body 同梱・CSV 別ファイル・チェックで外せる）／🔗・🩺 の例文に体の推移を追記／🚑 起動時の pending 復旧／🧹（計測の日付で数え、期間外が同じ写真に残れば写真は残して計測だけ抜く＝🧾 と同じ）／📏 点検／失敗の案内表（ERR_NEXT を body 用に読み替え＝r46 の教訓）。ブラウザ実測 green・コンソール 0（手入力7件＋紙3回ぶんの写真＝一覧が新しい順・同日複数・✍️/📷/（時刻は撮影時刻）の印／グラフ2枚＋凡例＋期間切替／2件目だけ編集→human・1計測だけ削除→写真と残り2件は残る／todo に手書き→done・写真は残る／pending 放置→再読み込みで todo に復旧＋トースト／📤 9件・readme・オフで外れる・CSV件数表示／🧹 10件（読み9＋写真だけ1）／📏 に🫀／375px 横スクロールなし） · 2026-08-20｜r82 💴⏳🔗 **人気の類似アプリと比べて、無い3つを足した**（調査＝家計簿:マネーフォワード/Zaim・食事:あすけん/カロミル/Cal AI・薬:お薬手帳系。写真AI読み取り・健診の要注意強調・入力を軽くする工夫は既に同等以上＝**差分だけ**作る。「今週の食バランス1行」案は情報を増やしすぎる懸念で本人が見送り）。①💴 **🧾 一覧の今月の行の下に「先月の同じ日まで ¥N ・ 予算まで あと ¥N」の1行**（monSub）＝人気家計簿の核心「使いすぎに**月の途中で**気付く」を、AIを呼ばずローカルの足し算だけで。⚠ 比べるのは**先月の同じ日まで**＝月の丸ごとと比べると月の途中では必ず「増えた」に見えて嘘になる。⚠ 予算は ⚙ で入れた人にだけ出す（既定は比べの1行だけ＝情報を増やしすぎない）。0以下を入れたら「予算なし」に戻す。⚠ 収入は数えない＝月見出しの合計と同じ決まり（並んだ2つの数字が食い違うと信用を失う）。⚠ 検索中は出さない（絞った結果の下に全体の数字を置くと「結果の合計」に見える）。月初でまだレシートが無くても今月の見出しごと出す。②⏳ **薬に「あと約N日ぶん」**（medDaysLeft）＝**切らす前に**気付く（人気の薬アプリの核心の、通知を使わない受動版＝開けば見えるだけ）。🩺一覧のカード・💊詳細の頭・日数入力の説明の3か所に。3日を切ったら太字＝次の処方の相談どき。予定の最終日も「あと1日ぶん」（その日のぶんは残っている）。終了済み・予定が過ぎた・日数不明は出さない（過ぎたものは既存の「終了にしますか」が受け持つ）。③🔗 **📤 の例文に「3つをまたいで」を追加**（7種類目）＝レシート×食事×健診×薬の**突き合わせ**。この横断は他のどのアプリにもない強み（家計簿アプリは食事を知らず、食事アプリは支出を知らない）＝使い方を例文ごと渡す。⚠ 🍽🩺💊 のチェックを入れて書き出したファイルで使う注意も note に追記。**真似しないと決めたもの**＝ストリーク/push通知（急かすアプリは疲れて捨てられる）・栄養素の数値化（AIを毎回呼ぶ＝課金が跳ねる・あすけんの土俵で戦わない）・銀行連携（サーバーが要る＝ローカル完結が壊れる）。ブラウザ実測 green・コンソール 0（今月¥5,680/先月同日まで¥4,700 が期待どおり・収入除外・予算45000→「あと¥39,320」・5000→「¥680 超えています」・0で消える・検索中は出ない・月初ケースも見出しごと出る／薬=14日分8/15開始→「あと約9日ぶん」・3日分→「あと約2日ぶん」太字・予定切れ/頓服は出ない・詳細と日数説明にも／例文7種類・🔗の全文組み立てOK／375px 横スクロールなし） · 2026-08-20｜r81 📅 **写真なしの記録に「その日のレシート」を並べた**（実機の指摘3つ・2026-08-20）。①🩹 **🧾 の「🍽 この買い物から食事を記録する」を押すと、食事の画面が背後に出ていた**（本人＝「モーダルが背後にあり一瞬気づかなかった」）。⚠ 重なりの順番は **HTML の並び順**で決まり、レシートの詳細の方が後ろに書いてあるので**必ず上に乗る**＝新しい画面が隠れる。→ **開く前にレシートの詳細を閉じる**（どのレシートから作っているかは、開いた画面の1行目に店名と金額が出るので迷子にならない）。②✂️ ボタンの字を「✍️ 写真なしで記録する（撮り忘れた食事）」→「**✍️ 写真なしで記録**」に（本人＝これで十分）。③📅 **日を選ぶと、その日のレシートが候補として並ぶ**（要望）＝店名・時刻・金額・分類。「品目から選ぶ」を押すと、そのレシートの品目にチェックを付ける欄が開く（＝🧾 の詳細から入った時と**同じ状態**にする。時刻・手作り中食外食の見当も入れ直す。⚠ 自分で打った要約は残す）。🥇 **⚠ 勝手に食事にはしない**（本人＝「スーパーの食材の買い物が多いため」）＝**既定でチェックを付けるのは 外食 のレシートだけ**。外食なら並んでいるのは食べた物そのものだが、**食費（食材）は買い物であって食事ではない**＝全部オンにすると食材の山がそのまま1食になる。チェックが1つも無ければ要約が空のままなので**保存できない**＝人が選ぶまで先へ進まない。⚠ 選ばない理由も画面に書く（「このレシートは外食ではないので（分類: 食費）、どれにもチェックを付けていません」）。🥇 **すでに食事と結び付いているレシートには「✅ もう記録があります：（その食事の要約）」**と出し、「品目から選ぶ」を出さない（要望）＝**二重に作らないための材料を、作ろうとしているその場に置く**（あとで気付いても遅い）。⚠ 日を変えたら候補を入れ替え、選んでいたレシートが別の日なら**結び付けをはずす**（食い違いを残さない・はずしたことは言う）。⚠ 続けて日を変えた時に**古い読み出しの結果で描き直さない**（番号で見張る）。ブラウザ実測 green・コンソール 0（🧾 から開くと**開いている画面は1つだけ**／食費のレシートは**4品ともチェックなし**・外食は全部チェック＋要約が自動で入る／保存すると同じレシートが「✅ もう記録があります：しまほっけ定食」に変わりボタンが消える／「はずす」で手入力に戻る／日を変えるとはずれて候補も入れ替わる／375px 横スクロールなし） · 2026-08-20｜r80 ✍️🧾 **写真なしで食事を記録できるようにした**（要望＝「食事の写真を撮り忘れたときのために、食事の画像なしに手入力やレシートの画像解析とかで食事を記録できるようにしたい」）。**入口は2つ・作る画面は1つ**＝①**✍️ 手入力**（🍽 の画面の「✍️ 写真なしで記録する」＝**見ている日**に、日付・時刻・何を食べたか・手作り/中食/外食・🗒ひとことを入れる。⚠ その時刻が**どの区分に入るかを押す前に出す**／⚠ **未来の時刻には入れられない**＝記録は「食べた」もの）②**🧾 レシートから**（🧾 の詳細の「🍽 この買い物から食事を記録する」＝**読み取り済みの品目にチェックを付けて選ぶ**だけ。日付・時刻はレシートの印字、手作り/中食/外食はレシートの分類から見当をつける。⚠ **日用品を外せる**＝食べたものだけを食事にする）。🥇 **②では AI をもう一度呼ばない**＝レシートはもう読んであるので、同じ写真を食事として読ませ直すと**料金が2回**かかるうえ、**品目は印字の方が確か**（写真から見た目で当てるより外さない）。⚠ **写真が無いことを黙らない**＝どうやって作ったか（madeBy＝repeat/copy/**hand**/**receipt**）を**表1つ**にまとめ、一覧・週・🔗仲間・🔍検索・詳細・📄文字コピー・📤書き出し（no_photo: true）で必ず言う（r73 で 🔁/📋 の2値を画面4か所に三項演算子で散らし、種類を足すと直し漏れが必ず出る形になっていたのを、ここで表引きに直した）。⚠ **写真の枠は残して中身を変える**（.noimg ＝作り方の印を枠の中に出す）＝空の画像枠を残すと「読み込みに失敗した写真」に見える＝壊れていないのに壊れて見える。⚠ **できないことをボタンに出さない**＝写真の無い記録では 📝 書き起こしを**押せなくする**（押せば必ず失敗して status が error になり、**手で入れた内容が画面から消えて見える**＝r29 の線引き）／まとめて書き起こし（mealTodo）からも**構造で外す**（当たらないはずだが、当たった時に起きることが悪すぎる＝r76 で踏んだ形）。🩹 あわせて **tsSrc の manual（自分で入れた時刻・週で別の日へ動かした時）がどの枝にも無く、「⚠ 撮影時刻が読めなかったので取り込んだ時刻」と出ていた**のを直した（自分で入れた時刻を「読めなかった」と言われる嘘。写真なしの記録は必ず manual なので、直さないと全部に警告が出る）。⚠ 📊 食事の統計の文言も直した＝「**書き起こした**食事」「**AI が見分けた**」と言い切ると嘘になるので、**写真なしの件数**と、**AI が見分けた件数／自分で入れた件数**を分けて出す。⚠ 📤 の読み方に「no_photo の食事は**情報が少ないだけで、食べた物が乏しかったのではない**」と書いた（受け取った AI が「粗末な食事」と読み替えるのを止める）。ブラウザ実測 green（✍️ 保存→一覧・週・🔍検索に ✍️ の印が出る・未来の時刻は止まる／🧾 品目のチェックを外すと要約が作り直される・🍽↔🧾 が両側から行き来できる・**結び付いたレシートには 🍽 ボタンを出さない**（二重に作らない）／📋 コピーしても写真なしのまま・案内が「写真は入りません」に変わる／📝 は押せず理由が出る／📏 は写真なしを数えない／375px で横スクロールなし・コンソール 0） · 2026-08-20｜r79 💬 「写真を読み出せませんでした」の案内に「**これは通信の問題ではありません**」を足した（実機で本人が「通信状態がわるかったのかも」と推測したため＝**いちばん自然な誤解**なので、聞かれる前に画面で答える）。⚠ この失敗は **AI に送る前**に、写真を端末の中で読み出す所で止まっている＝**通信は1バイトも使っておらず、料金もかかっていない**。だから「回線を確かめる」方向に時間を使わせない。⚠ 通信まわりの失敗とは**別の名前が付いている**ことも実測で確認（届きませんでした(net)／時間切れ(timeout)／返事が届く途中で途切れました(trunc)／AI側の不調(server)／写真を読み出せませんでした(gone)＝5つとも別の分類・別の次の手）。🩹 あわせて、この欄は**マークダウンを解釈しない**（esc してから出す）ので、書いた 二重アスタリスクの強調 が星のまま出るところだった＝外した。⚠ **注意書きを足す時は、その欄が記法を解釈するかを確かめる**（同じ文字列でも、置く場所で見え方が変わる）。 · 2026-08-19';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1306,7 +1352,8 @@ const AN = {
 const EX = { meals: 'rcpt.exp.meals', mealDetail: 'rcpt.exp.mealdetail', period: 'rcpt.exp.period',
              preset: 'rcpt.exp.preset',
              // r65: 🩺 健康診断・💊 薬をどこまで出すか（既定＝健診は期間内＋直近1件・薬はその期間に飲んでいたもの）
-             chk: 'rcpt.exp.chk', chkAll: 'rcpt.exp.chkall', med: 'rcpt.exp.med', medAll: 'rcpt.exp.medall' };
+             chk: 'rcpt.exp.chk', chkAll: 'rcpt.exp.chkall', med: 'rcpt.exp.med', medAll: 'rcpt.exp.medall',
+             body: 'rcpt.exp.body' };   // r83: 🫀 からだの数字（既定＝出す）
 const ML = { slots: 'rcpt.meal.slots', day: 'rcpt.meal.day', view: 'rcpt.meal.view',
              multi: 'rcpt.meal.multi',   // r67: ☑ 撮ったらすぐ読ませず、レシート・成分表示・メモを足してから読ませる
              // r40: 食事の写真を読む AI（空 = レシートの読み取りと同じ）
@@ -1387,13 +1434,14 @@ function ctxFor(role){
 // v2（r12）で PLACES＝店舗マスタ（店ごとの位置を1回決めて覚える）を追加。既存の receipts はそのまま
 // v3（r15）で ANALYSES＝📈 分析の結果を貯める場所を追加（既存の2つはそのまま）
 const DB_NAME = 'receipt-spike', STORE = 'receipts', PLACES = 'places', ANALYSES = 'analyses', MEALS = 'meals',
-      CHECKUPS = 'checkups', MEDS = 'meds', REPEATS = 'repeats';
+      CHECKUPS = 'checkups', MEDS = 'meds', REPEATS = 'repeats', BODY = 'body';
 let _db = null;
 function db(){ return _db ? Promise.resolve(_db) : new Promise((ok, ng) => {
   // v4（r35）で MEALS＝🍽 食事の記録を追加（既存の3つはそのまま）
   // v5（r65）で CHECKUPS＝🩺 健康診断・MEDS＝💊 薬 を追加（既存の4つはそのまま）
   // v6（r73）で REPEATS＝🔁 繰り返しの決まり を追加（既存の6つはそのまま）
-  const rq = indexedDB.open(DB_NAME, 6);
+  // v7（r83）で BODY＝🫀 からだの数字（血圧・体重）を追加（既存の7つはそのまま）
+  const rq = indexedDB.open(DB_NAME, 7);
   rq.onupgradeneeded = () => {
     const d = rq.result;
     if (!d.objectStoreNames.contains(STORE))    d.createObjectStore(STORE,    { keyPath: 'id' });
@@ -1410,6 +1458,10 @@ function db(){ return _db ? Promise.resolve(_db) : new Promise((ok, ng) => {
           📊 統計・📤 書き出し・🧹 削除が「まだ食べていない予定」を数えてしまう（r28/r29 と同じ線引き）。
        ⚠ 決まりは**写真も中身も自分で持つ**＝見本にした食事を消しても繰り返しは生き続ける（孤児にしない）。 */
     if (!d.objectStoreNames.contains(REPEATS))  d.createObjectStore(REPEATS,  { keyPath: 'id' });
+    /* r83: 🫀 からだの数字＝**1件の記録が「1枚の写真 or 1回の手入力」**で、中に計測（readings）を持つ。
+       印字の紙には複数回の計測が並ぶ＝レシート（1枚に複数レシート）と同じ形にした（row.i で展開）。
+       ⚠ 健診（年1回の表）とも薬（期間）とも数え方が違うので別の箱（r65 と同じ線引き）。 */
+    if (!d.objectStoreNames.contains(BODY))     d.createObjectStore(BODY,     { keyPath: 'id' });
   };
   rq.onsuccess = () => { _db = rq.result; ok(_db); };
   rq.onerror = () => ng(rq.error);
@@ -1445,6 +1497,10 @@ const rpPut = r   => tx(REPEATS, 'readwrite', s => s.put(r));
 const rpDel = id  => tx(REPEATS, 'readwrite', s => s.delete(id));
 const rpGet = id  => tx(REPEATS, 'readonly',  s => s.get(id));
 const rpAll = ()  => tx(REPEATS, 'readonly',  s => s.getAll());
+const bodyPut = b  => tx(BODY, 'readwrite', s => s.put(b));
+const bodyDel = id => tx(BODY, 'readwrite', s => s.delete(id));
+const bodyGet = id => tx(BODY, 'readonly',  s => s.get(id));
+const bodyAll = () => tx(BODY, 'readonly',  s => s.getAll());
 
 /* ---------- 画像（iOS の教訓: createImageBitmap でなく <img>+<canvas>、URL は必ず revoke） ---------- */
 function loadImage(blob){ return new Promise((ok, ng) => {
@@ -2122,6 +2178,37 @@ const MED_JOB = { name: 'medication', schema: medSchema, rules: MED_RULES, maxTo
                   effort: 'low', timeoutMs: T_OCR,   // 印字を型に嵌める仕事＝レシートと同じ
                   ask: 'この薬の説明書を書き起こして。' };
 
+/* ---------- 🫀 からだの数字（r83） ----------
+   写真＝血圧計・体重計のデジタル表示、または血圧計が印字した記録の紙。
+   ⚠ 印字の紙には**複数回の計測**が並ぶことが普通（1日に何回も測る人がいる）＝返事は計測の配列。
+   ⚠ 日時は**印字されているものだけ**書かせる＝無ければ null（撮影時刻で補うのはアプリ側の仕事。
+      AI に「無ければ今の時刻」とやらせると、いつの計測か分からないのに埋まってしまう）。 */
+const bodySchema = () => ({
+  type: 'object', additionalProperties: false,
+  properties: { readings: { type: 'array', items: {
+    type: 'object', additionalProperties: false,
+    properties: { kind: { type: 'string', enum: ['bp', 'weight'] },
+                  date: NULLABLE('string'), time: NULLABLE('string'),
+                  sys: NULLABLE('integer'), dia: NULLABLE('integer'), pulse: NULLABLE('integer'),
+                  weight: NULLABLE('number') },
+    required: ['kind', 'date', 'time', 'sys', 'dia', 'pulse', 'weight'],
+  } } },
+  required: ['readings'],
+});
+const BODY_RULES = `あなたは血圧計・体重計の表示画面や、血圧計が印字した記録の紙を書き起こす係。
+
+ルール:
+- readings: 写っている計測を1回ぶんずつ**全部**入れる（記録の紙には複数回の計測が並んでいることがある。1行＝1回）。
+- kind: 血圧なら "bp"、体重なら "weight"。
+- date / time: **印字されている**計測日時だけを書く（date は YYYY-MM-DD・和暦は西暦に。time は HH:MM の24時間制）。印字が無ければ null。⚠ 推測や現在時刻で埋めない。
+- sys / dia / pulse: 血圧の上（最高・SYS）・下（最低・DIA）・脈拍（PULSE / P / 脈）。数字だけ（単位 mmHg・拍/分は書かない）。読めなければ null。
+- weight: 体重を kg の数字で（小数もそのまま）。読めなければ null。
+- ⚠ 写っていない値を知識や平均で埋めない。ぶれ・反射で読めない桁がある値は null にする。
+- 計測値が1つも写っていなければ readings は空配列。`;
+const BODY_JOB = { name: 'body', schema: bodySchema, rules: BODY_RULES, maxTokens: 6000,
+                   effort: 'low', timeoutMs: T_OCR,   // 数字を型に嵌める仕事＝レシートと同じ
+                   ask: 'この血圧計・体重計の表示、または記録の紙から計測値を書き起こして。' };
+
 /* 📈 分析（r15）＝写真ではなく「溜まったレシートの文字データ」をまとめて読ませる時の頼み方。
    ⚠ 説教させない。家計のデータは弱みなので、責める文章が返ると次から開かなくなる（＝データも溜まらない）。 */
 /* データの読み方（r55）＝**1か所にだけ書く**。
@@ -2173,6 +2260,13 @@ const DATA_NOTES = {
     'active_in_period が true のものは、渡した期間のどこかで飲んでいた薬。false のものは履歴として入っている（本人が「終わった薬も全部」を選んだ時）。',
     '薬の効能・副作用の一般知識で補ってよいが、本人の症状や診断を推測しない。飲み合わせ・増減・中止の判断は医師・薬剤師に、と書く。',
     '食事や買い物との関係を見る時は、服用期間（start〜end）と日付を重ねて読む。note は本人のひとこと（副作用の実感など）＝写真からは分からない唯一の情報なので重く扱う。',
+  ],
+  // r83: 🫀 からだの数字（血圧・体重）
+  body: [
+    '血圧・体重の計測記録（format: "body-log"）。1行＝1回の計測。kind が "bp" は血圧（sys=上・dia=下・pulse=脈拍、単位 mmHg と 拍/分）、"weight" は体重（weight_kg）。',
+    '1日に複数回あるのが普通（朝晩・仕事の前後など）＝日付だけで丸めず time も見る。note は計測の状況（「仕事前」「仕事後」など）＝血圧の高低を読む時の大事な文脈。',
+    'time_src は時刻の出どころ（printed=機器の印字／photo_taken_at=写真の撮影時刻＝計測直後に撮った前提の近似で数分ずれ得る／manual=手入力）。',
+    '健康診断（checkup_log）は年1回の点、これは毎日の線＝合わせて読むと間が埋まる。医療機器の記録ではないので診断はせず、気になる傾向は受診の目安として書く。',
   ],
 };
 const bullets = list => list.map(s => '- ' + s).join('\n');
@@ -2534,6 +2628,28 @@ async function analyzeMedPhoto(img){
                      name: String(x.name || '').trim(), dose: cleanStr(x.dose), usage: cleanStr(x.usage),
                      days: Number.isInteger(x.days) && x.days > 0 ? x.days : null,
                      purpose: cleanStr(x.purpose), note: cleanStr(x.note) })).filter(x => x.name) },
+           meta: { provider: ctx.prov, model: r.model || ctx.model, in: r.in, out: r.out, at: Date.now() } };
+}
+/* 🫀 からだの数字（r83）＝1枚の写真から**計測の配列**が返る。
+   ⚠ AI の設定は 🩺 健診と**同じもの**を使う＝どちらも「体の記録の印字を写す」仕事で、
+      役割を6つ目に増やすと ⚙ の設定ブロックがもう1組増える（読む人の負担が実益を超える）。 */
+async function analyzeBodyPhoto(img){
+  const ctx = ctxFor('chk');
+  if (!ctx.model) throw new Error('読み取りモデルが未選択です（⚙ の詳細設定から選んでください）');
+  const r = await ctx.p.analyze(ctx, await sendB64(img), BODY_JOB);
+  if (isCut(r.stop)) throw new Error('書き起こしが上限に達しました（計測が多い可能性）。⚙ の詳細設定で別のモデルもお試しください');
+  const d = parseJsonLoose(r.text);
+  const int = v => Number.isInteger(v) && v > 0 ? v : null;
+  const num = v => typeof v === 'number' && isFinite(v) && v > 0 ? Math.round(v * 100) / 100 : null;
+  // ⚠ 日時は形まで検査する＝崩れた文字列が入ると、並べ替え・グラフ・<input type="date/time"> が全部黙って壊れる
+  const dateOk = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? String(s) : null;
+  const timeOk = s => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '').trim()); return m && +m[1] < 24 && +m[2] < 60 ? pad2(+m[1]) + ':' + m[2] : null; };
+  return { data: { readings: (Array.isArray(d.readings) ? d.readings : []).map(x => ({
+                     kind: x.kind === 'weight' ? 'weight' : 'bp',
+                     date: dateOk(x.date), time: timeOk(x.time),
+                     sys: int(x.sys), dia: int(x.dia), pulse: int(x.pulse), weight: num(x.weight) }))
+                   // 数字が1つも無い行は残さない（血圧は上下どちらか・体重は重さがあれば残す＝片方読めた行を捨てない）
+                   .filter(x => x.kind === 'bp' ? (x.sys != null || x.dia != null) : x.weight != null) },
            meta: { provider: ctx.prov, model: r.model || ctx.model, in: r.in, out: r.out, at: Date.now() } };
 }
 
@@ -3313,7 +3429,7 @@ document.getElementById('btnImgSize').onclick = async () => {
        ⚠ だから **1バイトだけ実際に読む**。全部読むと重いので、頭の1バイトで足りる。 */
     const readable = async b => { try { await b.slice(0, 1).arrayBuffer(); return true; } catch (_) { return false; } };
     const o = { rcpt: { n: 0, b: 0, bad: 0 }, meal: { n: 0, b: 0, bad: 0 }, chk: { n: 0, b: 0, bad: 0 },
-                med: { n: 0, b: 0, bad: 0 }, rp: { n: 0, b: 0, bad: 0 } };
+                med: { n: 0, b: 0, bad: 0 }, rp: { n: 0, b: 0, bad: 0 }, body: { n: 0, b: 0, bad: 0 } };
     const add = async (k, b) => { if (!b) return; o[k].n++; o[k].b += b.size; if (!await readable(b)) o[k].bad++; };
     for (const r of await dbAll()) { await add('rcpt', r.img); await add('rcpt', r.thumb); }
     for (const m of await mlAll()) { await add('meal', m.img); await add('meal', m.thumb);
@@ -3321,9 +3437,10 @@ document.getElementById('btnImgSize').onclick = async () => {
     for (const c of await ckAll()) for (const p of (c.pages || [])) { await add('chk', p.img); await add('chk', p.thumb); }
     for (const m of await mdAll()) { await add('med', m.img); await add('med', m.thumb); }
     for (const r of await rpAll()) { await add('rp', r.img); await add('rp', r.thumb); }
+    for (const r of await bodyAll()) { await add('body', r.img); await add('body', r.thumb); }   // r83
     const V = Object.values(o);
     const tot = V.reduce((s, x) => s + x.b, 0), cnt = V.reduce((s, x) => s + x.n, 0), bad = V.reduce((s, x) => s + x.bad, 0);
-    const rows = [['\u{1F9FE} レシート', o.rcpt], ['\u{1F37D} 料理', o.meal], ['\u{1FA7A} 健診', o.chk], ['\u{1F48A} 薬', o.med], ['\u{1F501} 繰り返し', o.rp]];
+    const rows = [['\u{1F9FE} レシート', o.rcpt], ['\u{1F37D} 料理', o.meal], ['\u{1FA7A} 健診', o.chk], ['\u{1F48A} 薬', o.med], ['\u{1F501} 繰り返し', o.rp], ['\u{1FAC0} からだ', o.body]];
     const part = rows.filter(([, x]) => x.n).map(([k, x]) => `${k} ${mb(x.b)}${x.bad ? ` <b style="color:var(--err)">（${x.bad}枚が読めません）</b>` : ''}`).join(' ・ ');
     out.hidden = false;
     out.innerHTML = `いま保存している写真は <b>${cnt}枚で ${mb(tot)}</b>${part ? `<br>${part}` : ''}`
@@ -4047,7 +4164,7 @@ const mdSpan = m => `${m.start ? md(m.start) + (m.start.slice(0, 4) !== todayStr
 
 function renderHAi(){
   const ck = ctxFor('chk'), mdc = ctxFor('med'), el = document.getElementById('hAiLine');
-  el.innerHTML = `読み取りに使うAI: 🩺 <b>${esc(ck.p.label)}</b> / ${esc(ck.model || '（未選択）')}${ck.key ? '' : ' <span style="color:var(--err)">キー未登録</span>'}`
+  el.innerHTML = `読み取りに使うAI: 🩺🫀 <b>${esc(ck.p.label)}</b> / ${esc(ck.model || '（未選択）')}${ck.key ? '' : ' <span style="color:var(--err)">キー未登録</span>'}`
     + `<br>💊 <b>${esc(mdc.p.label)}</b> / ${esc(mdc.model || '（未選択）')}${mdc.key ? '' : ' <span style="color:var(--err)">キー未登録</span>'}`
     + `<button id="hGoSettings">⚙ 変える</button>`;
   el.style.display = 'block'; el.querySelector('button').style.float = 'right';
@@ -4056,6 +4173,7 @@ function renderHAi(){
 async function renderHealth(){
   if (topTab !== 'health') return;
   renderHAi();
+  await renderBody();   // r83: 🫀 からだの数字（血圧・体重）
   // 新しい年が上。検査日が未確定のものは（'9999' 扱いで）いちばん上＝目に付く所に置く
   const cks = (await ckAll()).sort((a, b) => (ckDateOf(b) || '9999').localeCompare(ckDateOf(a) || '9999') || b.addedAt - a.addedAt);
   ckThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
@@ -4094,7 +4212,7 @@ async function renderHealth(){
     '🩺 健康診断は<b>年1回</b>のものなので、📤 書き出しや 📈 分析で期間を選んでも<b>期間より前の直近の健診を一緒に</b>渡します（渡し漏れ対策）。'
     /* ⚠ r72: 「AI に送るのは 📤/📈 の時だけ」と書いていたが**嘘だった**＝写真を読み取る時点で
           その写真は AI へ出ている（健診も薬も）。機微な情報なので、ここを曖昧にしない。 */
-    + '💊 薬は<b>その期間に飲んでいたもの</b>を渡します。⚠ 記録は<b>この端末の中だけ</b>にあります（外へ出るのは、<b>写真を読み取る時</b>と、📤/📈 で自分が渡した時＝どちらも<b>自分が選んだ AI</b> へ直接です）。'
+    + '💊 薬は<b>その期間に飲んでいたもの</b>、🫀 からだの数字は<b>計測の日付が期間に入るもの</b>を渡します。⚠ 記録は<b>この端末の中だけ</b>にあります（外へ出るのは、<b>写真を読み取る時</b>と、📤/📈 で自分が渡した時＝どちらも<b>自分が選んだ AI</b> へ直接です）。'
     + '<br>⚠ このアプリは<b>医療機器ではなく、医学的な助言をしません</b>。AI の要約は<b>参考</b>で、誤りを含むことがあります＝<b>診断・治療の判断は医師へ</b>ご相談ください。';
 }
 document.getElementById('ckList').addEventListener('click', async e => {
@@ -4467,6 +4585,281 @@ document.getElementById('mdBody').addEventListener('click', async e => {
 });
 document.getElementById('btnMdNew').onclick = () => openMed(null);
 
+/* ---------- 🫀 からだの数字（r83） ----------
+   健診（年1回の点）の間を埋める毎日の線＝血圧・体重。**1回の計測＝1件**（1日に何回でも＝仕事前・仕事後など）。
+   記録の形はレシートと同じ＝**1件の記録（写真1枚 or 手入力1回）が中に計測の配列（readings）を持つ**。
+   印字の紙には複数回の計測が並ぶので、画面では row.i で1計測ずつに展開する（listRows と同じ作法）。 */
+const BD = { period: 'rcpt.body.period', kind: 'rcpt.body.kind' };
+const bodyReadingsOf = r => (r.data && Array.isArray(r.data.readings)) ? r.data.readings : [];
+const bodyKindLabel = x => x.kind === 'weight' ? '⚖ 体重' : '🫀 血圧';
+const bodyValStr = x => x.kind === 'weight'
+  ? `${x.weight} kg`
+  : `${x.sys ?? '—'} / ${x.dia ?? '—'}${x.pulse ? ` ・脈 ${x.pulse}` : ''}`;
+// 並べ替え・グラフ用のミリ秒。⚠ 崩れた日時で NaN になったら撮った時刻に落とす（黙って先頭や末尾に飛ばさない）
+const bodyWhenMs = (r, x) => { const t = new Date(`${x.date}T${x.time || '00:00'}:00`).getTime(); return isNaN(t) ? (r.shotAt || r.addedAt) : t; };
+async function bodyRowsAll(){
+  const rows = [];
+  for (const r of await bodyAll()) {
+    const xs = bodyReadingsOf(r);
+    if (!xs.length) rows.push({ r, x: null, i: 0, at: r.shotAt || r.addedAt });   // まだ読めていない・失敗した写真
+    else xs.forEach((x, i) => rows.push({ r, x, i, at: bodyWhenMs(r, x) }));
+  }
+  return rows.sort((a, b) => b.at - a.at);
+}
+const bdThumbUrls = [];
+async function renderBody(){
+  const rows = await bodyRowsAll();
+  const chart = document.getElementById('bodyChart'), list = document.getElementById('bodyList');
+  if (!rows.length) {
+    chart.innerHTML = '';
+    list.innerHTML = '<div class="hEmpty">📷 で血圧計・体重計の画面や、血圧計が印字した記録の紙を撮ると、AI が数値と時刻を書き起こします（紙に並んだ複数回ぶんも全部）。✍️ で手入力もできます。</div>';
+    return;
+  }
+  chart.innerHTML = bodyChartsHtml(rows);
+  const line = row => {
+    const { r, x, i } = row;
+    if (!x) {   // 読み取り前・失敗＝状態を言う（mealLine と同じ考え＝写真だけでも記録は残っている）
+      const le = r.status === 'error' ? lastErr(r) : null;
+      const why = le ? classifyErr(le.msg, le.status, 'body', le.tag).label : '';
+      const st = r.status === 'pending' ? '<span class="pend">🤖 読み取り中…</span>'
+               : r.status === 'todo' ? '📷 写真だけ（まだ読み取っていません）'
+               : `<span class="errt">❌ 読み取り失敗</span>${why ? `<span class="chip">${esc(why)}</span>` : ''}`;
+      return `<div class="rec" data-body="${esc(r.id)}" data-i="0"><div class="mid"><div class="st">${st}</div>
+        <div class="sub">${ymdLocal(new Date(row.at))}</div></div></div>`;
+    }
+    return `<div class="rec" data-body="${esc(r.id)}" data-i="${i}">
+      <div class="mid"><div class="st">${bodyKindLabel(x)} <b>${esc(bodyValStr(x))}</b></div>
+      <div class="sub">${esc(x.date)}${x.time ? ' ' + esc(x.time) : ''} ・${r.img ? '📷' : '✍️'}${x.tSrc === 'photo' ? '<small>（時刻は撮影時刻）</small>' : ''}${x.memo ? ` ・🗒 ${esc(x.memo)}` : ''}</div></div></div>`;
+  };
+  // 新しい順・直近10件＋残りは畳む（毎日測ると月90件にもなる＝全部並べると健診が視界から消える）
+  const head = rows.slice(0, 10), rest = rows.slice(10);
+  list.innerHTML = head.map(line).join('')
+    + (rest.length ? `<details class="adv"><summary>これより前の計測 ${rest.length}件</summary>${rest.map(line).join('')}</details>` : '');
+}
+/* 📈 折れ線（AI なし・ローカルの SVG）。血圧＝上下2本＋家庭血圧の目安 135/85 の破線（参考）／体重＝1本。
+   ⚠ 2点未満は線にならないので描かない（一覧には出ている）。 */
+const BODY_PERIODS = [['30', '30日'], ['180', '半年'], ['all', '全部']];
+const bodyPeriod = () => localStorage.getItem(BD.period) || '30';
+function bodyChartsHtml(rows){
+  const per = bodyPeriod();
+  const cut = per === 'all' ? 0 : Date.now() - (+per) * 864e5;
+  const pts = rows.filter(w => w.x && w.at >= cut).sort((a, b) => a.at - b.at);
+  const bp = pts.filter(w => w.x.kind === 'bp' && w.x.sys != null && w.x.dia != null);
+  const wt = pts.filter(w => w.x.kind === 'weight');
+  const charts = [];
+  if (bp.length >= 2) charts.push(bodySvg('血圧（mmHg）', [
+      { vals: bp.map(w => [w.at, w.x.sys]), color: 'var(--err)', label: '上' },
+      { vals: bp.map(w => [w.at, w.x.dia]), color: 'var(--acc)', label: '下' }], [135, 85])
+    + '<div class="note" style="margin:-4px 0 8px">破線＝家庭血圧の高血圧の目安 135/85（参考）。診断は医師へ。</div>');
+  if (wt.length >= 2) charts.push(bodySvg('体重（kg）', [{ vals: wt.map(w => [w.at, w.x.weight]), color: 'var(--ok)', label: '' }], []));
+  if (!charts.length) return '';
+  const seg = `<div class="seg" id="bodyPeriodSeg" style="margin-bottom:8px">${BODY_PERIODS.map(([v, l]) =>
+    `<button type="button" data-bdper="${v}"${v === per ? ' class="on"' : ''}>${l}</button>`).join('')}</div>`;
+  return seg + charts.join('');
+}
+function bodySvg(title, series, refs){
+  const W = 360, H = 130, L = 34, R = 8, T = 8, B = 18;
+  const all = series.flatMap(s => s.vals);
+  const t0 = Math.min(...all.map(v => v[0])), t1 = Math.max(...all.map(v => v[0]));
+  let y0 = Math.min(...all.map(v => v[1]), ...refs), y1 = Math.max(...all.map(v => v[1]), ...refs);
+  const pad = Math.max(y1 === y0 ? 1 : 0, (y1 - y0) * 0.12); y0 -= pad; y1 += pad;
+  const X = t => t1 === t0 ? (L + (W - L - R) / 2) : L + (t - t0) / (t1 - t0) * (W - L - R);
+  const Y = v => T + (1 - (v - y0) / (y1 - y0)) * (H - T - B);
+  const fv = v => Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10;
+  const fd = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
+  const lines = series.map(s =>
+    `<polyline fill="none" stroke="${s.color}" stroke-width="1.6" points="${s.vals.map(v => `${X(v[0]).toFixed(1)},${Y(v[1]).toFixed(1)}`).join(' ')}"/>`
+    + s.vals.map(v => `<circle cx="${X(v[0]).toFixed(1)}" cy="${Y(v[1]).toFixed(1)}" r="2.4" fill="${s.color}"/>`).join('')).join('');
+  const refLines = refs.map(v =>
+    `<line x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--dim)" stroke-dasharray="4 3" stroke-width="0.8"/>`
+    + `<text x="${W - R}" y="${(Y(v) - 2).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--dim)">${v}</text>`).join('');
+  const legend = series.filter(s => s.label).map(s => `<span style="color:${s.color}">● ${s.label}</span>`).join(' ');
+  return `<div class="bdChart"><div class="bdChartT">${title}${legend ? `<span style="margin-left:auto">${legend}</span>` : ''}</div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block" role="img" aria-label="${title}の推移">
+      ${refLines}${lines}
+      <text x="${L - 4}" y="${T + 9}" text-anchor="end" font-size="9" fill="var(--dim)">${fv(y1 - pad)}</text>
+      <text x="${L - 4}" y="${H - B}" text-anchor="end" font-size="9" fill="var(--dim)">${fv(y0 + pad)}</text>
+      <text x="${L}" y="${H - 5}" font-size="9" fill="var(--dim)">${fd(t0)}</text>
+      <text x="${W - R}" y="${H - 5}" text-anchor="end" font-size="9" fill="var(--dim)">${fd(t1)}</text>
+    </svg></div>`;
+}
+// 📷🖼 取り込み → AI（キーが無ければ写真だけ残す＝🍽 と同じ「まず撮るだけで大丈夫」）
+const onBodyPicked = async e => {
+  const files = [...e.target.files];
+  if (!files.length) return;
+  try {
+    for (const f of files) {
+      const shot = await shotAtOf(f);
+      const [img, thumb] = [await prepImage(f, 2576), await downscale(f, 320, 0.7)];
+      const rec = { id: 'b' + Date.now() + Math.random().toString(36).slice(2, 7), addedAt: Date.now(),
+                    shotAt: shot.at, img, thumb, data: null,
+                    status: ctxFor('chk').key ? 'pending' : 'todo', error: null, errors: [], meta: null };
+      await bodyPut(rec); await setTopTab('health');
+      if (rec.status === 'pending') runBodyAnalysis(rec.id);
+    }
+    if (!ctxFor('chk').key) toast('📷 写真を残しました。⚙ で APIキーを登録すると読み取れます（✍️ で手入力もできます）');
+  } catch (err) { toast('取り込み失敗: ' + err.message); }
+  finally { e.target.value = ''; }
+};
+['bodyShoot', 'bodyPick'].forEach(id => document.getElementById(id).addEventListener('change', onBodyPicked));
+async function runBodyAnalysis(id){
+  let rec = await bodyGet(id); if (!rec || !rec.img) return;
+  const ctx = ctxFor('chk');   // ⚠ 🫀 は 🩺 と同じ設定（analyzeBodyPhoto と揃える）
+  if (!ctx.key) { rec.status = 'todo'; rec.error = null; await bodyPut(rec); await bodyRefresh(id); return 'nokey'; }
+  rec.status = 'pending'; rec.error = null; rec.runAt = Date.now();
+  await bodyPut(rec); await bodyRefresh(id);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const { data, meta } = await withWatchdog(analyzeBodyPhoto(rec.img));
+      rec = await bodyGet(id); if (!rec) return;
+      if (!data.readings.length) throw tagged('計測値が写っていませんでした（数字の面を真上から撮るか、✍️ 手で入れてください）', 'empty');
+      /* 日時の穴は**撮影時刻**で埋める（計測の直後に撮る前提の近似）。
+         ⚠ どちらを使ったかは tSrc に残して画面でも言う（printed＝印字のまま／photo＝撮影時刻で補った）＝黙らない。 */
+      const at = new Date(rec.shotAt || rec.addedAt);
+      const sd = ymdLocal(at), st = `${pad2(at.getHours())}:${pad2(at.getMinutes())}`;
+      rec.data = { readings: data.readings.map(x => ({ ...x,
+        tSrc: (x.date && x.time) ? 'printed' : 'photo',
+        date: x.date || sd, time: x.time || st, memo: null })) };
+      rec.meta = meta; rec.status = 'done'; rec.error = null;
+      if (rec.data.readings.length > 1) toast(`🫀 1枚から ${rec.data.readings.length}回ぶんの計測を記録しました`);
+      break;
+    } catch (err) {
+      rec = await bodyGet(id); if (!rec) return;
+      noteFailure(rec, err, ctx);
+      if (worthRetry(err, attempt)) { await bodyPut(rec); await pause(retryWait(err, attempt)); continue; }
+      rec.status = 'error'; rec.error = String(err.message || err);
+      break;
+    }
+  }
+  await bodyPut(rec); await bodyRefresh(id);
+  if (rec.status === 'error') toast('❌ ' + rec.error + '（理由は詳細に残しました）');
+  return rec.status;
+}
+async function bodyRefresh(id){
+  await renderHealth();
+  if (bdCur && bdCur.id === id && isOpen('ovBody')) { const b = await bodyGet(id); if (b) openBody(b, bdIdx); }
+}
+/* 詳細＝1回の計測を見る・直す。写真の記録は「その写真の何件目か」（bdIdx）を持ち回る（レシートの data-i と同じ）。 */
+let bdCur = null, bdIdx = 0, bdNew = false, bdKind = 'bp';
+function bdSyncKind(){
+  document.querySelectorAll('#bdKindSeg button').forEach(b => b.classList.toggle('on', b.dataset.bdkind === bdKind));
+  document.getElementById('bdBpRow').hidden = bdKind !== 'bp';
+  document.getElementById('bdWtRow').hidden = bdKind !== 'weight';
+}
+function openBody(r, i = 0){
+  bdCur = r; bdIdx = i; bdNew = !r;
+  const xs = r ? bodyReadingsOf(r) : [];
+  const x = xs[i] || null;
+  bdKind = x ? x.kind : (localStorage.getItem(BD.kind) || 'bp');   // 手入力は前回の種類から（血圧を朝晩測る人が毎回押し直さない）
+  document.getElementById('bdTitle').textContent = bdNew ? '🫀 からだの数字を手で入れる' : '🫀 からだの数字';
+  const img = document.getElementById('bdImg');
+  if (img.dataset.url) { URL.revokeObjectURL(img.dataset.url); delete img.dataset.url; }
+  if (r && r.img) { const u = URL.createObjectURL(r.img); img.src = u; img.dataset.url = u; img.hidden = false; }
+  else { img.hidden = true; img.removeAttribute('src'); }
+  document.getElementById('bdHead').innerHTML = x && r.img
+    ? `<div class="note" style="margin-top:0">📷 写真から読んだ計測です${
+        x.tSrc === 'photo' ? '。⚠ 日時は印字に無かったので<b>撮影時刻</b>を入れています（違っていれば直してください）'
+        : x.tSrc === 'printed' ? '（日時は印字のまま）' : ''}${
+        xs.length > 1 ? `。この写真には ${xs.length}回ぶんが写っています（これは ${i + 1}件目）` : ''}</div>`
+    : bdNew ? '<div class="note" style="margin-top:0">写真なしで記録します（📷 から入れると、数値と時刻を AI が読みます）。</div>' : '';
+  const at = r ? new Date(r.shotAt || r.addedAt) : new Date();
+  document.getElementById('bdDate').value = x ? x.date : ymdLocal(at);
+  document.getElementById('bdTime').value = x ? (x.time || '') : `${pad2(at.getHours())}:${pad2(at.getMinutes())}`;
+  document.getElementById('bdSys').value = x?.sys ?? '';
+  document.getElementById('bdDia').value = x?.dia ?? '';
+  document.getElementById('bdPulse').value = x?.pulse ?? '';
+  document.getElementById('bdWeight').value = x?.weight ?? '';
+  document.getElementById('bdMemo').value = x?.memo || '';
+  bdSyncKind();
+  const body = document.getElementById('bdBody');
+  const runBtn = r && r.img ? `<button class="btn" id="btnBdRun"${ctxFor('chk').key ? '' : ' disabled style="opacity:.5"'} style="margin-top:10px">📝 写真をもう一度 読み取る</button>` : '';
+  if (!r) body.innerHTML = '';
+  else if (r.status === 'error') body.innerHTML = failureBlock(r, 'body') + runBtn;
+  else if (r.status === 'todo') body.innerHTML = `<div class="note">📷 写真だけ記録しています。${ctxFor('chk').key ? '下の 📝 で読み取れます。' : '⚙ で APIキーを登録すると読み取れます。'}数値は手で書いても構いません。</div>` + runBtn;
+  else if (r.status === 'pending') body.innerHTML = pendingNote(r, 'body');
+  else body.innerHTML = (r.img ? recoveredNote(r, 'body') : '') + runBtn;
+  document.getElementById('btnBdDel').hidden = bdNew;
+  document.getElementById('ovBody').querySelector('.sheet').scrollTop = 0;
+  show('ovBody');
+}
+document.querySelectorAll('#bdKindSeg button').forEach(b => b.onclick = () => { bdKind = b.dataset.bdkind; bdSyncKind(); });
+document.getElementById('btnBodyNew').onclick = () => openBody(null);
+document.getElementById('bodyList').addEventListener('click', async e => {
+  const el = e.target.closest('[data-body]'); if (!el) return;
+  const r = await bodyGet(el.dataset.body); if (r) openBody(r, +el.dataset.i || 0);
+});
+document.getElementById('bodyChart').addEventListener('click', e => {
+  const b = e.target.closest('[data-bdper]'); if (!b) return;
+  localStorage.setItem(BD.period, b.dataset.bdper); renderBody();
+});
+document.getElementById('btnBdSave').onclick = async () => {
+  const date = document.getElementById('bdDate').value, time = document.getElementById('bdTime').value;
+  if (!date || !time) { toast('日付と時刻を入れてください'); return; }
+  // ⚠ 未来の時刻には入れられない＝記録は「測った」もの（🍽 の r80 と同じ線引き）
+  if (new Date(`${date}T${time}:00`) > new Date()) { toast('未来の時刻には入れられません（計測した時刻を入れてください）'); return; }
+  const iv = id => { const v = document.getElementById(id).value.trim(); if (v === '') return null; const n = Math.round(+v); return n > 0 ? n : NaN; };
+  let x;
+  if (bdKind === 'bp') {
+    const sys = iv('bdSys'), dia = iv('bdDia'), pulse = iv('bdPulse');
+    if ([sys, dia, pulse].some(Number.isNaN)) { toast('血圧・脈は正の数字で入れてください'); return; }
+    if (sys == null && dia == null) { toast('上か下、少なくともどちらかの血圧を入れてください'); return; }
+    x = { kind: 'bp', sys, dia, pulse, weight: null };
+  } else {
+    const w = +document.getElementById('bdWeight').value;
+    if (!(w > 0)) { toast('体重を正の数字で入れてください'); return; }
+    x = { kind: 'weight', sys: null, dia: null, pulse: null, weight: Math.round(w * 100) / 100 };
+  }
+  x.memo = document.getElementById('bdMemo').value.trim() || null;
+  localStorage.setItem(BD.kind, bdKind);
+  if (bdNew) {
+    await bodyPut({ id: 'b' + Date.now() + Math.random().toString(36).slice(2, 7), addedAt: Date.now(), shotAt: null,
+                    img: null, thumb: null, status: 'manual', data: { readings: [{ ...x, date, time, tSrc: 'human' }] },
+                    error: null, errors: [], meta: null });
+  } else {
+    const rec = await bodyGet(bdCur.id); if (!rec) return;
+    if (!rec.data) rec.data = { readings: [] };
+    const old = rec.data.readings[bdIdx] || {};
+    // 日時を自分で動かしたら出どころは human（印字のままの顔をさせない）
+    const tSrc = (date !== old.date || time !== old.time) ? 'human' : (old.tSrc || 'human');
+    rec.data.readings[bdIdx] = { ...old, ...x, date, time, tSrc };
+    // 写真だけ・失敗の記録に手で数値を書いた＝もう「読めていない」ではない（失敗の履歴 errors は消さない＝r30）
+    if (rec.status === 'todo' || rec.status === 'error') rec.status = 'done';
+    rec.edited = Date.now();
+    await bodyPut(rec);
+  }
+  hide('ovBody'); bdCur = null; await renderHealth();
+  toast(bdNew ? '🫀 記録しました' : '🫀 直しました');
+};
+document.getElementById('btnBdDel').onclick = async () => {
+  if (!bdCur) return;
+  const rec = await bodyGet(bdCur.id); if (!rec) { hide('ovBody'); return; }
+  const xs = bodyReadingsOf(rec);
+  if (xs.length > 1) {   // 同じ写真の他の計測は残す＝1枚の紙に複数回が並ぶ形だから
+    if (!confirm(`この計測1件を削除しますか？（同じ写真の残り ${xs.length - 1}件は残ります）`)) return;
+    xs.splice(bdIdx, 1); rec.edited = Date.now();
+    await bodyPut(rec);
+  } else {
+    if (!confirm(`この計測を削除しますか？${rec.img ? '（写真もいっしょに消えます）' : ''}`)) return;
+    await bodyDel(rec.id);
+  }
+  hide('ovBody'); bdCur = null; renderHealth();
+};
+document.getElementById('bdBody').addEventListener('click', async e => {
+  if (!bdCur) return;
+  if (e.target.closest('[data-errcopy]')) {
+    const r = await bodyGet(bdCur.id); if (!r) return;
+    try { await navigator.clipboard.writeText(failureReport(r, 'body')); toast('📋 失敗の記録をコピーしました'); }
+    catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
+    return;
+  }
+  if (!e.target.closest('#btnBdRun')) return;
+  const r = await bodyGet(bdCur.id); if (!r) return;
+  // 手で直した計測がある時は、読み直しで上書きされることを先に言う（🩺 の okToOverwrite と同じ考え）
+  if (bodyReadingsOf(r).some(x => x.tSrc === 'human') && !confirm('読み取り直すと、手で直した計測が上書きされます。よろしいですか？')) return;
+  e.target.disabled = true; e.target.textContent = '🤖 読み取り中…';
+  await runBodyAnalysis(bdCur.id);
+});
+
 /* ---------- 取り込み → 自動分析 ---------- */
 const onPhotoPicked = async e => {
   const files = [...e.target.files];
@@ -4560,20 +4953,25 @@ const ERR_NEXT = {
 /* r65: 🩺 健康診断（chk）・💊 薬（med）。押す場所は両方とも詳細の「📝 もう一度 読み取る」＝文が同じなので、
    meal の文を「📝 で書き起こし直して」→「📝 で読み取り直して」に読み替えて使う（表を2倍にしない）。
    ⚠ ⚙ の置き場所だけは役割ごとに違う（key / model / timeout / cut / parse / empty）＝そこは名指しで書く。 */
-const HEALTH_SETTINGS = { chk: '⚙ の「🩺 健康診断の結果の読み取りに使うAI」', med: '⚙ の「💊 薬の説明書の読み取りに使うAI」' };
+/* r83: 🫀 からだの数字（body）も同じ読み替えで使う。⚠ body の AI 設定は 🩺 と共通（analyzeBodyPhoto）＝
+   案内する ⚙ の置き場所も 🩺 のもの。 */
+const HEALTH_SETTINGS = { chk: '⚙ の「🩺 健康診断の結果の読み取りに使うAI」', med: '⚙ の「💊 薬の説明書の読み取りに使うAI」',
+                          body: '⚙ の「🩺 健康診断の結果の読み取りに使うAI」（🫀 も同じ設定を使います）' };
+const HEALTH_ICON = { chk: '🩺', med: '💊', body: '🫀（＝🩺 と同じ設定）' };
 const healthNext = (tag, where) => {
   const s = HEALTH_SETTINGS[where], m = ERR_NEXT[tag]?.meal;
-  if (tag === 'key')     return `⚙ でキーを登録し直し、🔌 接続テストが通るか確かめてください（${where === 'chk' ? '🩺' : '💊'} に別の AI を選んでいる場合は、そちらのキーです）`;
+  if (tag === 'key')     return `⚙ でキーを登録し直し、🔌 接続テストが通るか確かめてください（${HEALTH_ICON[where]} に別の AI を選んでいる場合は、そちらのキーです）`;
   if (tag === 'model')   return `${s} で、モデルIDと APIのURL を確認してください`;
   if (tag === 'timeout') return `${s} で軽いモデルをお試しください${where === 'chk' ? '（ページが多い時は、写真を分けて読ませてください）' : ''}`;
-  if (tag === 'cut')     return `${where === 'chk' ? '項目' : '薬'}が多い可能性。${s} で別のモデルをお試しください`;
-  if (tag === 'parse' || tag === 'empty') return `${s} で別のモデルをお試しください${where === 'med' ? '（薬名と飲み方が印字された面を撮り直すのも効きます。手で書いても構いません）' : ''}`;
+  if (tag === 'cut')     return `${where === 'chk' ? '項目' : where === 'body' ? '計測' : '薬'}が多い可能性。${s} で別のモデルをお試しください`;
+  if (tag === 'parse' || tag === 'empty') return `${s} で別のモデルをお試しください${where === 'med' ? '（薬名と飲み方が印字された面を撮り直すのも効きます。手で書いても構いません）'
+                                                : where === 'body' ? '（数字の面が真上から写るように撮り直すのも効きます。✍️ 手で入れても構いません）' : ''}`;
   return m ? m.replace('📝 で書き起こし直して', '📝 でもう一度 読み取って').replace('📝 で書き起こし直せます', '📝 で読み取り直せます') : null;
 };
 // ⚠ meal に文が無ければ ocr に落とす（押す場所が同じものまで二重に書かない）
 const nextOf = (tag, where) => {
   const e = ERR_NEXT[tag] || ERR_NEXT.other;
-  if (where === 'chk' || where === 'med') return healthNext(tag, where) || e.ocr;
+  if (where === 'chk' || where === 'med' || where === 'body') return healthNext(tag, where) || e.ocr;
   return e[where] || e.ocr;
 };
 const ERR_LABEL = {
@@ -4631,7 +5029,7 @@ function noteFailure(rec, err, ctx){
   return e;
 }
 // 📋 に載せる文章。⚠ ここに出すのは「次の Claude / 自分」が読んで原因に辿り着ける材料だけ（キーは載せない）
-const WHERE_LABEL = { ocr: '🧾 レシート読み取り', meal: '🍽 食事の書き起こし', chk: '🩺 健康診断の読み取り', med: '💊 薬の読み取り' };
+const WHERE_LABEL = { ocr: '🧾 レシート読み取り', meal: '🍽 食事の書き起こし', chk: '🩺 健康診断の読み取り', med: '💊 薬の読み取り', body: '🫀 からだの数字の読み取り' };
 function failureReport(rec, where = 'ocr'){
   const es = errsOf(rec);
   const what = WHERE_LABEL[where] || WHERE_LABEL.ocr;
@@ -4648,7 +5046,7 @@ function failureReport(rec, where = 'ocr'){
 // 詳細に出す失敗の見せ方＝①そのままの文言（控えなくてよい）②分類と次の手 ③何回目か ④📋 で持ち出せる
 function failureBlock(r, where = 'ocr'){
   const es = errsOf(r), le = es.slice(-1)[0];
-  if (!le) return `<div class="note">❌ ${esc(r.error || (where === 'meal' ? '書き起こせませんでした' : where === 'chk' || where === 'med' ? '読み取れませんでした' : 'レシートを検出できませんでした'))}</div>`
+  if (!le) return `<div class="note">❌ ${esc(r.error || (where === 'meal' ? '書き起こせませんでした' : where === 'chk' || where === 'med' || where === 'body' ? '読み取れませんでした' : 'レシートを検出できませんでした'))}</div>`
                 + (r.error ? errCopyBtn() : '');
   const c = classifyErr(le.msg, le.status, where, le.tag);
   const past = es.length < 2 ? '' :
@@ -5558,10 +5956,12 @@ document.getElementById('btnCsv').onclick = async () => {
   const h = await healthFor(from, to, expHealthOpt());
   if (h.checkups.length) files.push({ name: `checkups_${from || 'all'}_${to || 'all'}.csv`, text: exportChkCsv(h.checkups), mime: 'text/csv' });
   if (h.meds.length)     files.push({ name: `medications_${from || 'all'}_${to || 'all'}.csv`, text: exportMedCsv(h.meds), mime: 'text/csv' });
+  const bd = expBodyOn() ? await bodyFor(from, to) : [];   // r83: 🫀 も列が違うので別ファイル（1行＝1回の計測）
+  if (bd.length) files.push({ name: `body_${from || 'all'}_${to || 'all'}.csv`, text: exportBodyCsv(bd), mime: 'text/csv' });
   const how = await exportOutMany(files);
   // ⚠ キャンセルした時は黙る（how === ''）＝出していないのに「保存しました」と言わない
   if (files.length > 1 && how === 'downloaded')
-    toast(`📊 ${files.length}つのファイルを保存しました（レシート・料理・健診・薬は列が違うため）`);
+    toast(`📊 ${files.length}つのファイルを保存しました（レシート・料理・健診・薬・からだの数字は列が違うため）`);
 };
 function exportChkCsv(list){
   const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
@@ -5579,6 +5979,15 @@ function exportMedCsv(list){
   const out = [['薬ID', '薬名', '1回量', 'のみ方', '目的', '処方元', '開始日', '終了日', '状態', '期間内に服用', 'ひとこと'].join(',')];
   for (const { m, active } of list)
     out.push([m.id, m.name, m.dose, m.usage, m.purpose, m.source, m.start, m.end, medActive(m) ? '服用中' : '終了', active ? '○' : '', m.memo].map(esc).join(','));
+  return '﻿' + out.join('\n');
+}
+// r83: 🫀 からだの数字（1行＝1回の計測）
+function exportBodyCsv(list){
+  const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+  const out = [['日付', '時刻', '種類', '上(最高)', '下(最低)', '脈拍', '体重kg', '時刻の出どころ', '入れ方', 'ひとこと'].join(',')];
+  for (const { r, x } of list)
+    out.push([x.date, x.time, x.kind === 'bp' ? '血圧' : '体重', x.sys, x.dia, x.pulse, x.weight,
+              x.tSrc === 'printed' ? '印字' : x.tSrc === 'photo' ? '撮影時刻' : '手入力', r.img ? '写真' : '手入力', x.memo].map(esc).join(','));
   return '﻿' + out.join('\n');
 }
 // 📋 コピー＝共有シートもダウンロードも使えない環境（WebView 等）でも必ずデータを外に出せる逃げ道
@@ -5630,6 +6039,15 @@ const expChkOn    = () => localStorage.getItem(EX.chk) !== '0';
 const expChkAllOn = () => localStorage.getItem(EX.chkAll) === '1';
 const expMedOn    = () => localStorage.getItem(EX.med) !== '0';
 const expMedAllOn = () => localStorage.getItem(EX.medAll) === '1';
+// r83: 🫀 からだの数字（既定＝出す）。期間は**計測の日付**で切る（撮った日ではない＝印字の紙は過去の計測を含む）
+const expBodyOn   = () => localStorage.getItem(EX.body) !== '0';
+async function bodyFor(from, to){
+  const out = [];
+  for (const r of await bodyAll())
+    for (const x of bodyReadingsOf(r))
+      if ((!from || x.date >= from) && (!to || x.date <= to)) out.push({ r, x });
+  return out.sort((a, b) => (a.x.date + (a.x.time || '')).localeCompare(b.x.date + (b.x.time || '')));
+}
 /* ---------- 🩺💊 期間に対して「何を渡すか」（r65）＝📤 と 📈 が**同じ決まり**を使う ----------
    要望＝「健康診断は年1回なので、期間で渡す時に渡し漏れないように」。
    ⚠ 健診＝**期間内の全部 ＋ 期間より前の直近1件**（先月の食事の相談に、半年前の健診が要る）。
@@ -5700,12 +6118,21 @@ async function exportPayload(rows, from, to){
   // r65: 🩺 健診・💊 薬も同じファイルへ（別のキー＝receipts を読む既存の受け手は変わらない）
   const h = await healthFor(from, to, expHealthOpt());
   Object.assign(o, healthBlocks(h));
+  // r83: 🫀 からだの数字（血圧・体重）＝1行が1回の計測
+  const bd = expBodyOn() ? await bodyFor(from, to) : [];
+  if (bd.length) o.body_log = { format: 'body-log', version: 1, count: bd.length,
+    readings: bd.map(({ r, x }) => ({
+      date: x.date, time: x.time, kind: x.kind,
+      ...(x.kind === 'bp' ? { sys: x.sys, dia: x.dia, pulse: x.pulse } : { weight_kg: x.weight }),
+      time_src: x.tSrc === 'printed' ? 'printed' : x.tSrc === 'photo' ? 'photo_taken_at' : 'manual',
+      source: r.img ? 'photo' : 'hand', ...(x.memo ? { note: x.memo } : {}) })) };
   const readme = {
     これは何: 'レシートアプリ「レシート」から書き出したデータです。AI に読ませて相談するためのものです。',
     読み方: DATA_NOTES.receipt,
     ...(meals.length ? { '🍽 食事の記録（meal_log）の読み方': DATA_NOTES.meal } : {}),
     ...(h.checkups.length ? { '🩺 健康診断（checkup_log）の読み方': DATA_NOTES.checkup } : {}),
     ...(h.meds.length ? { '💊 薬（medication_log）の読み方': DATA_NOTES.med } : {}),
+    ...(bd.length ? { '🫀 からだの数字（body_log）の読み方': DATA_NOTES.body } : {}),
     答える時のお願い: [
       'データから分からないことは、分からないと書く。推測を事実のように書かない。',
       '数字を出す時は「何件で、いくら」を添えて、どこから来た数字か分かるようにする。',
@@ -5748,10 +6175,21 @@ async function refreshExpCount(){
   const hAny = (await ckAll()).some(c => c.status === 'done') || (await mdAll()).some(m => m.name);
   const h = await healthFor(from, to, expHealthOpt());
   const hOn = healthFor(from, to, { chk: true, chkAll: expChkAllOn(), med: true, medAll: expMedAllOn() });   // 「入れる」にした時の件数
+  // r83: 🫀 この期間の計測が何件か（オフでも数える＝オフの理由が分からないと戻せない、の同じ考え）
+  const bdAllN = (await bodyFor(from, to)).length;
+  const bdOn = expBodyOn();
   document.getElementById('expCount').textContent =
     `対象: レシート ${rows.length}件 ${spend ? '/ 支出合計 ' + yen(spend) + ' ' : ''}`
     + (all.length ? `/ 🍽 料理 ${on ? `${all.length}件（${detail ? '詳細つき' : '要約のみ'}）` : '出しません'} ` : '')
-    + (h.checkups.length ? `/ 🩺 健診 ${h.checkups.length}件 ` : '') + (h.meds.length ? `/ 💊 薬 ${h.meds.length}件` : '');
+    + (h.checkups.length ? `/ 🩺 健診 ${h.checkups.length}件 ` : '') + (h.meds.length ? `/ 💊 薬 ${h.meds.length}件 ` : '')
+    + (bdAllN && bdOn ? `/ 🫀 血圧・体重 ${bdAllN}件` : '');
+  // r83: 🫀 の行＝1件も無い端末には出さない（🩺💊 と同じ）
+  const bodyAny = (await bodyAll()).some(r => bodyReadingsOf(r).length);
+  document.getElementById('expBodyRow').hidden = !bodyAny;
+  if (bodyAny) {
+    document.getElementById('expBodyChk').checked = bdOn;
+    document.getElementById('expBodyN').textContent = bdOn ? `この期間に ${bdAllN}件` : 'いまは入れません';
+  }
   // 料理が1件も無い期間には、選択そのものを出さない（使わない設定を置かない）
   document.getElementById('expMealRow').hidden = !all.length;
   document.getElementById('expHealthRow').hidden = !hAny;
@@ -5771,7 +6209,7 @@ async function refreshExpCount(){
     }
   }
   // r62: 料理も出る時は CSV ボタンの但し書きで「2ファイルになる」と先に言う（押してから驚かせない）
-  const nFiles = 1 + (all.length && on ? 1 : 0) + (h.checkups.length ? 1 : 0) + (h.meds.length ? 1 : 0);
+  const nFiles = 1 + (all.length && on ? 1 : 0) + (h.checkups.length ? 1 : 0) + (h.meds.length ? 1 : 0) + (bdAllN && bdOn ? 1 : 0);
   document.getElementById('csvSmall').textContent = nFiles > 1 ? `${nFiles}ファイル（列が違うため）` : '表計算向け';
   if (all.length) {
     document.getElementById('expMealChk').checked = on;
@@ -5787,7 +6225,7 @@ document.getElementById('expMealChk').onchange = e => {
 document.getElementById('expMealDetailChk').onchange = e => {
   localStorage.setItem(EX.mealDetail, e.target.checked ? '1' : '0'); refreshExpCount();
 };
-[['expChkChk', EX.chk], ['expChkAllChk', EX.chkAll], ['expMedChk', EX.med], ['expMedAllChk', EX.medAll]].forEach(([id, key]) => {
+[['expChkChk', EX.chk], ['expChkAllChk', EX.chkAll], ['expMedChk', EX.med], ['expMedAllChk', EX.medAll], ['expBodyChk', EX.body]].forEach(([id, key]) => {
   document.getElementById(id).onchange = e => { localStorage.setItem(key, e.target.checked ? '1' : '0'); refreshExpCount(); };
 });
 document.getElementById('expFrom').onchange = refreshExpCount;
@@ -5836,15 +6274,17 @@ const EXP_PRESETS = [
     + '・栄養の偏り、よく買っているもの、続けられている良い点\n'
     + '・🍽 料理の記録が入っていれば、レシートの食費と突き合わせて\n'
     + '・🩺 健康診断（checkup_log）が入っていれば、判定の悪かった項目と食生活の関係を。💊 薬（medication_log）が入っていれば、飲んでいる薬と食事の注意点があれば\n'
+    + '・🫀 血圧・体重（body_log）が入っていれば、その推移も合わせて\n'
     + '⚠ 医者の代わりではないので断定はせず、気になる点は受診の目安として書いてください'],
   /* r82: 🔗 3本柱の横断＝レシート×食事×健診×薬を**まとめて1か所に持っている**のはこのアプリだけ
      （家計簿アプリは食事を知らず、食事アプリは支出を知らない）＝その強みの使い方を例文ごと渡す。
      ⚠ 'health' は「食生活を健康の面から見る」型。こちらは3つの**突き合わせ**（合っているか・重なっているか）。 */
   ['cross', '🔗 3つをまたいで',
-    'レシート・食事（meal_log）・健康（checkup_log／medication_log）をまたいで、突き合わせて気づくことを教えてください。\n'
+    'レシート・食事（meal_log）・健康（checkup_log／medication_log／body_log）をまたいで、突き合わせて気づくことを教えてください。\n'
     + '・最初に、どのデータが入っているか（入っていないものはどれか）を言ってください\n'
     + '・外食・中食の支出と 🍽 食事の記録が合っているか（外食のレシートがあるのに食事の記録が無い日、など）\n'
     + '・食費の増減と、食事の内容の変化が重なっていないか\n'
+    + '・🫀 血圧・体重（body_log）が入っていれば、食事や支出の変化と重なっていないか（外食が続いた週の血圧・体重など）\n'
     + '・🩺 判定の悪かった項目と「よく買っているもの・よく食べているもの」の関係\n'
     + '・💊 飲んでいる薬と食事で、気を付ける組み合わせがあれば\n'
     + '⚠ 医者の代わりではないので断定はせず、気になる点は受診の目安として書いてください'],
@@ -8040,6 +8480,7 @@ const WIPE_KINDS = [
   { id: 'meal',  icon: '🍽', label: '料理・食事' },
   { id: 'chk',   icon: '🩺', label: '健康診断' },
   { id: 'med',   icon: '💊', label: '薬' },
+  { id: 'body',  icon: '🫀', label: 'からだの数字（血圧・体重）' },   // r83
   { id: 'an',    icon: '📈', label: '分析の履歴' },
   { id: 'place', icon: '📍', label: 'お店の場所' },
   // r73: 🔁 繰り返しの決まり。⚠ **決まりは日付を持たない**（期間ではなく規則）＝📍 と同じで「全期間」の時だけ消す
@@ -8100,6 +8541,18 @@ async function wipePlan(){
   p.ans    = (await anAll()).filter(a => inP(ymdLocal(new Date(a.ts))));
   p.places = all ? pls : [];
   p.rps    = all ? rps : [];   // r73: 決まりは日付でなく規則＝📍 と同じ扱い（全期間の時だけ）
+  /* r83: 🫀 は**計測の日付**で数える（🧾 と同じ形＝1枚の写真に期間外の計測が残る時は、写真は残してその計測だけ抜く） */
+  p.bodyDel = []; p.bodyTrim = [];
+  let bodyN = 0;
+  for (const r of await bodyAll()) {
+    const xs = bodyReadingsOf(r);
+    if (!xs.length) { if (inP(ymdLocal(new Date(r.shotAt || r.addedAt)))) { p.bodyDel.push(r); bodyN++; } continue; }
+    const keep = xs.filter(x => !inP(x.date));
+    const n = xs.length - keep.length;
+    if (!n) continue;
+    bodyN += n;
+    if (keep.length) p.bodyTrim.push({ r, keep }); else p.bodyDel.push(r);
+  }
   if (!all) {   // 日付を持たないもの＝期間を決めている間は消さない。何を残したかは画面の下に出す
     const nc = cks.filter(c => !c.date).length, nm = mds.filter(m => !m.start).length;
     if (nc) p.skipped.push(`🩺 検査日が未確定の健診 ${nc}件`);
@@ -8108,7 +8561,7 @@ async function wipePlan(){
     if (rps.length) p.skipped.push(`🔁 繰り返しの決まり ${rps.length}件`);
   }
   p.count = { rcpt: rcptN, meal: p.meals.length, chk: p.chks.length,
-              med: p.meds.length, an: p.ans.length, place: p.places.length, rp: p.rps.length };
+              med: p.meds.length, body: bodyN, an: p.ans.length, place: p.places.length, rp: p.rps.length };
   return p;
 }
 async function renderWipe(){
@@ -8162,6 +8615,10 @@ async function runWipe(p, kinds){
   if (kinds.has('meal'))  { p.meals.forEach(m => delMeal.add(m.id)); await delMany(MEALS, p.meals.map(m => m.id)); }
   if (kinds.has('chk'))   await delMany(CHECKUPS, p.chks.map(c => c.id));
   if (kinds.has('med'))   await delMany(MEDS, p.meds.map(m => m.id));
+  if (kinds.has('body')) {   // r83: 期間外の計測が同じ写真に残る時は、写真は残してその計測だけ抜く（🧾 と同じ）
+    await delMany(BODY, p.bodyDel.map(r => r.id));
+    await putMany(BODY, p.bodyTrim.map(({ r, keep }) => Object.assign(r, { data: { readings: keep }, edited: Date.now() })));
+  }
   if (kinds.has('an'))    await delMany(ANALYSES, p.ans.map(a => a.id));
   if (kinds.has('place')) await delMany(PLACES, p.places.map(q => q.key));
   // r73: 🔁 決まりを消しても、すでに入った食事は残す（別のもの＝🍽 を選べば食事も消える）
@@ -8178,7 +8635,7 @@ async function runWipe(p, kinds){
   }
   /* 開いたままの画面が「消したもの」を出し続けないようにする。
      ⚠ とくに詳細・編集は、開いたまま保存されると**消したはずのものが戻る**（⚙ は 🍽 の「⚙ 変える」からも開ける） */
-  ['ovDetail', 'ovEdit', 'ovEd2', 'ovMeal', 'ovChk', 'ovMed', 'ovAnRes', 'ovPlace', 'ovMlRep'].forEach(id => { if (isOpen(id)) hide(id); });
+  ['ovDetail', 'ovEdit', 'ovEd2', 'ovMeal', 'ovChk', 'ovMed', 'ovBody', 'ovAnRes', 'ovPlace', 'ovMlRep'].forEach(id => { if (isOpen(id)) hide(id); });
   closeScope(null);   // r73: 「この食事だけ／全部」を聞いたまま消すと、答えた先の食事がもう居ない
   await renderList(); await renderMeals(); await renderHealth();
   if (isOpen('ovStats')) renderTab();
@@ -8277,6 +8734,7 @@ async function recoverStuck(){
     { icon: '🍽', all: mlAll, put: mlPut, role: 'meal', run: runMealAnalysis, redraw: renderMeals },
     { icon: '🩺', all: ckAll, put: ckPut, role: 'chk',  run: runChkAnalysis,  redraw: renderHealth },
     { icon: '💊', all: mdAll, put: mdPut, role: 'med',  run: runMedAnalysis,  redraw: renderHealth },
+    { icon: '🫀', all: bodyAll, put: bodyPut, role: 'chk', run: runBodyAnalysis, redraw: renderHealth },   // r83（AI 設定は 🩺 と共通）
   ];
   let retried = 0, parked = 0;
   for (const j of jobs) {
