@@ -346,22 +346,26 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 .picGrid figcaption{position:absolute; left:4px; bottom:4px; font-size:11px; background:rgba(0,0,0,.55); color:#fff; border-radius:6px; padding:1px 5px;}
 /* r86: 比べる＝👻 重ねる（セルが同じ場所に重なる）／⊟ 並べる（左右グリッド・要望）。
    あの日 v173 と同じく、並べる中は透かし濃度スライダーを visibility で隠す（場所は保ってガタつかせない） */
-.pvStage{position:relative; aspect-ratio:3/4; background:#000; border-radius:10px; overflow:hidden;}
+/* r88: 閲覧も**端まで**使う（シートの左右 16px を打ち消す）＝写真をできるだけ大きく。
+   形は写真そのものの形に合わせる（3:4 の枠に 9:16 を入れると上下が黒くなって小さく見える） */
+.pvStage{position:relative; aspect-ratio:3/4; background:#000; overflow:hidden; margin:0 -16px; width:calc(100% + 32px);}
 .pvStage .pvCell{position:absolute; inset:0;}
 .pvStage img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain;}
 .pvTag{display:none; position:absolute; left:4px; top:4px; font-size:11px; background:rgba(0,0,0,.55); color:#fff; border-radius:6px; padding:1px 5px;}
-.pvStage.split{aspect-ratio:3/2; display:grid; grid-template-columns:1fr 1fr; gap:2px;}
+.pvStage.split{display:grid; grid-template-columns:1fr 1fr; gap:2px;}
 .pvStage.split .pvCell{position:relative; inset:auto; min-width:0;}
 .pvStage.split img{opacity:1 !important;}
 .pvStage.split .pvTag{display:block;}
-#pvImg{width:100%; border-radius:10px; background:#000;}
+#pvImg{display:block; margin:0 -16px; width:calc(100% + 32px); background:#000;}
 /* 👻 透かしカメラ＝全画面。枠は 3:4 固定で、映像と透かしを**同じ枠に cover**（あの日の重ね撮りと同じ）
    ＝切り取り方が揃うのでズレない。⚠ ボタンは 44px 以上（実機の指） */
 /* r87: 写真の場所（.pcStage）と操作の場所（.pcCtrl）を**重ねずに分ける**（要望＝操作は写真の外）。
    縦持ち＝上下に並ぶ／横持ち＝左右に並ぶ。⚠ 切り替えは **CSS の向き問い合わせ**（orientation）だけで行う
    ＝JS のイベント（resize 等）に頼らないので、回転しても必ず効く（r86 は3重の保険を張ったが、
    CSS に任せれば保険そのものが要らない）。 */
-#picCam{position:fixed; inset:0; z-index:60; background:#000; display:flex; flex-direction:column;}
+/* r88: 写真の形は変えられる（--pcar）＝既定は 9/16（縦長）＝**画面をいちばん大きく使える**。
+   3:4 は画面より横長なので、縦持ちだと横幅で頭打ちになり上下に黒が残る（実測 375×500／画面は 375×812）。 */
+#picCam{--pcar:9/16; position:fixed; inset:0; z-index:60; background:#000; display:flex; flex-direction:column;}
 .pcStage{position:relative; flex:1; min-height:0; min-width:0; display:flex; align-items:center; justify-content:center;}
 /* 3:4 を保ったまま、入る範囲でいちばん大きく（縦横どちらでも余りは黒）。
    ⚠ **CSS だけでは比率を保てなかった**（両方向とも実測で崩れた）＝
@@ -369,7 +373,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
       max- で頭を打つと、もう片方の辺が比率に合わせて縮んでくれない。
    → **大きさは JS が枠の実寸から決める**（pcFit・あの日の重ね撮りと同じやり方）。ここは JS が走る前の
       見た目のためだけの指定にする（比率の保証は JS 側）。 */
-.pcFrame{position:relative; width:100%; height:auto; aspect-ratio:3/4; background:#111; overflow:hidden;}
+.pcFrame{position:relative; width:100%; height:auto; aspect-ratio:var(--pcar); background:#111; overflow:hidden;}
 .pcCell{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;}
 .pcBox{position:relative; width:100%; height:100%;}
 .pcBox video, .pcBox img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
@@ -379,20 +383,25 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
    各セルの中の 3:4 の箱に cover＝**保存の切り出しと同じ範囲が見える**（重ねと2画面で写りが変わらない） */
 .pcFrame.split{width:100%; height:100%; aspect-ratio:auto; max-width:none; display:grid; grid-template-rows:1fr 1fr; gap:2px; background:#000;}
 .pcFrame.split .pcCell{position:relative; inset:auto; min-height:0; min-width:0;}
-.pcFrame.split .pcBox{height:100%; width:auto; aspect-ratio:3/4; max-width:100%;}
+.pcFrame.split .pcBox{height:100%; width:auto; aspect-ratio:var(--pcar); max-width:100%;}
 .pcFrame.split .pcBox img{opacity:1 !important;}
 .pcFrame.split .pcTag{display:block;}
 #picCam.split #pcAlpha{visibility:hidden;}
 .pcX{position:absolute; top:calc(env(safe-area-inset-top) + 10px); right:12px; z-index:2; width:44px; height:44px; border-radius:50%; background:rgba(0,0,0,.5); color:#fff; border:1px solid #555; font-size:18px;}
-.pcCtrl{flex:none; display:flex; flex-direction:column; justify-content:flex-end; gap:10px; padding:12px 16px calc(env(safe-area-inset-bottom) + 14px); background:#000;}
+/* r88: 帯は詰める＝ここで使う高さがそのまま写真の高さを削る（9:16 では高さで頭打ちになるため） */
+.pcCtrl{flex:none; display:flex; flex-direction:column; justify-content:flex-end; gap:6px; padding:6px 12px calc(env(safe-area-inset-bottom) + 8px); background:#000; overflow-y:auto;}
+/* ⚠ 横持ちは柱の高さが画面の高さそのもの＝注意書きが1行増えるだけではみ出し、シャッターが押せなくなる。
+   はみ出したらスクロールで届くようにしておく（ボタンを画面外に置き去りにしない）。 */
+.pcShapeNote{text-align:center; font-size:11.5px; color:var(--dim);}
 /* ⚠ 日付だけ（説明の言葉は置かない）。‹ › は 44px 以上＝実機の指で当たる */
 .pcGhostRow{display:flex; align-items:center; justify-content:center; gap:10px; color:var(--dim); font-size:12.5px;}
-.pcGhostRow button{width:48px; height:44px; border-radius:8px; background:rgba(255,255,255,.15); color:#fff; border:none; font-size:20px;}
+.pcGhostRow button{width:44px; height:44px; border-radius:8px; background:rgba(255,255,255,.15); color:#fff; border:none; font-size:20px;}
 .pcGhostRow button:disabled{opacity:.3;}
 #pcAlpha{width:100%;}
 .pcBtns{display:flex; align-items:center; justify-content:space-between;}
-#pcShutter{width:64px; height:64px; border-radius:50%; background:#fff; border:4px solid rgba(255,255,255,.4);}
-#pcFlip, #pcMode{width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.15); color:#fff; border:none; font-size:20px;}
+#pcShutter{width:60px; height:60px; border-radius:50%; background:#fff; border:4px solid rgba(255,255,255,.4);}
+#pcFlip, #pcMode, #pcShape{width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.15); color:#fff; border:none; font-size:20px;}
+#pcShape{font-size:12.5px; font-weight:600;}
 .pcErr{position:absolute; left:16px; right:16px; bottom:40%; z-index:3; background:rgba(0,0,0,.8); color:#fff; border:1px solid #555; border-radius:12px; padding:12px; font-size:14px;}
 /* ⚠ 媒体クエリ（画面の向きで変える指定）は**基本の指定より後ろ**に置く＝同じ強さの指定は
    後に書いた方が勝つ。r87 の最初はカメラCSSの真ん中に置いてしまい、後ろにある `.pcGhostRow button`
@@ -400,7 +409,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 @media (orientation:landscape){
   #picCam{flex-direction:row;}                       /* 横持ち＝操作は右の柱（下だと写真の高さが無くなる） */
   .pcCtrl{width:120px; justify-content:center; padding:10px 8px calc(env(safe-area-inset-bottom) + 10px);}
-  .pcBtns{flex-direction:column; gap:14px;}
+  .pcBtns{flex-direction:column; gap:10px;}
   /* ⚠ 柱は幅が狭い＝‹ › を横一列に押し込むと 25px まで潰れた（実測）＝**指で当たらない**。
      日付を別の行に折り返して、ボタンは 44px を死守する（r33/44px の決まり）。 */
   .pcGhostRow{flex-wrap:wrap; gap:8px;}
@@ -1214,8 +1223,10 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
       <button type="button" id="pcNext" aria-label="1つ後の写真を透かす">›</button>
     </div>
     <input type="range" id="pcAlpha" min="0" max="80" value="45" aria-label="透かしの濃さ">
+    <div class="pcShapeNote" id="pcShapeNote" hidden></div>
     <div class="pcBtns">
       <button type="button" id="pcFlip" aria-label="前後カメラ切替">🔄</button>
+      <button type="button" id="pcShape" aria-label="写真の形を変える">9:16</button>
       <button type="button" id="pcShutter" aria-label="撮る"></button>
       <button type="button" id="pcMode" aria-label="表示の切替">⊟</button>
     </div>
@@ -1478,7 +1489,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r87 🧹📐 **👻カメラの操作を写真の外へ出し、縦持ち・横持ちを作り直した**（要望＝「画面の真ん中に『透かし:日時（＜＞で変更）』がでて邪魔。＜＞ボタンだけで説明不要にして写真外においてください。縦表示、横表示も切り替えに気を付けて」・2026-08-20）。①🧹 **写真の上から文字を消した**＝「透かし: 2026-08-13 07:30（‹ › で変更）」→ **日付だけ**（同じ年なら 08-13）。⚠ 透かす写真が無い時は**行ごと消す**（「1枚目です…」の説明も置かない）。2画面の時は札にも日付を出す（🖼 08-13）。②📐 **操作は写真の外**＝写真の場所と操作の帯を**重ねずに分けた**（今までは写真の上に半透明で乗っていた）。**縦持ち＝下の帯／横持ち＝右の柱**（横持ちで下に置くと写真の高さが無くなる）。③📏 **枠の大きさは JS が実寸から決める**（pcFit）＝**CSS だけでは 3:4 を保てなかった**（実測で両方向とも失敗＝`height:100%`＋`max-width` は 0.584／`width:100%`＋`max-height` は横持ちで 1.805。max- で頭を打つと、もう片方の辺が比率に合わせて縮まない）。⚠ **イベントだけに頼らない**＝preview は resize も ResizeObserver も発火しない（r86 で実測）＝その状態で回すと前の大きさのままの枠が画面からはみ出す（写真の下が切れる）。→ resize/orientationchange **＋ 開いている間だけ 0.5秒ごとの測り直し**（変わった時だけ書く・閉じたら止める）。実測で「イベント無しで回しても 1.2秒後に 375×500・比率 0.750」を確認。🩹 **CSS の順番の罠**＝画面の向きの指定（媒体クエリ）をカメラCSSの真ん中に置いたため、後ろにある `.pcGhostRow button` に負けて横持ちの ‹ › が 25px に潰れていた（**指で当たらない**）＝ブロックを基本規則の後ろへ移し、44px を死守（横持ちは日付を別の行に折り返す）。ブラウザ実測 green・コンソール 0（縦持ち＝重ね 375×500(0.750)／2画面は上下・横持ち＝重ね 281×375(0.749)／2画面は左右、どの組み合わせでも**写真は必ず 3:4**・**帯は写真の外**・文字が写真に重ならない・‹ › は 44px 以上／写真0枚なら行も⊟も出ない／回転の追随） · 2026-08-20｜r86 ⊟ **📸 に「左右に並べて比べる」を足した**（要望「左右に写真を出して、比較もほしい。あの日から核心を移植して」・2026-08-20）。あの日の重ね撮り2画面（v173）の移植＝**比べるビュー**と**👻カメラ**の両方に。①⇆ 比べるに **👻 重ねる／⊟ 並べる** の切替（覚える）。並べる＝**常に左右**（要望どおり。3:4 の縦写真は半分幅でも読める）＝左が相手・右がこの写真（時間が左→右に流れる並び）・各セルに日付の札・‹›はどちらのモードでも効く。⚠ 並べる中は透かしスライダーを visibility で隠す（意味が無い・場所は保ってガタつかせない＝あの日と同じ）。②👻 カメラに **⊟ 2画面**（シャッター右のボタン）＝**縦持ち＝上下・横持ち＝左右**（体の縦写真は上下の方が各セルが大きい＝あの日 v173 の設計を踏襲）。📷いま／🖼前の写真 の札・モードは覚える・前の写真が無ければボタンを出さない。🥇 **どちらのモードでも映像は 3:4 の箱に cover**（.pcCell/.pcBox に包み直した）＝保存の切り出しと常に一致＝見えているものがそのまま残る（2画面にしても写る範囲が変わらない）。⚠ 回転の自動切替は**三重の保険**（resize／ResizeObserver＝枠の大きさの見張り／matchMedia＝縦横の問い合わせ）＝preview 環境は描画ループ停止で前2つが発火しないことを実測（rAF 系の既知の制約・実機では標準動作）。ブラウザ実測 green・コンソール 0（比べる＝並べるで左右171px each・札・‹›・スライダー隠し・モード記憶／カメラ＝重ねはセルが完全重なり・2画面は上下に3:4の箱2つ（304×405）・透かし不透明化・札表示・アイコン⊟↔👻・記憶・0枚ならボタン非表示／375px 横スクロールなし）。⚠ **回転時の上下↔左右の自動切替と撮影そのものは実機待ち** · 2026-08-20｜r85 ⚖📸 **体重を独立タブに・「からだの写真」タブを新設**（要望・2026-08-20）。✅ その前に、**実物の血圧計で 📷 読み取りが実機で通った**（r83 の核心が実証済みに）。①🗂 サブタブを5つに（🫀 血圧／⚖ 体重／📸 写真／💊 薬／🩺 健診）。⚠ 5つは副題を付けると 375px に入らない＝短い語だけ（各63px・切れなし）。🫀 と ⚖ は**保存の箱は1つ（BODY）のまま見せ方だけ分けた**＝1枚の写真に血圧と体重が混ざっていても、読めた数字がそれぞれのタブに出る。⚠ まだ読めていない写真は**両方のタブに出す**（どちらの数字か読むまで分からない＝隠すと消えたように見える）。期間の設定は2タブで共有（どちらで変えても両方が描き直る）。✍️ はタブに合わせた種類で開く。⚠ 期間ボタンが2タブに並ぶので **id → class**（id が重複すると片方しか効かない）。②📸 **からだの写真**＝体型を日々撮りためる。**あの日の重ね撮り（🎞️）の核心だけ移植**＝👻 **前の写真をカメラ映像に透かして出し、同じ角度で撮る**（3:4 の枠に映像と透かしを両方 cover で重ねる＝切り取り方が揃うのでズレない。保存も同じ切り出し＝見えているものがそのまま残る・長辺2048px）。透かしの濃さスライダー・‹›で下敷き変更・🔄前後カメラ・二段構えの getUserMedia（向き指定→無指定）。⇆ **2枚を透かして重ねて比べる**（スライダーで行き来・既定の相手は👻の下敷き＝角度が揃っている・‹›で別の日へ）。🗒ひとこと。🥇 **AI に送らない・書き出しにも入れない**＝完全に端末の中だけ（読み取るものが無い＝料金ゼロ。hNote に明記）。⚠ 👻 が使えない環境（カメラ映像を渡さない WebView 等）は、その場で理由を言い**帯の 📸（OS のカメラ）へ誘導**＝袋小路にしない。帯は 🫀=血圧計／⚖=体重計（どちらも同じ読み取り）／📸=からだ、とサブタブに1組ずつ。🧹（撮った日で数える）・📏・🧹時のモーダル閉じにも接続。ブラウザ実測 green・コンソール 0（サブタブ5つ1行・節と帯が5組とも連動／混在写真が両タブに振り分け・未読は両方に／期間の共有・✍️の種類切替／📸 グリッド・👻印・詳細・⇆比較（既定＝下敷き・スライダー0で相手だけ・‹›）・🗒保存・🗑／カメラはプレビュー環境で権限エラー→案内文の道を確認（**撮影そのものは実機待ち**）／🧹 に📸・📏 に📸／375px 横スクロールなし） · 2026-08-20｜r84 🗂 **🩺 の中を3つに分け、🫀 の期間を増やし、🍽 手がかりを「撮る」でも入れられるようにした**（実機の指摘3つ・2026-08-20）。①🗂 **健康タブにサブタブ**（🫀 血圧／💊 薬／🩺 健診）＝本人「**データが増えたときが見えにくくなりそう。健康タブの下にもう一つタブが必要かも**」。⚠ 3つは**増える速さが桁で違う**（🫀＝1日に何度も／💊＝月に数件／🩺＝年1件）＝縦に積むと 🫀 が伸びるほど下の2つが画面外へ押し出される。⚠ 下の帯（📷🖼）も**サブタブと同じ1組だけ**にした＝押す前にどの節に入るか分かる／3組は 375px に入らない（r33）。そのぶん r83 で 🫀 だけ節の中に置いていた 📷🖼 は帯へ移し、**3つとも「撮る/選ぶ＝帯・手入力＝節の見出し」**に揃えた（入口は消していない）。⚠ 見出しは**短い語＋副題**（🫀 血圧／脈・体重も）＝「🫀 血圧・体重」の1語では 375px で2行に折り返し、3つの高さが揃わなかった（r33）。②📅 **🫀 の期間に 1週間・3か月・任意の期間を足した**（要望）＝1週間/1か月/3か月/半年/全部/📅 の6つ（1行に入らないので折り返す .seg.wrap）。🥇 **一覧も期間に従う**ようにした（見えにくさの本体は一覧）＝「この期間の計測 N件（期間の外に M件）」と**必ず数を言う**（黙って隠すと消えたように見える）。🩹 **袋小路を塞いだ**＝r83 は描くものが無いと期間ボタンごと消していたので、1件も無い期間を選ぶと**選び直せなくなる**。ボタンは常に出す。📅 を初めて押した時は直近1か月を入れておく（空の日付欄から打たせない）。③📷 **🍽 の手がかり（レシート・成分表示・別角度）を「撮る」でも足せるようにした**＝本人「**Android はフォトから選ぶようになる。写真も撮れるようにしたい**」。⚠ r67 の「capture を付けなければ OS が撮る/選ぶを聞く」は **iOS だけの話**で、Android（Chromium・WebView）は**フォトピッカーへ直行**＝カメラへの道が無かった。目の前の成分表示は「これから撮る」ものなので実害が大きい。⚠ capture と multiple は**同じ input に付けない**（付けると capture が無視される・r5 の実機確認）＝種類ごとに「名前＋📷＋🖼」の1行にした（📷 は1枚・🖼 は複数）。ブラウザ実測 green・コンソール 0（サブタブ＝節と帯が連動・他タブへ行って戻っても覚えている／期間6つが2段・1週間15件/1か月18件/3か月21件/全部24件・任意で6月だけ3件・1件も無い期間でもボタンは残る／手がかりは capture と multiple が別 input・📷 から1枚足せた・ボタン 52×44px／帯へ移した 🫀 の📷 で取り込み→サブタブが 🫀 に切り替わる／375px 横スクロールなし） · 2026-08-20｜r83 🫀 **からだの数字（血圧・体重）を 🩺 に足した**（重い提案①・要望2つ込み＝「血圧は1日数回測る（仕事前後・もっとの人も）」「血圧計のデジタル表示や印字の紙を写メ→時刻と数値の自動記録」・2026-08-20）。**健診（年1回の点）の間を埋める毎日の線**＝どのアプリにもない3本柱の横断（食費×食事×体）がこれで完成する。🥇 **1回の計測＝1件**（1日1行にしない）＝仕事前・仕事後・何回でも。🗒ひとことに「仕事前」等の文脈を残せる。記録の形は**レシートと同じ**＝1件（写真1枚 or 手入力1回）が中に計測の配列（readings）を持ち、画面で1計測ずつ展開（印字の紙には複数回が並ぶため）。📷 **写真→AI**＝血圧計・体重計の表示、印字の紙（複数行も全部）。⚠ **日時は印字されているものだけ AI に書かせ**（推測で埋めさせない）、無い分は**撮影時刻**で補う＝どちらを使ったかを tSrc（printed/photo/human）に残し、一覧・詳細・📤 で言う（黙らない）。⚠ AI 設定は 🩺 と共通（役割を6つ目に増やさない）。✍️ 手入力もあり（キー無しでも使える・前回の種類を覚える・未来の時刻は止める＝r80 と同じ線引き）。📈 折れ線は**ローカル SVG**（AI なし・上下2本＋家庭血圧の目安 135/85 の破線＝参考・30日/半年/全部）。組み込み＝📤 body_log（読み方 DATA_NOTES.body 同梱・CSV 別ファイル・チェックで外せる）／🔗・🩺 の例文に体の推移を追記／🚑 起動時の pending 復旧／🧹（計測の日付で数え、期間外が同じ写真に残れば写真は残して計測だけ抜く＝🧾 と同じ）／📏 点検／失敗の案内表（ERR_NEXT を body 用に読み替え＝r46 の教訓）。ブラウザ実測 green・コンソール 0（手入力7件＋紙3回ぶんの写真＝一覧が新しい順・同日複数・✍️/📷/（時刻は撮影時刻）の印／グラフ2枚＋凡例＋期間切替／2件目だけ編集→human・1計測だけ削除→写真と残り2件は残る／todo に手書き→done・写真は残る／pending 放置→再読み込みで todo に復旧＋トースト／📤 9件・readme・オフで外れる・CSV件数表示／🧹 10件（読み9＋写真だけ1）／📏 に🫀／375px 横スクロールなし） · 2026-08-20';
+const BUILD = 'r88 🔍 **📸 の写真・撮影の表示をできるだけ大きくした**（要望・2026-08-20）。🥇 **正体＝写真の形**。3:4 は**画面より横長**なので、縦持ちでは**横幅で頭打ち**になり上下に黒が残っていた（実測 375×500＝画面の 62%）。帯を細くしても写真は1mmも大きくならない（黒が増えるだけ）＝**形を変えるしかない**。→ **9:16（縦長）を既定**にした＝**372×661＝画面の 81%**（同じ画面で約1.3倍・全身も入りやすい）。▯ ボタンで **9:16 ↔ 3:4** を切り替えられ、選択は覚える。⚠ **形を混ぜると重ねてもぴったりにはならない**＝形の違う透かしは cover（切り取り）でなく **contain（全体を出す）**にし、「前の写真は 3:4（形が違うのでぴったりは重なりません）」と**帯に**1行出す（写真の上には書かない＝r87 の約束／黙って歪めない・切らない）。写真ごとに形（ar）を持たせ、帯の 📸🖼 から入れた写真は**その写真自身の形**を測って記録（決め打ちしない）。r85-87 の写真は 3:4 として扱う。📐 帯も詰めた（170→150px・シャッター 64→60・余白と間隔）＝9:16 は**高さで頭打ち**なので帯の高さがそのまま写真の高さになる。🖼 **閲覧も大きく**＝詳細の写真と比較を**シートの端まで**広げ（343→375px）、枠を**写真そのものの形**に合わせた（3:4 の枠に 9:16 を入れて上下を黒くしていた）。形の違う2枚を並べる時は**背の高い方**に合わせる（どちらも切らない）。🩹 横持ちは柱の高さが画面の高さそのもの＝注意書きが1行増えるだけではみ出し**シャッターが押せなくなる**ので、はみ出したらスクロールで届くようにした（実測 416 > 360 でスクロール可・シャッターに到達できる）。ブラウザ実測 green・コンソール 0（縦持ち 9:16＝372×661/81%・2画面の各セルも 0.563／3:4 に切り替えると 375×500/62% に戻る／形違いの透かしは contain＋注意書き／閲覧は 375px 幅・比率 0.563・並べると 187×333 ずつ／横持ちは 211×375 で帯からはみ出さず届く／帯は写真の外・文字は写真に重ならない） · 2026-08-20｜r87 🧹📐 **👻カメラの操作を写真の外へ出し、縦持ち・横持ちを作り直した**（要望＝「画面の真ん中に『透かし:日時（＜＞で変更）』がでて邪魔。＜＞ボタンだけで説明不要にして写真外においてください。縦表示、横表示も切り替えに気を付けて」・2026-08-20）。①🧹 **写真の上から文字を消した**＝「透かし: 2026-08-13 07:30（‹ › で変更）」→ **日付だけ**（同じ年なら 08-13）。⚠ 透かす写真が無い時は**行ごと消す**（「1枚目です…」の説明も置かない）。2画面の時は札にも日付を出す（🖼 08-13）。②📐 **操作は写真の外**＝写真の場所と操作の帯を**重ねずに分けた**（今までは写真の上に半透明で乗っていた）。**縦持ち＝下の帯／横持ち＝右の柱**（横持ちで下に置くと写真の高さが無くなる）。③📏 **枠の大きさは JS が実寸から決める**（pcFit）＝**CSS だけでは 3:4 を保てなかった**（実測で両方向とも失敗＝`height:100%`＋`max-width` は 0.584／`width:100%`＋`max-height` は横持ちで 1.805。max- で頭を打つと、もう片方の辺が比率に合わせて縮まない）。⚠ **イベントだけに頼らない**＝preview は resize も ResizeObserver も発火しない（r86 で実測）＝その状態で回すと前の大きさのままの枠が画面からはみ出す（写真の下が切れる）。→ resize/orientationchange **＋ 開いている間だけ 0.5秒ごとの測り直し**（変わった時だけ書く・閉じたら止める）。実測で「イベント無しで回しても 1.2秒後に 375×500・比率 0.750」を確認。🩹 **CSS の順番の罠**＝画面の向きの指定（媒体クエリ）をカメラCSSの真ん中に置いたため、後ろにある `.pcGhostRow button` に負けて横持ちの ‹ › が 25px に潰れていた（**指で当たらない**）＝ブロックを基本規則の後ろへ移し、44px を死守（横持ちは日付を別の行に折り返す）。ブラウザ実測 green・コンソール 0（縦持ち＝重ね 375×500(0.750)／2画面は上下・横持ち＝重ね 281×375(0.749)／2画面は左右、どの組み合わせでも**写真は必ず 3:4**・**帯は写真の外**・文字が写真に重ならない・‹ › は 44px 以上／写真0枚なら行も⊟も出ない／回転の追随） · 2026-08-20｜r86 ⊟ **📸 に「左右に並べて比べる」を足した**（要望「左右に写真を出して、比較もほしい。あの日から核心を移植して」・2026-08-20）。あの日の重ね撮り2画面（v173）の移植＝**比べるビュー**と**👻カメラ**の両方に。①⇆ 比べるに **👻 重ねる／⊟ 並べる** の切替（覚える）。並べる＝**常に左右**（要望どおり。3:4 の縦写真は半分幅でも読める）＝左が相手・右がこの写真（時間が左→右に流れる並び）・各セルに日付の札・‹›はどちらのモードでも効く。⚠ 並べる中は透かしスライダーを visibility で隠す（意味が無い・場所は保ってガタつかせない＝あの日と同じ）。②👻 カメラに **⊟ 2画面**（シャッター右のボタン）＝**縦持ち＝上下・横持ち＝左右**（体の縦写真は上下の方が各セルが大きい＝あの日 v173 の設計を踏襲）。📷いま／🖼前の写真 の札・モードは覚える・前の写真が無ければボタンを出さない。🥇 **どちらのモードでも映像は 3:4 の箱に cover**（.pcCell/.pcBox に包み直した）＝保存の切り出しと常に一致＝見えているものがそのまま残る（2画面にしても写る範囲が変わらない）。⚠ 回転の自動切替は**三重の保険**（resize／ResizeObserver＝枠の大きさの見張り／matchMedia＝縦横の問い合わせ）＝preview 環境は描画ループ停止で前2つが発火しないことを実測（rAF 系の既知の制約・実機では標準動作）。ブラウザ実測 green・コンソール 0（比べる＝並べるで左右171px each・札・‹›・スライダー隠し・モード記憶／カメラ＝重ねはセルが完全重なり・2画面は上下に3:4の箱2つ（304×405）・透かし不透明化・札表示・アイコン⊟↔👻・記憶・0枚ならボタン非表示／375px 横スクロールなし）。⚠ **回転時の上下↔左右の自動切替と撮影そのものは実機待ち** · 2026-08-20｜r85 ⚖📸 **体重を独立タブに・「からだの写真」タブを新設**（要望・2026-08-20）。✅ その前に、**実物の血圧計で 📷 読み取りが実機で通った**（r83 の核心が実証済みに）。①🗂 サブタブを5つに（🫀 血圧／⚖ 体重／📸 写真／💊 薬／🩺 健診）。⚠ 5つは副題を付けると 375px に入らない＝短い語だけ（各63px・切れなし）。🫀 と ⚖ は**保存の箱は1つ（BODY）のまま見せ方だけ分けた**＝1枚の写真に血圧と体重が混ざっていても、読めた数字がそれぞれのタブに出る。⚠ まだ読めていない写真は**両方のタブに出す**（どちらの数字か読むまで分からない＝隠すと消えたように見える）。期間の設定は2タブで共有（どちらで変えても両方が描き直る）。✍️ はタブに合わせた種類で開く。⚠ 期間ボタンが2タブに並ぶので **id → class**（id が重複すると片方しか効かない）。②📸 **からだの写真**＝体型を日々撮りためる。**あの日の重ね撮り（🎞️）の核心だけ移植**＝👻 **前の写真をカメラ映像に透かして出し、同じ角度で撮る**（3:4 の枠に映像と透かしを両方 cover で重ねる＝切り取り方が揃うのでズレない。保存も同じ切り出し＝見えているものがそのまま残る・長辺2048px）。透かしの濃さスライダー・‹›で下敷き変更・🔄前後カメラ・二段構えの getUserMedia（向き指定→無指定）。⇆ **2枚を透かして重ねて比べる**（スライダーで行き来・既定の相手は👻の下敷き＝角度が揃っている・‹›で別の日へ）。🗒ひとこと。🥇 **AI に送らない・書き出しにも入れない**＝完全に端末の中だけ（読み取るものが無い＝料金ゼロ。hNote に明記）。⚠ 👻 が使えない環境（カメラ映像を渡さない WebView 等）は、その場で理由を言い**帯の 📸（OS のカメラ）へ誘導**＝袋小路にしない。帯は 🫀=血圧計／⚖=体重計（どちらも同じ読み取り）／📸=からだ、とサブタブに1組ずつ。🧹（撮った日で数える）・📏・🧹時のモーダル閉じにも接続。ブラウザ実測 green・コンソール 0（サブタブ5つ1行・節と帯が5組とも連動／混在写真が両タブに振り分け・未読は両方に／期間の共有・✍️の種類切替／📸 グリッド・👻印・詳細・⇆比較（既定＝下敷き・スライダー0で相手だけ・‹›）・🗒保存・🗑／カメラはプレビュー環境で権限エラー→案内文の道を確認（**撮影そのものは実機待ち**）／🧹 に📸・📏 に📸／375px 横スクロールなし） · 2026-08-20｜r84 🗂 **🩺 の中を3つに分け、🫀 の期間を増やし、🍽 手がかりを「撮る」でも入れられるようにした**（実機の指摘3つ・2026-08-20）。①🗂 **健康タブにサブタブ**（🫀 血圧／💊 薬／🩺 健診）＝本人「**データが増えたときが見えにくくなりそう。健康タブの下にもう一つタブが必要かも**」。⚠ 3つは**増える速さが桁で違う**（🫀＝1日に何度も／💊＝月に数件／🩺＝年1件）＝縦に積むと 🫀 が伸びるほど下の2つが画面外へ押し出される。⚠ 下の帯（📷🖼）も**サブタブと同じ1組だけ**にした＝押す前にどの節に入るか分かる／3組は 375px に入らない（r33）。そのぶん r83 で 🫀 だけ節の中に置いていた 📷🖼 は帯へ移し、**3つとも「撮る/選ぶ＝帯・手入力＝節の見出し」**に揃えた（入口は消していない）。⚠ 見出しは**短い語＋副題**（🫀 血圧／脈・体重も）＝「🫀 血圧・体重」の1語では 375px で2行に折り返し、3つの高さが揃わなかった（r33）。②📅 **🫀 の期間に 1週間・3か月・任意の期間を足した**（要望）＝1週間/1か月/3か月/半年/全部/📅 の6つ（1行に入らないので折り返す .seg.wrap）。🥇 **一覧も期間に従う**ようにした（見えにくさの本体は一覧）＝「この期間の計測 N件（期間の外に M件）」と**必ず数を言う**（黙って隠すと消えたように見える）。🩹 **袋小路を塞いだ**＝r83 は描くものが無いと期間ボタンごと消していたので、1件も無い期間を選ぶと**選び直せなくなる**。ボタンは常に出す。📅 を初めて押した時は直近1か月を入れておく（空の日付欄から打たせない）。③📷 **🍽 の手がかり（レシート・成分表示・別角度）を「撮る」でも足せるようにした**＝本人「**Android はフォトから選ぶようになる。写真も撮れるようにしたい**」。⚠ r67 の「capture を付けなければ OS が撮る/選ぶを聞く」は **iOS だけの話**で、Android（Chromium・WebView）は**フォトピッカーへ直行**＝カメラへの道が無かった。目の前の成分表示は「これから撮る」ものなので実害が大きい。⚠ capture と multiple は**同じ input に付けない**（付けると capture が無視される・r5 の実機確認）＝種類ごとに「名前＋📷＋🖼」の1行にした（📷 は1枚・🖼 は複数）。ブラウザ実測 green・コンソール 0（サブタブ＝節と帯が連動・他タブへ行って戻っても覚えている／期間6つが2段・1週間15件/1か月18件/3か月21件/全部24件・任意で6月だけ3件・1件も無い期間でもボタンは残る／手がかりは capture と multiple が別 input・📷 から1枚足せた・ボタン 52×44px／帯へ移した 🫀 の📷 で取り込み→サブタブが 🫀 に切り替わる／375px 横スクロールなし） · 2026-08-20';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -5163,9 +5174,14 @@ const onPicPicked = async e => {
     for (const f of files) {
       const shot = await shotAtOf(f);
       const { date, time } = picStamp(shot.at);
+      const img = await prepImage(f, 2048);
+      /* r88: OS のカメラ・ライブラリから来た写真は**その写真自身の形**を記録する（決め打ちしない）
+         ＝閲覧・透かしがその形で正しく出る。読めなければ 3:4 として扱う（picArOf の既定と揃える）。 */
+      let ar = 0.75;
+      try { const { im, url } = await loadImage(img); if (im.naturalWidth && im.naturalHeight) ar = im.naturalWidth / im.naturalHeight; URL.revokeObjectURL(url); } catch (_) {}
       await picPut({ id: 'p' + Date.now() + Math.random().toString(36).slice(2, 7), addedAt: Date.now(),
-                     date, time, img: await prepImage(f, 2048), thumb: await downscale(f, 320, 0.7),
-                     memo: null, ghostOf: null });
+                     date, time, img, thumb: await downscale(f, 320, 0.7),
+                     memo: null, ghostOf: null, ar });
     }
     await setTopTab('health'); await setHealthTab('pic');
     toast(`📸 ${files.length}枚 残しました`);
@@ -5178,6 +5194,15 @@ const onPicPicked = async e => {
    その場で理由を言い、帯の 📸（OS のカメラ）へ誘導する＝袋小路にしない。 */
 let pcState = null;   // { stream, facing, bases（古→新）, bi（透かしに使う番号）, mode（ghost=重ね / split=2画面）, onResize }
 const PC_MODE = 'rcpt.pic.cammode';   // r86: 前回のモードを覚える（あの日 rpCamPrefs と同じ考え）
+/* r88: 写真の形（要望「写真、撮影の表示をできるだけ大きく取りたい」）。
+   ⚠ 3:4 は**画面より横長**なので、縦持ちだと横幅で頭打ちになり上下に黒が残る（375×500／画面 375×812）。
+      9:16 なら画面の形に近い＝**同じ画面でずっと大きく写る**（実測は下の CHANGELOG）。
+   ⚠ 形を混ぜると**重ねてもぴったりにはならない**＝形が違う透かしは cover（切り取り）でなく
+      contain（全体を出す）にして、違うことを帯にも1行書く（黙って歪めない・切らない）。 */
+const PIC_AR = 'rcpt.pic.ar';
+const PIC_SHAPES = [['9/16', 0.5625, '9:16'], ['3/4', 0.75, '3:4']];
+const picShape = () => PIC_SHAPES.find(x => x[0] === localStorage.getItem(PIC_AR)) || PIC_SHAPES[0];
+const picArOf = r => (typeof r?.ar === 'number' && r.ar > 0) ? r.ar : 0.75;   // r85-87 の写真は 3:4
 async function openPicCam(){
   if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
     toast('この環境ではカメラ映像を使えません。下の帯の 📸 で普通に撮れます（透かしは出ません）'); return;
@@ -5197,7 +5222,7 @@ async function openPicCam(){
   addEventListener('orientationchange', pcState.onResize);
   pcState.timer = setInterval(pcFit, 500);
   pcApplyMode();
-  pcSyncGhost();
+  pcApplyShape();   // r88: 写真の形（枠・箱・透かしの見せ方をここで揃える）
   await pcStart();
 }
 /* r87: **枠の大きさは実寸から決める**（CSS の max- では比率が崩れたため・上のコメント参照）。
@@ -5206,14 +5231,24 @@ async function openPicCam(){
 function pcFit(){
   if (!pcState) return;
   const st = document.getElementById('pcStage'), f = document.getElementById('pcFrame');
-  if (pcState.mode === 'split') { f.style.width = ''; f.style.height = ''; return; }
-  const sw = st.clientWidth, sh = st.clientHeight;
+  if (pcState.mode === 'split') { f.style.width = ''; f.style.height = ''; delete f.dataset.w; return; }
+  const sw = st.clientWidth, sh = st.clientHeight, ar = picShape()[1];
   if (!sw || !sh) return;
-  const w = Math.round(Math.min(sw, sh * 3 / 4));
+  const w = Math.round(Math.min(sw, sh * ar));
   if (f.dataset.w === String(w)) return;   // 変わっていない時は何もしない（0.5秒ごとに呼ばれるので）
   f.dataset.w = String(w);
   f.style.width = w + 'px';
-  f.style.height = Math.round(w * 4 / 3) + 'px';
+  f.style.height = Math.round(w / ar) + 'px';
+}
+// 形を切り替える（覚える）。⚠ 枠・箱・切り出し・透かしの見せ方が全部これに従う
+function pcApplyShape(){
+  const [css, ar, label] = picShape();
+  document.getElementById('picCam').style.setProperty('--pcar', css);
+  const b = document.getElementById('pcShape');
+  b.textContent = label;
+  b.title = `写真の形（いま ${label}）＝押すと切り替え`;
+  delete document.getElementById('pcFrame').dataset.w;   // 形が変わった＝測り直す
+  pcFit(); pcSyncGhost();
 }
 /* r86: ⊟ 2画面 ↔ 👻 重ね（あの日 v173 の移植）。
    ⚠ r87: **縦持ち＝上下／横持ち＝左右の切り替えは CSS（orientation）に任せた**＝
@@ -5271,6 +5306,13 @@ function pcSyncGhost(){
   g.style.opacity = (+document.getElementById('pcAlpha').value) / 100;
   lab.textContent = picShortDate(b.date);
   document.getElementById('pcTagRef').textContent = `🖼 ${picShortDate(b.date)}`;   // 2画面の時の札にも日付を出す
+  /* r88: 形が違う透かしは **contain（全体を出す）**＝cover だと勝手に切り取って「合っている」ように見せてしまう。
+     違うことは帯に1行で言う（写真の上には書かない＝r87 の約束）。 */
+  const bar = picArOf(b), now = picShape()[1], same = Math.abs(bar - now) < 0.01;
+  g.style.objectFit = same ? 'cover' : 'contain';
+  const note = document.getElementById('pcShapeNote');
+  note.hidden = same;
+  if (!same) note.textContent = `前の写真は ${bar > 0.6 ? '3:4' : '9:16'}（形が違うのでぴったりは重なりません）`;
 }
 function closePicCam(){
   const st = pcState; pcState = null;
@@ -5286,9 +5328,9 @@ function closePicCam(){
 async function pcShoot(){
   const v = document.getElementById('pcVideo');
   if (!pcState || !v.videoWidth) { toast('カメラの映像がまだ来ていません'); return; }
-  /* 保存＝画面と同じ 3:4 の cover 切り出し（見えているものがそのまま残る＝透かしと同じ範囲）。
+  /* 保存＝画面と同じ形の cover 切り出し（見えているものがそのまま残る＝透かしと同じ範囲）。
      ⚠ 毎日撮ると容量が効く＝長辺 2048px に抑える（体型の比較には十分・1枚 200〜400KB 見当）。 */
-  const A = 3 / 4, vw = v.videoWidth, vh = v.videoHeight;
+  const A = picShape()[1], vw = v.videoWidth, vh = v.videoHeight;
   let cw, ch, cx, cy;
   if (vw / vh > A) { ch = vh; cw = Math.round(vh * A); cx = Math.round((vw - cw) / 2); cy = 0; }
   else { cw = vw; ch = Math.round(vw / A); cx = 0; cy = Math.round((vh - ch) / 2); }
@@ -5298,14 +5340,14 @@ async function pcShoot(){
   c.getContext('2d').drawImage(v, cx, cy, cw, ch, 0, 0, c.width, c.height);
   const img = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.85));
   const t = document.createElement('canvas');
-  t.width = 240; t.height = 320;
+  t.height = 320; t.width = Math.round(320 * A);
   t.getContext('2d').drawImage(c, 0, 0, t.width, t.height);
   const thumb = await new Promise(res => t.toBlob(res, 'image/jpeg', 0.7));
   if (!img) { toast('撮影に失敗しました（もう一度お試しください）'); return; }
   const base = pcState.bases[pcState.bi] || null;
   const { date, time } = picStamp(Date.now());
   await picPut({ id: 'p' + Date.now() + Math.random().toString(36).slice(2, 7), addedAt: Date.now(),
-                 date, time, img, thumb, memo: null, ghostOf: base ? base.id : null });
+                 date, time, img, thumb, memo: null, ghostOf: base ? base.id : null, ar: A });
   closePicCam();
   toast('📸 残しました');
   await renderPics();
@@ -5320,6 +5362,13 @@ document.getElementById('pcMode').onclick = () => {
   localStorage.setItem(PC_MODE, pcState.mode);
   pcApplyMode();
 };
+document.getElementById('pcShape').onclick = () => {
+  if (!pcState) return;
+  const i = PIC_SHAPES.findIndex(x => x[0] === picShape()[0]);
+  localStorage.setItem(PIC_AR, PIC_SHAPES[(i + 1) % PIC_SHAPES.length][0]);
+  pcApplyShape();
+  toast(`写真の形を ${picShape()[2]} にしました`);
+};
 document.getElementById('pcPrev').onclick = () => { if (pcState && pcState.bi > 0) { pcState.bi--; pcSyncGhost(); } };
 document.getElementById('pcNext').onclick = () => { if (pcState && pcState.bi < pcState.bases.length - 1) { pcState.bi++; pcSyncGhost(); } };
 document.getElementById('pcAlpha').addEventListener('input', () => { const g = document.getElementById('pcGhost'); if (!g.hidden) g.style.opacity = (+document.getElementById('pcAlpha').value) / 100; });
@@ -5333,6 +5382,7 @@ async function openPic(r){
   const img = document.getElementById('pvImg');
   const u = URL.createObjectURL(r.img || r.thumb); pvUrls.push(u); img.src = u; img.hidden = false;
   document.getElementById('pvCmpWrap').hidden = true;
+  document.getElementById('pvStage').style.aspectRatio = String(picArOf(r));   // r88: 枠を写真の形に合わせる
   document.getElementById('pvInfo').textContent = `${r.date} ${r.time || ''}${r.ghostOf ? ' ・👻 透かして撮影' : ''}`;
   document.getElementById('pvMemo').value = r.memo || '';
   // 比べる相手＝自分以外（古→新）。既定は 👻 の下敷きにした写真（角度が揃っている）、無ければ直近
@@ -5350,7 +5400,12 @@ function pvSyncCmp(){
   const other = pvOthers[pvIdx]; if (!other || !pvCur) return;
   const split = pvMode === 'split';
   document.querySelectorAll('#pvModeSeg button').forEach(x => x.classList.toggle('on', x.dataset.pvmode === pvMode));
-  document.getElementById('pvStage').classList.toggle('split', split);
+  const stage = document.getElementById('pvStage');
+  stage.classList.toggle('split', split);
+  /* r88: 枠は写真の形に合わせる（並べる時は2枚ぶんの横幅）＝3:4 の枠に 9:16 を入れると上下が黒くなって小さく見える。
+     ⚠ 2枚の形が違う時は**背の高い方**（数字が小さい方）に合わせる＝どちらも切らずに全部見える。 */
+  const ar = Math.min(picArOf(pvCur), picArOf(other));
+  stage.style.aspectRatio = String(split ? ar * 2 : ar);
   document.getElementById('pvAlpha').style.visibility = split ? 'hidden' : '';   // 並べる中は透かしの濃さに意味が無い（場所は保つ）
   const a = document.getElementById('pvImgA'), b = document.getElementById('pvImgB');
   [a, b].forEach(el => { if (el.dataset.url) { URL.revokeObjectURL(el.dataset.url); delete el.dataset.url; } });
