@@ -36,7 +36,7 @@
 | **README.md** | 外向き説明 (ほぼ更新しない) | 訪問者向け |
 | **index.html** | spike 本体 (web)。**体験ロジック = プロダクトの資産** | コードを見る/触る |
 | **CLAUDE.md** | Claude 向け運用ルール (このリポの入口) | セッション開始時 |
-| **DECISION-FRAMEWORK.md** | **ゆうの判断モデル** (全プロダクトの判断記録からの蒸留・出典付き) | 機能/スコープ/技術/リリースで迷ったら。Claude は提案の前に |
+| **DECISION-FRAMEWORK.md** | **ゆうの判断モデル** (全プロダクトの判断記録からの蒸留・出典付き)。**姉妹**＝ライフログ `docs/decision-framework.md`（データ・計測の判断／収束リスト §6） | 機能/スコープ/技術/リリースで迷ったら。Claude は提案の前に |
 | **receipt-spike/** | **別プロダクト**「🧾レシート」の spike（撮る→BYOKでAI分析→書き出し）。あの日とはコード・BUILD(r1,r2,…)・TODO/CHANGELOG すべて独立 | レシート側を触る時は `receipt-spike/TODO.md` から |
 
 ### ③ memory (Claude のローカル永続メモ・非公開)
@@ -55,6 +55,7 @@
 | いくらかかる / どう出す | Notion HOW (コスト・署名・ストア) |
 | spike で何を確かめた / なぜこの実装か | git CHANGELOG / TODO |
 | 過去にどう判断してきたか / 判断のクセ・チェックリスト | **DECISION-FRAMEWORK.md** |
+| 閾値・データモデル・検査をどう決めるか (測って決める系) | ライフログ `docs/decision-framework.md` (姉妹) |
 | コードのどの機能を残す/変える/捨てるか | Notion WHY §1.5 (資産移行マップ) |
 
 ---
