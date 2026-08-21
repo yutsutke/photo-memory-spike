@@ -32,7 +32,9 @@ header .sp{flex:1;}
 }
 .hbtn{background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:8px 9px; font-size:16px; flex:0 0 auto;}
 /* left:50%+translate だと使える幅が画面の半分になり、ボタン2つで文字が折り返す。左右0＋中央寄せにする（帯はタップを通さない） */
-#shoot{position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 14px); z-index:5; display:flex; justify-content:center; align-items:center; gap:10px; pointer-events:none;}
+/* r96: 置くボタンを選べるようにした＝たくさん選ばれたら**折り返して2段**にする（横に切らない・スクロールもさせない）。
+   下の一覧が隠れる分は renderShootBar が body の余白を帯の実寸に合わせて空ける。 */
+#shoot{position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 14px); z-index:5; display:flex; flex-wrap:wrap; row-gap:8px; justify-content:center; align-items:center; gap:10px; pointer-events:none;}
 #shoot label{pointer-events:auto; white-space:nowrap; display:flex; align-items:center; gap:8px; background:var(--acc); color:#04121f; font-weight:700; font-size:17px; border-radius:28px; padding:14px 26px; box-shadow:0 4px 16px rgba(0,0,0,.5);}
 /* r41: 3つ並べる＝1つあたりを詰める。⚠ 料理はレシートと同じ重さで置く（片方だけ弱くしない）
    ⚠ 狭い画面では絵文字だけにする（切れた文字を出すくらいなら出さない・r33） */
@@ -50,6 +52,12 @@ header .sp{flex:1;}
    360px でも入るが、**実機の iOS は文字も絵文字も大きい**（r33）ので余裕を取って 380px 未満で絵文字だけにする。 */
 @media (max-width:379px){ #shoot label{padding:13px 12px; gap:5px;} #shoot label span{display:none;}
   #shoot .grp .pick{padding:13px 12px;} }
+/* r96: いまが食事の時間帯（朝/昼/夕＝🍽 タブの設定を流用）なら 🍽 料理を**大きく・太く**出す。
+   ⚠ 場所は動かさない（大きさだけ変える）＝並びが時間で入れ替わると、覚えた位置で押す指が外れる。
+   ⚠ 狭い画面でも、大きくしている方は**ラベルの文字を消さない**（大きい理由が読めないただの太いボタンになる）。 */
+#shoot .grp.now label{font-size:19px; padding:17px 20px; font-weight:800;}
+#shoot .grp.now .pick{font-size:17px;}
+@media (max-width:379px){ #shoot .grp.now label{padding:15px 14px;} #shoot .grp.now label span{display:inline;} }
 #shoot input{display:none;}
 main{padding:10px 14px;}
 .empty{color:var(--dim); text-align:center; padding:48px 20px;}
@@ -927,6 +935,12 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <label class="anChk"><input type="checkbox" id="autoGeoChk"><span>レシートの<b>印字住所から自動で場所を決める</b></span></label>
   </div>
   <div class="note">🌏 オンの間は、読み取りが終わるたびに<b>住所の文字だけ</b>を <b>国土地理院</b>（日本の住所に強い）へ送り、見つからなければ <b>OpenStreetMap</b> にも送って座標を返してもらいます（<b>写真・金額・品目は送りません</b>）。決まった位置は<b>この端末の中だけ</b>に保存されます。オフにすると、💴 の 🔎 ボタンを押した時だけ送ります。<b>見つからなかった住所・ずれている店は、💴 からタップして手で置けます</b>（手で置いた位置が優先されます）。⚠ 地理院でも<b>号（建物単位）までは出ません</b>＝同じ番地に複数の店があると重なります。</div>
+  <!-- 📷 撮るボタンの帯（r96）＝要望「アプリを開いてワンタップで目的のカメラ」「どのカメラを配置するか設定で選べる」 -->
+  <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
+    <label>📷 下の「撮る」ボタンをえらぶ</label>
+    <div id="shootPinBox"></div>
+  </div>
+  <div class="note">☑ を入れたボタンは<b>どのタブでも</b>下の帯に出ます＝アプリを開いて<b>ワンタップ</b>でそのカメラが起動します。☑ が無くても、<b>見ているタブのボタンは今までどおり</b>出ます（この設定で入口が消えることはありません）。撮ったあとは、その記録のあるタブへ移ります。<br>🍽 料理は<b>食事の時間帯</b>（朝/昼/夕・🍽 タブで変更）のあいだ<b>大きく</b>なります。⚠ たくさん選ぶと帯が<b>2段</b>になります。</div>
   <!-- 📷 写真の保存サイズ（r75）＝要望「そのままか、縮小か選べるように」 -->
   <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
     <label>📷 写真の保存サイズ</label>
@@ -1621,7 +1635,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r95 ⭐ いつものメニューを覚えて ✍️ 写真なしで記録 の画面の頭からタップで選べるようにした（覚える＝✍️ の ☑／🍽 詳細のボタン・一覧と名前直しは 🍽 タブ）（2026-08-21）｜r94 💰 予算を 📈推移・💴マップ・📤書き出し・📈AI分析 にも渡した（推移＝月ごとに縦線1本／マップ＝月の帯／渡す形＝budget）（2026-08-21）｜r93 ✍️ 写真の無い収支を1件、手で入れる入口を 🧾 に足した（✏️ と同じ画面・写真なしの印）（2026-08-21）';
+const BUILD = 'r96 📷 下の撮るボタンを設定で選べるようにした（☑＝どのタブでも出る・見ているタブの分は今までどおり・🍽 は食事の時間帯のあいだ大きく太く）（2026-08-21）｜r95 ⭐ いつものメニューを覚えて ✍️ 写真なしで記録 の画面の頭からタップで選べるようにした（覚える＝✍️ の ☑／🍽 詳細のボタン・一覧と名前直しは 🍽 タブ）（2026-08-21）｜r94 💰 予算を 📈推移・💴マップ・📤書き出し・📈AI分析 にも渡した（推移＝月ごとに縦線1本／マップ＝月の帯／渡す形＝budget）（2026-08-21）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -4683,9 +4697,7 @@ async function setTopTab(t){
   document.getElementById('receiptsPane').hidden = t !== 'receipts';
   document.getElementById('mealsPane').hidden = t !== 'meals';
   document.getElementById('healthPane').hidden = t !== 'health';
-  const health = t === 'health';
-  document.getElementById('shootRcpt').hidden = health;
-  document.getElementById('shootMeal').hidden = health;
+  // r96: 帯（撮るボタン）の出し分けは renderShootBar に一本化した（syncHealthTab の末尾で呼ばれる）
   syncHealthTab();   // r84: 🩺 の中のサブタブに合わせて、節と帯を出し分ける
   if (t === 'meals') {
     // r92: 時間帯の設定は ⚙ から 🍽 へ移した＝直すのも描くのもこのタブを開いた時に
@@ -4704,16 +4716,79 @@ const HEALTH_TAB = 'rcpt.health.tab';
 // r85: ⚖ 体重（wt）と 📸 からだの写真（pic）を足して5つ（要望）
 const HEALTH_TABS = ['body', 'wt', 'pic', 'med', 'chk'];
 const HEALTH_SEC  = { body: 'hSecBody', wt: 'hSecWt', pic: 'hSecPic', med: 'hSecMed', chk: 'hSecChk' };
-const HEALTH_BAR  = { body: 'shootBody', wt: 'shootWt', pic: 'shootPic', med: 'shootMed', chk: 'shootChk' };
 let healthTab = HEALTH_TABS.includes(localStorage.getItem(HEALTH_TAB)) ? localStorage.getItem(HEALTH_TAB) : 'body';
 function syncHealthTab(){
-  const on = topTab === 'health';
   document.querySelectorAll('#healthSeg button').forEach(b => b.classList.toggle('on', b.dataset.htab === healthTab));
-  for (const k of HEALTH_TABS) {
-    document.getElementById(HEALTH_SEC[k]).hidden = healthTab !== k;
-    document.getElementById(HEALTH_BAR[k]).hidden = !on || healthTab !== k;
-  }
+  for (const k of HEALTH_TABS) document.getElementById(HEALTH_SEC[k]).hidden = healthTab !== k;
+  renderShootBar();   // r96: 帯はここで一括（タブ・サブタブのどちらが動いてもここを通る）
 }
+
+/* ---------- 📷 撮るボタンの帯（r96） ----------
+   要望＝「アプリを開く。ワンタップで目的のカメラが起動するようにしたい。設定でどの目的のカメラを
+   配置するかを選べる。また時間帯にある特定の目的のカメラを大きく表示する、太字で表示するなどできると便利」
+
+   🥇 **帯も入口も増やさない＝既にある7つの塊（📷🍽🫀⚖📸🩺💊）の出し分けを変えるだけ**。
+      input も取り込みハンドラもそのまま使う（新しいカメラを発明しない＝downstream 無改修）。
+   ⚠ **☑ は「足す」だけ**＝見ているタブの塊は選び方に関わらず必ず出る（入口を消せる設定は作らない。
+      既定＝何も選ばない＝今までと同じ見た目なので、既定の体験は変わらない）。
+   ⚠ **並び順はいつも同じ**（DOM の順のまま出し入れするだけ）＝タブを移ってもボタンの位置が動かない。
+      時間で並びを入れ替えない＝覚えた位置で押す指が外れる（大きさだけ変える）。
+   ⚠ 大きくするのは 🍽 だけ・**時間帯は 🍽 タブの設定を流用**（新しい時間の設定を作らない）。
+      朝/昼/夕の窓の中だけ強調＝間食（どの窓にも入らない時間）は大きくしない。
+      🫀 の朝晩・💊 の服用時刻などは**この端末がその時刻を知らない**ので作らない（要望が出たら、その時に設定ごと考える）。 */
+const SHOOT_LS = 'rcpt.shootPin';
+const SHOOT_GRPS = [
+  ['rcpt', '📷', 'レシート', 'shootRcpt'],
+  ['meal', '🍽', '料理',     'shootMeal'],
+  ['body', '🫀', '血圧計',   'shootBody'],
+  ['wt',   '⚖',  '体重計',   'shootWt'],
+  ['pic',  '📸', 'からだ',   'shootPic'],
+  ['chk',  '🩺', '診断結果', 'shootChk'],
+  ['med',  '💊', '薬',       'shootMed'],
+];
+const shootPins = () => { try { const a = JSON.parse(localStorage.getItem(SHOOT_LS) || '[]');
+                                return Array.isArray(a) ? a.filter(id => SHOOT_GRPS.some(g => g[0] === id)) : []; }
+                          catch (_) { return []; } };
+function renderShootBar(){
+  const pins = shootPins();
+  const ctx = topTab === 'health' ? [healthTab] : ['rcpt', 'meal'];   // 見ているタブの塊＝今までどおりの分
+  const mealNow = slotOfTime(Date.now()) !== 'snack';                 // 朝/昼/夕の窓の中か
+  for (const [id, , , el] of SHOOT_GRPS) {
+    const g = document.getElementById(el);
+    g.hidden = !(pins.includes(id) || ctx.includes(id));
+    g.classList.toggle('now', id === 'meal' && !g.hidden && mealNow);
+  }
+  /* 2段に折り返した時、一覧の最後が帯の裏に隠れないように、下の余白を帯の実寸に合わせる。
+     ⚠ **折り返している時だけ**上書きし、1段なら CSS の既定（90px）に返す＝高さの計算で既定の見た目を
+        1px も動かさない。⚠ 段の判定は「上端の差が 30px 超」＝offsetTop の種類の数で見ると、
+        .now で 🍽 だけ背が高い時に align-items:center が他の塊を数 px 下げて**1段でも2種類**になる（実測 0 と 4）。
+     ⚠ rAF で1拍置く＝hidden を切り替えた直後は折り返し後の高さがまだ測れない */
+  requestAnimationFrame(() => {
+    const el = document.getElementById('shoot');
+    const tops = [...el.querySelectorAll('.grp:not([hidden])')].map(g => g.offsetTop);
+    const wrapped = tops.length > 1 && Math.max(...tops) - Math.min(...tops) > 30;
+    document.body.style.paddingBottom = wrapped ? (el.offsetHeight + 34) + 'px' : '';
+  });
+}
+/* 時間帯の境目に追いつく（分の粒度で十分＝見た目の強調だけで、記録の中身には関わらない）。
+   iOS はバックグラウンドでタイマーが止まるので、アプリに戻った時にも描き直す。 */
+setInterval(renderShootBar, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) renderShootBar(); });
+// ⚙ の ☑（開くたびに描く）
+function renderShootPins(){
+  const pins = shootPins();
+  document.getElementById('shootPinBox').innerHTML = SHOOT_GRPS.map(([id, icon, label]) =>
+    `<label class="mlChk"><input type="checkbox" data-shootpin="${id}"${pins.includes(id) ? ' checked' : ''}>`
+    + `<span class="n">${icon} ${esc(label)}</span></label>`).join('');
+}
+document.getElementById('shootPinBox').addEventListener('change', e => {
+  const cb = e.target.closest('[data-shootpin]'); if (!cb) return;
+  const s = new Set(shootPins());
+  cb.checked ? s.add(cb.dataset.shootpin) : s.delete(cb.dataset.shootpin);
+  // ⚠ 保存の並びは表の順に固定（押した順にしない）＝帯の並びと ⚙ の並びが同じ＝説明が要らない
+  localStorage.setItem(SHOOT_LS, JSON.stringify(SHOOT_GRPS.map(g => g[0]).filter(id => s.has(id))));
+  renderShootBar();
+})
 async function setHealthTab(k){
   healthTab = k; localStorage.setItem(HEALTH_TAB, k);
   syncHealthTab(); await renderHealth();
@@ -5357,7 +5432,14 @@ const onBodyPicked = async e => {
   } catch (err) { toast('取り込み失敗: ' + err.message); }
   finally { e.target.value = ''; }
 };
-['bodyShoot', 'bodyPick', 'wtShoot', 'wtPick'].forEach(id => document.getElementById(id).addEventListener('change', onBodyPicked));
+/* r96: 帯の 🫀/⚖ を**別のタブ**から押した時だけ、押した方の節へ移す。
+   ⚠ 🫀 と ⚖ の**間では動かさない**（r85「サブタブは動かさない＝1枚に両方写っていることもある」はそのまま）＝
+      動かすのは、🩺 の外から来て 💊 や 🩺 の節が開いているのを見せられる場合だけ。 */
+['bodyShoot', 'bodyPick', 'wtShoot', 'wtPick'].forEach(id => document.getElementById(id).addEventListener('change', async e => {
+  const had = e.target.files.length;
+  await onBodyPicked(e);   // この中で setTopTab('health') まで済む
+  if (had && !['body', 'wt'].includes(healthTab)) await setHealthTab(id.startsWith('wt') ? 'wt' : 'body');
+}));
 async function runBodyAnalysis(id){
   let rec = await bodyGet(id); if (!rec || !rec.img) return;
   const ctx = ctxFor('chk');   // ⚠ 🫀 は 🩺 と同じ設定（analyzeBodyPhoto と揃える）
@@ -5889,7 +5971,14 @@ const onPhotoPicked = async e => {
   finally { e.target.value = ''; } // iOS の教訓: await の前に消さない
 };
 // 📷撮る（capture・1枚ずつ）と 🖼選ぶ（multiple・複数可）の2入口。処理は同じ
-['photoInput', 'pickInput'].forEach(id => document.getElementById(id).addEventListener('change', onPhotoPicked));
+/* r96: 帯の 📷 はどのタブにも置けるようになった＝別のタブから撮った時は、取り込んだ**あと**で 🧾 へ移る
+   （🍽（r41）・🩺💊🫀📸（r84/r85）は取り込みの中で既に移っている＝レシートだけ移らないと
+   「撮ったのに出てこない」に見える）。⚠ 移るのは取り込みの後＝File 参照を触る前に await を挟まない（r1）。 */
+['photoInput', 'pickInput'].forEach(id => document.getElementById(id).addEventListener('change', async e => {
+  const had = e.target.files.length;   // ⚠ 取り込みの finally で value が消える＝先に数だけ控える
+  await onPhotoPicked(e);
+  if (had && topTab !== 'receipts') await setTopTab('receipts');
+}));
 
 /* ---------- 失敗の記録（r30） ----------
    r29 の宿題は「次に読み取り失敗を見たら ❌ の後ろの文言をそのまま控える」だった。
@@ -10197,6 +10286,7 @@ async function openSettings(){
   renderSettings();
   renderCatTags();
   renderImgKeep();   // r75: 📷 写真の保存サイズ
+  renderShootPins(); // r96: 📷 撮るボタンの帯
   document.getElementById('imgSizeOut').hidden = true;   // ⚠ 前に数えた古い合計を出したままにしない
   resetWipe(); await renderWipe();   // r71: 🧹 は開くたび白紙＋件数を数え直す
   document.getElementById('noteStore').innerHTML = IS_NATIVE
