@@ -203,7 +203,10 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 #stTabs button{font-size:14.5px; padding:10px 2px;}
 .trRow{display:flex; align-items:center; gap:8px; font-size:12.5px; padding:7px 0 3px; min-height:44px;}
 .trRow .lab{width:60px; color:var(--dim); flex:none;}
-.trRow .stBar{flex:1; height:12px;}
+.trRow .stBar{flex:1; height:12px; position:relative;}
+/* r94: 📈 推移の「その月の予算」＝棒の中に縦線1本（行を増やさずに、越えたかどうかが見える） */
+.trRow .budMark{position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--bud); opacity:.95; border-radius:1px;}
+.trRow .v.over{color:var(--err); font-weight:700;}
 .trRow .v{width:74px; text-align:right; white-space:nowrap; flex:none; font-size:13px;}
 .trRow .d{width:66px; text-align:right; white-space:nowrap; flex:none; color:var(--dim); font-size:11.5px;}
 .trRow .d.up{color:var(--err);} .trRow .d.dn{color:var(--ok);}
@@ -618,7 +621,13 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <!-- r42: 🍽 食事の結果は**レシートの一覧の下に別の塊**で出す（混ぜない＝食事には金額の列が無い） -->
 <main>
-  <div id="receiptsPane"><div id="list"></div><div id="sMeals" hidden></div></div>
+  <div id="receiptsPane">
+    <!-- ✍️ r93: 写真の無い収支を1件入れる入口（要望）。⚠ 🍽 の「✍️ 写真なしで記録」と**同じ形・同じ位置**に置く
+         ＝タブごとに見た目と場所が違うと、同じことをするのに探す場所が増える。
+         ⚠ 下の帯（📷 レシート／🖼）は「写真から」＝役目が違うので混ぜない。 -->
+    <button class="btn" id="btnRcHand" style="margin-bottom:10px">✍️ 写真なしで記録</button>
+    <div id="list"></div><div id="sMeals" hidden></div>
+  </div>
 
   <!-- 🍽 食事（r35）＝その日の 朝食／昼食／夕食／間食。r65: モーダルからトップへ（中の id は据え置き＝描く側は無改修） -->
   <div id="mealsPane" hidden>
@@ -1473,6 +1482,8 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
       <button type="button" data-mt="count">回数</button>
     </div>
     <div class="smLegend" id="smBase"></div>
+    <!-- 💰 r94: 月を見ている時だけ、その月の予算の帯を地図の上に置く（下だと地図に隠れて見えない） -->
+    <div id="smBud"></div>
     <div id="mapWrap">
       <div id="rmap"></div>
       <button id="rmapFull" title="大きく表示">⛶</button>
@@ -1509,7 +1520,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 <!-- ✏️ 手で直す（r19）＝読み取りが間違っていた時の逃げ道。写真は原本として残したまま、文字データだけ直す -->
 <div class="overlay" id="ovEdit"><div class="sheet tall">
   <button class="x" data-close>✕</button><h2 id="edTitle">✏️ 手で直す</h2>
-  <div class="note" style="margin-top:0">読み取りが間違っていたら、ここで直せます。直した内容は<b>この端末に保存</b>され、📊 統計・💴 マップ・📤 書き出し・📈 分析にそのまま効きます。</div>
+  <div class="note" id="edNote" style="margin-top:0"></div>
   <div class="dual">
     <div class="row" style="flex:1"><label>店名（チェーン名）</label><input id="edStore" autocomplete="off"></div>
     <div class="row" style="flex:1"><label>支店</label><input id="edBranch" autocomplete="off"></div>
@@ -1560,7 +1571,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r92 🧾📤 レシートも書き出すか選べるように・⚙ から重なった入口3つ（予算／食事の時間帯／料理の読ませ方）を外してそれぞれの画面へ・ビルド情報は3版まで（2026-08-21）｜r91 📊 統計に予算を映した（ライフログ web の予算バーを移植・2026-08-20）｜r90 💰 予算を分類ごと・この月だけに広げ、保存した瞬間に帯を出す（2026-08-20）';
+const BUILD = 'r94 💰 予算を 📈推移・💴マップ・📤書き出し・📈AI分析 にも渡した（推移＝月ごとに縦線1本／マップ＝月の帯／渡す形＝budget）（2026-08-21）｜r93 ✍️ 写真の無い収支を1件、手で入れる入口を 🧾 に足した（✏️ と同じ画面・写真なしの印）（2026-08-21）｜r92 🧾📤 レシートも書き出すか選べるように・⚙ から重なった入口3つを外した（2026-08-21）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -2493,6 +2504,7 @@ const DATA_NOTES = {
     'total が税込の支払合計。items[].price は「その行の合計」＝ qty を掛けたあとの金額なので、price に qty を掛けないこと。price が税込か税抜かは price_incl_tax、品目ごとの税率は tax_rate（日本は 8% と 10% が混在）。',
     '日付の集計には date（レシートの印字）を使う。captured_at は「撮った時刻」なので、後日まとめて撮ると買った日と食い違う。',
     'date が null のレシートは、日付が要る話からは外す。',
+    'entered_by が "hand" のものは、写真なしで手で入れた記録（レシートの写真は無い・captured_at は入れた日時ではなく本人が指定した日時）。数え方は写真から読んだものと同じ。',
   ],
   meal: [
     '食事の写真を書き起こしたもの（format: "meal-log"）。slot は 朝食/昼食/夕食/間食、summary はその食事の1行の要約、items は写っていた料理（name・kind・amount）。',
@@ -2529,6 +2541,14 @@ const DATA_NOTES = {
     '食事や買い物との関係を見る時は、服用期間（start〜end）と日付を重ねて読む。note は本人のひとこと（副作用の実感など）＝写真からは分からない唯一の情報なので重く扱う。',
   ],
   // r83: 🫀 からだの数字（血圧・体重）
+  // r94: 💰 予算＝本人が決めたこと（使った額ではない）。混同されると集計が壊れるので、そこを最初に言う
+  budget: [
+    '💰 予算（format: "budget"）は本人が決めた「1か月あたりに使ってよい額」。使った額ではないので、支出として足さない。',
+    'monthly_default が ふだんの予算、months[] が その月に効いている予算（「この月だけ変えた額」は反映済み＝自分で上書きの計算をしない）。only_this_month に挙がっている項目が、その月だけ変えたもの。',
+    '予算と比べる相手は「このアプリに入っている支出」だけ（撮っていない支出・現金のやりとりは入っていない）。収入は予算に数えない。',
+    'overall（全体）と categories（分類ごと）は**数える範囲が違う**。全体＝その月の支出ぜんぶ／分類ごと＝その分類だけ。分類の合計と全体は一致しなくてよい。',
+    '予算の入っていない月・分類について、予算があるかのように書かない。',
+  ],
   body: [
     '血圧・体重の計測記録（format: "body-log"）。1行＝1回の計測。kind が "bp" は血圧（sys=上・dia=下・pulse=脈拍、単位 mmHg と 拍/分）、"weight" は体重（weight_kg）。',
     '1日に複数回あるのが普通（朝晩・仕事の前後など）＝日付だけで丸めず time も見る。note は計測の状況（「仕事前」「仕事後」など）＝血圧の高低を読む時の大事な文脈。',
@@ -2551,6 +2571,9 @@ ${bullets(DATA_NOTES.checkup)}
 
 💊 薬（format: "medication-log"）が一緒に渡されることがある:
 ${bullets(DATA_NOTES.med)}
+
+💰 予算（format: "budget"）が一緒に渡されることがある:
+${bullets(DATA_NOTES.budget)}
 
 書き方:
 - 見出し（##）・箇条書き（-）・太字（**）だけを使う。表・コードブロックは使わない。
@@ -3718,7 +3741,9 @@ document.getElementById('btnImgSize').onclick = async () => {
     const rows = [['\u{1F9FE} レシート', o.rcpt], ['\u{1F37D} 料理', o.meal], ['\u{1FA7A} 健診', o.chk], ['\u{1F48A} 薬', o.med], ['\u{1F501} 繰り返し', o.rp], ['\u{1FAC0} からだ', o.body], ['\u{1F4F8} からだの写真', o.pic]];
     const part = rows.filter(([, x]) => x.n).map(([k, x]) => `${k} ${mb(x.b)}${x.bad ? ` <b style="color:var(--err)">（${x.bad}枚が読めません）</b>` : ''}`).join(' ・ ');
     out.hidden = false;
-    out.innerHTML = `いま保存している写真は <b>${cnt}枚で ${mb(tot)}</b>${part ? `<br>${part}` : ''}`
+    /* r93: 1枚も無い時に「0枚で 1KB」と出さない（mb は 0 を 1KB と丸める）＝✍️ 写真なしの記録だけの端末で必ず出る */
+    out.innerHTML = (cnt ? `いま保存している写真は <b>${cnt}枚で ${mb(tot)}</b>${part ? `<br>${part}` : ''}`
+                         : '保存している写真は<b>ありません</b>（✍️ 手で入れた記録だけの状態です）')
       + (bad
         ? `<br>\u{1F573} <b style="color:var(--err)">${bad}枚は、記録は残っているのに写真の中身が読めません。</b>`
           + 'ブラウザが保存領域を掃除したか、保存が壊れています。<b>何度読ませても直りません</b>＝'
@@ -6138,6 +6163,84 @@ function budSpend(rows, mo, dayLimit){
 // 「あと ¥N」／「¥N 超過」の言い方を 1か所に（帯・トースト・💰 画面で食い違わせない）
 const budLeftText = (budget, used) => budget - used >= 0 ? `あと ${yen(budget - used)}` : `${yen(used - budget)} 超過`;
 
+/* ---------- 💰 予算を 📊 統計のほかにも出す（r94） ----------
+   要望＝「予算を 📈 推移／💴 マップ／📤 書き出し／📈 AI分析 にも渡す」。
+   🥇 **r91 の決まりを動かさない**＝画面に出すのは**月のとき**だけ（週に割ると意味が変わり、
+      年は12か月ぶんとの比較になって進行中の年では必ず余って見える）。
+   ⚠ 見た目と言い方は**この2つの関数から作る**＝同じものを2か所に書くと必ずズレる（r49 の教訓）。
+      r91 で 📊 の中にだけ書いていたものを、ここへ出して 📊 からも呼ぶ形にした。 */
+// 「このペースだと月末 ¥N」＝進行中の月の7日以降だけ（材料の薄い月初と、確定した過去の月には言わない）
+function budPaceText(mo, used, budget){
+  const today = todayStr();
+  if (mo !== today.slice(0, 7)) return '';
+  const day = +today.slice(8);
+  if (!(used > 0) || day < 7) return '';
+  const dim = new Date(+mo.slice(0, 4), +mo.slice(5, 7), 0).getDate();   // その月の日数
+  const p = Math.round(used / day * dim);
+  return ` ・ このペースだと月末 ${yen(p)}${p > budget ? `（${yen(p - budget)} 超え）` : ''}`;
+}
+// 分類のバー1本（key ＝ 分類名 or BUD_ALL）。⚠ 予算を決めていないものには**何も足さない**
+function budBarHtml(key, used, mo, attr){
+  const b = budOf(key, mo); if (!b.yen) return '';
+  const pct = Math.round(used / b.yen * 100);
+  const col = used > b.yen ? 'var(--err)' : pct >= 80 ? 'var(--warn)' : key === BUD_ALL ? 'var(--bud)' : catColor(key);
+  const cls = used > b.yen ? ' over' : pct >= 80 ? ' near' : '';
+  return `<div class="stBg${cls}" ${attr || ''} title="タップすると予算を決め直せます">`
+    + `<span class="stBar"><i style="width:${Math.min(100, pct)}%;background:${col}"></i></span>`
+    + `<span class="stBgTxt">${budLeftText(b.yen, used)}</span></div>`
+    + `<div class="stBgSub">${b.over ? 'この月だけの ' : ''}予算 ${yen(b.yen)} の ${pct}%${budPaceText(mo, used, b.yen)}</div>`;
+}
+// 💰 全体の枠（青）。note ＝ 何を数えた額なのかの但し書き（画面ごとに違う＝ここだけ差し替える）
+function budTotalHtml(mo, used, attr, note){
+  const b = budOf(BUD_ALL, mo); if (!b.yen) return '';
+  const pct = Math.round(used / b.yen * 100);
+  const col = used > b.yen ? 'var(--err)' : pct >= 80 ? 'var(--warn)' : 'var(--bud)';
+  const cls = used > b.yen ? ' over' : pct >= 80 ? ' near' : '';
+  return `<div class="stBgTot${cls}" ${attr || ''} title="タップすると予算を決め直せます">`
+    + `💰 ${b.over ? 'この月だけの ' : ''}全体 ${yen(b.yen)} ／ 使った ${yen(used)} <b>${budLeftText(b.yen, used)}</b>`
+    + `<span class="stBar"><i style="width:${Math.min(100, pct)}%;background:${col}"></i></span>`
+    + `<span class="stBgNote">${note || 'この月に撮ったレシートの支出ぜんぶが対象です（収入は数えません）'}`
+    + `${budPaceText(mo, used, b.yen)}</span></div>`;
+}
+/* 💰 予算を「渡す形」にする（📤 書き出し・📈 AI分析・r94）。
+   ⚠ レシートの中に混ぜない＝予算は**本人が決めたこと**で、使った額（事実）とは種類が違う。
+   ⚠ 渡すのは**期間に関わる月だけ**＝どの月の話か、受け取った側が間違えない。
+   ⚠ months[] には**効いている額**（ふだん＋その月だけの上書きを反映した後）を書く
+      ＝受け取った側に上書きの計算をさせない（計算をさせると必ずどこかで食い違う）。 */
+/* r94: 💰 予算を 📈 分析にも渡す。⚠ 📤 と同じ形（budgetExport）から作る＝1つの形を2か所で組まない。
+   ⚠ レシートの JSON には混ぜず、別の塊として並べる（食事・健診と同じ扱い＝受け取る側の version 解釈を壊さない）。
+   ⚠ 分析の関数の**中**で定義しない＝そこからしか呼べず、試すこともできない（最初そう書いて実測で気付いた）。 */
+const budgetTextFor = (per, rows) => {
+  const b = budgetExport(per.from, per.to, rows);
+  return b ? `
+
+--- 💰 予算（${per.label}・本人が決めた額） ---
+` + JSON.stringify(b, null, 1) : '';
+};
+function budgetExport(from, to, rows){
+  const base = { overall: budBase(BUD_ALL) || null, categories: {} };
+  Object.entries(budCatsAll()).forEach(([c, v]) => { const n = budNum(v); if (n > 0) base.categories[c] = n; });
+  const monsAll = budMonsAll();
+  let mos = [];
+  if (from && to) {
+    for (let m = from.slice(0, 7); m <= to.slice(0, 7) && mos.length < 60; m = budMoShift(m, 1)) mos.push(m);
+  } else {
+    // 期間を切っていない（全期間）＝レシートのある月と、上書きのある月だけ（空の月を並べても意味が無い）
+    mos = [...new Set([...(rows || []).map(x => x.date.slice(0, 7)), ...Object.keys(monsAll)])].sort();
+  }
+  const months = mos.map(mo => {
+    const cats = {};
+    for (const c of new Set([...Object.keys(base.categories), ...budCatKeys(mo)])) {
+      const y = budOf(c, mo).yen; if (y > 0) cats[c] = y;
+    }
+    const ov = Object.keys(monsAll[mo] || {});
+    return { month: mo, overall: budOf(BUD_ALL, mo).yen || null, categories: cats,
+             ...(ov.length ? { only_this_month: ov.map(k => k === BUD_ALL ? 'overall' : k) } : {}) };
+  }).filter(m => m.overall || Object.keys(m.categories).length);
+  if (!base.overall && !Object.keys(base.categories).length && !months.length) return null;   // 何も決めていない人には付けない
+  return { format: 'budget', version: 1, currency: 'JPY', monthly_default: base, months };
+}
+
 function monSubLine(rows){
   const today = todayStr(), nowM = today.slice(0, 7), day = today.slice(8);
   const d = new Date(+nowM.slice(0, 4), +nowM.slice(5, 7) - 2, 1);   // 先月の1日
@@ -6212,7 +6315,10 @@ async function renderList(){
       if (!on && m === nowM) html += monSubLine(rows);   // r82: 今月の行の下に比べと予算
     }
     const r = row.rec, rc = row.rc;
-    const turl = URL.createObjectURL(r.thumb); thumbUrls.push(turl);
+    // ✍️ r93: 写真なしの記録＝印を出す（🍽 の r80 と同じ .noimg を使う＝2つのタブで同じ見た目）
+    const turl = r.thumb ? URL.createObjectURL(r.thumb) : '';
+    if (turl) thumbUrls.push(turl);
+    const thumbHtml = turl ? `<img src="${turl}" alt="">` : '<div class="noimg" aria-hidden="true">✍️</div>';
     let title, right;
     if (rc) {
       // ⚠ 値はエスケープする（AI の出力も ✏️ の手入力も、そのまま HTML にしない）
@@ -6231,7 +6337,7 @@ async function renderList(){
     }
     // data-i ＝ この行が「写真の中の何枚目」か。詳細をその1枚だけで開くために持ち回る（r28）
     html += `<div class="rec" data-id="${r.id}" data-i="${row.i}">
-      <img src="${turl}" alt="">
+      ${thumbHtml}
       <div class="mid"><div class="st">${title}</div>
       <div class="sub">${row.date}${rc?.time ? ' ' + rc.time : ''}${row.n > 1 ? ` ・📷内 ${row.i + 1}/${row.n}` : ''}</div></div>
       ${right}
@@ -6395,8 +6501,11 @@ async function openDetail(id, i = 0){
   detailIdx = Math.min(Math.max(0, Math.round(+i) || 0), Math.max(0, rcs.length - 1));
   const d = rcs[detailIdx];
   if (detailUrl) URL.revokeObjectURL(detailUrl);
-  detailUrl = URL.createObjectURL(r.img);
-  document.getElementById('dImg').src = detailUrl;
+  detailUrl = null;
+  /* ✍️ r93: 写真なしの記録は**画像の枠ごと出さない**＝空の黒い箱が残ると「写真が壊れている」に見える。 */
+  const dImg = document.getElementById('dImg');
+  if (r.img) { detailUrl = URL.createObjectURL(r.img); dImg.src = detailUrl; dImg.hidden = false; }
+  else { dImg.removeAttribute('src'); dImg.hidden = true; }
   document.getElementById('dTitle').textContent =
     d ? (d.store || 'レシート') + (d.branch ? ' ' + d.branch : '') : 'レシート';
   // ⚠ 値は必ずエスケープする（AI の出力も手入力も、そのまま HTML にしない）
@@ -6409,7 +6518,10 @@ async function openDetail(id, i = 0){
       `<button data-go="${k}"${k === detailIdx ? ' class="on"' : ''}>🧾 ${k + 1}枚目`
       + `<small>${esc(x.store || '店名不明')}${x.total != null ? ' ' + yen(x.total) : ''}</small></button>`).join('')
     + '</div>';
-  document.getElementById('dBody').innerHTML = nav + (!d
+  // ✍️ r93: 手で入れた記録は、その出どころを1行だけ言う（読み取りの結果と見分けが付くように）
+  const handNote = r.noPhoto
+    ? '<div class="note" style="margin-top:0">✍️ <b>写真なしで手で入れた記録</b>です（📷 の読み取りではありません）。✏️ でいつでも直せます。</div>' : '';
+  document.getElementById('dBody').innerHTML = handNote + nav + (!d
     ? (r.status === 'pending' ? pendingNote(r, 'ocr') : failureBlock(r))   // r75: やり直し中も失敗の履歴を隠さない
       + (r.status === 'pending' ? '' : editBtn('手で入力する'))
     : kv('店名', d.store && d.branch ? `${d.store} ${d.branch}` : d.store)
@@ -6521,10 +6633,14 @@ document.getElementById('edItems').onclick = e => {
   const i = [...document.querySelectorAll('#edItems .edIt')].indexOf(b.parentElement);
   const list = readEdItems(); list.splice(i, 1); renderEdItems(list);
 };
+// ✏️ の説明文＝場面で変える（新規に「読み取りが間違っていたら」と書くと嘘になる）
+const ED_NOTE_FIX = '読み取りが間違っていたら、ここで直せます。直した内容は<b>この端末に保存</b>され、📊 統計・💴 マップ・📤 書き出し・📈 分析にそのまま効きます。';
+const ED_NOTE_NEW = '<b>写真の無い収支</b>を1件入れます（現金だけのやりとり・レシートをもらえなかった時・撮り忘れ）。入れた内容は<b>この端末に保存</b>され、📊 統計・💴 マップ・📤 書き出し・📈 分析に<b>写真から読んだレシートと同じように</b>入ります。';
 async function openEdit(id, i){
   const r = await dbGet(id); if (!r) return;
   const rcs = receiptsOf(r), d = rcs[i] || {};
   edId = id; edIdx = i;
+  document.getElementById('edNote').innerHTML = ED_NOTE_FIX;
   document.getElementById('edTitle').textContent = rcs.length > 1 ? `✏️ 手で直す（🧾 ${i + 1}/${rcs.length}）`
                                                 : rcs.length ? '✏️ 手で直す' : '✏️ 手で入力する';
   const v = (k, val) => { document.getElementById(k).value = val == null ? '' : val; };
@@ -6543,12 +6659,36 @@ async function openEdit(id, i){
                                              tax_rate: it.tax_rate ?? null, unit_price: it.unit_price ?? null })));
   show('ovEdit');
 }
+/* ✍️ r93: 写真の無い収支を1件入れる（要望）。
+   🥇 **✏️ 手で直す と同じ画面**を使う＝入れる項目は同じで、2つ作れば必ずズレる（片方にだけ欄が増える）。
+   ⚠ 新しく作るのは **保存を押した時**（edId === null で見分ける）＝途中でやめたら何も残らない。
+   ⚠ 分類の既定は「その他」＝勝手に食費などに決めない（人が選んでいないものを、選んだことにしない）。 */
+function openRcHand(){
+  const now = new Date();
+  edId = null; edIdx = 0;
+  document.getElementById('edNote').innerHTML = ED_NOTE_NEW;
+  document.getElementById('edTitle').textContent = '✍️ 写真なしで記録';
+  const v = (k, val) => { document.getElementById(k).value = val == null ? '' : val; };
+  ['edStore', 'edBranch', 'edTotal', 'edAddr', 'edRegno', 'edPay', 'edEx', 'edTax', 'edDisc'].forEach(k => v(k, ''));
+  v('edDate', todayStr());
+  v('edTime', `${pad2(now.getHours())}:${pad2(now.getMinutes())}`);
+  document.getElementById('edIncl').value = '';
+  document.getElementById('edKind').value = 'expense';
+  const cat = document.getElementById('edCat');
+  cat.innerHTML = catList().map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  cat.value = catList().includes(CAT_ETC) ? CAT_ETC : catList()[0];
+  renderEdItems([]);
+  document.getElementById('ovEdit').querySelector('.sheet').scrollTop = 0;
+  show('ovEdit');
+}
+document.getElementById('btnRcHand').onclick = openRcHand;
 document.getElementById('edSave').onclick = async () => {
-  const r = await dbGet(edId); if (!r) { hide('ovEdit'); return; }
+  const isNew = edId === null;                               // ✍️ r93: 写真なしで新しく入れる
+  const r = isNew ? null : await dbGet(edId);
+  if (!isNew && !r) { hide('ovEdit'); return; }
   const g = k => document.getElementById(k).value.trim();
   const num = k => { const s = g(k), n = Math.round(+s); return s === '' || !Number.isFinite(n) ? null : n; };
-  const rcs = receiptsOf(r).map(x => ({ ...x }));            // 触るのは複製（元の参照を書き換えない）
-  rcs[edIdx] = { ...(rcs[edIdx] || {}),
+  const built = {
     store: g('edStore') || null, branch: g('edBranch') || null,
     date: g('edDate') || null, time: g('edTime') || null,
     total: num('edTotal'), kind: document.getElementById('edKind').value,
@@ -6558,12 +6698,32 @@ document.getElementById('edSave').onclick = async () => {
     price_incl_tax: g('edIncl') === '' ? null : g('edIncl') === '1',
     items: readEdItems().filter(it => it.name),              // 名前が空の行は捨てる
   };
-  r.data = { receipts: rcs };                                // 形を receipts 配列に揃える（r2 以前の形も吸収）
-  r.status = 'done'; r.error = null; r.edited = Date.now();
-  await dbPut(r);
+  let rcs;
+  if (isNew) {
+    /* ⚠ 日付と金額だけは必ず要る＝**数えられない記録を作らない**（📊 統計・💰 予算に入れない行が増えるだけ）。
+          店名は空でよい（「コンビニで ¥500」だけ覚えている、が現実にある）。 */
+    if (!built.date) { toast('日付を入れてください'); return; }
+    if (built.total == null) { toast('金額を入れてください（あとから ✏️ で直せます）'); return; }
+    /* ⚠ ts（撮った時刻にあたるもの）は**入れた日付と時刻から作る**＝今の時刻にすると、
+          先月の買い物を今日入れた時に capDate（写真の日）が今日になって一覧が食い違う。 */
+    const ts = new Date(`${built.date}T${built.time || '12:00'}:00`).getTime();
+    rcs = [built];
+    const rec = { id: newId('r'), ts, tsSrc: 'manual', addedAt: Date.now(),
+                  noPhoto: true,                             // ⚠ この印だけで「写真が無い」と分かる（写真の有無を毎回調べない）
+                  status: 'done', error: null, data: { receipts: rcs }, edited: Date.now() };
+    await dbPut(rec);
+    edId = rec.id; edIdx = 0;
+  } else {
+    rcs = receiptsOf(r).map(x => ({ ...x }));                // 触るのは複製（元の参照を書き換えない）
+    rcs[edIdx] = { ...(rcs[edIdx] || {}), ...built };
+    r.data = { receipts: rcs };                              // 形を receipts 配列に揃える（r2 以前の形も吸収）
+    r.status = 'done'; r.error = null; r.edited = Date.now();
+    await dbPut(r);
+  }
   hide('ovEdit');
   // r90: 手で入れ直した金額・分類も、その場で予算に照らして帯にする（読み取りと同じ扱い）
-  if (!budgetSaved([rcs[edIdx]], '✏️ 直しました')) toast('✏️ 直しました');
+  const done = isNew ? '✍️ 記録しました' : '✏️ 直しました';
+  if (!budgetSaved([rcs[edIdx]], done)) toast(done);
   await renderList();
   if (isOpen('ovDetail')) await openDetail(edId, edIdx); // 直した本人の1枚に戻る（r28）
   if (isOpen('ovStats')) renderTab();
@@ -6585,7 +6745,7 @@ document.getElementById('btnDelete').onclick = async () => {
     await dbPut(r);
     toast('🗑 この1枚だけ削除しました');
   } else {
-    if (!confirm('このレシートを削除しますか？（写真もいっしょに消えます）')) return;
+    if (!confirm(r.noPhoto ? 'この記録を削除しますか？' : 'このレシートを削除しますか？（写真もいっしょに消えます）')) return;
     await dbDel(detailId);
   }
   hide('ovDetail');
@@ -6633,6 +6793,7 @@ function exportJson(rows, from, to){
       // ⚠ 1枚の写真から複数レシートを切り出すので、photo_id は一意にならない（主キーにすると片方が消える）
       receipt_id: `${x.rec.id}-${x.i + 1}`, receipt_no: x.i + 1, photo_id: x.rec.id,
       captured_at: isoLocal(new Date(x.rec.ts)),   // 撮った時刻（ローカル＋オフセット）
+      ...(x.rec.noPhoto ? { entered_by: 'hand' } : {}),   // r93: 写真なしで手で入れたもの（無ければ写真から）
       ...x.rc })),
   }, null, 1);
 }
@@ -6640,12 +6801,13 @@ function exportCsv(rows){
   const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
   // ⚠ 先頭は レシートID（写真の id ＋ 何枚目）＝表計算で主キーにできる。photo_id だけだと重複する
   const out = [['レシートID', '日付', '時刻', '店名', '支店', '金額(税込)', '税抜合計', '消費税', '値引き',
-                '種別', 'カテゴリ', '支払', '住所', '登録番号', '品目'].join(',')];
+                '種別', 'カテゴリ', '支払', '住所', '登録番号', '品目', '入れ方'].join(',')];   // r93: 入れ方＝写真/手入力
   for (const x of rows) {
     const d = x.rc;
     out.push([`${x.rec.id}-${x.i + 1}`, x.date, d.time, d.store, d.branch, d.total,
               d.total_excl_tax, d.tax, d.discount, d.kind === 'income' ? '収入' : '支出',
-              d.category, d.payment, d.address, d.regno, (d.items || []).map(i => i.name).join('、')].map(esc).join(','));
+              d.category, d.payment, d.address, d.regno, (d.items || []).map(i => i.name).join('、'),
+              x.rec.noPhoto ? '手入力' : '写真'].map(esc).join(','));
   }
   return '﻿' + out.join('\n'); // BOM: Excel の文字化け対策
 }
@@ -6907,6 +7069,8 @@ async function exportPayload(rows, from, to){
   // r65: 🩺 健診・💊 薬も同じファイルへ（別のキー＝receipts を読む既存の受け手は変わらない）
   const h = await healthFor(from, to, expHealthOpt());
   Object.assign(o, healthBlocks(h));
+  const bud = budgetExport(from, to, rows);   // r94: 💰 予算（決めていない人には付かない）
+  if (bud) o.budget = bud;
   // r83: 🫀 からだの数字（血圧・体重）＝1行が1回の計測
   const bd = expBodyOn() ? await bodyFor(from, to) : [];
   if (bd.length) o.body_log = { format: 'body-log', version: 1, count: bd.length,
@@ -6922,6 +7086,7 @@ async function exportPayload(rows, from, to){
     ...(h.checkups.length ? { '🩺 健康診断（checkup_log）の読み方': DATA_NOTES.checkup } : {}),
     ...(h.meds.length ? { '💊 薬（medication_log）の読み方': DATA_NOTES.med } : {}),
     ...(bd.length ? { '🫀 からだの数字（body_log）の読み方': DATA_NOTES.body } : {}),
+    ...(bud ? { '💰 予算（budget）の読み方': DATA_NOTES.budget } : {}),
     答える時のお願い: [
       'データから分からないことは、分からないと書く。推測を事実のように書かない。',
       '数字を出す時は「何件で、いくら」を添えて、どこから来た数字か分かるようにする。',
@@ -6976,7 +7141,8 @@ async function refreshExpCount(){
           : `対象: レシートは出しません（${rows.length}件） `)
     + (all.length ? `/ 🍽 料理 ${on ? `${all.length}件（${detail ? '詳細つき' : '要約のみ'}）` : '出しません'} ` : '')
     + (h.checkups.length ? `/ 🩺 健診 ${h.checkups.length}件 ` : '') + (h.meds.length ? `/ 💊 薬 ${h.meds.length}件 ` : '')
-    + (bdAllN && bdOn ? `/ 🫀 血圧・体重 ${bdAllN}件` : '');
+    + (bdAllN && bdOn ? `/ 🫀 血圧・体重 ${bdAllN}件 ` : '')
+    + (budgetExport(from, to, rows) ? '/ 💰 予算あり' : '');   // r94: 予算は決めていれば必ず入る（小さいので選ばせない）
   // r83: 🫀 の行＝1件も無い端末には出さない（🩺💊 と同じ）
   const bodyAny = (await bodyAll()).some(r => bodyReadingsOf(r).length);
   document.getElementById('expBodyRow').hidden = !bodyAny;
@@ -7080,6 +7246,14 @@ const EXP_PRESETS = [
   /* r82: 🔗 3本柱の横断＝レシート×食事×健診×薬を**まとめて1か所に持っている**のはこのアプリだけ
      （家計簿アプリは食事を知らず、食事アプリは支出を知らない）＝その強みの使い方を例文ごと渡す。
      ⚠ 'health' は「食生活を健康の面から見る」型。こちらは3つの**突き合わせ**（合っているか・重なっているか）。 */
+  /* r94: 💰 予算の例文（📤 側）＝渡す形（budget）を先に説明してから頼む
+     ＝受け取った AI はこのアプリの決まりを知らないので、例文の中で「予算は支出ではない」と言う。 */
+  ['budget', '💰 予算と照らす',
+    '💰 予算（budget）と実際の支出を照らし合わせてください。\n'
+    + '・全体と分類ごとに「予算 ／ 使った額 ／ あといくら（超過ならいくら超えたか）」の表ではなく箇条書きで\n'
+    + '・超えた分類、超えそうな分類（残り1割以下）を額の大きい順に\n'
+    + '・months[] は月ごとに効いている予算です（この月だけ変えた額は反映済み）。月が複数あれば月ごとに\n'
+    + '⚠ 予算は本人が決めた額で、使ったお金ではありません（支出に足さないでください）'],
   ['cross', '🔗 3つをまたいで',
     'レシート・食事（meal_log）・健康（checkup_log／medication_log／body_log）をまたいで、突き合わせて気づくことを教えてください。\n'
     + '・最初に、どのデータが入っているか（入っていないものはどれか）を言ってください\n'
@@ -7639,22 +7813,9 @@ async function renderStats(){
   const dayNow = curMonth ? +today.slice(8) : 0, dimNow = new Date(stY, stM, 0).getDate();
   /* ⚠ 月の初め（7日未満）は見込みを出さない＝1日ぶんの買い物が月末の数字を桁で振り回す（材料が薄いうちは黙る）。
      ⚠ 終わった月にも出さない（もう確定しているものに「見込み」は無い）。 */
-  const paceOf = v => (v > 0 && curMonth && dayNow >= 7) ? Math.round(v / dayNow * dimNow) : null;
-  const budLeft = (b, v) => v <= b ? `あと ${yen(b - v)}` : `${yen(v - b)} 超過`;
-  const paceTxt = (v, b) => { const p = paceOf(v); return p == null ? ''
-    : ` ・ このペースだと月末 ${yen(p)}${p > b ? `（${yen(p - b)} 超え）` : ''}`; };
-  // 分類の行の下に置くバー。⚠ 予算を決めていない分類には**何も足さない**（行が増えるだけ）
-  const budBar = (c, v) => {
-    if (!monthMode) return '';
-    const b = budOf(c, stYm); if (!b.yen) return '';
-    const pct = Math.round(v / b.yen * 100);
-    const col = v > b.yen ? 'var(--err)' : pct >= 80 ? 'var(--warn)' : catColor(c);
-    const cls = v > b.yen ? ' over' : pct >= 80 ? ' near' : '';
-    return `<div class="stBg${cls}" data-bgcat="${esc(c)}" title="タップすると予算を決め直せます">`
-      + `<span class="stBar"><i style="width:${Math.min(100, pct)}%;background:${col}"></i></span>`
-      + `<span class="stBgTxt">${budLeft(b.yen, v)}</span></div>`
-      + `<div class="stBgSub">${b.over ? 'この月だけの ' : ''}予算 ${yen(b.yen)} の ${pct}%${paceTxt(v, b.yen)}</div>`;
-  };
+  // r94: 言い方・見た目は budBarHtml / budTotalHtml / budPaceText に出した（📈 推移・💴 マップと共通）
+  const budLeft = budLeftText;
+  const budBar = (c, v) => monthMode ? budBarHtml(c, v, stYm, `data-bgcat="${esc(c)}"`) : '';
   /* ⚠ **予算を決めた分類は、その月にまだ使っていなくても行を出す**（決めたのに画面から消える、を作らない）。
         医療・衣類のように出ない月がある分類で、「あと ¥N（まだ使っていません）」が読めるのはこの形の時だけ。 */
   const catRows = cats.slice();
@@ -7678,16 +7839,7 @@ async function renderStats(){
   });
   /* 💰 全体（月の総額）＝この期間に撮ったレシートの支出ぜんぶが相手。
      ⚠ 下の「🏷 分類の予算の合計」とは**数える範囲が違う**＝全体は予算を決めていない分類の支出も含む。 */
-  if (monthMode && budAll) {
-    const pct = Math.round(total / budAll * 100);
-    const col = total > budAll ? 'var(--err)' : pct >= 80 ? 'var(--warn)' : 'var(--bud)';
-    const cls = total > budAll ? ' over' : pct >= 80 ? ' near' : '';
-    html += `<div class="stBgTot${cls}" data-bgall="1" title="タップすると予算を決め直せます">`
-      + `💰 ${budOf(BUD_ALL, stYm).over ? 'この月だけの ' : ''}全体 ${yen(budAll)} ／ 使った ${yen(total)} `
-      + `<b>${budLeft(budAll, total)}</b>`
-      + `<span class="stBar"><i style="width:${Math.min(100, pct)}%;background:${col}"></i></span>`
-      + `<span class="stBgNote">この月に撮ったレシートの支出ぜんぶが対象です（収入は数えません）${paceTxt(total, budAll)}</span></div>`;
-  }
+  if (monthMode && budAll) html += budTotalHtml(stYm, total, 'data-bgall="1"');
   /* 🏷 予算を決めた分類の合計＝「あといくら使えるか」の全体像。
      ⚠ 使った額も**予算を決めた分類だけ**で数える＝決めていない分類まで足すと必ず超過して見える。
         そのぶんは黙って消さず「ほかに ¥N を予算のない分類で使っています」と別に言う。 */
@@ -7820,10 +7972,28 @@ async function renderTrend(){
   const avg = live.length ? Math.round(total / live.length) : 0;
   const top = live.slice().sort((a, b) => b.v - a.v)[0];
 
+  /* 💰 予算（r94）＝**月ごとの時だけ**（r91 と同じ決まり＝週に割ると意味が変わり、年は12か月ぶんとの比較になる）。
+     ⚠ 行を増やさない＝棒の中に**縦線1本**（その月の予算の位置）を引き、超えた月の金額だけ赤くする。
+        月ごとに2行ずつ足すと、推移の一覧が予算表になって「並べて眺める」ができなくなる。
+     ⚠ 相手にする予算は**いま選んでいる分類**（分類を選んでいなければ 🧮 全体）。
+     ⚠ 予算がいちばん多い月より大きい時は、**棒の長さの基準を予算に合わせる**（棒が短くなる）。
+        基準を「いちばん多い月」のままにすると線が棒の外に出て**消える**＝「予算を出したのに何も見えない」になる。
+        棒が短いのは「予算にまだ余裕がある」という意味そのものなので、嘘にならない。 */
+  const trBudMode = trGrain === 'month';
+  const trBudKey  = trCat || BUD_ALL;
+  const trBudOf   = k => trBudMode ? budOf(trBudKey, k).yen : 0;
+  const overN     = trBudMode ? shown.filter(r => trBudOf(r.k) && r.v > trBudOf(r.k)).length : 0;
+  const budNow    = trBudMode ? budOf(trBudKey, todayStr().slice(0, 7)).yen : 0;
+  const budAnyTr  = trBudMode && shown.some(r => trBudOf(r.k));
+  // 棒の基準＝「いちばん多い月」と「いちばん大きい予算」の大きい方（線が必ず棒の中に入る）
+  const barMax = Math.max(max, ...(budAnyTr ? shown.map(r => trBudOf(r.k)) : [0]));
+
   let html = `<div class="stSec" style="border-top:none;margin-top:0;padding-top:0">
     <div class="stBig">${yen(total)}</div>
     <div class="stSub">${esc(trCat || 'すべての分類')} ・ 直近 ${keys.length}${unit}（${esc(trLabel(keys[0], trGrain))} 〜 ${esc(trLabel(keys[keys.length - 1], trGrain))}）</div>
     <div class="stSub">${live.length ? `記録のある${live.length}${unit}の平均 ${yen(avg)}${top ? ` ・ いちばん多かったのは ${esc(trLabel(top.k, trGrain))} の ${yen(top.v)}` : ''}` : 'この範囲に記録はありません'}</div>
+    ${budAnyTr ? `<div class="stSub"><span class="budGo" id="trBudBtn">💰 予算</span> ${budNow ? `${esc(trCat || '全体')} ${yen(budNow)}／月` : `${esc(trCat || '全体')}（今月は決めていません）`}`
+       + ` ・ この ${keys.length}${unit}のうち <b>${overN}${unit}</b>が予算を超えました</div>` : ''}
   </div><div class="stSec">`;
   // ⚠ 古い順に上から（読む向きを 📊 の日別と同じにする＝どちらを見ても時間の向きが同じ）
   shown.forEach(r => {
@@ -7833,9 +8003,11 @@ async function renderTrend(){
     html += `<div class="trRow${r.v ? '' : ' zero'}"${r.v ? ` data-tk="${esc(r.k)}"` : ''}>`
       + `<span class="lab">${esc(trLabel(r.k, trGrain))}</span>`
       + `<span class="stBar">${r.v ? (trCat
-          ? `<i style="width:${(r.v / max * 100).toFixed(2)}%;background:${catColor(trCat)}"></i>`
-          : stackHtml(r.xs, max, cats)) : ''}</span>`
-      + `<span class="v">${r.v ? yen(r.v) : '—'}</span>${diff}</div>`;
+          ? `<i style="width:${(r.v / barMax * 100).toFixed(2)}%;background:${catColor(trCat)}"></i>`
+          : stackHtml(r.xs, barMax, cats)) : ''}`
+          + ((b => b ? `<i class="budMark" style="left:${(b / barMax * 100).toFixed(2)}%" title="この月の予算 ${yen(b)}"></i>` : '')(trBudOf(r.k)))
+        + `</span>`
+      + `<span class="v${trBudOf(r.k) && r.v > trBudOf(r.k) ? ' over' : ''}">${r.v ? yen(r.v) : '—'}</span>${diff}</div>`;
     if (r.v && stOpen.has('t:' + r.k)) html += itemsHtml(r.xs);
   });
   html += '</div>';
@@ -7843,9 +8015,15 @@ async function renderTrend(){
     + `<div class="note" style="margin-top:8px">数えているのは<b>支出だけ</b>です（収入と、金額が読めなかったレシートは入りません）。`
     + `<br>記録の無い区切りも「—」で出します（<b>使わなかった区切りも推移の一部</b>だからです）。`
     + `<br>区切りをタップすると、その中のレシートが出ます。`
-    + `<br>⚠ いちばん古い行に差が出ないのは、その前に<b>まだ記録が無い</b>ためです（0円だったのではありません）。</div></div>`;
+    + `<br>⚠ いちばん古い行に差が出ないのは、その前に<b>まだ記録が無い</b>ためです（0円だったのではありません）。`
+    + (budAnyTr ? `<br>💰 <b>縦の線＝その月の予算</b>（${esc(trCat || '全体')}）です。線より右まで伸びていれば超えています（金額が赤）。月ごとに違う予算にしていれば<b>その月の額</b>で引いています。⚠ 棒の長さは「いちばん多い月」と「予算」の<b>大きい方</b>に合わせています（予算の方が大きければ棒は短くなります＝まだ余裕がある、ということです）。`
+        : (trGrain !== 'month' && budAny(todayStr().slice(0, 7)) ? '<br>💰 予算は<b>月ごと</b>の時だけ出します（1か月あたりで決めるものなので、週や年に割ると意味が変わります）。' : ''))
+    + `</div></div>`;
   body.innerHTML = html;
   document.getElementById('trMoreBtn').onclick = () => { trMore++; renderTrend(); };
+  // r94: 💰 への入口＝いま選んでいる分類の行まで送って光らせる（📊 のバーと同じ動き）
+  const trBudBtn = document.getElementById('trBudBtn');
+  if (trBudBtn) trBudBtn.onclick = () => openBudget('base', todayStr().slice(0, 7), trBudKey);
 }
 document.getElementById('trGrainSeg').addEventListener('click', e => {
   const b = e.target.closest('[data-tg]'); if (!b) return;
@@ -8412,6 +8590,17 @@ async function renderSpendMap(){
     `<button data-lg="${esc(c)}" class="${smCatOff.has(c) ? 'off' : ''}"><span class="dot" style="background:${catColor(c)}"></span>${esc(c)}</button>`).join('');
   document.querySelectorAll('#smMetricSeg button').forEach(b => b.classList.toggle('on', b.dataset.mt === smMetric));
 
+  /* 💰 予算（r94）＝**月を見ている時だけ**（r91 と同じ決まり）。
+     ⚠ 数えるのは**その月の支出ぜんぶ**＝地図は凡例で分類をしぼれるが、帯の数字はしぼらない
+        （しぼった額と予算を比べると「予算が余っている」と嘘になる）。しぼっている時はそう書く。 */
+  const smBud = document.getElementById('smBud');
+  const smMonth = stMode === 'month' ? `${stY}-${pad2(stM)}` : '';
+  const smBudUsed = smMonth ? rows.reduce((n, x) => n + x.rc.total, 0) : 0;
+  smBud.innerHTML = smMonth
+    ? budTotalHtml(smMonth, smBudUsed, 'data-bgall="1"',
+        `この月に撮ったレシートの支出ぜんぶが対象です（収入は数えません）${smCatOff.size ? ' ・ ⚠ 地図は分類をしぼっていますが、この帯はしぼらずに数えています' : ''}`)
+    : '';
+
   const shops = shopAggregate(rows.filter(x => !smCatOff.has(x.rc.category || 'その他')), smPlaces);
   const pinned = shops.filter(s => s.lat != null), unset = shops.filter(s => s.lat == null);
 
@@ -8494,6 +8683,8 @@ document.getElementById('smLegend').addEventListener('click', e => {
 document.getElementById('mapPane').addEventListener('click', e => {
   const fix = e.target.closest('[data-fix]');
   if (fix) { openPlace(fix.dataset.fix); return; }
+  // r94: 予算の帯から 💰 へ（📊 の全体の枠と同じ行き先＝押した先が画面ごとに違わない）
+  if (e.target.closest('[data-bgall]')) { openBudget('base', `${stY}-${pad2(stM)}`, BUD_ALL); return; }
   if (e.target.id === 'btnGeoAll') geocodeAll();
 });
 
@@ -8649,6 +8840,8 @@ const AN_PRESETS = [
   ['health', '🩺 健康の面から', '買っているもの・食べているものから、食生活について健康の面で気づくことを教えて。栄養の偏り・よく買っているもの・続けられている良い点も。医者の代わりではないので断定はしないで、気になる点は受診の目安として書いて。'],
   ['store',  '🏪 お店のくせ',   'よく行くお店と、そこでの使い方の傾向を教えて。同じような物を別の店で買っている、といった無駄があれば指摘して。'],
   ['memo',   '🧾 月次メモ',     '家計簿に残す月次コメントを、事実ベースで200字程度で書いて。数字は正確に。'],
+  // r94: 💰 予算を渡すようにしたので、それを使う型も足す（データだけ渡して使い方を渡さないと使われない）
+  ['budget', '💰 予算と照らす', '💰 予算（budget）と実際の支出を照らし合わせて。①全体と分類ごとに「予算・使った額・あと いくら（超過ならいくら超えたか）」②超えた／超えそうな分類を、額の大きい順に ③来月に向けて現実的に直せる点を2つ。⚠ 予算は本人が決めた額で、支出として足さないこと。'],
   ['free',   '✍️ 自由に書く',   ''],
 ];
 const AN_PRESET_LABEL = id => (AN_PRESETS.find(p => p[0] === id) || [, '📈 分析'])[1];
@@ -9230,7 +9423,8 @@ async function anRun(){
                              detail_included: anMealDetailOn(),
                              meals: exportMealsJson(meals, anMealDetailOn()) }, null, 1)
         : '')
-      + healthText(per, health);   // r65: 🩺 健診（期間内＋直近）・💊 薬（その期間に飲んでいたもの）
+      + healthText(per, health)   // r65: 🩺 健診（期間内＋直近）・💊 薬（その期間に飲んでいたもの）
+      + budgetTextFor(per, rows);   // r94: 💰 予算（決めていれば・小さいので毎回入れる）
     // ⚠ 並びは「添付 → 依頼文＋データ」。長い材料を先に置き、聞きたいことを最後にする方が読み違いが少ない
     const parts = [];
     for (const a of anAtt) {
