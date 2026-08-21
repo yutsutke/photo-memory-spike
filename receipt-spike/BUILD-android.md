@@ -18,9 +18,13 @@
 
 | versionCode | versionName | 中身の web | 焼いた日 | 置き場 |
 |---|---|---|---|---|
-| **vc3** | 1.0 | **r81** | 2026-08-20 | `receipt-signing\receipt-1.0-vc3.aab` / `.apk` |
+| **vc4** | 1.0 | **r94** | 2026-08-21 | `receipt-signing\receipt-1.0-vc4.aab` / `.apk` |
+| vc3 | 1.0 | r81 | 2026-08-20 | `receipt-signing\receipt-1.0-vc3.aab` / `.apk` |
 | vc2 | 1.0 | r79 | 2026-08-19 | `receipt-signing\receipt-1.0-vc2.aab` / `.apk` |
 | vc1 | 1.0 | r70 | 2026-08-17 | `receipt-signing\receipt-1.0-vc1.aab` / `.apk` |
+
+⚠ **vc4 には r82〜r94 の13版ぶんが入っている**＝💴 予算（r82／r90 分類ごと・この月だけ／r91 📊統計／r94 📈推移・💴マップ・📤書き出し・📈AI分析）／🫀 からだの数字（血圧・体重を写メで・r83）／🗂 健康を5つのサブタブに（r84-r85）／📸 からだの写真＝👻透かしカメラ・⇆重ねる・⊟並べる・画面いっぱい（r85-r89）／🧾📤 レシートも書き出すか選べる＋⚙ から重なった入口3つを外した（r92）／✍️ 写真の無い収支を手で入れる（r93）。
+⚠ **vc4 の焼き方**＝`BUILD_NUMBER=4` で `clean bundleRelease assembleRelease`（**57秒・一発**）。検証3点 green（署名 `META-INF/RECEIPT-.SF`/`.RSA` ／ versionCode 4 ／ 中の web が r94）。⚠ **APK 側に v1 署名（`META-INF/*.RSA`）が無いのは正常**＝minSdk が 24 以上なので v2/v3 署名になる。確かめるのは `apksigner verify --print-certs`（`V2 Signer … a7911190…bd4b` ＝ 2026-08-19 に Play へ登録したアップロード鍵と同じ）。
 
 ⚠ **vc3 には r80・r81 が入っている**＝✍️🧾 **写真なしで食事を記録**（撮り忘れた食事を手で入れる／その日のレシートの品目から起こす。⚠ 買い物は勝手に食事にしない＝チェックを付けるのは人）。
 ⚠ **vc2 には r71〜r79 の9版ぶんが入っている**（🧹まとめて削除／📄ポリシー／新アイコン／🔁📋 食事のコピーと繰り返し／📈推移／📷保存サイズ／🩹 書き起こしが止まる件の一連）。

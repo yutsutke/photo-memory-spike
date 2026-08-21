@@ -6212,10 +6212,7 @@ function budTotalHtml(mo, used, attr, note){
    ⚠ 分析の関数の**中**で定義しない＝そこからしか呼べず、試すこともできない（最初そう書いて実測で気付いた）。 */
 const budgetTextFor = (per, rows) => {
   const b = budgetExport(per.from, per.to, rows);
-  return b ? `
-
---- 💰 予算（${per.label}・本人が決めた額） ---
-` + JSON.stringify(b, null, 1) : '';
+  return b ? `\n\n--- 💰 予算（${per.label}・本人が決めた額） ---\n` + JSON.stringify(b, null, 1) : '';
 };
 function budgetExport(from, to, rows){
   const base = { overall: budBase(BUD_ALL) || null, categories: {} };
