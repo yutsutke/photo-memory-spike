@@ -349,6 +349,8 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 /* 🔁 r73: 繰り返しの決まり1行（一覧＝止める・直す） */
 .rpRow{display:flex; gap:10px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px; margin-bottom:6px;}
 .rpRow img{width:44px; height:44px; object-fit:cover; border-radius:8px; background:#000; flex:none;}
+/* r95: ⭐ いつものメニューは写真を持たないことの方が多い（✍️ から覚えたもの）＝空けずに印を出す */
+.rpRow .noimg{width:44px; height:44px; border-radius:8px; flex:none; font-size:18px; background:var(--bg);}
 .rpRow .bd{flex:1; min-width:0;}
 /* ⚠ 1行に押し込むと要約が「鮭の塩焼き、ごは…」で切れて何の食事か分からない＝2行まで出す（.mlCard と同じ作法） */
 .rpRow .t{font-size:14px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
@@ -379,9 +381,19 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 #mealsPane,#healthPane{padding-top:4px;}
 /* 🩺 健康（r65）＝健康診断と薬の2つの塊。塊の見出しは食事の枠（.mlSlot>.h）と同じ重さで */
 .hSec{margin-bottom:18px;}
-.hSec .hH{display:flex; align-items:baseline; gap:8px; font-size:15px; font-weight:600; margin:6px 0 8px;}
-.hSec .hH small{color:var(--dim); font-weight:400; font-size:12px;}
-.hSec .hH button{margin-left:auto; flex:none; background:none; border:1px solid var(--line); color:var(--acc); border-radius:8px; padding:4px 10px; font-size:13px;}
+/* ⚠ r95: `.hH` は `.hSec` の中でしか効いていなかった＝🍽 に置いた 🔁 の見出しだけ**素の文字**で出ていた
+   （見出しに見えず、小さい注記も同じ大きさで並ぶ）。⭐ の節を隣に足すので、両方に効く形にそろえる。 */
+.hSec .hH, #mlRpBar .hH, #mlMenuBar .hH{display:flex; align-items:baseline; gap:8px; font-size:15px; font-weight:600; margin:6px 0 8px;}
+.hSec .hH small, #mlRpBar .hH small, #mlMenuBar .hH small{color:var(--dim); font-weight:400; font-size:12px;}
+.hSec .hH button, #mlMenuBar .hH button{margin-left:auto; flex:none; background:none; border:1px solid var(--line); color:var(--acc); border-radius:8px; padding:4px 10px; font-size:13px;}
+/* ⭐ r95: いつものメニューの札（✍️ 写真なしで記録 の画面）。
+   ⚠ `.seg.wrap`（28%・3列）は使えない＝名前は「鮭の塩焼き、ごはん、味噌汁」のように長く、
+      28% に押し込むと2〜3文字で折り返して読めない。**2列・左寄せ・44px 以上**にする。 */
+.mnSeg{display:flex; flex-wrap:wrap; gap:8px;}
+.mnSeg button{flex:1 1 46%; min-width:0; min-height:44px; text-align:left; background:var(--card); border:1px solid var(--line);
+  color:var(--fg); border-radius:12px; padding:8px 10px; font-size:14.5px; line-height:1.35;}
+.mnSeg button.on{background:var(--acc); color:#04121f; font-weight:700; border-color:var(--acc);}
+.mnSeg button small{display:block; font-size:11px; opacity:.75; font-weight:400;}
 /* r83: 🫀 の折れ線（ローカルSVG）。カードの見た目は .rec と揃える */
 .bdChart{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:8px 10px; margin-bottom:8px;}
 .bdChartT{display:flex; gap:10px; align-items:baseline; font-size:12.5px; color:var(--dim); margin-bottom:2px;}
@@ -652,6 +664,13 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
       <button class="btn" id="btnMlBatch"></button>
       <button class="btn" id="btnMlBatchStop" hidden>⏹ やめる</button>
       <div class="note" id="mlTodoNote"></div>
+    </div>
+    <!-- ⭐ r95: いつものメニューの一覧（名前を変える・消す）。⚠ 1つも無ければ**丸ごと出さない**
+         （「まだありません」と書いても誰の役にも立たない＝🔁 と同じ作法）。
+         ⚠ ここは**管理**だけ＝**使う**のは ✍️ 写真なしで記録 の画面（押す場所を2つに割らない）。 -->
+    <div id="mlMenuBar" hidden>
+      <div class="hH">⭐ いつものメニュー<small>✍️ 写真なしで記録 でタップして使います</small></div>
+      <div id="mlMenuList"></div>
     </div>
     <!-- 🔁 r73: 繰り返しの決まりの一覧（止める・直す・やめる）。⚠ 決まりが1つも無ければ丸ごと出さない -->
     <div id="mlRpBar" hidden>
@@ -1347,6 +1366,9 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <div id="mlGroup"></div>
   <!-- r73: 要望「毎回同じ食事を登録するのは面倒」「他の食事の内容をコピペしたい」の入口 -->
   <button class="btn" id="btnMlAgain">📋 この食事をもう一度（コピー・🔁 繰り返し）</button>
+  <!-- ⭐ r95: 覚える入口②＝**写真から書き起こした食事**を定番にする道（✍️ の ☑ は手で打った時の道）。
+       ⚠ 📋 とは別物なので名前で分ける＝📋 は「日を決めて“この1件”をもう一度」、⭐ は「いつでも呼べる見本」。 -->
+  <button class="btn" id="btnMlToMenu">⭐ いつものメニューに入れる</button>
   <!-- ⚠ 既存の 📋 は**文字をクリップボードにコピー**（AI に貼る用）＝上のコピーと別物なので名前を分ける -->
   <button class="btn" id="btnMlCopy">📄 文字をコピー（AI に貼る用）</button>
   <button class="btn" id="btnMlDel">🗑 この食事を削除</button>
@@ -1358,6 +1380,12 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 <div class="overlay" id="ovMlNew"><div class="sheet tall">
   <button class="x" data-close>✕</button><h2 id="mlNewTitle">✍️ 写真なしで記録</h2>
   <div class="note" id="mlNewNote" style="margin-top:0"></div>
+  <!-- ⭐ r95: いつものメニュー（要望＝「新規食事を登録するときに、いつものメニューをタップすると選択できるように」）。
+       ⚠ **いちばん上に置く**＝これがいちばん短い道（タップ → 記録する の2手）。日付と時刻は既定のまま使えるので、
+          先に日付を見せると「毎日直すもの」に見えてしまう。
+       ⚠ 中身の出どころは **⭐ か 🧾 のどちらか一方**にする＝両方効かせると「要約はメニュー・品目はレシート」の
+          ちぐはぐな記録ができる（r73 で「配るのは何を食べたかだけ」と決めたのと同じで、二重の出どころを作らない）。 -->
+  <div id="mlNewMenus"></div>
   <div class="dual">
     <div class="row" style="flex:1"><label>日付</label><input type="date" id="mlNewDate"></div>
     <div class="row" style="flex:1"><label>時刻</label><input type="time" id="mlNewTime"></div>
@@ -1375,7 +1403,29 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <div class="row"><label>🗒 ひとこと（任意・あとから足せます）</label>
     <textarea id="mlNewMemo" rows="2" maxlength="140"
       placeholder="例: 残業で遅い夕食／人と一緒／写真を撮り忘れた"></textarea></div>
+  <!-- ⭐ r95: 覚える入口①（もう一つは 🍽 食事の詳細の「⭐ いつものメニューに入れる」）。
+       ⚠ **名前の欄を別に作らない**＝「何を食べたか」をそのまま名前にする。ここで名前も打たせると、
+          毎回の入力が1欄ぶん重くなる（名前を変えたい時は 🍽 の一覧から変えられる）。
+       ⚠ 同じ名前があれば**覚え直す**（同じものが2つ並ぶと、どちらが新しいか分からなくなる）。 -->
+  <label class="mlChk" for="ckMlNewMenu" style="margin-top:8px">
+    <input type="checkbox" id="ckMlNewMenu">
+    <span>⭐ <b>いつものメニューに覚える</b><br><small>次からこの画面の<b>いちばん上</b>に並び、タップだけで入れられます。⚠ 同じ名前がもうあれば<b>覚え直します</b>（増えません）。名前を変える・消すは 🍽 の一覧から。</small></span>
+  </label>
   <button class="btn pri" id="btnMlNewSave" style="margin-top:12px">この内容で記録する</button>
+</div></div>
+
+<!-- ⭐ いつものメニューを直す（r95）＝**名前と削除だけ**。
+     ⚠ **中身（何を食べたか・料理・手作り/中食/外食）はここでは直せない**。直せる画面を2つ作ると必ずズレるので
+        （r80/r93 で「✏️ 手で直す と同じ画面を使う」と決めたのと同じ考え）、中身を変えたい時は
+        ✍️ で新しい中身を入れて**同じ名前で覚え直す**道にした（上書きされる）。その旨をこの画面に書く。 -->
+<div class="overlay" id="ovMenuEd"><div class="sheet">
+  <button class="x" data-close>✕</button><h2>⭐ いつものメニュー</h2>
+  <div class="note" id="mnEdWhat" style="margin-top:0"></div>
+  <div class="row"><label>名前（✍️ の画面に出る文字）</label>
+    <input id="mnEdName" maxlength="40" placeholder="例: いつもの朝ごはん" autocomplete="off"></div>
+  <div class="note" id="mnEdNote"></div>
+  <button class="btn pri" id="btnMnEdSave" style="margin-top:12px">この名前にする</button>
+  <button class="btn" id="btnMnEdDel">🗑 このメニューを消す</button>
 </div></div>
 
 <!-- 📋🔁 この食事をもう一度（r73）＝1回だけコピーする／決めた日に繰り返し入れる -->
@@ -1571,7 +1621,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r94 💰 予算を 📈推移・💴マップ・📤書き出し・📈AI分析 にも渡した（推移＝月ごとに縦線1本／マップ＝月の帯／渡す形＝budget）（2026-08-21）｜r93 ✍️ 写真の無い収支を1件、手で入れる入口を 🧾 に足した（✏️ と同じ画面・写真なしの印）（2026-08-21）｜r92 🧾📤 レシートも書き出すか選べるように・⚙ から重なった入口3つを外した（2026-08-21）';
+const BUILD = 'r95 ⭐ いつものメニューを覚えて ✍️ 写真なしで記録 の画面の頭からタップで選べるようにした（覚える＝✍️ の ☑／🍽 詳細のボタン・一覧と名前直しは 🍽 タブ）（2026-08-21）｜r94 💰 予算を 📈推移・💴マップ・📤書き出し・📈AI分析 にも渡した（推移＝月ごとに縦線1本／マップ＝月の帯／渡す形＝budget）（2026-08-21）｜r93 ✍️ 写真の無い収支を1件、手で入れる入口を 🧾 に足した（✏️ と同じ画面・写真なしの印）（2026-08-21）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1704,7 +1754,8 @@ function ctxFor(role){
 // v2（r12）で PLACES＝店舗マスタ（店ごとの位置を1回決めて覚える）を追加。既存の receipts はそのまま
 // v3（r15）で ANALYSES＝📈 分析の結果を貯める場所を追加（既存の2つはそのまま）
 const DB_NAME = 'receipt-spike', STORE = 'receipts', PLACES = 'places', ANALYSES = 'analyses', MEALS = 'meals',
-      CHECKUPS = 'checkups', MEDS = 'meds', REPEATS = 'repeats', BODY = 'body', PICS = 'bodypics';
+      CHECKUPS = 'checkups', MEDS = 'meds', REPEATS = 'repeats', BODY = 'body', PICS = 'bodypics',
+      MENUS = 'menus';
 let _db = null;
 function db(){ return _db ? Promise.resolve(_db) : new Promise((ok, ng) => {
   // v4（r35）で MEALS＝🍽 食事の記録を追加（既存の3つはそのまま）
@@ -1712,7 +1763,8 @@ function db(){ return _db ? Promise.resolve(_db) : new Promise((ok, ng) => {
   // v6（r73）で REPEATS＝🔁 繰り返しの決まり を追加（既存の6つはそのまま）
   // v7（r83）で BODY＝🫀 からだの数字（血圧・体重）を追加（既存の7つはそのまま）
   // v8（r85）で PICS＝📸 からだの写真（重ね撮り）を追加（既存の8つはそのまま）
-  const rq = indexedDB.open(DB_NAME, 8);
+  // v9（r95）で MENUS＝⭐ いつものメニュー を追加（既存の9つはそのまま）
+  const rq = indexedDB.open(DB_NAME, 9);
   rq.onupgradeneeded = () => {
     const d = rq.result;
     if (!d.objectStoreNames.contains(STORE))    d.createObjectStore(STORE,    { keyPath: 'id' });
@@ -1736,6 +1788,13 @@ function db(){ return _db ? Promise.resolve(_db) : new Promise((ok, ng) => {
     /* r85: 📸 からだの写真＝体型を日々撮りためる（あの日の重ね撮りを小さく移植）。
        ⚠ 数字（BODY）と箱を分ける＝写真は読み取るものが無く **AI に送らない**・数え方も違う（r65 の線引き）。 */
     if (!d.objectStoreNames.contains(PICS))     d.createObjectStore(PICS,     { keyPath: 'id' });
+    /* r95: ⭐ いつものメニュー＝「よく食べるものの見本」を1件ずつ持つ箱。
+       ⚠ **食事（MEALS）と分ける**＝献立は**食べた事実ではない**（r73 で 🔁 決まりを分けたのと同じ線引き）。
+          同じ箱に入れると 📊 統計・📤 書き出し・🔍 検索・💰 予算が「まだ食べていない見本」を数える。
+       ⚠ **決まり（REPEATS）とも分ける**＝繰り返しは「いつ入れるか」を持ち、放っておくと食事を作る。
+          メニューは**押した時しか何もしない**（runRepeats に混ざると、覚えただけで毎日食事が増える）。
+       ⚠ 中身は自分で持つ（見本にした食事を消してもメニューは生き続ける＝孤児にしない・r73 と同じ）。 */
+    if (!d.objectStoreNames.contains(MENUS))    d.createObjectStore(MENUS,    { keyPath: 'id' });
   };
   rq.onsuccess = () => { _db = rq.result; ok(_db); };
   rq.onerror = () => ng(rq.error);
@@ -1779,6 +1838,10 @@ const picPut = r  => tx(PICS, 'readwrite', s => s.put(r));
 const picDel = id => tx(PICS, 'readwrite', s => s.delete(id));
 const picGet = id => tx(PICS, 'readonly',  s => s.get(id));
 const picAll = () => tx(PICS, 'readonly',  s => s.getAll());
+const mnPut = m   => tx(MENUS, 'readwrite', s => s.put(m));   // r95: ⭐ いつものメニュー
+const mnDel = id  => tx(MENUS, 'readwrite', s => s.delete(id));
+const mnGet = id  => tx(MENUS, 'readonly',  s => s.get(id));
+const mnAll = ()  => tx(MENUS, 'readonly',  s => s.getAll());
 
 /* ---------- 画像（iOS の教訓: createImageBitmap でなく <img>+<canvas>、URL は必ず revoke） ---------- */
 function loadImage(blob){ return new Promise((ok, ng) => {
@@ -2324,6 +2387,8 @@ const MADE_BY = {
   copy:    ['📋', 'コピー',       '📋 <b>ほかの食事からコピーした記録です</b>'],
   hand:    ['✍️', '手入力',       '✍️ <b>写真なしで、手で入力した記録です</b>（AI は使っていません）'],
   receipt: ['🧾', 'レシートから', '🧾 <b>レシートの品目から作った記録です</b>（料理の写真はありません）'],
+  // r95: ⭐ いつものメニューから入れたもの（中身は覚えた見本＝この日に書き起こしたものではない）
+  menu:    ['⭐', 'いつものメニュー', '⭐ <b>いつものメニューから入れた記録です</b>（覚えてある内容をそのまま入れました）'],
 };
 const madeIcon  = m => (MADE_BY[m.madeBy] || [])[0] || '';
 const madeLabel = m => (MADE_BY[m.madeBy] || [])[1] || '';
@@ -2519,7 +2584,7 @@ const DATA_NOTES = {
     'receipt_id が付いている食事は、本人がその食事のレシートだと結び付けたもの＝その receipt_id のレシートは 🧾 の一覧にも入っている（同じ物なので、金額を二重に数えない）。結び付いていない食事の金額を推測しない。',
     /* r73: 🔁/📋 で入れた記録は「同じ内容をもう一度記録したもの」＝写真はその日のものではない。
        ⚠ ここを黙っていると、AI が「同じ写真＝同じ日」と読んで日付を疑い始める。 */
-    'made_by が付いている食事は、その日に料理の写真を撮って AI が読んだものではない。"repeat" は繰り返しの決まりで自動的に入ったもの、"copy" は本人が別の食事から1回コピーしたもの（どちらも写真は photo_date の日に撮ったもので、その日に撮り直したものではない＝写真の細部＝盛り付けや器から、その日のことを読み取らない）。"hand" は本人が写真なしで手入力したもの、"receipt" は本人がレシートの品目から起こしたもの。⚠ どれも「その日にそれを食べた」という本人の記録なので、そのまま1食として数えてよい。',
+    'made_by が付いている食事は、その日に料理の写真を撮って AI が読んだものではない。"repeat" は繰り返しの決まりで自動的に入ったもの、"copy" は本人が別の食事から1回コピーしたもの（どちらも写真は photo_date の日に撮ったもので、その日に撮り直したものではない＝写真の細部＝盛り付けや器から、その日のことを読み取らない）。"hand" は本人が写真なしで手入力したもの、"receipt" は本人がレシートの品目から起こしたもの、"menu" は本人が登録してある「いつものメニュー」から入れたもの（＝**その人が繰り返し食べている定番**という意味を持つ。写真があれば photo_date の日に撮ったもの）。⚠ どれも「その日にそれを食べた」という本人の記録なので、そのまま1食として数えてよい。',
     /* r80: 写真の無い記録は**中身が薄い**（items の kind が「その他」だらけ・amount が無い・detail が空）。
        ⚠ ここを言っておかないと、受け取った AI が「粗末な食事だった」「量が少なかった」と読み替える。 */
     'no_photo:true の食事には料理の写真が無い（本人が撮り忘れて手で入れたか、レシートの品目から起こしたもの）。summary と items は本人が書いたか、レシートに印字された品名を写したものなので、AI が写真から読んだ食事にくらべて情報が少ない＝ items の kind が「その他」ばかり、amount が無い、detail が空、ということがある。⚠ これは「食べた物が乏しかった」ことではなく「写真が無いので分からない」ことなので、量が少なかった・偏っていた、と読み替えない。分からないものは分からないまま扱う。',
@@ -3082,6 +3147,12 @@ const MEAL_AGAIN_TIP =
   + '別の日にコピーしたり、<b>時刻・曜日・いつまで</b>を決めて繰り返し入れたりできます。';
 /* r80: 撮り忘れた時の道を、写真の画面にも書いておく（入口のボタンだけだと「何ができるか」が伝わらない）。
    ⚠ 2本あることを必ず両方言う＝レシートがある時は 🧾 からの方が速い（品目を選ぶだけで入る）。 */
+/* r95: ⭐ いつものメニュー。⚠ 🔁 繰り返し（放っておいても入る）との違いを1行で言う＝
+   どちらも「同じものをもう一度」なので、違いを言わないとどちらを使えばよいか決められない。 */
+const MEAL_MENU_TIP =
+  '<br>⭐ <b>よく食べるもの</b>は「いつものメニュー」に覚えておくと、✍️ の画面の<b>いちばん上にタップで選べる形</b>で並びます'
+  + '（覚えるのは ✍️ の ☑、または食事を開いて「⭐ いつものメニューに入れる」）。'
+  + '<br>⚠ 🔁 繰り返し との違い＝<b>⭐ は食べた時に自分で押す</b>もの、<b>🔁 は押さなくても決めた日に入る</b>ものです。';
 const MEAL_HAND_TIP =
   '<br>✍️ <b>写真を撮り忘れた食事</b>は、上の「<b>✍️ 写真なしで記録</b>」から入れられます。'
   + '<br>🧾 その日に<b>レシートがあれば同じ画面に並びます</b>＝「品目から選ぶ」を押して<b>食べたものにチェック</b>を付ければ、打たずに入ります'
@@ -3096,6 +3167,7 @@ async function renderMeals(){
   if (topTab !== 'meals') return;                          // 見ていないタブは描かない（撮る途中で毎回呼ばれる）・r65
   renderMlAi();
   await renderMlTodo();
+  await renderMenuBar();     // r95: ⭐ いつものメニュー（名前を変える・消す）
   await renderRepeatBar();   // r73: 🔁 まだ答えていない問いかけ と 繰り返しの決まり
   return mlView === 'week' ? renderWeek() : renderDay();
 }
@@ -3130,7 +3202,7 @@ async function renderDay(){
   document.getElementById('mlNote').innerHTML = (await mlAll()).length
     ? '写真の<b>撮影時刻</b>で自動的に振り分けます（時間帯は ⚙ で変えられます）。違っていたら、その食事を開いて区分を選び直してください。'
       + '<br>📷 <b>撮り方のコツ</b>: 箸やスプーンなど<b>大きさの分かるものを一緒に写す</b>と、量まで書き起こせます。'
-      + MEAL_AGAIN_TIP + MEAL_HAND_TIP
+      + MEAL_AGAIN_TIP + MEAL_HAND_TIP + MEAL_MENU_TIP
     : '食事の写真を選ぶと、写っているものを AI が書き起こして、<b>撮影時刻</b>から 朝食／昼食／夕食／間食 に振り分けます。'
       + '<br>📷 <b>まず撮るだけで大丈夫です。</b>書き起こしは、あとからまとめてできます。'
       + MEAL_HAND_TIP;
@@ -3726,7 +3798,8 @@ document.getElementById('btnImgSize').onclick = async () => {
        ⚠ だから **1バイトだけ実際に読む**。全部読むと重いので、頭の1バイトで足りる。 */
     const readable = async b => { try { await b.slice(0, 1).arrayBuffer(); return true; } catch (_) { return false; } };
     const o = { rcpt: { n: 0, b: 0, bad: 0 }, meal: { n: 0, b: 0, bad: 0 }, chk: { n: 0, b: 0, bad: 0 },
-                med: { n: 0, b: 0, bad: 0 }, rp: { n: 0, b: 0, bad: 0 }, body: { n: 0, b: 0, bad: 0 }, pic: { n: 0, b: 0, bad: 0 } };
+                med: { n: 0, b: 0, bad: 0 }, rp: { n: 0, b: 0, bad: 0 }, body: { n: 0, b: 0, bad: 0 }, pic: { n: 0, b: 0, bad: 0 },
+                menu: { n: 0, b: 0, bad: 0 } };   // r95: ⭐ いつものメニュー（食事から覚えると写真も持つ）
     const add = async (k, b) => { if (!b) return; o[k].n++; o[k].b += b.size; if (!await readable(b)) o[k].bad++; };
     for (const r of await dbAll()) { await add('rcpt', r.img); await add('rcpt', r.thumb); }
     for (const m of await mlAll()) { await add('meal', m.img); await add('meal', m.thumb);
@@ -3736,9 +3809,10 @@ document.getElementById('btnImgSize').onclick = async () => {
     for (const r of await rpAll()) { await add('rp', r.img); await add('rp', r.thumb); }
     for (const r of await bodyAll()) { await add('body', r.img); await add('body', r.thumb); }   // r83
     for (const r of await picAll()) { await add('pic', r.img); await add('pic', r.thumb); }   // r85
+    for (const m of await mnAll()) { await add('menu', m.img); await add('menu', m.thumb); }   // r95
     const V = Object.values(o);
     const tot = V.reduce((s, x) => s + x.b, 0), cnt = V.reduce((s, x) => s + x.n, 0), bad = V.reduce((s, x) => s + x.bad, 0);
-    const rows = [['\u{1F9FE} レシート', o.rcpt], ['\u{1F37D} 料理', o.meal], ['\u{1FA7A} 健診', o.chk], ['\u{1F48A} 薬', o.med], ['\u{1F501} 繰り返し', o.rp], ['\u{1FAC0} からだ', o.body], ['\u{1F4F8} からだの写真', o.pic]];
+    const rows = [['\u{1F9FE} レシート', o.rcpt], ['\u{1F37D} 料理', o.meal], ['\u{1FA7A} 健診', o.chk], ['\u{1F48A} 薬', o.med], ['\u{1F501} 繰り返し', o.rp], ['\u{1FAC0} からだ', o.body], ['\u{1F4F8} からだの写真', o.pic], ['\u{2B50} いつものメニュー', o.menu]];
     const part = rows.filter(([, x]) => x.n).map(([k, x]) => `${k} ${mb(x.b)}${x.bad ? ` <b style="color:var(--err)">（${x.bad}枚が読めません）</b>` : ''}`).join(' ・ ');
     out.hidden = false;
     /* r93: 1枚も無い時に「0枚で 1KB」と出さない（mb は 0 を 1KB と丸める）＝✍️ 写真なしの記録だけの端末で必ず出る */
@@ -3895,7 +3969,7 @@ function applyRcptSrc(src){
   mlNewSrc = src || null;
   const rc = src?.rc;
   if (rc?.time) mlNewEl('mlNewTime').value = rc.time;
-  mlNewEl('mlNewTitle').textContent = rc ? '🧾 レシートから食事を記録' : '✍️ 写真なしで記録';
+  syncMlNewTitle();   // r95: 題は ⭐ / 🧾 / ✍️ の3つ＝2か所で別々に書かない
   mlNewEl('mlNewNote').innerHTML = rc
     ? `<b>${esc(rcptTitle(rc))}</b> の品目から食事の記録を作ります。`
       + '<br>🧾 <b>このレシートはもう読み取ってあるので、AI は使いません</b>（料金はかかりません）。'
@@ -3981,9 +4055,14 @@ function openMlNew(src){
   mlNewEl('mlNewTime').value = day === todayStr() ? `${pad2(now.getHours())}:${pad2(now.getMinutes())}` : '12:00';
   mlNewEl('mlNewSummary').value = '';
   mlNewEl('mlNewMemo').value = '';
+  /* ⭐ r95: 開くたび白紙に戻す＝前に選んだメニュー・前に押した「覚える」を持ち越さない
+     （🧹 の「開いた直後は何も選ばれていない」と同じ考え＝これは設定ではなく「今やる操作」）。 */
+  mlNewMenu = null;
+  mlNewEl('ckMlNewMenu').checked = false;
   applyRcptSrc(src);              // ⚠ 時刻・見当・品目はここで入れ直す（レシートがあれば上書きされる）
   renderMlNewSlot();
   renderMlNewRcpts();             // 待たない（DB を読むので、画面を出してから埋まる）
+  renderMlNewMenus();             // 同上（⭐ も DB を読む）
   mlNewEl('ovMlNew').querySelector('.sheet').scrollTop = 0;
   show('ovMlNew');
 }
@@ -4000,9 +4079,13 @@ mlNewEl('mlNewRcpts').addEventListener('click', async e => {
   const [id, i] = v.split('|');
   const r = await dbGet(id); if (!r) { toast('そのレシートは見つかりません'); return; }
   const rc = receiptsOf(r)[+i]; if (!rc) { toast('まだ読み取れていません'); return; }
+  // ⭐ r95: 中身の出どころは1つ＝🧾 を選んだら ⭐ は外す（逆は applyMenuPick 側でやっている）
+  const hadMenu = !!mlNewMenu;
+  if (hadMenu) { mlNewMenu = null; mlNewTouched = false; }   // ⚠ 打った扱いを解く＝品目から要約を作り直す
   applyRcptSrc({ rec: r, rc, idx: +i });
   await renderMlNewRcpts();
   renderMlNewSlot();
+  if (hadMenu) { await renderMlNewMenus(); toast('⭐ いつものメニューの選択をはずしました（中身は 🧾 から入ります）'); }
 });
 mlNewEl('mlNewItems').addEventListener('change', e => {
   if (e.target.closest('#mlNewItemList')) renderMlNewSummary();
@@ -4035,21 +4118,41 @@ mlNewEl('btnMlNewSave').onclick = async () => {
   const summary = mlNewEl('mlNewSummary').value.trim();
   if (!summary) { toast('何を食べたかを1行だけ入れてください'); return; }
   const rc = mlNewSrc?.rc;
+  const mn = mlNewMenu;   // r95: ⭐ いつものメニュー（🧾 とは排他＝中身の出どころは1つ）
   /* レシートの品目 → 料理の行。⚠ **種類（主食/主菜…）は「その他」**にする＝レシートの品名からは分からない。
      分かったふりで割り振ると、あとで種類ごとに数えた時に嘘になる（✏️ で直せる）。
-     ⚠ **金額は入れない**＝金額はレシートの側の事実（結び付けてあるので二重に数えない）。 */
+     ⚠ **金額は入れない**＝金額はレシートの側の事実（結び付けてあるので二重に数えない）。
+     ⭐ r95: メニューの時は**覚えた料理の行をそのまま**（種類も量も覚えた通り＝写真から読んだ結果を持っている）。 */
   const names = rc ? mlNewNames() : [];
-  const items = names.map(n => ({ name: n, kind: 'その他', amount: null, note: null }));
+  const items = mn ? JSON.parse(JSON.stringify(mn.data?.items || []))
+                   : names.map(n => ({ name: n, kind: 'その他', amount: null, note: null }));
   const memo = mlNewEl('mlNewMemo').value.trim();
+  /* ⚠ 記録を作るのは**この1か所のまま**（出どころが3つに増えても関数を分けない）＝分けると、
+     あとで欄が増えた時に片方だけ直して必ずズレる（r80/r93 で「同じ画面を使う」と決めたのと同じ考え）。
+     ⚠ ⭐ の時も **日付・時刻・区分・🗒ひとことはこの画面のもの**（r73 の「その日のことは配らない」）。 */
   const rec = { id: newId('m'), ts, tsSrc: 'manual', addedAt: Date.now(),
                 slot: slotOfTime(ts), slotAuto: true,
                 status: 'done',
-                img: null, thumb: null,          // ⚠ 写真は無い（mealNoPhoto がこれを見る）
-                data: { summary, detail: '', origin: mlNewOrg, originSrc: 'human', originWhy: null, items },
+                // ⚠ 写真は ⭐ が持っている時だけ引き継ぐ（無ければ mealNoPhoto がこれを見る）
+                img: mn?.img || null, thumb: mn?.thumb || null,
+                data: { summary, detail: mn?.data?.detail || '', origin: mlNewOrg, originSrc: 'human', originWhy: null, items },
                 error: null, errors: [], meta: null,
-                origin: mlNewOrg, hint: null, extras: [], memo: memo || null,
-                madeBy: rc ? 'receipt' : 'hand' };
+                origin: mlNewOrg, hint: mn?.hint || null, extras: [], memo: memo || null,
+                // ⚠ 写真がこの日のものでないことは photoAt と madeBy の両方で言う（r73 と同じ）
+                ...(mn ? { menuId: mn.id, photoAt: mn.photoAt || null, srcId: mn.srcId || null } : {}),
+                madeBy: mn ? 'menu' : rc ? 'receipt' : 'hand' };
   await mlPut(rec);
+  /* ⭐ 使った回数は**記録が入った時だけ**数える（開いて眺めただけで増やすと、並びが実態とずれる）。
+     ⚠ 画面が持っている写しでなく、**その場で読み直したもの**に足す（開いている間に別の道で変わり得る）。 */
+  if (mn) { const cur = await mnGet(mn.id);
+            if (cur) { cur.useCount = (cur.useCount || 0) + 1; cur.lastUsedAt = Date.now(); await mnPut(cur); } }
+  // ⭐ 覚える（☑）＝名前は「何を食べたか」そのまま。同じ名前があれば覚え直す
+  let menuMsg = '';
+  if (mlNewEl('ckMlNewMenu').checked) {
+    const r = await menuSave(summary, { data: rec.data, origin: rec.origin, hint: rec.hint,
+                                        img: rec.img, thumb: rec.thumb, photoAt: rec.photoAt || null, srcId: rec.srcId || null });
+    menuMsg = r.ng ? `（⚠ ⭐ は覚えられませんでした: ${r.ng}）` : r.updated ? '（⭐ 覚え直しました）' : '（⭐ 覚えました）';
+  }
   if (mlNewSrc?.rec) await linkMealRcpt(rec.id, mlNewSrc.rec.id);   // 🧾 と 🍽 を両側から行き来できるように
   hide('ovMlNew');
   hide('ovDetail');
@@ -4058,8 +4161,191 @@ mlNewEl('btnMlNewSave').onclick = async () => {
   if (day !== mlDayNow()) { mlDay = day; localStorage.setItem(ML.day, mlDay); }
   await setTopTab('meals');
   await renderMeals();
-  toast(rc ? '🧾 レシートから食事を記録しました' : '✍️ 記録しました');
+  toast((mn ? '⭐ いつものメニューから記録しました' : rc ? '🧾 レシートから食事を記録しました' : '✍️ 記録しました') + menuMsg);
   openMeal(await mlGet(rec.id) || rec);
+};
+
+/* ---------- ⭐ いつものメニュー（r95） ----------
+   要望＝「**いつものメニューを作る・登録できる。新規食事を登録するときに、いつものメニューをタップすると
+   選択できるようにする**」
+
+   🥇 **すでにある「もう一度」3本と役目で分ける**（どれも同じものを入れる道だが、探し方が違う）:
+      ・📋 コピー（r73）＝**その1件**を別の日にもう一度（元の食事を**探して開く**必要がある）
+      ・🔁 繰り返し（r73）＝**放っておいても**決めた日に入る（毎日必ず食べるもの向け）
+      ・⭐ いつものメニュー（ここ）＝**入れる時にタップで選ぶ**（食べた日にだけ入れたい定番向け）
+      ＝ ⭐ が埋めるのは「食べたかどうかは自分で決めたいが、毎回打つのは面倒」。1つに統合しない。
+
+   🤔 **「最近の食事から選ぶ」で足りないか**を先に疑った（要望を機能追加に直訳しない・§2.2）が、採らなかった:
+      直近の一覧は**日々入れ替わる**ので、週1回の定番ほど押し出されて消える。「覚える」は本人が選ぶ行為で、
+      **定番かどうかを決めるのは本人**（頻度からの推定ではない）。
+
+   ⚠ **配るのは「何を食べたか」だけ**（要約・詳細・料理・手作り/中食/外食・写真）。日付・時刻・区分・
+      🗒ひとこと・🧾レシートの結び付きは配らない＝**日ごとに違って当たり前のもの**（r73 と同じ規則）。
+   ⚠ **中身は自分で持つ**＝見本にした食事を消してもメニューは生き続ける（孤児にしない・r73 と同じ）。 */
+const MENU_MAX = 60;   // ⚠ 際限なく増やさない（✍️ の画面が札で埋まると、いちばん短い道が長くなる）
+const menuTitleOf = mn => mn?.name || mn?.data?.summary || '（名前のないメニュー）';
+/* よく使う順（同数なら最近使った順・それも同じなら覚えた順）。
+   ⚠ 覚えた順に固定すると、あとから覚えた定番が下に沈んだままになる。使うほど上に来る形は数回で落ち着く
+      （毎日押すものは必ず1番になる）＝並びが暴れ続ける心配は要らない。 */
+const menuSorted = ms => ms.slice().sort((a, b) =>
+     (b.useCount || 0) - (a.useCount || 0)
+  || (b.lastUsedAt || 0) - (a.lastUsedAt || 0)
+  || (a.createdAt || 0) - (b.createdAt || 0));
+const menuByName = (ms, name) => ms.find(x => menuTitleOf(x) === String(name || '').trim());
+/* 覚える＝入口2つ（✍️ の ☑ ／ 🍽 詳細のボタン）から呼ぶ**1本の道**。
+   ⚠ **同じ名前があれば覚え直す**＝同じ名前が2つ並ぶと ✍️ の画面でどちらが新しいか分からない。
+      その時**使った回数は引き継ぐ**（覚え直しただけで並びが崩れると、定番が下に落ちる）。
+   ⚠ 中身の無いメニューは作らない＝押しても何も入らない札ができる（r13「ボタンの名前は仕様書」）。 */
+async function menuSave(name, seed){
+  const nm = String(name || '').trim();
+  if (!nm) return { ng: '名前になる「何を食べたか」が空です' };
+  if (!seed?.data?.summary) return { ng: 'まだ中身がありません' };
+  const all = await mnAll();
+  const old = menuByName(all, nm);
+  if (!old && all.length >= MENU_MAX)
+    return { ng: `いつものメニューは ${MENU_MAX}件までです（要らないものを 🍽 の一覧から消してください）` };
+  const mn = { id: old?.id || newId('mn'), name: nm,
+               data: seed.data ? JSON.parse(JSON.stringify(seed.data)) : null,
+               origin: seed.origin ?? null, hint: seed.hint ?? null,
+               img: seed.img || null, thumb: seed.thumb || null,
+               photoAt: seed.photoAt || null, srcId: seed.srcId || null,
+               useCount: old?.useCount || 0, lastUsedAt: old?.lastUsedAt || null,
+               createdAt: old?.createdAt || Date.now(), updatedAt: Date.now() };
+  await mnPut(mn);
+  return { mn, updated: !!old };
+}
+
+/* ---------- ⭐ を ✍️ の画面で選ぶ（r95） ---------- */
+let mlNewMenu = null;      // いま選んでいる ⭐（null＝使っていない）
+let mlNewMenuList = [];    // いま画面に並べている札（押された時に引く）
+/* 題は「これから何が作られるか」を言う＝⭐ / 🧾 / ✍️ の3つ。⚠ 2か所で別々に書かない（必ずズレる） */
+function syncMlNewTitle(){
+  mlNewEl('mlNewTitle').textContent = mlNewSrc?.rc ? '🧾 レシートから食事を記録'
+                                    : mlNewMenu ? '⭐ いつものメニューから記録' : '✍️ 写真なしで記録';
+}
+async function renderMlNewMenus(){
+  const el = mlNewEl('mlNewMenus');
+  const ms = menuSorted(await mnAll());
+  mlNewMenuList = ms;
+  if (!ms.length) {
+    /* ⚠ 1つも無い人に**空の枠は出さない**。代わりに「下の ☑ でできる」と1行だけ置く＝
+       畳んだ入口は前の操作モデルで探す人に見つからない（v192 の教訓）ので、**使う画面の中**で知らせる。 */
+    el.innerHTML = '<div class="note" style="margin-top:0">⭐ <b>よく食べるものは「いつものメニュー」に覚えられます</b>'
+      + '（下の ☑）。次からはこの位置に並び、<b>タップだけ</b>で入れられます。</div>';
+    return;
+  }
+  el.innerHTML = `<div class="row"><label>⭐ いつものメニュー（${ms.length}）</label><div class="mnSeg">`
+    + ms.map(mn => `<button type="button" data-mnpick="${esc(mn.id)}"${mlNewMenu?.id === mn.id ? ' class="on"' : ''}>`
+        + `⭐ ${esc(menuTitleOf(mn))}<small>${mn.useCount ? `${mn.useCount}回` : 'まだ使っていません'}`
+        + `${ORIGIN_LABEL(mn.origin) ? ` ・ ${ORIGIN_ICON(mn.origin)} ${esc(ORIGIN_LABEL(mn.origin))}` : ''}</small></button>`).join('')
+    + '</div><div class="note" style="margin-top:6px">'
+    + (mlNewMenu
+        ? `⭐ <b>${esc(menuTitleOf(mlNewMenu))}</b> の中身を入れます（もう一度押すと外れます）。`
+          + '⚠ <b>日付・時刻・🗒ひとこと</b>は、この画面で入れたものが使われます。'
+        : 'タップすると「何を食べたか」と料理が入ります（<b>よく使う順</b>に並びます）。名前を変える・消すは 🍽 の一覧から。')
+    + '</div></div>';
+}
+/* ⭐ を選ぶ／外す。
+   ⚠ **中身の出どころは1つ**＝⭐ を選んだら 🧾 の結び付けは外す（要約はメニュー・品目はレシートの
+      ちぐはぐな記録を作らない）。逆（🧾 を選ぶ）側でも同じことをする。
+   ⚠ 外した時は「何を食べたか」を**空に戻す**＝メニューの名前が「自分で打った文字」として居残ると、
+      外したつもりで中身だけ残る。 */
+function applyMenuPick(mn){
+  const dropRc = !!(mn && mlNewSrc);
+  mlNewMenu = mn || null;
+  mlNewTouched = !!mn;                 // ⚠ 選んだ中身をレシートの品目で上書きさせない
+  if (dropRc) applyRcptSrc(null);      // 題・説明・品目の欄はここで戻る
+  syncMlNewTitle();
+  mlNewEl('mlNewSummary').value = mn ? (mn.data?.summary || '') : '';
+  mlNewOrg = mn ? (mn.origin ?? null) : null;
+  renderMlNewOrigin();
+  if (dropRc) toast('🧾 レシートの結び付けをはずしました（中身は ⭐ から入ります）');
+}
+mlNewEl('mlNewMenus').addEventListener('click', async e => {
+  const b = e.target.closest('[data-mnpick]'); if (!b) return;
+  const mn = mlNewMenuList.find(x => x.id === b.dataset.mnpick); if (!mn) return;
+  applyMenuPick(mlNewMenu?.id === mn.id ? null : mn);   // もう一度押したら外れる
+  await renderMlNewMenus();
+  if (mlNewMenu) await renderMlNewRcpts();              // 🧾 の候補の「✓ 選んでいます」も戻す
+});
+
+/* ---------- ⭐ の一覧（🍽 タブ・名前を変える／消す）（r95） ----------
+   ⚠ ここは**管理だけ**＝使うのは ✍️ の画面（押す場所を2つに割らない）。
+   ⚠ 1つも無ければ**丸ごと出さない**（🔁 と同じ作法）。 */
+const mnThumbUrls = [];
+const mnUrl = b => { const u = URL.createObjectURL(b); mnThumbUrls.push(u); return u; };
+async function renderMenuBar(){
+  mnThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
+  const ms = menuSorted(await mnAll());
+  const bar = document.getElementById('mlMenuBar');
+  bar.hidden = !ms.length;
+  if (!ms.length) return;
+  document.getElementById('mlMenuList').innerHTML = ms.map(mn => {
+    const ph = mn.thumb || mn.img;
+    return '<div class="rpRow">'
+      + (ph ? `<img src="${mnUrl(ph)}" alt="">` : '<div class="noimg" aria-hidden="true">⭐</div>')
+      + `<div class="bd"><div class="t">${esc(menuTitleOf(mn))}</div>`
+      + `<div class="s">${mn.useCount ? `${mn.useCount}回 使いました` : 'まだ使っていません'}`
+      + `${mn.lastUsedAt ? ` ・ 最後は ${esc(md(ymdLocal(new Date(mn.lastUsedAt))))}` : ''}`
+      + `${ORIGIN_LABEL(mn.origin) ? ` ・ ${ORIGIN_ICON(mn.origin)} ${esc(ORIGIN_LABEL(mn.origin))}` : ''}</div></div>`
+      + `<button data-mnedit="${esc(mn.id)}" title="名前を変える・消す">✏️</button></div>`;
+  }).join('');
+}
+document.getElementById('mlMenuList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-mnedit]'); if (!b) return;
+  await openMenuEd(b.dataset.mnedit);
+});
+let mnEdId = null;
+async function openMenuEd(id){
+  const mn = await mnGet(id); if (!mn) { toast('そのメニューは見つかりません'); return; }
+  mnEdId = id;
+  const items = (mn.data?.items || []).map(x => x.name).filter(Boolean);
+  document.getElementById('mnEdWhat').innerHTML = `<b>${esc(mn.data?.summary || '')}</b>`
+    + (items.length ? `<br>🍚 ${esc(items.slice(0, 8).join('、'))}${items.length > 8 ? `　ほか ${items.length - 8}品` : ''}` : '')
+    + (ORIGIN_LABEL(mn.origin) ? `<br>${ORIGIN_ICON(mn.origin)} ${esc(ORIGIN_LABEL(mn.origin))}` : '')
+    + `<br><small style="color:var(--dim)">${mn.useCount ? `${mn.useCount}回 使いました` : 'まだ使っていません'}`
+    + `${mn.lastUsedAt ? ` ・ 最後は ${esc(md(ymdLocal(new Date(mn.lastUsedAt))))}` : ''}</small>`;
+  document.getElementById('mnEdName').value = menuTitleOf(mn);
+  document.getElementById('mnEdNote').innerHTML =
+      '⚠ ここで変えられるのは<b>名前だけ</b>です。<b>中身（何を食べたか・料理）を変えたい時</b>は、'
+    + '✍️ 写真なしで記録 で新しい中身を入れて、<b>同じ名前で「⭐ いつものメニューに覚える」</b>を押してください（上書きされます）。'
+    + '<br>⚠ このメニューを消しても、<b>これまでに入れた食事は残ります</b>（別のものです）。';
+  document.getElementById('ovMenuEd').querySelector('.sheet').scrollTop = 0;
+  show('ovMenuEd');
+}
+document.getElementById('btnMnEdSave').onclick = async () => {
+  const mn = await mnGet(mnEdId); if (!mn) return;
+  const nm = document.getElementById('mnEdName').value.trim();
+  if (!nm) { toast('名前を入れてください'); return; }
+  // ⚠ 同じ名前を2つ作らせない＝「覚え直す」の見分けが名前なので、重なると上書きの相手が決まらない
+  const other = menuByName(await mnAll(), nm);
+  if (other && other.id !== mn.id) { toast('⚠ 同じ名前のメニューがすでにあります'); return; }
+  mn.name = nm; mn.updatedAt = Date.now();
+  await mnPut(mn);
+  hide('ovMenuEd');
+  toast('⭐ 名前を変えました');
+  await renderMeals();
+};
+document.getElementById('btnMnEdDel').onclick = async () => {
+  const mn = await mnGet(mnEdId); if (!mn) return;
+  if (!confirm(`「${menuTitleOf(mn)}」をいつものメニューから消しますか？\n（これまでに入れた食事は残ります）`)) return;
+  await mnDel(mn.id);
+  hide('ovMenuEd');
+  toast('🗑 いつものメニューから消しました');
+  await renderMeals();
+};
+/* ⭐ 覚える入口②＝**写真から書き起こした食事**を定番にする道（✍️ の ☑ は手で打った時の道）。 */
+document.getElementById('btnMlToMenu').onclick = async () => {
+  if (!mlCur) return;
+  const m = await mlGet(mlCur.id) || mlCur;
+  const name = (m.data?.summary || '').trim();
+  /* ⚠ **書き起こしていない食事は覚えない**＝押しても何も入らない札ができる。
+     黙って作らず、何をすれば覚えられるかを言う。 */
+  if (!name) { toast('⚠ まだ書き起こしていない食事は覚えられません（先に 📝 で書き起こしてください）'); return; }
+  const r = await menuSave(name, mealSeed(m));
+  if (r.ng) { toast('⚠ ' + r.ng); return; }
+  toast(r.updated ? `⭐ 「${name}」を覚え直しました` : `⭐ 「${name}」をいつものメニューに覚えました`);
+  await renderMeals();
 };
 
 /* ---------- 🔁 繰り返し と 📋 コピー（r73） ----------
@@ -9690,6 +9976,8 @@ const WIPE_KINDS = [
   { id: 'place', icon: '📍', label: 'お店の場所' },
   // r73: 🔁 繰り返しの決まり。⚠ **決まりは日付を持たない**（期間ではなく規則）＝📍 と同じで「全期間」の時だけ消す
   { id: 'rp',    icon: '🔁', label: '繰り返しの決まり' },
+  // r95: ⭐ いつものメニュー。⚠ **見本は日付を持たない**＝🔁・📍 と同じ扱い（「全期間」の時だけ）
+  { id: 'menu',  icon: '⭐', label: 'いつものメニュー' },
 ];
 let wipeMode = 'month', wipeSel = new Set(), wipeBusy = false;
 /* 期間の言葉づかいは 📤/📈/📊 と同じにする（同じ言葉が画面ごとに違う意味だと、出た数字を信じられない）。
@@ -9725,7 +10013,7 @@ async function wipePlan(){
   if (per.bad) return { per, bad: per.bad };
   const { from, to } = per, all = wipeMode === 'all';
   const inP = d => !!d && (!from || d >= from) && (!to || d <= to);
-  const p = { per, all, rcptDel: [], rcptTrim: [], meals: [], chks: [], meds: [], ans: [], places: [], rps: [], skipped: [] };
+  const p = { per, all, rcptDel: [], rcptTrim: [], meals: [], chks: [], meds: [], ans: [], places: [], rps: [], menus: [], skipped: [] };
   let rcptN = 0;
   for (const r of await dbAll()) {
     const rcs = receiptsOf(r);
@@ -9739,13 +10027,14 @@ async function wipePlan(){
     rcptN += n;
     if (keep.length) p.rcptTrim.push({ r, keep }); else p.rcptDel.push(r);
   }
-  const cks = await ckAll(), mds = await mdAll(), pls = await plAll(), rps = await rpAll();
+  const cks = await ckAll(), mds = await mdAll(), pls = await plAll(), rps = await rpAll(), mns = await mnAll();
   p.meals  = (await mlAll()).filter(m => inP(mealDate(m)));
   p.chks   = cks.filter(c => all || inP(c.date));
   p.meds   = mds.filter(m => all || inP(m.start));
   p.ans    = (await anAll()).filter(a => inP(ymdLocal(new Date(a.ts))));
   p.places = all ? pls : [];
   p.rps    = all ? rps : [];   // r73: 決まりは日付でなく規則＝📍 と同じ扱い（全期間の時だけ）
+  p.menus  = all ? mns : [];   // r95: ⭐ 見本も日付を持たない＝🔁 と同じ
   /* r83: 🫀 は**計測の日付**で数える（🧾 と同じ形＝1枚の写真に期間外の計測が残る時は、写真は残してその計測だけ抜く） */
   p.bodyDel = []; p.bodyTrim = [];
   let bodyN = 0;
@@ -9764,10 +10053,12 @@ async function wipePlan(){
     if (nm) p.skipped.push(`💊 服用開始日が無い薬 ${nm}件`);
     if (pls.length) p.skipped.push(`📍 お店の場所 ${pls.length}件`);
     if (rps.length) p.skipped.push(`🔁 繰り返しの決まり ${rps.length}件`);
+    if (mns.length) p.skipped.push(`⭐ いつものメニュー ${mns.length}件`);
   }
   p.pics = (await picAll()).filter(r => inP(r.date));   // r85: 📸 は撮った日（date）で数える
   p.count = { rcpt: rcptN, meal: p.meals.length, chk: p.chks.length,
-              med: p.meds.length, body: bodyN, pic: p.pics.length, an: p.ans.length, place: p.places.length, rp: p.rps.length };
+              med: p.meds.length, body: bodyN, pic: p.pics.length, an: p.ans.length, place: p.places.length,
+              rp: p.rps.length, menu: p.menus.length };
   return p;
 }
 async function renderWipe(){
@@ -9805,6 +10096,7 @@ async function renderWipe(){
     + '<br>⚠ 🧾 は<b>レシート1枚ずつ</b>数えます（同じ写真に期間外のレシートが残る時は、写真は消さずに<b>その1枚だけ</b>抜きます）。'
     + '⚠ 💊 は<b>服用開始日</b>が期間に入るものだけです（期間をまたいで飲み続けている薬は消えません）。'
     + '⚠ 🍽 と 🧾 が結び付いている時、片方を消しても<b>もう片方は残ります</b>（結び付きだけ外れます）。'
+    + '⚠ ⭐ いつものメニューと 🍽 も別々です（<b>メニューを消しても、これまでに入れた食事は残ります</b>）。'
     + (p.skipped.length ? `<br>⚠ <b>日付を持たないもの</b>は、期間を決めている間は消しません（${p.skipped.join(' / ')}）＝消すなら「全期間」を選んでください。` : '');
 }
 /* まとめて消すので **1つのトランザクションで一息に**（1件ずつだと数千件で待たされる） */
@@ -9830,6 +10122,8 @@ async function runWipe(p, kinds){
   if (kinds.has('place')) await delMany(PLACES, p.places.map(q => q.key));
   // r73: 🔁 決まりを消しても、すでに入った食事は残す（別のもの＝🍽 を選べば食事も消える）
   if (kinds.has('rp'))    await delMany(REPEATS, p.rps.map(r => r.id));
+  // r95: ⭐ を消しても、そこから入れた食事は残す（🔁 と同じ＝別のもの）
+  if (kinds.has('menu'))  await delMany(MENUS, p.menus.map(m => m.id));
   /* 消えたものを指している結び付きを外す。
      ⚠ 手がかりの印（extras[].rcptId）は消さない＝消したレシートが 📝 のたびに作り直され（課金され）
         よみがえるのを防ぐ（r70 の「同じ手がかりから二度作らない」印をそのまま生かす）。 */
@@ -9842,7 +10136,8 @@ async function runWipe(p, kinds){
   }
   /* 開いたままの画面が「消したもの」を出し続けないようにする。
      ⚠ とくに詳細・編集は、開いたまま保存されると**消したはずのものが戻る**（⚙ は 🍽 の「⚙ 変える」からも開ける） */
-  ['ovDetail', 'ovEdit', 'ovEd2', 'ovMeal', 'ovChk', 'ovMed', 'ovBody', 'ovPic', 'ovAnRes', 'ovPlace', 'ovMlRep'].forEach(id => { if (isOpen(id)) hide(id); });
+  ['ovDetail', 'ovEdit', 'ovEd2', 'ovMeal', 'ovChk', 'ovMed', 'ovBody', 'ovPic', 'ovAnRes', 'ovPlace', 'ovMlRep', 'ovMenuEd']
+    .forEach(id => { if (isOpen(id)) hide(id); });
   closeScope(null);   // r73: 「この食事だけ／全部」を聞いたまま消すと、答えた先の食事がもう居ない
   await renderList(); await renderMeals(); await renderHealth();
   if (isOpen('ovStats')) renderTab();
