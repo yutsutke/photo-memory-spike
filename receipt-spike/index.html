@@ -1262,6 +1262,8 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <button class="x" data-close>✕</button><h2 id="bdTitle">🫀 からだの数字</h2>
   <img id="bdImg" alt="" hidden>
   <div id="bdHead"></div>
+  <!-- r97: ⚖ だけ「前回の計測との差」を出す（本人が最初に持ってきた表にも差の列があった）。無ければ hidden のまま -->
+  <div id="bdDiff" hidden></div>
   <div class="row"><label>種類</label>
     <div class="seg" id="bdKindSeg">
       <button type="button" data-bdkind="bp">🫀 血圧</button>
@@ -1277,6 +1279,8 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <div class="row" style="flex:1"><label>脈（任意）</label><input type="number" inputmode="numeric" min="1" id="bdPulse" placeholder="例: 72"></div>
   </div>
   <div class="row" id="bdWtRow"><label>体重（kg）</label><input type="number" inputmode="decimal" min="0.1" step="0.1" id="bdWeight" placeholder="例: 68.4"></div>
+  <!-- r97: 体組成計の数字（体脂肪率・骨格筋率・基礎代謝・BMI・内臓脂肪レベル）＝欄は WT_METRICS から組む -->
+  <div id="bdWtMore"></div>
   <div class="row"><label>🗒 ひとこと（任意）</label>
     <input id="bdMemo" autocomplete="off" maxlength="100" placeholder="例: 仕事前／仕事後／朝いちばん"></div>
   <div id="bdBody"></div>
@@ -1635,7 +1639,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r96 📷 下の撮るボタンを設定で選べるようにした（☑＝どのタブでも出る・見ているタブの分は今までどおり・🍽 は食事の時間帯のあいだ大きく太く）（2026-08-21）｜r95 ⭐ いつものメニューを覚えて ✍️ 写真なしで記録 の画面の頭からタップで選べるようにした（覚える＝✍️ の ☑／🍽 詳細のボタン・一覧と名前直しは 🍽 タブ）（2026-08-21）｜r94 💰 予算を 📈推移・💴マップ・📤書き出し・📈AI分析 にも渡した（推移＝月ごとに縦線1本／マップ＝月の帯／渡す形＝budget）（2026-08-21）';
+const BUILD = 'r97 ⚖ 体組成計の数字を体重と同じ1件に入れられるようにした（体脂肪率・骨格筋率・基礎代謝・BMI・内臓脂肪レベル／📷 でも読む・前回との差・%の推移・CSV/JSON にも）（2026-08-22）｜r96 📷 下の撮るボタンを設定で選べるようにした（☑＝どのタブでも出る・見ているタブの分は今までどおり・🍽 は食事の時間帯のあいだ大きく太く）（2026-08-21）｜r95 ⭐ いつものメニューを覚えて ✍️ 写真なしで記録 の画面の頭からタップで選べるようにした（覚える＝✍️ の ☑／🍽 詳細のボタン・一覧と名前直しは 🍽 タブ）（2026-08-21）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -2536,10 +2540,27 @@ const MED_JOB = { name: 'medication', schema: medSchema, rules: MED_RULES, maxTo
                   ask: 'この薬の説明書を書き起こして。' };
 
 /* ---------- 🫀 からだの数字（r83） ----------
-   写真＝血圧計・体重計のデジタル表示、または血圧計が印字した記録の紙。
+   写真＝血圧計・体重計・体組成計のデジタル表示、または血圧計が印字した記録の紙。
    ⚠ 印字の紙には**複数回の計測**が並ぶことが普通（1日に何回も測る人がいる）＝返事は計測の配列。
    ⚠ 日時は**印字されているものだけ**書かせる＝無ければ null（撮影時刻で補うのはアプリ側の仕事。
       AI に「無ければ今の時刻」とやらせると、いつの計測か分からないのに埋まってしまう）。 */
+/* r97: ⚖ 体組成計が体重といっしょに出す数字（要望）。
+   🥇 **同じ1回の計測に足す**＝別の記録にすると、同じ1回が2件になって推移も差も合わなくなる。
+   ⚠ 必須は体重だけ・ほかは任意（体重しか出ない体重計もそのまま使える）。
+   この表が唯一の出どころ＝入力欄・一覧・グラフ・CSV・JSON・AI への説明が全部ここから出る（足す時はここだけ直す）。
+   dec＝表示の小数けた（差を「+0.8」の形で出す時に使う）。max＝これより大きい数は読み違いとして捨てる。 */
+const WT_METRICS = [
+  { key: 'fat',    label: '体脂肪率',       short: '体脂肪',   unit: '%',    id: 'bdFat',  ph: '例: 17.8', step: '0.1', max: 100,   dec: 1,
+    json: 'body_fat_pct',        csv: '体脂肪率%',       ai: '体脂肪率（BODY FAT / 体脂肪）を % の数字で' },
+  { key: 'muscle', label: '骨格筋率',       short: '骨格筋',   unit: '%',    id: 'bdMus',  ph: '例: 36.7', step: '0.1', max: 100,   dec: 1,
+    json: 'skeletal_muscle_pct', csv: '骨格筋率%',       ai: '骨格筋率（筋肉率 / MUSCLE）を % の数字で' },
+  { key: 'bmr',    label: '基礎代謝',       short: '基礎代謝', unit: 'kcal', id: 'bdBmr',  ph: '例: 1827', step: '1',   max: 20000, dec: 0,
+    json: 'bmr_kcal',            csv: '基礎代謝kcal',    ai: '基礎代謝（BMR / 基礎代謝量）を kcal の数字で' },
+  { key: 'bmi',    label: 'BMI',            short: 'BMI',      unit: '',     id: 'bdBmi',  ph: '例: 25.2', step: '0.1', max: 300,   dec: 1,
+    json: 'bmi',                 csv: 'BMI',             ai: 'BMI を数字で（⚠ 身長から計算して埋めない。表示に出ていなければ null）' },
+  { key: 'visc',   label: '内臓脂肪レベル', short: '内臓脂肪', unit: '',     id: 'bdVisc', ph: '例: 11',   step: '0.5', max: 100,   dec: 1,
+    json: 'visceral_fat_level',  csv: '内臓脂肪レベル',  ai: '内臓脂肪レベル（VISCERAL FAT）を数字で（単位のない「レベル」）' },
+];
 const bodySchema = () => ({
   type: 'object', additionalProperties: false,
   properties: { readings: { type: 'array', items: {
@@ -2547,12 +2568,13 @@ const bodySchema = () => ({
     properties: { kind: { type: 'string', enum: ['bp', 'weight'] },
                   date: NULLABLE('string'), time: NULLABLE('string'),
                   sys: NULLABLE('integer'), dia: NULLABLE('integer'), pulse: NULLABLE('integer'),
-                  weight: NULLABLE('number') },
-    required: ['kind', 'date', 'time', 'sys', 'dia', 'pulse', 'weight'],
+                  weight: NULLABLE('number'),
+                  ...Object.fromEntries(WT_METRICS.map(m => [m.key, NULLABLE('number')])) },
+    required: ['kind', 'date', 'time', 'sys', 'dia', 'pulse', 'weight', ...WT_METRICS.map(m => m.key)],
   } } },
   required: ['readings'],
 });
-const BODY_RULES = `あなたは血圧計・体重計の表示画面や、血圧計が印字した記録の紙を書き起こす係。
+const BODY_RULES = `あなたは血圧計・体重計・体組成計の表示画面や、血圧計が印字した記録の紙を書き起こす係。
 
 ルール:
 - readings: 写っている計測を1回ぶんずつ**全部**入れる（記録の紙には複数回の計測が並んでいることがある。1行＝1回）。
@@ -2560,11 +2582,13 @@ const BODY_RULES = `あなたは血圧計・体重計の表示画面や、血圧
 - date / time: **印字されている**計測日時だけを書く（date は YYYY-MM-DD・和暦は西暦に。time は HH:MM の24時間制）。印字が無ければ null。⚠ 推測や現在時刻で埋めない。
 - sys / dia / pulse: 血圧の上（最高・SYS）・下（最低・DIA）・脈拍（PULSE / P / 脈）。数字だけ（単位 mmHg・拍/分は書かない）。読めなければ null。
 - weight: 体重を kg の数字で（小数もそのまま）。読めなければ null。
+${WT_METRICS.map(m => `- ${m.key}: ${m.ai}。読めなければ null。`).join('\n')}
+- ⚠ ${WT_METRICS.map(m => m.key).join(' / ')} は**体組成計にだけ出る数字**。1回の計測に体重といっしょに出ているなら、**同じ1つの reading に入れる**（別の reading に分けない）。体重計にしか出ていなければ全部 null。
 - ⚠ 写っていない値を知識や平均で埋めない。ぶれ・反射で読めない桁がある値は null にする。
 - 計測値が1つも写っていなければ readings は空配列。`;
 const BODY_JOB = { name: 'body', schema: bodySchema, rules: BODY_RULES, maxTokens: 6000,
                    effort: 'low', timeoutMs: T_OCR,   // 数字を型に嵌める仕事＝レシートと同じ
-                   ask: 'この血圧計・体重計の表示、または記録の紙から計測値を書き起こして。' };
+                   ask: 'この血圧計・体重計・体組成計の表示、または記録の紙から計測値を書き起こして。' };
 
 /* 📈 分析（r15）＝写真ではなく「溜まったレシートの文字データ」をまとめて読ませる時の頼み方。
    ⚠ 説教させない。家計のデータは弱みなので、責める文章が返ると次から開かなくなる（＝データも溜まらない）。 */
@@ -2630,6 +2654,8 @@ const DATA_NOTES = {
   ],
   body: [
     '血圧・体重の計測記録（format: "body-log"）。1行＝1回の計測。kind が "bp" は血圧（sys=上・dia=下・pulse=脈拍、単位 mmHg と 拍/分）、"weight" は体重（weight_kg）。',
+    `体重の行には体組成計の数字が入っていることがある（${WT_METRICS.map(m => `${m.json}=${m.label}${m.unit ? `・${m.unit}` : ''}`).join('／')}）。⚠ キーが無い＝**その体重計では測っていない**（0 ではない）。同じ1回の計測なので、体重と切り離して読まない。`,
+    '体組成の数字は食事・水分・運動の直後で大きく動く（同じ日でも 1kg・体脂肪率 1% 近く違う）＝note と time を見て、同じような条件どうしで比べる。1回の上下を体質の変化として書かない。',
     '1日に複数回あるのが普通（朝晩・仕事の前後など）＝日付だけで丸めず time も見る。note は計測の状況（「仕事前」「仕事後」など）＝血圧の高低を読む時の大事な文脈。',
     'time_src は時刻の出どころ（printed=機器の印字／photo_taken_at=写真の撮影時刻＝計測直後に撮った前提の近似で数分ずれ得る／manual=手入力）。',
     '健康診断（checkup_log）は年1回の点、これは毎日の線＝合わせて読むと間が埋まる。医療機器の記録ではないので診断はせず、気になる傾向は受診の目安として書く。',
@@ -3016,7 +3042,9 @@ async function analyzeBodyPhoto(img){
   return { data: { readings: (Array.isArray(d.readings) ? d.readings : []).map(x => ({
                      kind: x.kind === 'weight' ? 'weight' : 'bp',
                      date: dateOk(x.date), time: timeOk(x.time),
-                     sys: int(x.sys), dia: int(x.dia), pulse: int(x.pulse), weight: num(x.weight) }))
+                     sys: int(x.sys), dia: int(x.dia), pulse: int(x.pulse), weight: num(x.weight),
+                     // r97: 体組成計の数字＝上限を超えた値は**読み違い**として捨てる（体脂肪率 178% のような桁ずれが線を壊す）
+                     ...Object.fromEntries(WT_METRICS.map(m => [m.key, num(x[m.key]) != null && x[m.key] <= m.max ? num(x[m.key]) : null])) }))
                    // 数字が1つも無い行は残さない（血圧は上下どちらか・体重は重さがあれば残す＝片方読めた行を捨てない）
                    .filter(x => x.kind === 'bp' ? (x.sys != null || x.dia != null) : x.weight != null) },
            meta: { provider: ctx.prov, model: r.model || ctx.model, in: r.in, out: r.out, at: Date.now() } };
@@ -5284,8 +5312,10 @@ document.getElementById('btnMdNew').onclick = () => openMed(null);
 const BD = { period: 'rcpt.body.period', kind: 'rcpt.body.kind', from: 'rcpt.body.from', to: 'rcpt.body.to' };
 const bodyReadingsOf = r => (r.data && Array.isArray(r.data.readings)) ? r.data.readings : [];
 const bodyKindLabel = x => x.kind === 'weight' ? '⚖ 体重' : '🫀 血圧';
+/* r97: ⚖ は体組成計の数字も入るが、一覧は10件並ぶので**体重と体脂肪率まで**（残りは詳細で全部見える）。
+   ⚠ 数字を全部ここに並べると1行が2行になり、日時とひとことが読めなくなる。 */
 const bodyValStr = x => x.kind === 'weight'
-  ? `${x.weight} kg`
+  ? `${x.weight} kg${x.fat != null ? ` ・体脂肪 ${x.fat}%` : ''}`
   : `${x.sys ?? '—'} / ${x.dia ?? '—'}${x.pulse ? ` ・脈 ${x.pulse}` : ''}`;
 // 並べ替え・グラフ用のミリ秒。⚠ 崩れた日時で NaN になったら撮った時刻に落とす（黙って先頭や末尾に飛ばさない）
 const bodyWhenMs = (r, x) => { const t = new Date(`${x.date}T${x.time || '00:00'}:00`).getTime(); return isNaN(t) ? (r.shotAt || r.addedAt) : t; };
@@ -5304,7 +5334,7 @@ async function bodyRowsAll(){
 const renderBody = () => renderBodyKind('bp', 'bodyChart', 'bodyList',
   '📷 で血圧計の画面や、血圧計が印字した記録の紙を撮ると、AI が数値と時刻を書き起こします（紙に並んだ複数回ぶんも全部）。✍️ で手入力もできます。');
 const renderWeight = () => renderBodyKind('weight', 'wtChart', 'wtList',
-  '📷 で体重計の表示を撮ると、AI が数値と時刻を書き起こします。✍️ で手入力もできます。');
+  '📷 で体重計・体組成計の表示を撮ると、AI が数値と時刻を書き起こします（体脂肪率・骨格筋率・基礎代謝・BMI・内臓脂肪レベルも同じ1件に入ります）。✍️ で手入力もできます。');
 async function renderBodyKind(kind, chartId, listId, emptyMsg){
   const all = (await bodyRowsAll()).filter(w => !w.x || w.x.kind === kind);
   const chart = document.getElementById(chartId), list = document.getElementById(listId);
@@ -5373,6 +5403,20 @@ function bodyChartsHtml(rows, kind){
   } else {
     const wt = pts.filter(w => w.x.kind === 'weight');
     if (wt.length >= 2) charts.push(bodySvg('体重（kg）', [{ vals: wt.map(w => [w.at, w.x.weight]), color: 'var(--ok)', label: '' }], []));
+    /* r97: 体組成計の数字も推移で見る。⚠ **単位が同じものだけ同じ図に**（% と kcal を1本の軸に混ぜると
+       % の線が下に潰れて読めない）＝体脂肪率と骨格筋率だけ1枚、ほかは1つずつ。
+       ⚠ 既定で見えるのは体重と %（毎日見る2つ）＝残り3つは畳む（開いた時だけ広がる）。 */
+    const ser = (key, color, label) => {
+      const vals = wt.filter(w => w.x[key] != null).map(w => [w.at, w.x[key]]);
+      return vals.length >= 2 ? { vals, color, label } : null;
+    };
+    const pct = [ser('fat', 'var(--err)', '体脂肪'), ser('muscle', 'var(--acc)', '骨格筋')].filter(Boolean);
+    if (pct.length) charts.push(bodySvg('体脂肪率・骨格筋率（%）', pct, []));
+    const more = ['bmr', 'bmi', 'visc'].map(k => {
+      const m = WT_METRICS.find(v => v.key === k), s = ser(k, 'var(--ok)', '');
+      return s ? bodySvg(`${m.label}${m.unit ? `（${m.unit}）` : ''}`, [s], []) : '';
+    }).join('');
+    if (more) charts.push(`<details class="adv"><summary>ほかの数値の推移（基礎代謝・BMI・内臓脂肪レベル）</summary>${more}</details>`);
   }
   /* ⚠ 描くものが無くても**期間のボタンは必ず出す**（r83 では消していた）＝
      1件も無い期間を選んだ瞬間にボタンごと消え、**選び直せなくなる**（袋小路）。
@@ -5479,10 +5523,46 @@ async function bodyRefresh(id){
 }
 /* 詳細＝1回の計測を見る・直す。写真の記録は「その写真の何件目か」（bdIdx）を持ち回る（レシートの data-i と同じ）。 */
 let bdCur = null, bdIdx = 0, bdNew = false, bdKind = 'bp';
+/* r97: ⚖ の追加欄は WT_METRICS から組み立てる（HTML に5つ書くと表と二重管理になる＝足す時に片方だけ直る）。
+   2つずつ横に並べる（.dual）＝6欄あっても縦に伸びすぎない。 */
+document.getElementById('bdWtMore').innerHTML = (() => {
+  const cell = m => `<div class="row" style="flex:1"><label>${m.label}（${m.unit ? m.unit + '・' : ''}任意）</label>
+    <input type="number" inputmode="decimal" min="0" max="${m.max}" step="${m.step}" id="${m.id}" placeholder="${m.ph}"></div>`;
+  let h = '';
+  for (let i = 0; i < WT_METRICS.length; i += 2) h += `<div class="dual">${WT_METRICS.slice(i, i + 2).map(cell).join('')}</div>`;
+  return h;
+})();
 function bdSyncKind(){
   document.querySelectorAll('#bdKindSeg button').forEach(b => b.classList.toggle('on', b.dataset.bdkind === bdKind));
   document.getElementById('bdBpRow').hidden = bdKind !== 'bp';
   document.getElementById('bdWtRow').hidden = bdKind !== 'weight';
+  document.getElementById('bdWtMore').hidden = bdKind !== 'weight';   // r97: 体重の欄といっしょに出す・消す
+}
+/* r97: 前回の計測との差。⚠ 比べる相手は**この計測より前で いちばん近い ⚖ の計測**（同じ日の朝と夜も別々に比べる）。
+   ⚠ 片方に無い数字は比べない（空欄を 0 として引くと、測っていないものが「−17.8%」に見える）。
+   ⚠ 非同期で書き込むので、途中で別の計測を開いたら捨てる（bdDiffSeq）＝**他人の差**が出るのを防ぐ。 */
+let bdDiffSeq = 0;
+async function fillWtDiff(r, x){
+  const el = document.getElementById('bdDiff'), seq = ++bdDiffSeq;
+  el.hidden = true; el.innerHTML = '';
+  if (!r || !x || x.kind !== 'weight') return;
+  const now = bodyWhenMs(r, x);
+  const prev = (await bodyRowsAll())
+    .filter(w => w.x && w.x.kind === 'weight' && w.at < now)   // 同じ時刻のものは「前」と言えないので入れない
+    .sort((a, b) => b.at - a.at)[0];
+  if (seq !== bdDiffSeq || !prev) return;
+  const parts = [];
+  const push = (label, unit, dec, a, b) => {
+    if (a == null || b == null) return;
+    const d = a - b;
+    parts.push(`${label} ${d === 0 ? '±0' : (d > 0 ? '+' : '−') + Math.abs(d).toFixed(dec)}${unit}`);
+  };
+  push('体重', 'kg', 1, x.weight, prev.x.weight);
+  for (const m of WT_METRICS) push(m.short, m.unit, m.dec, x[m.key], prev.x[m.key]);
+  if (!parts.length) return;
+  el.innerHTML = `<div class="note" style="margin-top:0">前回（${esc(prev.x.date)}${prev.x.time ? ' ' + esc(prev.x.time) : ''}${
+    prev.x.memo ? ' ・🗒 ' + esc(prev.x.memo) : ''}）と比べて<br><b>${parts.join(' ・')}</b></div>`;
+  el.hidden = false;
 }
 function openBody(r, i = 0, presetKind){
   bdCur = r; bdIdx = i; bdNew = !r;
@@ -5508,8 +5588,10 @@ function openBody(r, i = 0, presetKind){
   document.getElementById('bdDia').value = x?.dia ?? '';
   document.getElementById('bdPulse').value = x?.pulse ?? '';
   document.getElementById('bdWeight').value = x?.weight ?? '';
+  for (const m of WT_METRICS) document.getElementById(m.id).value = x?.[m.key] ?? '';   // r97
   document.getElementById('bdMemo').value = x?.memo || '';
   bdSyncKind();
+  fillWtDiff(r, x);   // r97: 前回との差（非同期・出るものが無ければ何も出ない）
   const body = document.getElementById('bdBody');
   const runBtn = r && r.img ? `<button class="btn" id="btnBdRun"${ctxFor('chk').key ? '' : ' disabled style="opacity:.5"'} style="margin-top:10px">📝 写真をもう一度 読み取る</button>` : '';
   if (!r) body.innerHTML = '';
@@ -5559,11 +5641,22 @@ document.getElementById('btnBdSave').onclick = async () => {
     const sys = iv('bdSys'), dia = iv('bdDia'), pulse = iv('bdPulse');
     if ([sys, dia, pulse].some(Number.isNaN)) { toast('血圧・脈は正の数字で入れてください'); return; }
     if (sys == null && dia == null) { toast('上か下、少なくともどちらかの血圧を入れてください'); return; }
-    x = { kind: 'bp', sys, dia, pulse, weight: null };
+    // r97: 種類を ⚖→🫀 に変えたら体組成の数字も落とす（残すと血圧の記録に体脂肪率がぶら下がる）
+    x = { kind: 'bp', sys, dia, pulse, weight: null, ...Object.fromEntries(WT_METRICS.map(m => [m.key, null])) };
   } else {
     const w = +document.getElementById('bdWeight').value;
     if (!(w > 0)) { toast('体重を正の数字で入れてください'); return; }
-    x = { kind: 'weight', sys: null, dia: null, pulse: null, weight: Math.round(w * 100) / 100 };
+    /* r97: 体組成計の数字は**任意**＝空欄は null（0 にしない。0 は「測って 0 だった」に見える）。
+       ⚠ 上限を超えた値はここで止める＝打ち間違い（体脂肪率 178%）が入るとグラフが潰れる。 */
+    const more = {};
+    for (const m of WT_METRICS) {
+      const s = document.getElementById(m.id).value.trim();
+      if (s === '') { more[m.key] = null; continue; }
+      const v = +s;
+      if (!(v > 0) || v > m.max) { toast(`${m.label}は 0 より大きく ${m.max}${m.unit} までの数字で入れてください`); return; }
+      more[m.key] = Math.round(v * 100) / 100;
+    }
+    x = { kind: 'weight', sys: null, dia: null, pulse: null, weight: Math.round(w * 100) / 100, ...more };
   }
   x.memo = document.getElementById('bdMemo').value.trim() || null;
   localStorage.setItem(BD.kind, bdKind);
@@ -7301,9 +7394,12 @@ function exportMedCsv(list){
 // r83: 🫀 からだの数字（1行＝1回の計測）
 function exportBodyCsv(list){
   const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
-  const out = [['日付', '時刻', '種類', '上(最高)', '下(最低)', '脈拍', '体重kg', '時刻の出どころ', '入れ方', 'ひとこと'].join(',')];
+  // r97: 体組成計の数字も列に（列は WT_METRICS の順＝入力欄・JSON と同じ並び）
+  const out = [['日付', '時刻', '種類', '上(最高)', '下(最低)', '脈拍', '体重kg', ...WT_METRICS.map(m => m.csv),
+                '時刻の出どころ', '入れ方', 'ひとこと'].join(',')];
   for (const { r, x } of list)
     out.push([x.date, x.time, x.kind === 'bp' ? '血圧' : '体重', x.sys, x.dia, x.pulse, x.weight,
+              ...WT_METRICS.map(m => x[m.key] ?? null),
               x.tSrc === 'printed' ? '印字' : x.tSrc === 'photo' ? '撮影時刻' : '手入力', r.img ? '写真' : '手入力', x.memo].map(esc).join(','));
   return '﻿' + out.join('\n');
 }
@@ -7445,10 +7541,13 @@ async function exportPayload(rows, from, to){
   if (bud) o.budget = bud;
   // r83: 🫀 からだの数字（血圧・体重）＝1行が1回の計測
   const bd = expBodyOn() ? await bodyFor(from, to) : [];
-  if (bd.length) o.body_log = { format: 'body-log', version: 1, count: bd.length,
+  // r97: version 2＝体組成計の数字（体脂肪率など）を足した。⚠ **入っている数字だけ**キーを出す
+  //      （測っていないものを null で並べると「測ったが 0」と読み違えられる）
+  if (bd.length) o.body_log = { format: 'body-log', version: 2, count: bd.length,
     readings: bd.map(({ r, x }) => ({
       date: x.date, time: x.time, kind: x.kind,
-      ...(x.kind === 'bp' ? { sys: x.sys, dia: x.dia, pulse: x.pulse } : { weight_kg: x.weight }),
+      ...(x.kind === 'bp' ? { sys: x.sys, dia: x.dia, pulse: x.pulse }
+        : { weight_kg: x.weight, ...Object.fromEntries(WT_METRICS.filter(m => x[m.key] != null).map(m => [m.json, x[m.key]])) }),
       time_src: x.tSrc === 'printed' ? 'printed' : x.tSrc === 'photo' ? 'photo_taken_at' : 'manual',
       source: r.img ? 'photo' : 'hand', ...(x.memo ? { note: x.memo } : {}) })) };
   const readme = {
