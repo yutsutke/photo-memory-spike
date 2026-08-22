@@ -387,7 +387,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 #topTabs{position:sticky; top:calc(env(safe-area-inset-top) + 52px); z-index:4; background:rgba(17,17,17,.96);
   backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:8px 14px;}
 #topTabs .seg button{padding:8px 4px; font-size:14.5px;}
-/* 🖼 r100: 下の帯の「写真から選ぶ」を隠す／出す（要望「写真のアイコンが増えすぎると画面が見にくい」）。
+/* 📷 r101: 下の帯（撮るボタン）を隠す／出す（要望「アイコンが画面に被って見にくい」）。
    ⚠ タブの行に**同居させる**＝新しい段を足さない（トップのいちばん上は毎画面で場所を取る）。
    ⚠ 切ってあることが**押す前から分かる**ように、消し線と灰色にする（同じ絵のままだと壊れたように見える）。 */
 #topTabs .topRow{display:flex; gap:8px; align-items:stretch;}
@@ -628,9 +628,9 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
       <button type="button" data-top="meals">🍽 食事</button>
       <button type="button" data-top="health">🩺 健康</button>
     </div>
-    <!-- 🖼 r100: 下の帯の「写真から選ぶ」を隠す／出す（要望）。⚠ **どのタブに居ても同じ場所**に1つだけ置く
-         （画面ごとに置くと押す場所が散る）。⚠ 📷（撮る）は隠さない。 -->
-    <button type="button" id="btnPhotos" title="下の 🖼（写真から選ぶ）を隠す／出す" aria-pressed="true" aria-label="下の帯の「写真から選ぶ」を隠す・出す">🖼</button>
+    <!-- 📷 r101: 下の帯（撮るボタン）ぜんぶを隠す／出す（要望）。⚠ **どのタブに居ても同じ場所**に1つだけ置く
+         （画面ごとに置くと押す場所が散る）＝隠している間もここに居るのが、戻す道そのもの。 -->
+    <button type="button" id="btnPhotos" title="下の撮るボタンを隠す／出す" aria-pressed="true" aria-label="下の撮るボタンを隠す・出す">📷</button>
   </div>
 </div>
 
@@ -976,6 +976,12 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <div id="shootPinBox"></div>
   </div>
   <div class="note">☑ を入れたボタンは<b>どのタブでも</b>下の帯に出ます＝アプリを開いて<b>ワンタップ</b>でそのカメラが起動します。☑ が無くても、<b>見ているタブのボタンは今までどおり</b>出ます（この設定で入口が消えることはありません）。撮ったあとは、その記録のあるタブへ移ります。<br>🍽 料理は<b>食事の時間帯</b>（朝/昼/夕・🍽 タブで変更）のあいだ<b>大きく</b>なります。⚠ たくさん選ぶと帯が<b>2段</b>になります。</div>
+  <!-- 🖼 r101: 「写真から選ぶ」を出すか（r100 ではトップのボタンだった＝毎日押すものではないのでここへ移した）。
+       ⚠ トップのいちばん上の 📷 は「帯ぜんぶを今すぐ消す」＝役目が違うので、同じ設定を2か所に置いたことにならない。 -->
+  <label class="mlChk" for="ckShootPick" style="margin-top:10px">
+    <input type="checkbox" id="ckShootPick">
+    <span class="n">🖼 「写真から選ぶ」も出す<br><small>外すと、下の帯は <b>📷 撮る</b> だけになります。⚠ カメラロールにある写真を入れる道はこの 🖼 だけなので、使う時はここを戻してください。帯を<b>ぜんぶ</b>今すぐ消したい時は、上の 📷 を押します。</small></span>
+  </label>
   <!-- 📷 写真の保存サイズ（r75）＝要望「そのままか、縮小か選べるように」 -->
   <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
     <label>📷 写真の保存サイズ</label>
@@ -1683,7 +1689,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r100 🖼 下の帯の「写真から選ぶ」を隠す／出すをトップのいちばん上に置いた（📷 撮るは残る・既定は今までどおり出す／r99 の一覧サムネ隠しは本人の指摘で撤去）（2026-08-22）｜r98 🔁 繰り返しの管理画面を作った（🍽 の下の帯から独立・次にいつ入るか／これまで何食入ったか・止める/直す/やめる）（2026-08-22）｜r97 ⚖ 体組成計の数字を体重と同じ1件に入れられるようにした（体脂肪率・骨格筋率・基礎代謝・BMI・内臓脂肪レベル／📷 でも読む・前回との差・%の推移・CSV/JSON にも）（2026-08-22）';
+const BUILD = 'r101 📷 下の帯（撮るボタン）ぜんぶを隠す／出すに変えた（トップのいちばん上・隠すと下の余白も0＝画面が広がる／🖼 だけ隠す設定は ⚙ へ移した）（2026-08-22）｜r100 🖼 下の帯の「写真から選ぶ」を隠す／出すをトップのいちばん上に置いた（📷 撮るは残る・既定は今までどおり出す／r99 の一覧サムネ隠しは本人の指摘で撤去）（2026-08-22）｜r98 🔁 繰り返しの管理画面を作った（🍽 の下の帯から独立・次にいつ入るか／これまで何食入ったか・止める/直す/やめる）（2026-08-22）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1711,14 +1717,22 @@ const LS = {
   budCats: 'rcpt.budget.cats',
   budMon:  'rcpt.budget.mon',
 };
-/* ---------- 🖼 下の帯の「写真から選ぶ」を隠す／出す（r100） ----------
+/* ---------- 📷 下の帯（撮るボタン）を隠す／出す（r99→r100→r101） ----------
    要望＝「**写真のアイコンが増えすぎると、画面を見たいときに見にくくなる。写真のオンオフをできるように。
-   トップ画面の1番上**」＝**下の帯の 🖼（写真から選ぶ）のボタン**のこと（本人が画面で指してくれた）。
-   ⚠ r99 では「一覧のサムネを隠す」と読み違えて作った＝**本人から不要と言われて外した**。
-      増えて困っていたのは**押すボタンの数**（1つの目的につき 📷 と 🖼 の2つ＝r96 で ☑ を増やすと倍で増える）で、
-      一覧の写真ではない。⚠ **「写真のアイコン」が何を指すかは、画面のどこかを聞いてから作る**。
-   🥇 既定＝今までどおり出す（何もしなければ見た目は 1px も変わらない）。
-   ⚠ 隠すのは 🖼 だけ＝**📷（撮る）は必ず残す**（写真から選ぶ道が消えても、撮る道は塞がない）。 */
+   トップ画面の1番上**」→ 3手かかって、ようやく困りごとの形が分かった:
+     r99  一覧のサムネを隠す ＝ **読み違い**（本人「一覧の写真の隠すボタンは不要です」）→ 撤去
+     r100 帯の 🖼（写真から選ぶ）だけ隠す ＝ 方向は合ったが**足りない**
+     r101 **帯ぜんぶ**を隠す ＝ 本人「アイコンを消しても、またこんなアイコンが表示されるので、これらも非表示に」
+   🥇 困っていたのは**ボタンの数**ではなく、**帯が画面の中身に被ること**だった（本人のスクショで、帯が
+      血圧のグラフと「破線＝家庭血圧の…」の文字に重なっていた）。帯は position:fixed で常に下に浮くので、
+      **何個に減らしても被る**＝減らす方向では解けない。だから「ぜんぶ消す」を1タップで置く。
+   ⚠ 隠している間は **body の下の余白（既定 90px）も 0 にする**＝帯が無いのに空白が残ると、
+      画面が広がった感じにならない（消した意味が半分になる）。
+   ⚠ 戻し方は同じボタン1つ＝いつでもトップのいちばん上に居て、切ってある間は消し線が出る。 */
+const BAR_ON = 'rcpt.shoot.bar';
+const barOn = () => localStorage.getItem(BAR_ON) !== '0';
+/* 🖼 r100→r101: 「写真から選ぶ」だけ出さない、は ⚙ の ☑ に移した（毎日押すものではない＝
+   トップのいちばん上は「今すぐ画面を広くしたい」の1つだけに使う）。既定＝出す。 */
 const PICKS_ON = 'rcpt.shoot.pick';
 const picksOn = () => localStorage.getItem(PICKS_ON) !== '0';
 /* 一覧のサムネ1つ分（r99 で7か所に散っていた同じ if を1つにまとめたもの＝ここは残す）。
@@ -4859,21 +4873,21 @@ async function setTopTab(t){
   }
   else if (t === 'health') await renderHealth();
 }
-/* 🖼 r100: 下の帯の「写真から選ぶ」を隠す／出す。
-   ⚠ 描き直すのは帯だけ（renderShootBar が .pick の出し入れと、2段になった時の余白まで面倒を見る）。
+/* 📷 r101: 下の帯ぜんぶを隠す／出す。
+   ⚠ 描き直すのは帯だけ（renderShootBar が 出し入れ・余白の両方を面倒を見る）。
    ⚠ 押した結果を必ず言う＝**ボタンが消えた＝壊れた**に見せない・戻し方を同じ一言に入れる。 */
 function syncPhotoBtn(){
-  const b = document.getElementById('btnPhotos'), on = picksOn();
+  const b = document.getElementById('btnPhotos'), on = barOn();
   b.classList.toggle('off', !on);
   b.setAttribute('aria-pressed', String(on));
-  b.title = on ? '下の 🖼（写真から選ぶ）を隠す' : '下の 🖼（写真から選ぶ）を出す';
+  b.title = on ? '下の撮るボタンを隠す（画面を広く見る）' : '下の撮るボタンを出す';
 }
 document.getElementById('btnPhotos').onclick = () => {
-  localStorage.setItem(PICKS_ON, picksOn() ? '0' : '1');
+  localStorage.setItem(BAR_ON, barOn() ? '0' : '1');
   syncPhotoBtn();
   renderShootBar();
-  toast(picksOn() ? '🖼 下の「写真から選ぶ」を出します'
-                  : '🖼 下の「写真から選ぶ」を隠しました（📷 で撮るのはそのまま・もう一度押すと戻ります）');
+  toast(barOn() ? '📷 下の撮るボタンを出します'
+                : '📷 下の撮るボタンを隠しました（画面が広くなります・もう一度押すと戻ります）');
 };
 /* ---------- r84: 🩺 の中を3つに分ける（🫀 血圧・体重／💊 薬／🩺 健診） ----------
    要望＝「データが増えたときが見えにくくなりそう。健康タブの下にもう一つタブが必要かも」。
@@ -4918,6 +4932,15 @@ const shootPins = () => { try { const a = JSON.parse(localStorage.getItem(SHOOT_
                                 return Array.isArray(a) ? a.filter(id => SHOOT_GRPS.some(g => g[0] === id)) : []; }
                           catch (_) { return []; } };
 function renderShootBar(){
+  /* 📷 r101: 帯ぜんぶを隠す＝**いちばん先に見る**（隠すなら中の出し分けも余白の測り直しも要らない）。
+     ⚠ 余白は 0 にする（帯が無いのに 90px 空いたままだと、画面が広がった感じにならない）。 */
+  const bar = document.getElementById('shoot');
+  bar.hidden = !barOn();
+  if (bar.hidden) { document.body.style.paddingBottom = '0px'; return; }
+  /* ⚠ 出す時は**ここで先に**余白を既定（CSS の 90px）へ戻す＝下の rAF まかせにすると、
+     rAF が遅れる・回らない場面（隠している間に別のタブへ行った等）で 0px のまま残り、
+     一覧の最後が帯の裏に潜る。2段になった時の実寸合わせだけを rAF に任せる。 */
+  document.body.style.paddingBottom = '';
   const pins = shootPins();
   const ctx = topTab === 'health' ? [healthTab] : ['rcpt', 'meal'];   // 見ているタブの塊＝今までどおりの分
   const mealNow = slotOfTime(Date.now()) !== 'snack';                 // 朝/昼/夕の窓の中か
@@ -4953,7 +4976,13 @@ function renderShootPins(){
   document.getElementById('shootPinBox').innerHTML = SHOOT_GRPS.map(([id, icon, label]) =>
     `<label class="mlChk"><input type="checkbox" data-shootpin="${id}"${pins.includes(id) ? ' checked' : ''}>`
     + `<span class="n">${icon} ${esc(label)}</span></label>`).join('');
+  document.getElementById('ckShootPick').checked = picksOn();   // r101: 🖼 を出すか
 }
+document.getElementById('ckShootPick').onchange = e => {
+  localStorage.setItem(PICKS_ON, e.target.checked ? '1' : '0');
+  renderShootBar();
+  toast(picksOn() ? '🖼 「写真から選ぶ」を出します' : '🖼 「写真から選ぶ」を隠しました（帯は 📷 だけになります）');
+};
 document.getElementById('shootPinBox').addEventListener('change', e => {
   const cb = e.target.closest('[data-shootpin]'); if (!cb) return;
   const s = new Set(shootPins());
