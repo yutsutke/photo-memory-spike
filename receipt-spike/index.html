@@ -35,6 +35,8 @@ header .sp{flex:1;}
 /* r96: 置くボタンを選べるようにした＝たくさん選ばれたら**折り返して2段**にする（横に切らない・スクロールもさせない）。
    下の一覧が隠れる分は renderShootBar が body の余白を帯の実寸に合わせて空ける。 */
 #shoot{position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 14px); z-index:5; display:flex; flex-wrap:wrap; row-gap:8px; justify-content:center; align-items:center; gap:10px; pointer-events:none;}
+/* 🖼 r100: 隠した「写真から選ぶ」は消す。⚠ label は display:flex なので [hidden] だけでは消えない */
+#shoot label[hidden]{display:none;}
 #shoot label{pointer-events:auto; white-space:nowrap; display:flex; align-items:center; gap:8px; background:var(--acc); color:#04121f; font-weight:700; font-size:17px; border-radius:28px; padding:14px 26px; box-shadow:0 4px 16px rgba(0,0,0,.5);}
 /* r41: 3つ並べる＝1つあたりを詰める。⚠ 料理はレシートと同じ重さで置く（片方だけ弱くしない）
    ⚠ 狭い画面では絵文字だけにする（切れた文字を出すくらいなら出さない・r33） */
@@ -385,7 +387,7 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 #topTabs{position:sticky; top:calc(env(safe-area-inset-top) + 52px); z-index:4; background:rgba(17,17,17,.96);
   backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:8px 14px;}
 #topTabs .seg button{padding:8px 4px; font-size:14.5px;}
-/* 🖼 r99: 一覧の写真を隠す／出す（要望「写真のアイコンが増えすぎると画面が見にくい」）。
+/* 🖼 r100: 下の帯の「写真から選ぶ」を隠す／出す（要望「写真のアイコンが増えすぎると画面が見にくい」）。
    ⚠ タブの行に**同居させる**＝新しい段を足さない（トップのいちばん上は毎画面で場所を取る）。
    ⚠ 切ってあることが**押す前から分かる**ように、消し線と灰色にする（同じ絵のままだと壊れたように見える）。 */
 #topTabs .topRow{display:flex; gap:8px; align-items:stretch;}
@@ -626,9 +628,9 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
       <button type="button" data-top="meals">🍽 食事</button>
       <button type="button" data-top="health">🩺 健康</button>
     </div>
-    <!-- 🖼 r99: 一覧の写真を隠す／出す（要望）。⚠ **どのタブに居ても同じ場所**に1つだけ置く
-         （画面ごとに置くと押す場所が散る）。⚠ 効くのは一覧だけ＝1件を開けば写真は必ず見える。 -->
-    <button type="button" id="btnPhotos" title="一覧の写真を隠す／出す" aria-pressed="true" aria-label="一覧の写真を隠す・出す">🖼</button>
+    <!-- 🖼 r100: 下の帯の「写真から選ぶ」を隠す／出す（要望）。⚠ **どのタブに居ても同じ場所**に1つだけ置く
+         （画面ごとに置くと押す場所が散る）。⚠ 📷（撮る）は隠さない。 -->
+    <button type="button" id="btnPhotos" title="下の 🖼（写真から選ぶ）を隠す／出す" aria-pressed="true" aria-label="下の帯の「写真から選ぶ」を隠す・出す">🖼</button>
   </div>
 </div>
 
@@ -1681,7 +1683,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r99 🖼 一覧の写真を隠す／出すをトップのいちばん上に置いた（効くのは一覧だけ・1件を開けば見える／📸 からだの写真は隠さない）（2026-08-22）｜r98 🔁 繰り返しの管理画面を作った（🍽 の下の帯から独立・次にいつ入るか／これまで何食入ったか・止める/直す/やめる）（2026-08-22）｜r97 ⚖ 体組成計の数字を体重と同じ1件に入れられるようにした（体脂肪率・骨格筋率・基礎代謝・BMI・内臓脂肪レベル／📷 でも読む・前回との差・%の推移・CSV/JSON にも）（2026-08-22）';
+const BUILD = 'r100 🖼 下の帯の「写真から選ぶ」を隠す／出すをトップのいちばん上に置いた（📷 撮るは残る・既定は今までどおり出す／r99 の一覧サムネ隠しは本人の指摘で撤去）（2026-08-22）｜r98 🔁 繰り返しの管理画面を作った（🍽 の下の帯から独立・次にいつ入るか／これまで何食入ったか・止める/直す/やめる）（2026-08-22）｜r97 ⚖ 体組成計の数字を体重と同じ1件に入れられるようにした（体脂肪率・骨格筋率・基礎代謝・BMI・内臓脂肪レベル／📷 でも読む・前回との差・%の推移・CSV/JSON にも）（2026-08-22）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1709,24 +1711,21 @@ const LS = {
   budCats: 'rcpt.budget.cats',
   budMon:  'rcpt.budget.mon',
 };
-/* ---------- 🖼 一覧の写真を隠す／出す（r99） ----------
+/* ---------- 🖼 下の帯の「写真から選ぶ」を隠す／出す（r100） ----------
    要望＝「**写真のアイコンが増えすぎると、画面を見たいときに見にくくなる。写真のオンオフをできるように。
-   トップ画面の1番上**」。
-   🥇 **判定は1か所**＝出す側（レシート・食事・週の枠・🔁・⭐・🩺・💊）は全部この関数を見る。
-   ⚠ 効くのは**一覧だけ**＝1件を開いた詳細では必ず写真が見える（隠したいのは「探している時に目が滑ること」で、
-      写真を捨てたいわけではない）。
-   ⚠ 📸 からだの写真の一覧だけは外す＝そこは**写真そのものが中身**（隠すと画面が空になる）。
-   ⚠ 写真を消した所には**同じ大きさの枠を残す**＝並びも押せる場所も動かない（何件あるかも見える）。 */
-const PH_ON = 'rcpt.photos';
-const photosOn = () => localStorage.getItem(PH_ON) !== '0';
-/* 隠している時の印。⚠ 「写真の無い記録」の印（✍️ ⭐ 💊 🔁）とは**別の絵**にする＝
-   「隠している（戻せば出る）」と「そもそも無い」は違うことなので、同じ絵で混ぜない。 */
-const PH_MARK = '🖼';
-/* 一覧のサムネ1つ分。blob 無し＝写真の無い記録（noIcon）／写真オフ＝PH_MARK。
+   トップ画面の1番上**」＝**下の帯の 🖼（写真から選ぶ）のボタン**のこと（本人が画面で指してくれた）。
+   ⚠ r99 では「一覧のサムネを隠す」と読み違えて作った＝**本人から不要と言われて外した**。
+      増えて困っていたのは**押すボタンの数**（1つの目的につき 📷 と 🖼 の2つ＝r96 で ☑ を増やすと倍で増える）で、
+      一覧の写真ではない。⚠ **「写真のアイコン」が何を指すかは、画面のどこかを聞いてから作る**。
+   🥇 既定＝今までどおり出す（何もしなければ見た目は 1px も変わらない）。
+   ⚠ 隠すのは 🖼 だけ＝**📷（撮る）は必ず残す**（写真から選ぶ道が消えても、撮る道は塞がない）。 */
+const PICKS_ON = 'rcpt.shoot.pick';
+const picksOn = () => localStorage.getItem(PICKS_ON) !== '0';
+/* 一覧のサムネ1つ分（r99 で7か所に散っていた同じ if を1つにまとめたもの＝ここは残す）。
+   blob 無し＝写真の無い記録（noIcon の印を出す）。
    ⚠ 作った URL は必ず控え（urls）に積む＝revoke 漏れはメモリ事故（r5）。 */
 const listThumb = (blob, urls, noIcon) => {
   if (!blob) return `<div class="noimg" aria-hidden="true">${noIcon}</div>`;
-  if (!photosOn()) return `<div class="noimg" aria-hidden="true">${PH_MARK}</div>`;
   const u = URL.createObjectURL(blob); urls.push(u);
   return `<img src="${u}" alt="">`;
 };
@@ -3212,7 +3211,6 @@ const mealLine = m => m.status === 'done' ? (m.data?.summary || '（書き起こ
 /* r80: その食事の「絵」＝写真が無ければ**何で作ったかの印**を出す（.mlCard / .mlMate / .mlX で共通）。
    ⚠ 出す側4か所で同じ if を書かない＝1か所にすると、あとで印を足しても全部の画面が揃う。
    ⚠ 作った URL は必ず控えに積む（積み忘れ＝revoke 漏れ＝r5 で踏んだメモリ事故）。 */
-// r99: 写真オフなら同じ大きさの枠に 🖼 だけ（写真の無い記録の印とは分ける＝listThumb）
 const mealThumbHtml = (m, urls) =>
   listThumb(mealNoPhoto(m) ? null : (m.thumb || m.img), urls, madeIcon(m) || '✍️');
 // 書き起こせる（＝まだ中身が無い）写真＝失って困るものが無いので、まとめてやり直してよい（r29 の線引き）
@@ -3334,8 +3332,6 @@ async function renderWeek(){
         /* r80: 写真なしの記録も**1マスとして出す**＝出さないと「入れたのに週に居ない」になる。
            ⚠ <img> でなく <div> になるので、長押しの持ち上げ（ghost）は複製で作る（下の pointerdown）。 */
         if (mealNoPhoto(m)) return `<div class="${cls} noimg" data-meal="${esc(m.id)}" ${tip}>${madeIcon(m) || '✍️'}</div>`;
-        // r99: 写真オフ＝マスは残して印だけ（消すと「入れたのに週に居ない」になる＝r80 と同じ理由）
-        if (!photosOn()) return `<div class="${cls} noimg" data-meal="${esc(m.id)}" ${tip}>${PH_MARK}</div>`;
         const u = URL.createObjectURL(m.thumb); mlThumbUrls.push(u);
         return `<img class="${cls}" draggable="false" src="${u}" data-meal="${esc(m.id)}" alt="${esc(mealLine(m)).slice(0, 30)}" ${tip}>`;
       }).join('') + '</div>';
@@ -4863,24 +4859,21 @@ async function setTopTab(t){
   }
   else if (t === 'health') await renderHealth();
 }
-/* 🖼 r99: 一覧の写真を隠す／出す。⚠ **見ているタブだけでは足りない**＝別のタブに前の描画が残っていると
-   そこだけ写真が出たままになる → 3つとも呼ぶ（🧾 は常に描き直る／🍽 も描き直る／🩺 は renderHealth が
-   「🩺 を見ている時だけ描く」作りなので、他のタブに居る時は空振りするが、🩺 に移った時に必ず描き直る）。
-   ⚠ 押した結果を必ず言う（写真が消えた＝壊れた、に見せない）。 */
+/* 🖼 r100: 下の帯の「写真から選ぶ」を隠す／出す。
+   ⚠ 描き直すのは帯だけ（renderShootBar が .pick の出し入れと、2段になった時の余白まで面倒を見る）。
+   ⚠ 押した結果を必ず言う＝**ボタンが消えた＝壊れた**に見せない・戻し方を同じ一言に入れる。 */
 function syncPhotoBtn(){
-  const b = document.getElementById('btnPhotos'), on = photosOn();
+  const b = document.getElementById('btnPhotos'), on = picksOn();
   b.classList.toggle('off', !on);
   b.setAttribute('aria-pressed', String(on));
-  b.title = on ? '一覧の写真を隠す' : '一覧に写真を出す';
+  b.title = on ? '下の 🖼（写真から選ぶ）を隠す' : '下の 🖼（写真から選ぶ）を出す';
 }
-document.getElementById('btnPhotos').onclick = async () => {
-  localStorage.setItem(PH_ON, photosOn() ? '0' : '1');
+document.getElementById('btnPhotos').onclick = () => {
+  localStorage.setItem(PICKS_ON, picksOn() ? '0' : '1');
   syncPhotoBtn();
-  await renderList();     // 🧾 レシートの一覧
-  await renderMeals();    // 🍽 週のマス目・1日のカード・🔁 の帯・⭐ の一覧
-  await renderHealth();   // 🩺 健診・💊 薬（⚠ 📸 からだの写真は隠さない＝写真そのものが中身）
-  if (isOpen('ovRepeats')) await renderRepeatManage();
-  toast(photosOn() ? '🖼 一覧に写真を出します' : '🖼 一覧の写真を隠しました（1件を開けば見えます）');
+  renderShootBar();
+  toast(picksOn() ? '🖼 下の「写真から選ぶ」を出します'
+                  : '🖼 下の「写真から選ぶ」を隠しました（📷 で撮るのはそのまま・もう一度押すと戻ります）');
 };
 /* ---------- r84: 🩺 の中を3つに分ける（🫀 血圧・体重／💊 薬／🩺 健診） ----------
    要望＝「データが増えたときが見えにくくなりそう。健康タブの下にもう一つタブが必要かも」。
@@ -4933,6 +4926,11 @@ function renderShootBar(){
     g.hidden = !(pins.includes(id) || ctx.includes(id));
     g.classList.toggle('now', id === 'meal' && !g.hidden && mealNow);
   }
+  /* 🖼 r100: 「写真から選ぶ」を隠す／出す（トップのいちばん上のボタン）。
+     ⚠ 📷（撮る）は必ず残す＝選ぶ道を畳んでも、撮る道は塞がない。
+     ⚠ ここで一緒にやる＝出し入れの後に下の余白を測り直すので、隠した分だけ帯が縮んだのも拾える。 */
+  const showPick = picksOn();
+  document.querySelectorAll('#shoot .pick').forEach(p => { p.hidden = !showPick; });
   /* 2段に折り返した時、一覧の最後が帯の裏に隠れないように、下の余白を帯の実寸に合わせる。
      ⚠ **折り返している時だけ**上書きし、1段なら CSS の既定（90px）に返す＝高さの計算で既定の見た目を
         1px も動かさない。⚠ 段の判定は「上端の差が 30px 超」＝offsetTop の種類の数で見ると、
@@ -10602,7 +10600,7 @@ function toast(msg, onTap, ms){
    ⚠ 設定を**勝手に開かない**＝最初の画面を塞ぐと、撮る前に設定を触らされる（r38 の逆）。押した人だけ開く。
    ⚠ 出すのは1回だけ（毎回の起動では出るが、1回の起動の中で繰り返さない）。キーを入れれば二度と出ない。 */
 (async () => {
-  syncPhotoBtn();   // r99: 🖼 の見た目を、覚えている設定に合わせる（描く前＝一覧に写真が出るかと揃える）
+  syncPhotoBtn();   // r100: 🖼 の見た目を、覚えている設定に合わせる（帯を描く前＝ボタンと帯が食い違わない）
   await renderList();
   const rpMade = await rpTick();   // r73: 🔁 ⚡「確かめずに入れる」ぶんを、描く前に入れておく
   await setTopTab(topTab);   // r65: 前回見ていたタブで開く（🍽 / 🩺 ならそのタブを描く）
