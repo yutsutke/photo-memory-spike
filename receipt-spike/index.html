@@ -385,6 +385,31 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
 #topTabs{position:sticky; top:calc(env(safe-area-inset-top) + 52px); z-index:4; background:rgba(17,17,17,.96);
   backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:8px 14px;}
 #topTabs .seg button{padding:8px 4px; font-size:14.5px;}
+/* 🖼 r99: 一覧の写真を隠す／出す（要望「写真のアイコンが増えすぎると画面が見にくい」）。
+   ⚠ タブの行に**同居させる**＝新しい段を足さない（トップのいちばん上は毎画面で場所を取る）。
+   ⚠ 切ってあることが**押す前から分かる**ように、消し線と灰色にする（同じ絵のままだと壊れたように見える）。 */
+#topTabs .topRow{display:flex; gap:8px; align-items:stretch;}
+#topTabs .topRow .seg{flex:1; min-width:0;}
+#btnPhotos{flex:none; width:48px; background:var(--card); border:1px solid var(--line); color:var(--fg);
+  border-radius:10px; font-size:17px; line-height:1; position:relative;}
+#btnPhotos.off{color:var(--dim); background:var(--bg);}
+#btnPhotos.off::after{content:''; position:absolute; left:9px; right:9px; top:50%; height:2px;
+  background:var(--err); border-radius:2px; transform:rotate(-24deg);}
+/* 🔁 r98: 繰り返しの管理（1件＝1枚の札）。⚠ 一覧の 1行（.rpRow）と違って
+   **止める・直す・やめる を字で出す**＝管理の画面では「どれが何の絵か」を思い出させない。 */
+.rpMg{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:10px;}
+.rpMg.off{opacity:.55;}
+.rpMg .hd{display:flex; gap:10px; align-items:center;}
+.rpMg .hd img{width:48px; height:48px; object-fit:cover; border-radius:8px; background:#000; flex:none;}
+.rpMg .hd .noimg{width:48px; height:48px; border-radius:8px; flex:none; font-size:19px; background:var(--bg);}
+.rpMg .bd{flex:1; min-width:0;}
+.rpMg .t{font-size:14.5px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.rpMg .s{font-size:11.5px; color:var(--dim); margin-top:3px;}
+.rpMg .s b{color:var(--fg);}
+.rpMg .bs{display:flex; gap:8px; margin-top:10px;}
+.rpMg .bs button{flex:1; min-height:44px; background:var(--bg); border:1px solid var(--line); color:var(--fg);
+  border-radius:10px; font-size:13.5px;}
+.rpMg .bs button.stop{color:var(--err);}
 /* 🍽 食事をトップに置いた（r65）＝モーダルの中身をそのまま main に移した。見出しは要らない（タブが見出し） */
 #mealsPane,#healthPane{padding-top:4px;}
 /* 🩺 健康（r65）＝健康診断と薬の2つの塊。塊の見出しは食事の枠（.mlSlot>.h）と同じ重さで */
@@ -595,10 +620,15 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
      🍽 食事はモーダル（旧 ovMeals）から main の中へ移した。🩺 健康＝健康診断＋薬（r65 で新設）。
      ⚠ 🔍 検索を開いている間は隠す（同じ位置に貼り付くので重なる・検索はレシートの一覧に効く） -->
 <div id="topTabs">
-  <div class="seg" id="topSeg">
-    <button type="button" data-top="receipts">🧾 レシート</button>
-    <button type="button" data-top="meals">🍽 食事</button>
-    <button type="button" data-top="health">🩺 健康</button>
+  <div class="topRow">
+    <div class="seg" id="topSeg">
+      <button type="button" data-top="receipts">🧾 レシート</button>
+      <button type="button" data-top="meals">🍽 食事</button>
+      <button type="button" data-top="health">🩺 健康</button>
+    </div>
+    <!-- 🖼 r99: 一覧の写真を隠す／出す（要望）。⚠ **どのタブに居ても同じ場所**に1つだけ置く
+         （画面ごとに置くと押す場所が散る）。⚠ 効くのは一覧だけ＝1件を開けば写真は必ず見える。 -->
+    <button type="button" id="btnPhotos" title="一覧の写真を隠す／出す" aria-pressed="true" aria-label="一覧の写真を隠す・出す">🖼</button>
   </div>
 </div>
 
@@ -680,10 +710,13 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
       <div class="hH">⭐ いつものメニュー<small>✍️ 写真なしで記録 でタップして使います</small></div>
       <div id="mlMenuList"></div>
     </div>
-    <!-- 🔁 r73: 繰り返しの決まりの一覧（止める・直す・やめる）。⚠ 決まりが1つも無ければ丸ごと出さない -->
+    <!-- 🔁 r73→r98: 繰り返しの決まりは**専用の画面**へ移した（要望「管理画面を作りたい」）。
+         ⚠ ここに入口は残す＝入口ごと消すと、前の操作モデルで探した人が迷子になる（v191→v192 の教訓）。
+         ⚠ 一覧の代わりに「次はいつ入るか」を1行だけ出す＝開かなくても状態が分かる。
+         ⚠ 決まりが1つも無ければ丸ごと出さない。 -->
     <div id="mlRpBar" hidden>
-      <div class="hH">🔁 繰り返し<small>同じ食事を、決めた日に入れます</small></div>
-      <div id="mlRpList"></div>
+      <div class="hH">🔁 繰り返し<small id="mlRpSum"></small></div>
+      <button class="btn" id="btnRpManage">🔁 繰り返しを管理する</button>
     </div>
     <!-- ⚠ 撮る入口は下の帯（🍽 料理／🖼）＝r65 でトップに出たので、ここに重ねて置かない -->
     <!-- r68: ☑ を「撮る画面」に置いた（要望）。r92: ⚙ 側の同じ ☑ は外した（要望「設定からの動線は不要」）
@@ -1446,6 +1479,15 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <button class="btn" id="btnMnEdDel">🗑 このメニューを消す</button>
 </div></div>
 
+<!-- 🔁 r98: 繰り返しの管理（要望「食事の繰り返しの管理画面を作りたい」）＝決まりを並べて、
+     **次にいつ入るか・これまで何食入ったか**を見て、止める・直す・やめる をここで終わらせる。
+     ⚠ この画面より**後ろ**に「直す（ovMlRep）」を置く＝直す画面がこの上に重なって出る（下に隠れない）。 -->
+<div class="overlay" id="ovRepeats"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2>🔁 繰り返しの管理</h2>
+  <div class="note" style="margin-top:0">決めた曜日・時刻に、同じ食事が入ります。<b>⚡ 確かめずに入れる</b>はそのまま入り、<b>🙋 毎回確かめる</b>は 🍽 の画面で聞いてから入ります。<br>⚠ <b>やめても、すでに入った食事は残ります</b>（これから入る分だけ止まります）。</div>
+  <div id="rpMgList"></div>
+</div></div>
+
 <!-- 📋🔁 この食事をもう一度（r73）＝1回だけコピーする／決めた日に繰り返し入れる -->
 <div class="overlay" id="ovMlRep"><div class="sheet tall">
   <button class="x" data-close>✕</button><h2 id="mlRepTitle">📋 この食事をもう一度</h2>
@@ -1639,7 +1681,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r97 ⚖ 体組成計の数字を体重と同じ1件に入れられるようにした（体脂肪率・骨格筋率・基礎代謝・BMI・内臓脂肪レベル／📷 でも読む・前回との差・%の推移・CSV/JSON にも）（2026-08-22）｜r96 📷 下の撮るボタンを設定で選べるようにした（☑＝どのタブでも出る・見ているタブの分は今までどおり・🍽 は食事の時間帯のあいだ大きく太く）（2026-08-21）｜r95 ⭐ いつものメニューを覚えて ✍️ 写真なしで記録 の画面の頭からタップで選べるようにした（覚える＝✍️ の ☑／🍽 詳細のボタン・一覧と名前直しは 🍽 タブ）（2026-08-21）';
+const BUILD = 'r99 🖼 一覧の写真を隠す／出すをトップのいちばん上に置いた（効くのは一覧だけ・1件を開けば見える／📸 からだの写真は隠さない）（2026-08-22）｜r98 🔁 繰り返しの管理画面を作った（🍽 の下の帯から独立・次にいつ入るか／これまで何食入ったか・止める/直す/やめる）（2026-08-22）｜r97 ⚖ 体組成計の数字を体重と同じ1件に入れられるようにした（体脂肪率・骨格筋率・基礎代謝・BMI・内臓脂肪レベル／📷 でも読む・前回との差・%の推移・CSV/JSON にも）（2026-08-22）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1666,6 +1708,27 @@ const LS = {
        budMon  = {"2026-08":{"_all":120000,"食費":40000}} … その月だけの上書き（旅行のある月など） */
   budCats: 'rcpt.budget.cats',
   budMon:  'rcpt.budget.mon',
+};
+/* ---------- 🖼 一覧の写真を隠す／出す（r99） ----------
+   要望＝「**写真のアイコンが増えすぎると、画面を見たいときに見にくくなる。写真のオンオフをできるように。
+   トップ画面の1番上**」。
+   🥇 **判定は1か所**＝出す側（レシート・食事・週の枠・🔁・⭐・🩺・💊）は全部この関数を見る。
+   ⚠ 効くのは**一覧だけ**＝1件を開いた詳細では必ず写真が見える（隠したいのは「探している時に目が滑ること」で、
+      写真を捨てたいわけではない）。
+   ⚠ 📸 からだの写真の一覧だけは外す＝そこは**写真そのものが中身**（隠すと画面が空になる）。
+   ⚠ 写真を消した所には**同じ大きさの枠を残す**＝並びも押せる場所も動かない（何件あるかも見える）。 */
+const PH_ON = 'rcpt.photos';
+const photosOn = () => localStorage.getItem(PH_ON) !== '0';
+/* 隠している時の印。⚠ 「写真の無い記録」の印（✍️ ⭐ 💊 🔁）とは**別の絵**にする＝
+   「隠している（戻せば出る）」と「そもそも無い」は違うことなので、同じ絵で混ぜない。 */
+const PH_MARK = '🖼';
+/* 一覧のサムネ1つ分。blob 無し＝写真の無い記録（noIcon）／写真オフ＝PH_MARK。
+   ⚠ 作った URL は必ず控え（urls）に積む＝revoke 漏れはメモリ事故（r5）。 */
+const listThumb = (blob, urls, noIcon) => {
+  if (!blob) return `<div class="noimg" aria-hidden="true">${noIcon}</div>`;
+  if (!photosOn()) return `<div class="noimg" aria-hidden="true">${PH_MARK}</div>`;
+  const u = URL.createObjectURL(blob); urls.push(u);
+  return `<img src="${u}" alt="">`;
 };
 /* 📈 分析（r15）の設定。⚠ 写真の読み取りとは別の用途＝別の AI・別のモデルを選べる。
    キー（rcpt.key.*）と APIのURL は AI ごとに1本を読み取りと共有する＝同じ鍵を2回貼らせない。
@@ -3149,11 +3212,9 @@ const mealLine = m => m.status === 'done' ? (m.data?.summary || '（書き起こ
 /* r80: その食事の「絵」＝写真が無ければ**何で作ったかの印**を出す（.mlCard / .mlMate / .mlX で共通）。
    ⚠ 出す側4か所で同じ if を書かない＝1か所にすると、あとで印を足しても全部の画面が揃う。
    ⚠ 作った URL は必ず控えに積む（積み忘れ＝revoke 漏れ＝r5 で踏んだメモリ事故）。 */
-const mealThumbHtml = (m, urls) => {
-  if (mealNoPhoto(m)) return `<div class="noimg" aria-hidden="true">${madeIcon(m) || '✍️'}</div>`;
-  const u = URL.createObjectURL(m.thumb || m.img); urls.push(u);
-  return `<img src="${u}" alt="">`;
-};
+// r99: 写真オフなら同じ大きさの枠に 🖼 だけ（写真の無い記録の印とは分ける＝listThumb）
+const mealThumbHtml = (m, urls) =>
+  listThumb(mealNoPhoto(m) ? null : (m.thumb || m.img), urls, madeIcon(m) || '✍️');
 // 書き起こせる（＝まだ中身が無い）写真＝失って困るものが無いので、まとめてやり直してよい（r29 の線引き）
 /* r77: 写真を読み出せなかったものも**外さない**（r76 では外していた）。
    ⚠ 実機で確かめたら**写真は無事だった**＝一時的な失敗を「もう直らない」と決めつけて、
@@ -3273,6 +3334,8 @@ async function renderWeek(){
         /* r80: 写真なしの記録も**1マスとして出す**＝出さないと「入れたのに週に居ない」になる。
            ⚠ <img> でなく <div> になるので、長押しの持ち上げ（ghost）は複製で作る（下の pointerdown）。 */
         if (mealNoPhoto(m)) return `<div class="${cls} noimg" data-meal="${esc(m.id)}" ${tip}>${madeIcon(m) || '✍️'}</div>`;
+        // r99: 写真オフ＝マスは残して印だけ（消すと「入れたのに週に居ない」になる＝r80 と同じ理由）
+        if (!photosOn()) return `<div class="${cls} noimg" data-meal="${esc(m.id)}" ${tip}>${PH_MARK}</div>`;
         const u = URL.createObjectURL(m.thumb); mlThumbUrls.push(u);
         return `<img class="${cls}" draggable="false" src="${u}" data-meal="${esc(m.id)}" alt="${esc(mealLine(m)).slice(0, 30)}" ${tip}>`;
       }).join('') + '</div>';
@@ -3586,7 +3649,7 @@ async function renderMealGroup(m){
           + '<span class="s">見る</span></div>').join('')
     + (mates.length > 12 ? `<div class="mlNone">ほか ${mates.length - 12}件</div>` : '')
     + `<div class="note" style="margin-top:6px">直す時・消す時に「この食事だけ／つながっている全部」を選べます。`
-    + (rules.length ? `<br>🔁 この束には<b>繰り返しの決まりが ${rules.length}件</b>あります（🍽 の画面の下で止められます）。` : '')
+    + (rules.length ? `<br>🔁 この束には<b>繰り返しの決まりが ${rules.length}件</b>あります（🍽 の 🔁 繰り返しを管理する から止められます）。` : '')
     + '</div></div>';
 }
 document.getElementById('mlGroup').addEventListener('click', async e => {
@@ -3921,7 +3984,7 @@ document.getElementById('btnMlDel').onclick = async () => {
     title: '🗑 つながっている食事',
     note: `この食事は、コピー・繰り返しで作られた <b>ほかの ${mates.length}件</b> とつながっています。`
         + '<br>⚠ <b>元に戻せません</b>（写真もいっしょに消えます）。'
-        + (rules.length ? '<br>⚠ <b>🔁 繰り返しの決まりは残ります</b>＝またその日が来たら入ります（やめるなら 🍽 の下の 🔁 から）。' : ''),
+        + (rules.length ? '<br>⚠ <b>🔁 繰り返しの決まりは残ります</b>＝またその日が来たら入ります（やめるなら 🍽 の 🔁 繰り返しを管理する から）。' : ''),
     one: 'この食事だけ削除する', all: `つながっている ${mates.length + 1}件すべてを削除する` });
   if (!scope) return;
   const ids = scope === 'all' ? [mlCur.id, ...mates.map(x => x.id)] : [mlCur.id];
@@ -4323,9 +4386,8 @@ async function renderMenuBar(){
   bar.hidden = !ms.length;
   if (!ms.length) return;
   document.getElementById('mlMenuList').innerHTML = ms.map(mn => {
-    const ph = mn.thumb || mn.img;
     return '<div class="rpRow">'
-      + (ph ? `<img src="${mnUrl(ph)}" alt="">` : '<div class="noimg" aria-hidden="true">⭐</div>')
+      + listThumb(mn.thumb || mn.img, mnThumbUrls, '⭐')   // r99
       + `<div class="bd"><div class="t">${esc(menuTitleOf(mn))}</div>`
       + `<div class="s">${mn.useCount ? `${mn.useCount}回 使いました` : 'まだ使っていません'}`
       + `${mn.lastUsedAt ? ` ・ 最後は ${esc(md(ymdLocal(new Date(mn.lastUsedAt))))}` : ''}`
@@ -4411,9 +4473,7 @@ const RP_BACKFILL_MAX = 31;   // ⚠ 何日も開かなかった時、遡って�
 const RP_ASK_KEEP     = 7;    // 🙋「毎回確かめる」を、何日前のぶんまで聞き続けるか
 const RP_DONE_KEEP    = 60;   // 「もう答えた日」の控えを何日ぶん持つか（際限なく伸びないように）
 const newId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const rpThumbUrls = [];       // ⚠ 一覧（mlThumbUrls）と別に持つ＝互いに revoke し合わない（r35 と同じ作法）
-const rpRevoke = () => rpThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
-const rpUrl = b => { const u = URL.createObjectURL(b); rpThumbUrls.push(u); return u; };
+// r98: 決まりの写真は管理の画面だけが出す（rpMgUrls）＝🍽 の帯は写真を持たなくなったので控えも要らない
 
 const rpDaysLabel = rp => (!rp.days?.length || rp.days.length === 7) ? '毎日'
                         : rp.days.slice().sort().map(d => WD[d]).join('・');
@@ -4440,6 +4500,19 @@ function rpTodo(rp, today, backMax){
   }
   return { days, tooOld };
 }
+/* r98: 次にこの決まりが入る日。⚠ **もう入れた日（done）を飛ばす**＝⚡ は開いた時に今日ぶんを作るので、
+   done を見ないと毎回「次は今日」と出て嘘になる。⚠ 止めている・期限が過ぎた＝null（呼んだ側が言い分ける）。
+   ⚠ 探すのは1年先まで（曜日が1つでも選ばれていれば必ず当たる。0個＝毎日扱いなので翌日に当たる）。 */
+function rpNextDay(rp){
+  if (rp.on === false) return null;
+  const done = new Set(rp.done || []);
+  const limit = addDays(todayStr(), 370);
+  for (let d = todayStr(); d <= limit; d = addDays(d, 1)) if (!done.has(d) && rpHits(rp, d)) return d;
+  return null;
+}
+/* r98: この決まりが これまでに入れた食事の数。
+   ⚠ 📋 コピー（同じ束 gid だが madeBy が 'copy'）は数えない＝**決まりが入れたもの**だけを数える。 */
+const rpMadeCount = (meals, rp) => meals.filter(m => m.madeBy === 'repeat' && m.gid === rp.gid).length;
 /* 控えを短く保つ。⚠ 消しすぎると同じ日をもう一度作るので、必ず RP_DONE_KEEP 日ぶんは残す */
 const rpPrune = rp => { const floor = addDays(todayStr(), -RP_DONE_KEEP);
                         rp.done = (rp.done || []).filter(d => d >= floor); return rp; };
@@ -4616,7 +4689,9 @@ document.getElementById('btnMlRepSave').onclick = async () => {
                         days, from: from || rp.from, until: until || null,
                         mode: mlRepAuto, updatedAt: Date.now() });
     await rpPut(rp); hide('ovMlRep'); toast('🔁 繰り返しを直しました');
-    await runRepeats(); await renderMeals(); return;
+    await runRepeats(); await renderMeals();
+    if (isOpen('ovRepeats')) await renderRepeatManage();   // r98: 管理の画面から直した時（次に入る日が変わる）
+    return;
   }
   const src = await mlGet(mlRepSrcId); if (!src) { toast('もとの食事が見つかりません'); hide('ovMlRep'); return; }
   /* ⚠ 束（gid）は**もとの食事にも書き戻す**＝そうしないと「もとだけ仲間外れ」になり、
@@ -4655,6 +4730,7 @@ document.getElementById('btnMlRepStop').onclick = async () => {
   await rpDel(mlRepEditId); mlRepEditId = null; hide('ovMlRep');
   toast('🔁 繰り返しをやめました（入った食事は残っています）');
   await renderMeals();
+  if (isOpen('ovRepeats')) await renderRepeatManage();   // r98
 };
 document.getElementById('btnMlAgain').onclick = () => { if (mlCur) openMlRep(mlCur); };
 
@@ -4674,7 +4750,6 @@ document.addEventListener('visibilitychange', async () => { if (!document.hidden
 /* ---------- 🔁 の帯（r73）＝①まだ答えていない問いかけ ②繰り返しの決まりの一覧 ---------- */
 async function renderRepeatBar(){
   await rpTick();   // ⚠ 問いかけを数える前に回す（今日のぶんが1回遅れて出ない）
-  rpRevoke();
   const asks = await pendingAsks(), askBar = document.getElementById('mlAskBar');
   askBar.hidden = !asks.length;
   askBar.innerHTML = asks.map(({ rp, day }) => '<div class="mlAsk">'
@@ -4682,36 +4757,89 @@ async function renderRepeatBar(){
     + ` の <b>${esc(rpTitleOf(rp))}</b> を入れますか？</div>`
     + `<div class="bs"><button class="yes" data-rpyes="${esc(rp.id)}" data-rpday="${esc(day)}">入れる</button>`
     + `<button data-rpno="${esc(rp.id)}" data-rpday="${esc(day)}">この日はいらない</button></div></div>`).join('');
-  const rps = (await rpAll()).sort((a, b) => String(a.time).localeCompare(String(b.time)));
+  /* r98: 決まりの一覧は**専用の画面**（🔁 繰り返しの管理）へ移した。
+     ⚠ ここに残すのは入口と「次はいつ入るか」の1行＝開かなくても状態が分かる（入口ごと消さない）。 */
+  const rps = await rpAll();
   const bar = document.getElementById('mlRpBar');
   bar.hidden = !rps.length;
   if (!rps.length) return;
-  document.getElementById('mlRpList').innerHTML = rps.map(rp => {
-    const ended = rp.until && rp.until < todayStr();
-    return `<div class="rpRow${rp.on === false || ended ? ' off' : ''}">`
-      + (rp.thumb ? `<img src="${rpUrl(rp.thumb)}" alt="">` : '')
-      + `<div class="bd"><div class="t">${esc(rpTitleOf(rp))}</div>`
-      + `<div class="s">${esc(rpDaysLabel(rp))} ${esc(rp.time || '')} ・ ${rp.mode === 'auto' ? '⚡ 確かめずに入れる' : '🙋 毎回確かめる'}`
-      + `${rp.until ? ` ・ ${esc(md(rp.until))} まで` : ''}${ended ? '（終わりました）' : rp.on === false ? '（止めています）' : ''}</div></div>`
-      + `<button data-rppause="${esc(rp.id)}" title="${rp.on === false ? '再開する' : 'しばらく止める'}">${rp.on === false ? '▶' : '⏸'}</button>`
-      + `<button data-rpedit="${esc(rp.id)}" title="直す">✏️</button></div>`;
+  const next = rps.map(rp => ({ rp, d: rpNextDay(rp) })).filter(x => x.d)
+    .sort((a, b) => a.d.localeCompare(b.d) || String(a.rp.time).localeCompare(String(b.rp.time)))[0];
+  const stopped = rps.filter(rp => !rpNextDay(rp)).length;
+  // ⚠ 要約の食事名は短く切る（見出しの小さい字＝長いと2行3行になり、下のボタンが押し出される）
+  document.getElementById('mlRpSum').textContent = next
+    ? `次は ${md(next.d)}（${WD[new Date(next.d + 'T00:00:00').getDay()]}）${next.rp.time || ''} ${
+        rpTitleOf(next.rp).length > 14 ? rpTitleOf(next.rp).slice(0, 14) + '…' : rpTitleOf(next.rp)}`
+    : '入る予定はありません';
+  document.getElementById('btnRpManage').textContent =
+    `🔁 繰り返しを管理する（${rps.length}件${stopped ? `・うち ${stopped}件は止まっています` : ''}）`;
+}
+/* ---------- 🔁 繰り返しの管理（r98） ----------
+   要望＝「食事の繰り返しの管理画面を作りたい」。これまで決まりの一覧は 🍽 タブの**いちばん下**に
+   帯として置いていた（r73）＝食事が増えるほど下へ押し出され、決まりが増えるほど帯が伸びていた。
+   🥇 **画面を分けるだけ・仕組みは足さない**＝止める／直す／やめる は今までと同じ道を呼ぶ（2つ作らない）。
+   ➕ 管理の画面でだけ出す2つ＝**次にいつ入るか**と**これまで何食入ったか**
+      （一覧の帯では場所が無くて出せなかった。決まりを消す前にいちばん知りたいのはこの2つ）。 */
+const rpMgUrls = [];
+async function renderRepeatManage(){
+  rpMgUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
+  const rps = await rpAll(), el = document.getElementById('rpMgList');
+  if (!rps.length) {
+    el.innerHTML = '<div class="hEmpty">まだ繰り返しの決まりはありません。<br>🍽 の食事を開いて「📋 この食事をもう一度」から、曜日と時刻を決めると作れます。</div>';
+    return;
+  }
+  const meals = await mlAll();
+  // ⚠ 動いているものが先・止めた／終わったものは後ろ（毎日見るのは動いている方）
+  const nextOf = new Map(rps.map(rp => [rp.id, rpNextDay(rp)]));
+  const sorted = rps.slice().sort((a, b) => (nextOf.get(a.id) ? 0 : 1) - (nextOf.get(b.id) ? 0 : 1)
+    || String(nextOf.get(a.id) || '').localeCompare(String(nextOf.get(b.id) || ''))
+    || String(a.time).localeCompare(String(b.time)));
+  el.innerHTML = sorted.map(rp => {
+    const nd = nextOf.get(rp.id), ended = rp.until && rp.until < todayStr(), n = rpMadeCount(meals, rp);
+    /* ⚠ 「なぜ次が無いのか」を言い分ける＝止めているのか・終わったのか・曜日が合わないのかで、
+          次にする操作が違う（再開する／期限を伸ばす／曜日を直す）。 */
+    const state = rp.on === false ? '⏸ 止めています'
+                : ended ? `✅ ${esc(md(rp.until))} で終わりました`
+                : nd ? `次は <b>${esc(md(nd))}（${WD[new Date(nd + 'T00:00:00').getDay()]}）${esc(rp.time || '')}</b>`
+                : '入る予定がありません（曜日の選び方をご確認ください）';
+    return `<div class="rpMg${rp.on === false || ended ? ' off' : ''}">
+      <div class="hd">${listThumb(rp.thumb || rp.img, rpMgUrls, '🔁')}
+        <div class="bd"><div class="t">${esc(rpTitleOf(rp))}</div>
+          <div class="s">${esc(rpDaysLabel(rp))} ${esc(rp.time || '')} ・ ${rp.mode === 'auto' ? '⚡ 確かめずに入れる' : '🙋 毎回確かめる'}${
+            rp.until && !ended ? ` ・ ${esc(md(rp.until))} まで` : ''}</div>
+          <div class="s">${state} ・ これまで <b>${n}食</b></div></div></div>
+      <div class="bs">
+        <button data-rppause="${esc(rp.id)}">${rp.on === false ? '▶ 再開する' : '⏸ 止める'}</button>
+        <button data-rpedit="${esc(rp.id)}">✏️ 直す</button>
+        <button class="stop" data-rpstop="${esc(rp.id)}">🗑 やめる</button>
+      </div></div>`;
   }).join('');
 }
+document.getElementById('btnRpManage').onclick = async () => { await renderRepeatManage(); show('ovRepeats'); };
 document.getElementById('mlAskBar').addEventListener('click', e => {
   const y = e.target.closest('[data-rpyes]'), n = e.target.closest('[data-rpno]');
   if (y) return rpAnswer(y.dataset.rpyes, y.dataset.rpday, true);
   if (n) return rpAnswer(n.dataset.rpno, n.dataset.rpday, false);
 });
-document.getElementById('mlRpList').addEventListener('click', async e => {
-  const p = e.target.closest('[data-rppause]'), ed = e.target.closest('[data-rpedit]');
+/* r98: 操作は管理の画面から。⚠ 押したあとは**管理の画面も** 描き直す（次に入る日・件数が古いまま残る） */
+document.getElementById('rpMgList').addEventListener('click', async e => {
+  const p = e.target.closest('[data-rppause]'), ed = e.target.closest('[data-rpedit]'), st = e.target.closest('[data-rpstop]');
   if (p) {
     const rp = await rpGet(p.dataset.rppause); if (!rp) return;
     rp.on = rp.on === false; rp.updatedAt = Date.now(); await rpPut(rp);
     toast(rp.on ? '🔁 再開しました' : '⏸ 止めました（決まりは残っています）');
     if (rp.on) await runRepeats();
-    return renderMeals();
+    await renderMeals(); return renderRepeatManage();
   }
-  if (ed) { const rp = await rpGet(ed.dataset.rpedit); if (rp) openMlRepEdit(rp); }
+  if (ed) { const rp = await rpGet(ed.dataset.rpedit); if (rp) openMlRepEdit(rp); return; }
+  if (st) {
+    const rp = await rpGet(st.dataset.rpstop); if (!rp) return;
+    // ⚠ 何が残って何が止まるかを、押す前の1行で言う（btnMlRepStop と同じ言い方＝道は2本でも言うことは1つ）
+    if (!confirm(`「${rpTitleOf(rp)}」の繰り返しをやめますか？\n（すでに入った食事は残ります。これから入る分だけ止まります）`)) return;
+    await rpDel(rp.id);
+    toast('🔁 繰り返しをやめました（入った食事は残っています）');
+    await renderMeals(); return renderRepeatManage();
+  }
 });
 
 /* ---------- トップの切り替え（r65） ----------
@@ -4735,6 +4863,25 @@ async function setTopTab(t){
   }
   else if (t === 'health') await renderHealth();
 }
+/* 🖼 r99: 一覧の写真を隠す／出す。⚠ **見ているタブだけでは足りない**＝別のタブに前の描画が残っていると
+   そこだけ写真が出たままになる → 3つとも呼ぶ（🧾 は常に描き直る／🍽 も描き直る／🩺 は renderHealth が
+   「🩺 を見ている時だけ描く」作りなので、他のタブに居る時は空振りするが、🩺 に移った時に必ず描き直る）。
+   ⚠ 押した結果を必ず言う（写真が消えた＝壊れた、に見せない）。 */
+function syncPhotoBtn(){
+  const b = document.getElementById('btnPhotos'), on = photosOn();
+  b.classList.toggle('off', !on);
+  b.setAttribute('aria-pressed', String(on));
+  b.title = on ? '一覧の写真を隠す' : '一覧に写真を出す';
+}
+document.getElementById('btnPhotos').onclick = async () => {
+  localStorage.setItem(PH_ON, photosOn() ? '0' : '1');
+  syncPhotoBtn();
+  await renderList();     // 🧾 レシートの一覧
+  await renderMeals();    // 🍽 週のマス目・1日のカード・🔁 の帯・⭐ の一覧
+  await renderHealth();   // 🩺 健診・💊 薬（⚠ 📸 からだの写真は隠さない＝写真そのものが中身）
+  if (isOpen('ovRepeats')) await renderRepeatManage();
+  toast(photosOn() ? '🖼 一覧に写真を出します' : '🖼 一覧の写真を隠しました（1件を開けば見えます）');
+};
 /* ---------- r84: 🩺 の中を3つに分ける（🫀 血圧・体重／💊 薬／🩺 健診） ----------
    要望＝「データが増えたときが見えにくくなりそう。健康タブの下にもう一つタブが必要かも」。
    ⚠ 3つを縦に積んだままだと、毎日測る 🫀 が伸びるほど 💊 と 🩺 が下へ押し出される
@@ -4897,8 +5044,7 @@ async function renderHealth(){
   const cks = (await ckAll()).sort((a, b) => (ckDateOf(b) || '9999').localeCompare(ckDateOf(a) || '9999') || b.addedAt - a.addedAt);
   ckThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
   document.getElementById('ckList').innerHTML = cks.length ? cks.map(c => {
-    const u = URL.createObjectURL(c.pages[0].thumb); ckThumbUrls.push(u);
-    return `<div class="rec" data-ck="${esc(c.id)}"><img src="${u}" alt="">
+    return `<div class="rec" data-ck="${esc(c.id)}">${listThumb(c.pages[0].thumb, ckThumbUrls, '🩺')}
       <div class="mid"><div class="st">${esc(ckTitle(c))}${c.facility ? ` <small>${esc(c.facility)}</small>` : ''}</div>
       <div class="sub">${esc(ckLine(c))}${c.memo ? ` ・ 🗒 ${esc(c.memo)}` : ''}</div></div>
       ${c.pages.length > 1 ? `<span class="chip">${c.pages.length}ページ</span>` : ''}</div>`;
@@ -4909,8 +5055,7 @@ async function renderHealth(){
   const act = mds.filter(medActive), ended = mds.filter(m => !medActive(m));
   mdThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
   const card = m => {
-    let th = '<div style="width:52px;height:52px;border-radius:8px;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none">💊</div>';
-    if (m.thumb) { const u = URL.createObjectURL(m.thumb); mdThumbUrls.push(u); th = `<img src="${u}" alt="">`; }
+    const th = listThumb(m.thumb, mdThumbUrls, '💊');   // r99: 写真オフなら 🖼 の枠だけ
     const active = medActive(m);
     // r66: 予定の日を過ぎた薬にだけ、その場で答えられる2択を出す（詳細を開かせない＝1タップで済む）
     const ask = medOverdue(m)
@@ -6781,9 +6926,7 @@ async function renderList(){
     }
     const r = row.rec, rc = row.rc;
     // ✍️ r93: 写真なしの記録＝印を出す（🍽 の r80 と同じ .noimg を使う＝2つのタブで同じ見た目）
-    const turl = r.thumb ? URL.createObjectURL(r.thumb) : '';
-    if (turl) thumbUrls.push(turl);
-    const thumbHtml = turl ? `<img src="${turl}" alt="">` : '<div class="noimg" aria-hidden="true">✍️</div>';
+    const thumbHtml = listThumb(r.thumb, thumbUrls, '✍️');   // r99: 写真オフなら 🖼 の枠だけ
     let title, right;
     if (rc) {
       // ⚠ 値はエスケープする（AI の出力も ✏️ の手入力も、そのまま HTML にしない）
@@ -10459,6 +10602,7 @@ function toast(msg, onTap, ms){
    ⚠ 設定を**勝手に開かない**＝最初の画面を塞ぐと、撮る前に設定を触らされる（r38 の逆）。押した人だけ開く。
    ⚠ 出すのは1回だけ（毎回の起動では出るが、1回の起動の中で繰り返さない）。キーを入れれば二度と出ない。 */
 (async () => {
+  syncPhotoBtn();   // r99: 🖼 の見た目を、覚えている設定に合わせる（描く前＝一覧に写真が出るかと揃える）
   await renderList();
   const rpMade = await rpTick();   // r73: 🔁 ⚡「確かめずに入れる」ぶんを、描く前に入れておく
   await setTopTab(topTab);   // r65: 前回見ていたタブで開く（🍽 / 🩺 ならそのタブを描く）
