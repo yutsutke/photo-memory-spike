@@ -854,7 +854,7 @@ try { if (window.Capacitor && Capacitor.getPlatform) { var __cp = Capacitor.getP
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.182 (v232：🖼拡大表示の操作ボタンをアイコンのみに（日本語ラベル撤去＝写真へのかぶりを最小化・title/aria-labelに説明）｜v231：🗑拡大表示に削除ボタン（通常写真も・非表示＝5秒Undo／♻️削除した写真を戻すで復元可）｜v230：🖼拡大表示の写真上端に時計/電池が重なるのを iOS でも解消（Android v220 の全画面オーバーレイ対策を iOS にも適用）｜v229：📊自動差分取り込みでも区間計測を回す（v226の入れ忘れ・エミュ実機E2Eで発見）｜v228：🚀nativeサムネ取得をバッチ16枚×並列デコード＋パイプラインに（古い端末の直列ボトルネックをコア数ぶん短縮・失敗時は1枚ずつへ自動フォールバック）) · 2026-07-19';
+const BUILD = 'phase3.183 (v236：🗺全期間の地図に写真が戻る（サムネ/白点/密度の切替を「期間の総枚数」→「いま画面に写っている枚数」に＝寄ればサムネ／引いた時も期間全体から代表サムネ60枚を重ねる）｜v232：🖼拡大表示の操作ボタンをアイコンのみに（日本語ラベル撤去＝写真へのかぶりを最小化・title/aria-labelに説明）｜v231：🗑拡大表示に削除ボタン（通常写真も・非表示＝5秒Undo／♻️削除した写真を戻すで復元可）｜v230：🖼拡大表示の写真上端に時計/電池が重なるのを iOS でも解消（Android v220 の全画面オーバーレイ対策を iOS にも適用）｜v229：📊自動差分取り込みでも区間計測を回す（v226の入れ忘れ・エミュ実機E2Eで発見）) · 2026-08-23';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -3035,8 +3035,13 @@ const TRIP_COLORS = ['#ff6b6b','#feca57','#48dbfb','#1dd1a1','#f368e0','#ff9f43'
 //   一日一日色違い・全日同じ色・タイル密度」をそのまま3段に。閾値は実機の手触りで調整する前提の定数。
 const MAP_DAYS_COLOR_MAX   = 30;     // 表示日数 ≤30 → 日ごと色分けの軌跡 (従来。タップで1日フォーカスも生きる)
 const MAP_DAYS_LINE_MAX    = 200;    // ≤200 → 全日同色・1本のレイヤに統合 (縁取り/矢印/当たり線なし)。超えたら線なし=点・密度が担う
-const MAP_MARKER_PHOTO_MAX = 300;    // 表示枚数 ≤300 → 写真サムネマーカー (従来クラスタ)
+// v236: 判定の母数を「期間の総枚数」→「いま地図に写っている範囲の枚数」に変更 (下の renderPhotoMarkers)。
+//   旧 v181 は全期間=総枚数で判定するため、🛰️位置ロガーを数か月ためて v140 が写真の位置を自動確定していくと
+//   GPS 写真が 300 を超えたきり戻らず、全期間の地図から写真が永久に消えた (実機FB 2026-08-23「移動線のみ」)。
+const MAP_MARKER_PHOTO_MAX = 300;    // 画面内 ≤300 → 写真サムネマーカー (従来クラスタ)
 const MAP_MARKER_DOT_MAX   = 8000;   // ≤8千 → 白点マーカー (canvas・タップでポップアップ)。超えたら密度タイル
+const MAP_SAMPLE_THUMB     = 60;     // v236: 白点/密度でも期間全体から等間隔でこの枚数だけサムネを重ねる (引いた地図でも写真が写真として見える)
+const MAP_VIEW_PAD         = 0.35;   // v236: 表示範囲を少し広げて判定 (パンのたびに見せ方が入れ替わるのを防ぐ)
 const MAP_EST_MARKER_MAX   = 200;    // GPSなし写真の「推定配置」マーカー上限 (全期間級の窓では爆発するため)
 const MAP_TRACK_DOT_MAX    = 20000;  // ロガー記録点ドットの上限 (超えたぶんは線/密度にだけ乗る)
 
@@ -3679,12 +3684,17 @@ async function openMapView(focusPhoto, opts) {
   }
   // 密度モードでタイムライン/入口から特定の写真に寄る時だけ、一時的に1個だけサムネマーカーを立てる。
   function spotlightPhoto(p) {
-    if (mapState.spotMarker) { try { map.removeLayer(mapState.spotMarker); } catch {} mapState.spotMarker = null; }
+    clearSpotMarker();
     if (p.lat == null || p.lng == null) return;
     map.setView([p.lat, p.lng], Math.max(map.getZoom() || 0, 13), { animate: true });
     const mk = makePhotoMarker(p).addTo(map);
     mk.openPopup();
     mapState.spotMarker = mk;
+    mapState.spotPhotoId = p.id;   // v236: 寄った先で本物のサムネが立ったら、この一時マーカーは引っ込める
+  }
+  function clearSpotMarker() {
+    if (mapState.spotMarker) { try { map.removeLayer(mapState.spotMarker); } catch {} }
+    mapState.spotMarker = null; mapState.spotPhotoId = null;
   }
   mapState.spotlightPhoto = spotlightPhoto;
 
@@ -3755,6 +3765,119 @@ async function openMapView(focusPhoto, opts) {
     mapState.densityLayer = makeDensityLayer(pts).addTo(map);
   }
   mapState.refreshDensity = refreshDensity;
+
+  // ============================================================
+  // v236: 写真マーカーを「いま画面に写っている範囲」で張り替える (実機FB「全期間だと移動線だけで写真が出ない」)
+  // ============================================================
+  // 旧 v181 は「その期間の総枚数」で サムネ/白点/密度 を選んでいた。位置ロガーを数か月ためると v140 が
+  // 足跡から写真の位置を自動確定していくため GPS 写真が増え続け、全期間では 300 を超えたきり戻らない
+  // = 引いても寄ってもずっと白点 = 「写真が出ない」。母数を画面内に変えると、引けば点/密度 (重さの防波堤は維持)、
+  // 寄ればサムネ、が同じ地図の中で連続する。さらに点/密度でも期間全体から等間隔にサムネを重ねて
+  // 「写真がそこにある」ことを写真のまま示す (核=偶然/久しぶり: 引いた地図に時代をまたいだ代表が点在する)。
+  function photosInView() {
+    const fg = mapState.filteredGps || [];
+    if (!fg.length) return fg;
+    let b;
+    try { b = map.getBounds().pad(MAP_VIEW_PAD); } catch { return fg; }
+    const s = b.getSouth(), n = b.getNorth(), w = b.getWest(), e = b.getEast();
+    const wrap = w > e;   // 日付変更線をまたぐ表示
+    return fg.filter(p => p.lat >= s && p.lat <= n && (wrap ? (p.lng >= w || p.lng <= e) : (p.lng >= w && p.lng <= e)));
+  }
+  // 張り替えが要るかの判定用の短い署名。「実際に描くもの」だけを数える (密度モードは代表サムネ60枚だけが
+  // マーカー = そこが同じなら張り替え不要)。同じならパンしても作り直さない = カクつかせない。
+  function hashIds(list) {
+    let h = 2166136261;
+    for (const p of list) { const id = p.id; for (let i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619); } }
+    return h >>> 0;
+  }
+  // 「この写真の popup を出したい」を張り替えをまたいで持ち越す。setView のズーム/パンが moveend →
+  // 張り替えを誘発してマーカーごと作り直されるため、開く指示は id で持ち、張り替えたあとに開く。
+  function openWantedPopup() {
+    const id = mapState.wantPopupId;
+    if (!id) return;
+    const rec = markerById.get(id);
+    if (!rec) return;
+    mapState.wantPopupId = null;                                   // 一度きり (再張り替えで二重に開かない)
+    // ⚠ cluster.zoomToShowLayer は使わない。あれは moveend/animationend に自前のハンドラを残すため、
+    //   その後に clearLayers() で張り替えると marker.__parent が undefined になり、次のズームで
+    //   markercluster 内部が `_leaflet_id in undefined` を投げる (v181 のコメントにある既知の地雷。
+    //   表示範囲ベースの張り替え = clearLayers が頻繁に走る v236 では確実に踏む)。
+    //   代わりに、クラスタの中にいる写真は「その座標に直接 popup を出す」。寄せるのは focusPhotoOnMap の役目。
+    if (map.hasLayer(rec.marker)) { rec.marker.openPopup(); return; }
+    const pu = rec.marker.getPopup();
+    if (pu) map.openPopup(pu, rec.latlng);
+  }
+  function renderPhotoMarkers(opts) {
+    if (!mapState || mapState.map !== map) return;               // 閉じられた/再オープン
+    const force = !!(opts && opts.force);
+    const inView = photosInView();
+    const mode = (inView.length <= MAP_MARKER_PHOTO_MAX) ? 'photo'
+               : (inView.length <= MAP_MARKER_DOT_MAX)   ? 'dot' : 'density';
+    const sample = (mode === 'photo') ? null : spreadIndices(inView.length, MAP_SAMPLE_THUMB);
+    const sig = `${mode}|${inView.length}|${hashIds(mode === 'density' ? inView.filter((_, i) => sample.has(i)) : inView)}`;
+    if (!force && sig === mapState.markerSig) { openWantedPopup(); return; }
+    mapState.markerSig = sig;
+    mapState.markerMode = mode;
+    cluster.clearLayers();
+    markerById.clear();
+    clearDotLayers();
+    if (force) { clearSpotMarker(); mapState.wantPopupId = null; }   // 絞り込み/データが変わった = 前の popup 指示は捨てる
+    if (mode === 'photo') {
+      for (const p of inView) {
+        const mk = makePhotoMarker(p);
+        cluster.addLayer(mk);
+        markerById.set(p.id, { marker: mk, latlng: [p.lat, p.lng], clustered: true });
+      }
+    } else {
+      // 白点/密度モードでも「期間全体から等間隔の代表サムネ」を重ねる。母数は画面内 (寄るほど代表が入れ替わる)。
+      let i = 0;
+      for (const p of inView) {
+        if (sample.has(i++)) {
+          const mk = makePhotoMarker(p);
+          cluster.addLayer(mk);
+          markerById.set(p.id, { marker: mk, latlng: [p.lat, p.lng], clustered: true });
+        } else if (mode === 'dot') {
+          const mk = makeDotMarker(p).addTo(map);
+          mapState.dotLayers.push(mk);
+          markerById.set(p.id, { marker: mk, latlng: [p.lat, p.lng], clustered: false });
+        }
+      }
+    }
+    if (mapState.spotPhotoId && markerById.has(mapState.spotPhotoId)) clearSpotMarker();   // 本物が立った → 一時サムネは不要
+    refreshDensity();   // density モードならタイルを貼る (それ以外は剥がすだけ)
+    openWantedPopup();
+  }
+  mapState.renderPhotoMarkers = renderPhotoMarkers;
+  // パン/ズームのたびに張り替え (連打を 140ms でまとめる。署名が同じなら中で何もしない)。
+  let viewTimer = null;
+  map.on('moveend zoomend', () => {
+    if (viewTimer) clearTimeout(viewTimer);
+    viewTimer = setTimeout(() => { viewTimer = null; renderPhotoMarkers(); }, 140);
+  });
+
+  // v236: 「この写真を地図で見る」の共通動線。画面外の写真でも、寄せて張り替えれば必ずマーカーが立つ
+  //   (旧: markerById に無ければ全画像へ逃げていた = 表示範囲ベースにすると頻発するため共通化)。
+  function focusPhotoOnMap(p, opts) {
+    if (!p || p.lat == null || p.lng == null) return false;
+    const rec0 = markerById.get(p.id);
+    const ll = rec0 ? rec0.latlng : [p.lat, p.lng];
+    let fired = false;
+    const done = () => {
+      if (fired || !mapState || mapState.map !== map) return;
+      fired = true;
+      mapState.wantPopupId = p.id;                                 // 張り替えをまたいで popup を開く指示
+      renderPhotoMarkers();
+      if (!markerById.has(p.id)) { mapState.wantPopupId = null; spotlightPhoto(p); }   // まだ密度 (同じ場所に8千枚超) → 一時サムネで指す
+    };
+    map.once('moveend', done);
+    setTimeout(done, 450);        // 動かない/アニメが走らない時の保険 (moveend が来ないことがある)
+    map.setView(ll, Math.max(map.getZoom() || 0, 13), { animate: !(opts && opts.noAnim) });
+    return true;
+  }
+  mapState.focusPhotoOnMap = focusPhotoOnMap;
+  // いまの絞り込み (期間/選んだ日) に入っている GPS 写真か = 地図で追える写真か。
+  mapState.isOnMapNow = p => !!(p && p.lat != null && p.lng != null
+    && (mapState.filteredGps || []).some(q => q.id === p.id));
 
   // 動線を描く。
   // ・pickDays モード = 選ばれた各日を独立した1本の軌跡に (色分け / 1本タップで他を暗く / 単一日は時刻→空の色)。
@@ -4068,31 +4191,13 @@ async function openMapView(focusPhoto, opts) {
     mapState.trackMerge = null;    // v139: 窓が変わる＝前の窓のロガー点は混ぜない (refreshTrack が積み直す)
     mapState.handMerge = null;     // v187: 手書きの点も同様
     mapState.peerMerge = null;     // v194: 🤝相手の足あとも同様
-    cluster.clearLayers();
-    markerById.clear();
-    clearDotLayers();
-    if (mapState.spotMarker) { try { map.removeLayer(mapState.spotMarker); } catch {} mapState.spotMarker = null; }
-    // v181: 枚数で写真の見せ方を自動切替 — ≤300 サムネ(従来クラスタ) / ≤8千 白点(canvas) / 超 密度タイル。
-    mapState.markerMode = (fg.length <= MAP_MARKER_PHOTO_MAX) ? 'photo'
-                        : (fg.length <= MAP_MARKER_DOT_MAX)   ? 'dot' : 'density';
-    if (mapState.markerMode === 'photo') {
-      fg.forEach(p => {
-        const mk = makePhotoMarker(p);
-        cluster.addLayer(mk);
-        markerById.set(p.id, { marker: mk, latlng: [p.lat, p.lng], clustered: true });
-      });
-    } else if (mapState.markerMode === 'dot') {
-      for (const p of fg) {
-        const mk = makeDotMarker(p).addTo(map);
-        mapState.dotLayers.push(mk);
-        markerById.set(p.id, { marker: mk, latlng: [p.lat, p.lng], clustered: false });
-      }
-    }
-    refreshDensity();   // density モードならタイルを貼る (それ以外は剥がすだけ)
     drawTrips();
     if (!(opts && opts.skipFit) && fg.length) {
       map.fitBounds(fg.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 14, animate: false });
     }
+    // v236: fitBounds のあとに張り替える = 確定した表示範囲の枚数で サムネ/白点/密度 を選ぶ
+    //   (v181 は fg 全体の枚数で先に決めていた → 全期間で永久に白点になっていた)。
+    renderPhotoMarkers({ force: true });
     if (mapState.updateTimelineUI) mapState.updateTimelineUI();
     if (mapState.updateCtrlLabels) mapState.updateCtrlLabels();
     if (mapState.updateCtrlMode) mapState.updateCtrlMode();
@@ -4654,8 +4759,8 @@ async function openMapView(focusPhoto, opts) {
     cancelLocationEdit();
     mapState.refreshData();                                             // マーカー追加 + タイムライン更新
     render();                                                           // 本体側の件数等も整合
-    const rec = mapState.markerById.get(photo.id);                      // 付けた位置へ寄せる
-    if (rec) map.setView(rec.latlng, Math.max(map.getZoom(), 13));
+    map.setView([photo.lat, photo.lng], Math.max(map.getZoom(), 13));   // 付けた位置へ寄せる (v236: 画面外でも確実に)
+    renderPhotoMarkers();                                               // 寄った先の範囲でマーカーを張り替え
   }
   function startLocationEdit(photo, seedLatLng) {
     cancelLocationEdit();
@@ -4757,15 +4862,7 @@ async function openMapView(focusPhoto, opts) {
   setTimeout(() => {
     if (!mapState) return;
     map.invalidateSize();       // overlay 表示後のレイアウト確定
-    if (explicit) {   // 特定の写真から来た時 → その写真ピンの popup を開く
-      const rec = markerById.get(focusPhoto.id);
-      if (rec) {
-        if (rec.clustered && cluster.zoomToShowLayer) cluster.zoomToShowLayer(rec.marker, () => rec.marker.openPopup());   // v181: 白点は直接 popup
-        else rec.marker.openPopup();
-      } else if (mapState.markerMode === 'density' && focusPhoto.lat != null) {
-        mapState.spotlightPhoto(focusPhoto);   // v181: 密度モードでは一時サムネで指す
-      }
-    }
+    if (explicit) mapState.focusPhotoOnMap(focusPhoto, { noAnim: true });   // v236: 画面外でも寄せて張り替え→popup
   }, 80);
 }
 
@@ -4968,16 +5065,10 @@ function buildTimeline(container, map, cluster, markerById, applyFilter) {
           setTimeout(() => map.invalidateSize(), 260);
         }
       };
-      if (markerById.has(p.id)) {          // いま地図に出ている (フィルタ内の GPS 写真) → フォーカス
-        const rec = markerById.get(p.id);
-        map.setView(rec.latlng, Math.max(map.getZoom(), 13), { animate: true });
-        // v181: サムネ(クラスタ)は zoomToShowLayer、白点(canvas)は直接 popup。
-        if (rec.clustered && cluster.zoomToShowLayer) cluster.zoomToShowLayer(rec.marker, () => rec.marker.openPopup());
-        else rec.marker.openPopup();
-        foldSheet();
-      } else if (p.lat != null && p.lng != null && mapState.markerMode === 'density') {
-        // v181: 密度モード=個別マーカー無し → その場所へ寄せて一時サムネ(spotlight)を1個だけ立てる
-        mapState.spotlightPhoto(p);
+      // v236: 判定を「いま地図に出ているか (markerById)」→「いまの絞り込みに入っている GPS 写真か」に。
+      //   表示範囲ベースの張り替えでは画面外の写真は markerById に無いのが普通 → 旧判定だと全画像に逃げていた。
+      if (mapState.isOnMapNow(p)) {
+        mapState.focusPhotoOnMap(p);        // 寄せる → 張り替え → サムネ/白点の popup (まだ密度なら一時サムネ)
         foldSheet();
       } else {                              // フィルタ圏外 or GPS 無し → フル画像 (v115: タイムラインを左右スワイプでめくれる)
         showFullImage(p, { list: all, index: all.indexOf(p) });
