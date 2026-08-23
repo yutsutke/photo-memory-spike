@@ -854,7 +854,7 @@ try { if (window.Capacitor && Capacitor.getPlatform) { var __cp = Capacitor.getP
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.184 (v237：📤 足あとを書き出す（🛰️パネル＝自分の足あと（ロガー＋手書き）を JSON 1ファイルに・消す前に外へ出せる窓口）｜v236：🗺全期間の地図に写真が戻る（サムネ/白点/密度の切替を「期間の総枚数」→「いま画面に写っている枚数」に＝寄ればサムネ／引いた時も期間全体から代表サムネ60枚を重ねる）｜v232：🖼拡大表示の操作ボタンをアイコンのみに（日本語ラベル撤去＝写真へのかぶりを最小化・title/aria-labelに説明）｜v231：🗑拡大表示に削除ボタン（通常写真も・非表示＝5秒Undo／♻️削除した写真を戻すで復元可）｜v230：🖼拡大表示の写真上端に時計/電池が重なるのを iOS でも解消（Android v220 の全画面オーバーレイ対策を iOS にも適用）) · 2026-08-23';
+const BUILD = 'phase3.185 (v238：📥 足あとを読み込む（📤で書き出した JSON を戻せる・同じファイルを何回入れても増えない）｜v237：📤 足あとを書き出す（🛰️パネル＝自分の足あと（ロガー＋手書き）を JSON 1ファイルに・消す前に外へ出せる窓口）｜v236：🗺全期間の地図に写真が戻る（サムネ/白点/密度の切替を「期間の総枚数」→「いま画面に写っている枚数」に＝寄ればサムネ／引いた時も期間全体から代表サムネ60枚を重ねる）｜v232：🖼拡大表示の操作ボタンをアイコンのみに（日本語ラベル撤去＝写真へのかぶりを最小化・title/aria-labelに説明）｜v231：🗑拡大表示に削除ボタン（通常写真も・非表示＝5秒Undo／♻️削除した写真を戻すで復元可）) · 2026-08-23';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -3302,6 +3302,8 @@ function openLoggerPanel() {
     `<div class="logger-actions">` +
       `<button class="logger-btn" id="loggerToMap">${tr('🗺 地図で軌跡を見る', '🗺 See the track on the map')}</button>` +
       `<button class="logger-btn" id="loggerExport">${tr('📤 足あとを書き出す', '📤 Export footprints')}</button>` +   // v237: 消す前に外へ出せる窓口 (削除ボタンの隣に置く＝消そうとした人の目に入る)
+      `<button class="logger-btn" id="loggerImport">${tr('📥 足あとを読み込む', '📥 Import footprints')}</button>` +   // v238: 書き出したものを戻す口 (これが無いと 📤 は一方通行)
+      `<input type="file" id="loggerFile" accept=".json,application/json" style="display:none">` +
       `<button class="logger-btn" id="loggerByDay">${tr('📅 日ごとに消す', '📅 Delete by day')}</button>` +
       `<button class="logger-btn ghost" id="loggerClear">${tr('🗑 すべての記録を消す', '🗑 Delete all records')}</button>` +
     `</div>` +
@@ -3373,6 +3375,68 @@ function openLoggerPanel() {
     if (mapState && mapState.refreshTrack) mapState.refreshTrack();
     if (!daysBox.hidden) renderTrackDays();
     if (loggerPanelUpdate) loggerPanelUpdate();
+  });
+
+  // v238: 📥 足あとを読み込む — v237 で書き出した JSON を戻す (これが無いと 📤 は一方通行で、
+  //   「消える前に守る」という書き出しの目的を果たせない)。id が keyPath なので同じファイルを
+  //   2回入れても増えない (冪等)。🤝相手の点 (src:'peer') は入れない＝パックの管理下にあり、
+  //   ここから混ぜると 🗑パック削除で消えない孤児になるため (パックは ⚙「🤝 もらった思い出」から)。
+  const trkFile = card.querySelector('#loggerFile');
+  const trkImpBtn = card.querySelector('#loggerImport');
+  trkImpBtn.addEventListener('click', () => trkFile.click());
+  trkFile.addEventListener('change', async () => {
+    const f = trkFile.files && trkFile.files[0];
+    if (!f) return;
+    const label = trkImpBtn.textContent;
+    trkImpBtn.disabled = true;
+    trkImpBtn.textContent = tr('📥 読んでいます…', '📥 Reading…');
+    try {
+      let pack = null;
+      try { pack = JSON.parse(await f.text()); }
+      catch { logErr(tr('ファイルを読めませんでした（JSON ではないようです）', 'Could not read the file (it does not look like JSON)')); return; }
+      if (!pack || pack.type !== 'anohi-track' || !Array.isArray(pack.points)) {
+        logErr(tr('これは「足あと」のファイルではありません。🤝 もらった思い出のパックは ⚙ の「🤝 もらった思い出」から取り込みます。',
+                  'This is not a footprints file. Import a shared pack from “🤝 Shared memories” instead.'));
+        return;
+      }
+      if ((pack.version || 1) > 1) { logErr(tr('新しい版で書き出したファイルです。アプリを新しくしてから読み込んでください。', 'This file was exported by a newer version. Please update the app first.')); return; }
+      // 使える点だけ拾う (相手の点・座標や時刻が欠けた行は捨てる)
+      const good = pack.points.filter(p => p && !isPeerPt(p) && p.id != null
+        && Number.isFinite(p.lat) && Number.isFinite(p.lng) && Number.isFinite(p.t));
+      const dropped = pack.points.length - good.length;
+      if (!good.length) { logInfo(tr('読み込める足あとがありませんでした。', 'No footprints could be imported.')); return; }
+      let minT = Infinity, maxT = -Infinity;                       // 手で作られたファイルは時刻順とは限らない
+      for (const p of good) { if (p.t < minT) minT = p.t; if (p.t > maxT) maxT = p.t; }
+      let have = new Set();
+      try { have = new Set((await trackGetRange(0, 8640000000000000)).map(q => q.id)); } catch {}
+      const fresh = good.filter(p => !have.has(p.id)).length;      // 既にある点は上書き＝増えない
+      const ymd = ms => { const d = new Date(ms); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; };
+      const dup = good.length - fresh;   // 既にある点は上書きされるだけ＝増えない。「残りは既にあります」は残りがある時だけ言う
+      const freshLine = dup
+        ? tr(`新しく増えるのは ${fresh} 点（残り ${dup} 点は既にあります）。`, `${fresh} are new (${dup} are already here).`)
+        : tr(`${fresh} 点すべてが新しく増えます。`, `All ${fresh} are new.`);
+      const msg = tr(`足あと ${good.length} 点を読み込みます。\n${freshLine}\n期間: ${ymd(minT)} 〜 ${ymd(maxT)}`,
+                     `Import ${good.length} footprints.\n${freshLine}\nRange: ${ymd(minT)} – ${ymd(maxT)}`)
+        + (dropped ? tr(`\n※ ${dropped} 行は使えないため飛ばします。`, `\n* Skipping ${dropped} unusable rows.`) : '');
+      if (!confirm(msg)) return;
+      const CHUNK = 2000;                                          // 1トランザクションに全部入れず刻む (大きいファイルで固まらせない)
+      for (let i = 0; i < good.length; i += CHUNK) {
+        await trackPutMany(good.slice(i, i + CHUNK));
+        const done = Math.min(i + CHUNK, good.length);
+        trkImpBtn.textContent = tr(`📥 読み込み中… ${done}/${good.length}`, `📥 Importing… ${done}/${good.length}`);
+        await yieldFrame();
+      }
+      logInfo(tr(`📥 足あと ${good.length} 点を読み込みました（新規 ${fresh} 点）`, `📥 Imported ${good.length} footprints (${fresh} new)`));
+      if (mapState && mapState.refreshTrack) mapState.refreshTrack();   // 地図を開いたままなら線を引き直す
+      if (!daysBox.hidden) renderTrackDays();
+      if (loggerPanelUpdate) loggerPanelUpdate();
+    } catch (err) {
+      logErr(tr(`足あとの読み込みに失敗: ${err?.message || err}`, `Failed to import footprints: ${err?.message || err}`));
+    } finally {
+      trkFile.value = '';                                          // 同じファイルを続けて選べるように
+      trkImpBtn.disabled = false;
+      trkImpBtn.textContent = label;
+    }
   });
 
   // 記録を日ごとに集計して一覧表示。各行の 🗑 でその日だけ削除 (確認あり)。
