@@ -854,7 +854,7 @@ try { if (window.Capacitor && Capacitor.getPlatform) { var __cp = Capacitor.getP
 // バージョン (キャッシュ問題切り分け用に画面に表示する)
 // commit するたびに上げること
 // ============================================================
-const BUILD = 'phase3.183 (v236：🗺全期間の地図に写真が戻る（サムネ/白点/密度の切替を「期間の総枚数」→「いま画面に写っている枚数」に＝寄ればサムネ／引いた時も期間全体から代表サムネ60枚を重ねる）｜v232：🖼拡大表示の操作ボタンをアイコンのみに（日本語ラベル撤去＝写真へのかぶりを最小化・title/aria-labelに説明）｜v231：🗑拡大表示に削除ボタン（通常写真も・非表示＝5秒Undo／♻️削除した写真を戻すで復元可）｜v230：🖼拡大表示の写真上端に時計/電池が重なるのを iOS でも解消（Android v220 の全画面オーバーレイ対策を iOS にも適用）｜v229：📊自動差分取り込みでも区間計測を回す（v226の入れ忘れ・エミュ実機E2Eで発見）) · 2026-08-23';
+const BUILD = 'phase3.184 (v237：📤 足あとを書き出す（🛰️パネル＝自分の足あと（ロガー＋手書き）を JSON 1ファイルに・消す前に外へ出せる窓口）｜v236：🗺全期間の地図に写真が戻る（サムネ/白点/密度の切替を「期間の総枚数」→「いま画面に写っている枚数」に＝寄ればサムネ／引いた時も期間全体から代表サムネ60枚を重ねる）｜v232：🖼拡大表示の操作ボタンをアイコンのみに（日本語ラベル撤去＝写真へのかぶりを最小化・title/aria-labelに説明）｜v231：🗑拡大表示に削除ボタン（通常写真も・非表示＝5秒Undo／♻️削除した写真を戻すで復元可）｜v230：🖼拡大表示の写真上端に時計/電池が重なるのを iOS でも解消（Android v220 の全画面オーバーレイ対策を iOS にも適用）) · 2026-08-23';
 
 // ============================================================
 // i18n 下ごしらえ (v130): 端末言語で日本語/英語を出し分け（世界版=ロードマップ①の基盤）。
@@ -3301,6 +3301,7 @@ function openLoggerPanel() {
     `<div class="logger-status" id="loggerStatusLine"></div>` +
     `<div class="logger-actions">` +
       `<button class="logger-btn" id="loggerToMap">${tr('🗺 地図で軌跡を見る', '🗺 See the track on the map')}</button>` +
+      `<button class="logger-btn" id="loggerExport">${tr('📤 足あとを書き出す', '📤 Export footprints')}</button>` +   // v237: 消す前に外へ出せる窓口 (削除ボタンの隣に置く＝消そうとした人の目に入る)
       `<button class="logger-btn" id="loggerByDay">${tr('📅 日ごとに消す', '📅 Delete by day')}</button>` +
       `<button class="logger-btn ghost" id="loggerClear">${tr('🗑 すべての記録を消す', '🗑 Delete all records')}</button>` +
     `</div>` +
@@ -3312,6 +3313,39 @@ function openLoggerPanel() {
   radios.forEach(r => r.addEventListener('change', () => { if (r.checked) setLoggerMode(r.value); }));
   card.querySelector('#loggerCloseBtn').addEventListener('click', closeLoggerPanel);
   card.querySelector('#loggerToMap').addEventListener('click', () => { closeLoggerPanel(); openMapView(); });
+
+  // v237: 📤 足あとを書き出す — 自分の足あと (🛰️ロガー ＋ ✏️手書き) を JSON 1ファイルにして共有シート/ダウンロードへ。
+  //   写真はライブラリから何度でも取り込み直せるが、足あとは消したら二度と戻らない (🗑 全削除は trackClear も呼ぶ)。
+  //   その非対称に対して「消す前に外へ出せる」窓口を用意する。🤝相手の足あと (src:'peer') は入れない
+  //   ＝相手のデータであり、パックのファイルから戻せるため。
+  card.querySelector('#loggerExport').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = tr('📤 集めています…', '📤 Collecting…');
+    try {
+      let pts = [];
+      try { pts = await trackGetRange(0, 8640000000000000); } catch (err) { logErr(tr(`足あとの読み出しに失敗: ${err?.message || err}`, `Failed to read footprints: ${err?.message || err}`)); return; }
+      const mine = pts.filter(q => !isPeerPt(q));
+      if (!mine.length) { logInfo(tr('書き出す足あとがまだありません', 'No footprints to export yet')); return; }
+      const nHand = mine.filter(isHandPt).length;
+      const pack = {
+        type: 'anohi-track', version: 1,                 // 読み戻す口を作る時はこの type/version で判別する
+        exportedAt: new Date().toISOString(),
+        build: BUILD.split(' ')[0],
+        count: mine.length,
+        logged: mine.length - nHand, hand: nHand,        // 🛰️ロガー由来 / ✏️手書き由来
+        from: new Date(mine[0].t).toISOString(),
+        to: new Date(mine[mine.length - 1].t).toISOString(),
+        points: mine,                                     // 座標と時刻だけ (機種変更で移せる = Notion §⑥ と同じ精神)
+      };
+      const r = await sharePackFile(pack, tr('足あと', 'footprints'));
+      if (r === 'shared' || r === 'downloaded') {
+        logInfo(tr(`📤 足あと ${mine.length} 点を書き出しました（🛰️ ${pack.logged} ／ ✏️ ${nHand}）`,
+                   `📤 Exported ${mine.length} footprints (🛰️ ${pack.logged} / ✏️ ${nHand})`));
+      }
+    } finally { btn.disabled = false; btn.textContent = label; }
+  });
 
   // 足跡から自動補完の ON/OFF (v140)
   const autoChk = card.querySelector('#loggerAutoChk');
