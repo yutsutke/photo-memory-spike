@@ -18,10 +18,15 @@
 
 | versionCode | versionName | 中身の web | 焼いた日 | 置き場 |
 |---|---|---|---|---|
-| **vc4** | 1.0 | **r94** | 2026-08-21 | `receipt-signing\receipt-1.0-vc4.aab` / `.apk` |
+| **vc5** | 1.0 | **r104** | 2026-08-23 | `receipt-signing\receipt-1.0-vc5.aab` / `.apk` |
+| vc4 | 1.0 | r94 | 2026-08-21 | `receipt-signing\receipt-1.0-vc4.aab` / `.apk` |
 | vc3 | 1.0 | r81 | 2026-08-20 | `receipt-signing\receipt-1.0-vc3.aab` / `.apk` |
 | vc2 | 1.0 | r79 | 2026-08-19 | `receipt-signing\receipt-1.0-vc2.aab` / `.apk` |
 | vc1 | 1.0 | r70 | 2026-08-17 | `receipt-signing\receipt-1.0-vc1.aab` / `.apk` |
+
+⚠ **vc5 には r95〜r104 の10版ぶんが入っている**＝⭐ いつものメニュー（r95）／📷 下の帯を設定で選べる・🍽 は食事の時間帯に大きく（r96）／⚖ 体組成計の5数値を体重と同じ1件に（r97）／🔁 繰り返しの管理画面（r98）／📷 下の帯ぜんぶを1タップで隠す（r100-r102）／📈 簡易分析に 🫀 血圧・体重＋渡すもの5種を選べる（r103）／🩹 iPhone で 📋🔁⭐ が無反応だったのを修正（r104）。
+⚠ **vc5 の焼き方**＝`BUILD_NUMBER=5` で `clean bundleRelease assembleRelease`（**59秒・一発**）。検証3点 green（署名 `META-INF/RECEIPT-.SF`/`.RSA` ／ versionCode 5 ／ 中の web が r104）。証明書 SHA-256 は登録済みのアップロード鍵と一致（`a7911190…bd4b`・V2 Signer）。
+💡 **versionCode は `android\app\build\outputs\bundle\release\output-metadata.json` を見るのがいちばん早い**（apk 側にも同じものがある）＝versionCode/versionName がそのまま書いてある。**AAB の protobuf マニフェストを aapt2 で読もうとして詰まる必要はない**。
 
 ⚠ **vc4 には r82〜r94 の13版ぶんが入っている**＝💴 予算（r82／r90 分類ごと・この月だけ／r91 📊統計／r94 📈推移・💴マップ・📤書き出し・📈AI分析）／🫀 からだの数字（血圧・体重を写メで・r83）／🗂 健康を5つのサブタブに（r84-r85）／📸 からだの写真＝👻透かしカメラ・⇆重ねる・⊟並べる・画面いっぱい（r85-r89）／🧾📤 レシートも書き出すか選べる＋⚙ から重なった入口3つを外した（r92）／✍️ 写真の無い収支を手で入れる（r93）。
 ⚠ **vc4 の焼き方**＝`BUILD_NUMBER=4` で `clean bundleRelease assembleRelease`（**57秒・一発**）。検証3点 green（署名 `META-INF/RECEIPT-.SF`/`.RSA` ／ versionCode 4 ／ 中の web が r94）。⚠ **APK 側に v1 署名（`META-INF/*.RSA`）が無いのは正常**＝minSdk が 24 以上なので v2/v3 署名になる。確かめるのは `apksigner verify --print-certs`（`V2 Signer … a7911190…bd4b` ＝ 2026-08-19 に Play へ登録したアップロード鍵と同じ）。

@@ -43,7 +43,10 @@ GitHub Pages 配下では あの日 web と同一オリジン＝IndexedDB / loca
 ### ▶ 次にやること
 - [ ] 🔴 **審査結果を待つ**（承認されたら ASC で「このバージョンをリリース」を押す＝手動リリースにしてある）
 - [ ] 🔴 **審査が終わったら、審査用の APIキーを失効させる**（承認・却下どちらでも。⚠ いちばん忘れやすい）
-- [ ] ▶ Play も r104 へ（vc5・[BUILD-android.md](BUILD-android.md)・一発50秒）＝web・iOS・Android を同じ版に揃える
+- [x] **🤖 Play 用の vc5（r104）を焼いた**（2026-08-23・59秒・一発）＝`receipt-signingeceipt-1.0-vc5.aab` / `.apk`
+  - 検証3点 green（署名 `META-INF/RECEIPT-.SF`/`.RSA` ／ versionCode 5 ／ 中の web が r104）・証明書は登録済みのアップロード鍵と一致
+  - [ ] 🔴 ▶ **Play Console に上げる**（内部テスト → 新しいリリース → `receipt-1.0-vc5.aab` を D&D）＝**本人の作業**
+  - ⚠ 前回 vc2 で「Android デベロッパーの確認／すべての鍵を登録してください」で止まった（[BUILD-android.md](BUILD-android.md) の 🚧 節）。同じ所で止まったらそこを読む
 - [ ] ▶ 実機で **🔁・⭐・🙋** を触る（r104 で 📋 と同じ道を直した＝直っているはずだが未確認）
 - [ ] ▶ 差し戻された時のために: 想定される指摘は **Guideline 2.1（審査用キーで試せるか）** と **健康の扱い**。どちらも審査メモで先に説明してある
 
