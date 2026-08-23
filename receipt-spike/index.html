@@ -1694,7 +1694,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r103 📈 簡易分析に 🫀 血圧・体重も渡せるようにし、渡すもの5種（🧾 レシート／🍽 食事／🩺 健診／💊 薬／🫀 血圧・体重）を1か所で選べるようにした（🧾 も外せる・全部オフなら ▶ を止めて理由を出す）（2026-08-23）｜r102 🩹 r100 で押した「🖼 を隠す」の持ち越しを1度だけ捨てた（帯の 📷 と 🖼 のセットが戻る・以後 🖼 の出し入れは ⚙ の ☑）／🔕 帯を隠す・出すたびのトーストをやめた（2026-08-22）｜r101 📷 下の帯（撮るボタン）ぜんぶを隠す／出すに変えた（トップのいちばん上・隠すと下の余白も0＝画面が広がる／🖼 だけ隠す設定は ⚙ へ移した）（2026-08-22）';
+const BUILD = 'r104 🩹 iPhone で 📋 この日に入れる・🔁 この繰り返しを始める・⭐ 覚える が無反応だったのを直した（DB から出した写真を別の記録へ書くと iOS だけ保存が返らない＝写真を作り直してから書く）／⏳ 押しても終わらない時は黙らず言う（2026-08-23）｜r103 📈 簡易分析に 🫀 血圧・体重も渡せるようにし、渡すもの5種（🧾 レシート／🍽 食事／🩺 健診／💊 薬／🫀 血圧・体重）を1か所で選べるようにした（🧾 も外せる・全部オフなら ▶ を止めて理由を出す）（2026-08-23）｜r102 🩹 r100 で押した「🖼 を隠す」の持ち越しを1度だけ捨てた（帯の 📷 と 🖼 のセットが戻る・以後 🖼 の出し入れは ⚙ の ☑）／🔕 帯を隠す・出すたびのトーストをやめた（2026-08-22）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1913,6 +1913,28 @@ const tx = (store, mode, fn) => db().then(d => new Promise((ok, ng) => {
   t.oncomplete = () => ok(r && 'result' in r ? r.result : undefined);
   t.onerror = () => ng(t.error);
 }));
+/* 🩹 r104: **IndexedDB から読み出した写真（Blob）を、別のレコードに書き込む時は作り直す**。
+   ⚠ iOS Safari / アプリ版（WKWebView）は、DB から出てきた Blob をそのまま別のレコードへ put すると
+      **transaction が返ってこない**（WebKit の既知バグ）＝`await` が返らず、その先の「画面を閉じる・
+      知らせを出す・一覧を描き直す」に**一度も届かない**＝押しても完全な無反応になる。
+      撮った直後の Blob（canvas で作った新品）では起きないので、**コピーする時だけ**の罠。
+   ⚠ あの日（リポ直下）の v166 で同じ罠を踏んでいる（重ね撮りのメタ更新が iOS だけ効かなかった）。
+      あちらは「先に描いて保存は裏で」で回避したが、こちらは**作った記録をすぐ DB から読み直して表示する**ので、
+      保存を待たないわけにいかない → **中身を読み出して新品の Blob にしてから書く**（待てる形に戻す）。
+   ⚠ 読み出すぶんのメモリは要るが、写真1枚ぶん（縮小済み）なので実用上は問題にならない。 */
+const freshBlob = async b => (b && typeof b.arrayBuffer === 'function')
+  ? new Blob([await b.arrayBuffer()], { type: b.type || 'image/jpeg' }) : (b || null);
+
+/* 🩹 r104: 「押しても何も起きない」を作らない。
+   ⚠ 上の罠に当たると画面には**何も出ない**＝本人にも私にも何が止まったのか分からなかった。
+      長すぎたら、その場で「終わっていない」と言う（原因が分からなくても、壊れ方は見える）。 */
+async function noSilentFail(label, fn, ms = 8000){
+  let done = false;
+  const t = setTimeout(() => { if (!done) toast(`⏳ ${label}が終わりません（アプリを開き直して、もう一度お試しください）`); }, ms);
+  try { return await fn(); }
+  catch (e) { toast(`❌ ${label}に失敗しました: ${String((e && e.message) || e).slice(0, 80)}`); }
+  finally { done = true; clearTimeout(t); }
+}
 const dbPut = rec => tx(STORE, 'readwrite', s => s.put(rec));
 const dbDel = id  => tx(STORE, 'readwrite', s => s.delete(id));
 const dbGet = id  => tx(STORE, 'readonly',  s => s.get(id));
@@ -4268,7 +4290,8 @@ mlNewEl('btnMlNewSave').onclick = async () => {
                 slot: slotOfTime(ts), slotAuto: true,
                 status: 'done',
                 // ⚠ 写真は ⭐ が持っている時だけ引き継ぐ（無ければ mealNoPhoto がこれを見る）
-                img: mn?.img || null, thumb: mn?.thumb || null,
+                // 🩹 r104: ⭐ の写真も DB から出たもの＝新品の Blob にしてから入れる
+                img: await freshBlob(mn?.img), thumb: await freshBlob(mn?.thumb),
                 data: { summary, detail: mn?.data?.detail || '', origin: mlNewOrg, originSrc: 'human', originWhy: null, items },
                 error: null, errors: [], meta: null,
                 origin: mlNewOrg, hint: mn?.hint || null, extras: [], memo: memo || null,
@@ -4341,7 +4364,8 @@ async function menuSave(name, seed){
   const mn = { id: old?.id || newId('mn'), name: nm,
                data: seed.data ? JSON.parse(JSON.stringify(seed.data)) : null,
                origin: seed.origin ?? null, hint: seed.hint ?? null,
-               img: seed.img || null, thumb: seed.thumb || null,
+               // 🩹 r104: ここも「別のレコードへ写真をコピーする」場所＝新品の Blob にしてから入れる
+               img: await freshBlob(seed.img), thumb: await freshBlob(seed.thumb),
                photoAt: seed.photoAt || null, srcId: seed.srcId || null,
                useCount: old?.useCount || 0, lastUsedAt: old?.lastUsedAt || null,
                createdAt: old?.createdAt || Date.now(), updatedAt: Date.now() };
@@ -4468,7 +4492,7 @@ document.getElementById('btnMnEdDel').onclick = async () => {
   await renderMeals();
 };
 /* ⭐ 覚える入口②＝**写真から書き起こした食事**を定番にする道（✍️ の ☑ は手で打った時の道）。 */
-document.getElementById('btnMlToMenu').onclick = async () => {
+document.getElementById('btnMlToMenu').onclick = () => noSilentFail('⭐ に覚える', async () => {
   if (!mlCur) return;
   const m = await mlGet(mlCur.id) || mlCur;
   const name = (m.data?.summary || '').trim();
@@ -4479,7 +4503,7 @@ document.getElementById('btnMlToMenu').onclick = async () => {
   if (r.ng) { toast('⚠ ' + r.ng); return; }
   toast(r.updated ? `⭐ 「${name}」を覚え直しました` : `⭐ 「${name}」をいつものメニューに覚えました`);
   await renderMeals();
-};
+});
 
 /* ---------- 🔁 繰り返し と 📋 コピー（r73） ----------
    要望＝①「毎回同じ食事を登録するのは面倒。**時間・繰り返す曜日・期限**を決めて、同じメニューを繰り返し登録したい」
@@ -4563,7 +4587,9 @@ async function makeMealFromSeed(seed, gid, day, time, madeBy){
   const rec = { id: newId('m'), ts: dt.getTime(), tsSrc: 'made', addedAt: Date.now(),
                 slot: slotOfTime(dt.getTime()), slotAuto: true,
                 status: seed.data ? 'done' : 'todo',
-                img: seed.img, thumb: seed.thumb,
+                // 🩹 r104: 写真は**新品の Blob に作り直して**から入れる（DB から出た Blob をそのまま
+                //          別のレコードへ書くと iOS で保存が返ってこない＝freshBlob の説明を参照）
+                img: await freshBlob(seed.img), thumb: await freshBlob(seed.thumb),
                 data: seed.data ? JSON.parse(JSON.stringify(seed.data)) : null,
                 error: null, errors: [], meta: null,
                 origin: seed.origin ?? null, hint: seed.hint ?? null, extras: [], memo: null,
@@ -4708,7 +4734,8 @@ document.getElementById('mlRepDays').addEventListener('click', e => {
   const i = +b.dataset.repday; mlRepDaysSel.has(i) ? mlRepDaysSel.delete(i) : mlRepDaysSel.add(i);
   renderMlRepDays();
 });
-document.getElementById('btnMlRepSave').onclick = async () => {
+// 🩹 r104: 押しても無反応（iOS で保存が返らなかった）＝黙って固まらないように包む
+document.getElementById('btnMlRepSave').onclick = () => noSilentFail('この操作', async () => {
   const days = [...mlRepDaysSel].sort((a, b) => a - b);
   if (mlRepEditId) {                                   // 既にある繰り返しを直す
     const rp = await rpGet(mlRepEditId); if (!rp) { hide('ovMlRep'); return; }
@@ -4744,7 +4771,9 @@ document.getElementById('btnMlRepSave').onclick = async () => {
   const until = document.getElementById('mlRepUntil').value || null;
   if (until && from > until) { toast('⚠ 「いつまで」が「いつから」より前になっています'); return; }
   const rp = { id: newId('rp'), gid, srcId: seed.srcId, photoAt: seed.photoAt,
-               img: seed.img, thumb: seed.thumb, data: seed.data, origin: seed.origin, hint: seed.hint,
+               // 🩹 r104: 決まり（rp）にも写真を1枚持たせる＝これも別のレコードへのコピー
+               img: await freshBlob(seed.img), thumb: await freshBlob(seed.thumb),
+               data: seed.data, origin: seed.origin, hint: seed.hint,
                time: document.getElementById('mlRepTime2').value || mealHM(src),
                days, from, until, mode: mlRepAuto, on: true, done: [],
                createdAt: Date.now(), updatedAt: Date.now() };
@@ -4753,7 +4782,7 @@ document.getElementById('btnMlRepSave').onclick = async () => {
   const n = await runRepeats();
   await renderMeals();
   if (!n) toast(`🔁 繰り返しを始めました（${rpDaysLabel(rp)} ${rp.time}${until ? ` ・ ${md(until)} まで` : ''}）`);
-};
+});
 document.getElementById('btnMlRepStop').onclick = async () => {
   if (!mlRepEditId || !confirm('この繰り返しをやめますか？（すでに入った食事は残ります）')) return;
   await rpDel(mlRepEditId); mlRepEditId = null; hide('ovMlRep');
@@ -4847,8 +4876,9 @@ async function renderRepeatManage(){
 document.getElementById('btnRpManage').onclick = async () => { await renderRepeatManage(); show('ovRepeats'); };
 document.getElementById('mlAskBar').addEventListener('click', e => {
   const y = e.target.closest('[data-rpyes]'), n = e.target.closest('[data-rpno]');
-  if (y) return rpAnswer(y.dataset.rpyes, y.dataset.rpday, true);
-  if (n) return rpAnswer(n.dataset.rpno, n.dataset.rpday, false);
+  // 🩹 r104: ここも写真をコピーして食事を作る道＝黙って固まらないように包む
+  if (y) return noSilentFail('この日に入れる', () => rpAnswer(y.dataset.rpyes, y.dataset.rpday, true));
+  if (n) return noSilentFail('この日はいらない', () => rpAnswer(n.dataset.rpno, n.dataset.rpday, false));
 });
 /* r98: 操作は管理の画面から。⚠ 押したあとは**管理の画面も** 描き直す（次に入る日・件数が古いまま残る） */
 document.getElementById('rpMgList').addEventListener('click', async e => {
