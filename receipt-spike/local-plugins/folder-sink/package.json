@@ -1,0 +1,32 @@
+{
+  "name": "folder-sink",
+  "version": "0.0.1",
+  "description": "Local Capacitor plugin: pick a folder once (iOS document picker / Android SAF), remember it (security-scoped bookmark / persistable URI permission), then overwrite a file in it without asking again. For 'receipt-spike' (レシートと健康) — writes the analysis copy to a folder an AI can read (Google Drive etc.).",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "ios/Sources",
+    "Package.swift",
+    "android/src",
+    "android/build.gradle"
+  ],
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native",
+    "files",
+    "saf",
+    "bookmark"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  }
+}

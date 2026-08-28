@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 権限は1つも要らない。SAF（ACTION_OPEN_DOCUMENT_TREE）は「本人が選んだフォルダだけ」を渡す仕組みで、
+     ストレージ権限（READ/WRITE_EXTERNAL_STORAGE）は不要＝Play の重い審査（MANAGE_EXTERNAL_STORAGE 等）にも入らない。 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />

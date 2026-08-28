@@ -29,6 +29,8 @@ android/app/src/main/assets/public/
 android/capacitor-cordova-android-plugins/
 # local plugin の Android ビルド生成物 (included project の build 出力は plugin 配下に出る)
 local-plugins/*/android/build/
+# receipt-spike 側の自前プラグイン（r105 folder-sink〜）も同じ生成物が出る
+receipt-spike/local-plugins/*/android/build/
 
 # receipt-spike（別プロダクト）の native 生成物は receipt-spike/android/.gitignore（Capacitor 生成）が担う。
 # あの日の www/ と node_modules/ は上のパターンが全階層に効くので receipt-spike/ 側も自動で無視される。

@@ -1,0 +1,47 @@
+// folder-sink の Android ライブラリモジュール。
+// cap sync android が capacitor.settings.gradle に include し、app が project(':folder-sink') で依存する。
+// 版数はアプリ側 variables.gradle (rootProject.ext) を継承（単体ビルド用に fallback あり）。
+buildscript {
+    ext.kotlinVersion = project.hasProperty('kotlinVersion') ? rootProject.ext.kotlinVersion : '2.1.20'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+    }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace "io.github.yutsutke.foldersink"
+    compileSdk project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 36
+    defaultConfig {
+        minSdkVersion project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
+        targetSdkVersion project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 36
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+    kotlinOptions {
+        jvmTarget = '21'
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+    // SAF（選んだフォルダの中のファイルを作る・探す・開く）を素の ContentResolver より短く書くため
+    implementation "androidx.documentfile:documentfile:1.0.1"
+    /* ⚠ ActivityResult（別の画面から戻ってきた結果）は capacitor-android が内部で使っているだけで
+       こちらのコンパイルには渡ってこない（implementation で隠れている）＝ここで明示的に足す。
+       版はアプリ側 variables.gradle と揃える（食い違うと同じクラスが2つ入る）。 */
+    implementation "androidx.activity:activity:${project.hasProperty('androidxActivityVersion') ? rootProject.ext.androidxActivityVersion : '1.11.0'}"
+}
