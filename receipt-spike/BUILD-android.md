@@ -18,12 +18,16 @@
 
 | versionCode | versionName | 中身の web | 焼いた日 | 置き場 |
 |---|---|---|---|---|
-| **vc6** | **1.1** | **r108** | 2026-08-29 | `receipt-signing\receipt-1.1-vc6.aab` / `.apk` |
+| **vc7** | **1.1** | **r109** | 2026-08-29 | `receipt-signing\receipt-1.1-vc7.aab` / `.apk` |
+| vc6 | 1.1 | r108 | 2026-08-29 | `receipt-signing\receipt-1.1-vc6.aab` / `.apk` |
 | vc5 | 1.0 | r104 | 2026-08-23 | `receipt-signing\receipt-1.0-vc5.aab` / `.apk` |
 | vc4 | 1.0 | r94 | 2026-08-21 | `receipt-signing\receipt-1.0-vc4.aab` / `.apk` |
 | vc3 | 1.0 | r81 | 2026-08-20 | `receipt-signing\receipt-1.0-vc3.aab` / `.apk` |
 | vc2 | 1.0 | r79 | 2026-08-19 | `receipt-signing\receipt-1.0-vc2.aab` / `.apk` |
 | vc1 | 1.0 | r70 | 2026-08-17 | `receipt-signing\receipt-1.0-vc1.aab` / `.apk` |
+
+⚠ **vc7 ＝ vc6 ＋ r109 だけ**（🩹 ② で結びつけた実際のファイル名を画面とトーストに出す）。vc6 を Android 実機で触って**②で古い「レシートデータ.txt」を選んでいた**ことが Drive 側の確認で分かったため、**間違った上書きが正常に見えない**ように直した版。検証3点 green（署名 `META-INF/RECEIPT-.SF`/`.RSA` ／ versionCode 7・versionName 1.1 ／ 中の web が r109）。証明書 SHA-256 は登録済みのアップロード鍵と一致（`a7911190…bd4b`）。
+🎉 **vc6 で Android 実機の判定が出た**＝**フォルダは選べない**（読み通り＝ドライブの Android アプリは SAF に出ない）が、**ファイル方式は動く・自動更新も効く**（06:10:31 撮影 → 06:10:40 書き出しを Drive 側で確認）。
 
 ⚠ **vc6 には r105〜r108 の4版ぶんが入っている＝1.1 の本体「AI に読ませる置き場へ自動で書き出す」**（r105 自動書き出し＋自前プラグイン folder-sink／r106 置き場に SQL も並べる＋版を 1.1 へ／r107 プラグインの取り出し方の修正／r108 フォルダを渡さない置き場むけに「ファイルを覚える」道）。**versionName も 1.0 → 1.1**（1.0 は App Store で公開済み）。
 ⚠ **vc6 の焼き方**＝`BUILD_NUMBER=6` で `clean bundleRelease assembleRelease`（**1分9秒・一発**）。検証3点 green（署名 `META-INF/RECEIPT-.SF`/`.RSA` ／ versionCode 6・versionName 1.1 ／ 中の web が r108）。証明書 SHA-256 は登録済みのアップロード鍵と一致（`a7911190…bd4b`・V2 Signer）。
