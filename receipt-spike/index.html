@@ -1125,6 +1125,18 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
         <button class="btn" id="btnAutoNow">⬆️ 今すぐ書き出す</button>
       </div>
       <div class="note" id="autoState" style="margin-top:6px"></div>
+      <!-- 🆕 r108: フォルダを渡してくれない置き場（Google ドライブ）むけの逃げ道。
+           ⚠ 実機 2026-08-28＝ドライブは「ファイル」アプリの一覧には出るが、フォルダは灰色で選べない。
+              ファイル単体なら渡せる見込みなので、「上書きし続けるファイル」を1つずつ覚える形にした。
+           ⚠ 使う時だけ広がる（details）＝ふだんは 📁 の1つだけが見えていればよい。 -->
+      <details class="adv" id="autoAlt"><summary>📄 フォルダが選べない置き場のとき（Google ドライブなど）</summary>
+        <div class="note" style="margin-top:6px">⚠ <b>Google ドライブは「フォルダ」を渡してくれません</b>（選ぶ画面で<b>灰色</b>になります）。その時は<b>「上書きし続けるファイル」を1つずつ選ぶ</b>と同じことができます。<br><b>①</b> でドライブに置く → <b>②</b> で置いたファイルを選ぶ → 以後は自動で上書き。</div>
+        <button class="btn" id="btnAutoSeed">① ドライブに置く（最初の1回）<br><small>共有シートが開きます。<b>Google ドライブ</b>を選んで、2つとも保存してください</small></button>
+        <div class="dual" style="margin-top:8px">
+          <button class="btn" id="btnAutoBind0">② JSON を選ぶ</button>
+          <button class="btn" id="btnAutoBind1">② SQL を選ぶ</button>
+        </div>
+      </details>
     </div>
     <div class="note">置き場は <b>Google ドライブ</b>がおすすめです＝<b>Claude / ChatGPT / Gemini の3つとも、ドライブのファイルなら直接読めます</b>（有料プランのコネクタ。無料なら「＋」から添付）。<br>⚠ <b>iCloud に置くと、どの AI からも直接は読めません</b>（パソコンを経由することになります）。<br>置くのは <code>レシートと健康.json</code>（AI に読ませる本命）と <code>レシートと健康.sql</code>（パソコンで深く掘る用）の<b>2つ</b>で、押すたびではなく<b>変わるたびに、まるごと上書き</b>します（中身はどちらも 📄 JSON の「全期間・全部入り」と同じ）。<br>💡 <code>.sql</code> は<b>本物のデータベースのファイルではありません</b>が、パソコンで <code>sqlite3 レシートと健康.db &lt; レシートと健康.sql</code> と1行打てば、そのまま SQL で問える DB になります。<br>⚠ これは<b>端末どうしの同期ではありません</b>（2台で同じ記録を編集することはできません）。<b>📸 からだの写真は入りません</b>。</div>
   </div>
@@ -1712,7 +1724,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r107 🩹 アプリ版で「この画面ではフォルダを選べません」と出たのを直した＝自前プラグインの取り出し方が違った（このアプリはバンドラ無しで registerPlugin が無い／Capacitor.Plugins から取る）。＋使えない理由を押す前に出す・使えない時はボタンを出さない・アプリ版でブラウザの仕組みに落ちない（2026-08-28）｜r106 🗄 置き場に SQL（レシートと健康.sql）も並べて置くようにした＝パソコンで深く掘る用（sqlite3 レシートと健康.db < ….sql の1行で本物の DB になる）。バイナリの .sqlite にしない理由＝部品700KBを抱えず、AI コネクタはテキストなら読めるため。表の形は JSON からその場で導く（2026-08-28）｜r105 🔄 自動で書き出すを付けた＝一度フォルダを選べば、記録が増えるたびに「レシートと健康.json」をAI に読ませる置き場（Google ドライブ等）へまるごと上書きする（既定オフ・端末どうしの同期ではない・📸 からだの写真は入らない／自前プラグイン FolderSink＝iOS は書類ピッカー＋許可証、Android は SAF、パソコンのブラウザは File System Access）（2026-08-28）';
+const BUILD = 'r108 📄 フォルダを渡してくれない置き場（Google ドライブ）むけに「上書きし続けるファイルを1つずつ覚える」道を足した＝①共有シートでドライブに置く→②そのファイルを選ぶ→以後は自動で上書き。実機でドライブのフォルダが灰色で選べなかったため（2026-08-28）｜r107 🩹 アプリ版で「この画面ではフォルダを選べません」と出たのを直した＝自前プラグインの取り出し方が違った（このアプリはバンドラ無しで registerPlugin が無い／Capacitor.Plugins から取る）。＋使えない理由を押す前に出す・使えない時はボタンを出さない・アプリ版でブラウザの仕組みに落ちない（2026-08-28）｜r106 🗄 置き場に SQL（レシートと健康.sql）も並べて置くようにした＝パソコンで深く掘る用（sqlite3 レシートと健康.db < ….sql の1行で本物の DB になる）。バイナリの .sqlite にしない理由＝部品700KBを抱えず、AI コネクタはテキストなら読めるため。表の形は JSON からその場で導く（2026-08-28）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -7945,6 +7957,7 @@ const AUTO_FILE = 'レシートと健康.json';
    ⚠ 本物の .sqlite（データベースのファイル）ではない。`sqlite3 レシートと健康.db < レシートと健康.sql`
       の1行で本物の DB になる。テキストにした理由は sqlDump のところに書いた。 */
 const AUTO_FILE_SQL = 'レシートと健康.sql';
+const AUTO_FILES = [AUTO_FILE, AUTO_FILE_SQL];
 const autoOn = () => localStorage.getItem(AUTO.on) === '1';
 
 /* 置き場への出口。アプリ版＝自前プラグイン FolderSink（iOS の書類ピッカー＋許可証／Android の SAF）。
@@ -7976,9 +7989,11 @@ const sink = {
   kind: () => FolderSink ? 'native' : webFsOk() ? 'web' : 'none',
   async status(){
     if (FolderSink) return await FolderSink.status();
-    if (!webFsOk()) return { ok: false, label: '' };
+    if (!webFsOk()) return { ok: false, label: '', files: [] };
     const h = await kvGet('sinkDir').catch(() => null);
-    return { ok: !!h, label: (h && h.name) || '' };
+    const files = [];
+    for (const n of AUTO_FILES) if (await kvGet('sinkFile:' + n).catch(() => null)) files.push(n);
+    return { ok: !!h || !!files.length, label: (h && h.name) || '', files };
   },
   async pick(){
     if (FolderSink) return await FolderSink.pick();
@@ -7992,16 +8007,33 @@ const sink = {
       return { ok: false, error: /abort/i.test(String((e && e.name) || '')) ? '' : String((e && e.message) || e) };
     }
   },
+  /* 🆕 r108: 「この名前で書く時に上書きするファイル」を1つ覚える（フォルダを渡せない置き場むけ）。
+     ⚠ **Google ドライブは「ファイル」アプリにフォルダを渡さない**（実機 2026-08-28・選択画面で灰色）。
+        ファイル単体なら渡せる見込みなので、フォルダが駄目でもここから同じことができる。 */
+  async pickFile(slot){
+    if (FolderSink) return await FolderSink.pickFile({ slot });
+    if (!webFsOk()) return { ok: false, error: 'この画面ではファイルを選べません' };
+    try {
+      const [h] = await window.showOpenFilePicker({ multiple: false, id: 'rcptSinkF' });
+      await kvPut('sinkFile:' + slot, h);
+      return { ok: true, label: h.name || '' };
+    } catch (e) {
+      return { ok: false, error: /abort/i.test(String((e && e.name) || '')) ? '' : String((e && e.message) || e) };
+    }
+  },
   async forget(){
     if (FolderSink) return await FolderSink.forget();
     await kvDel('sinkDir').catch(() => {});
+    for (const n of AUTO_FILES) await kvDel('sinkFile:' + n).catch(() => {});
     return { ok: true };
   },
   async write(name, text){
     if (FolderSink) return await FolderSink.write({ name, text });
     if (!webFsOk()) return { ok: false, error: 'この画面では書けません' };
-    const h = await kvGet('sinkDir');
-    if (!h) return { ok: false, error: 'フォルダが選ばれていません' };
+    // r108: 覚えたファイルがあればそちらが優先（native 側の決まりと揃える）
+    const fh0 = await kvGet('sinkFile:' + name).catch(() => null);
+    const h = fh0 || await kvGet('sinkDir');
+    if (!h) return { ok: false, error: '置き場が選ばれていません' };
     /* ⚠ ブラウザは、覚えたフォルダへの許可を**読み込み直すたびに聞き直す**。しかも聞けるのは
        「指で押した直後」だけ＝自動のタイミングでは聞けない。だから理由を返して黙らない
        （画面には「今すぐ書き出す」を押せば聞き直せる、と出す）。 */
@@ -8013,10 +8045,10 @@ const sink = {
       }
       if (perm !== 'granted') return { ok: false, error: '許可が切れています（「⬆️ 今すぐ書き出す」を押すと聞き直せます）' };
     }
-    const fh = await h.getFileHandle(name, { create: true });
+    const fh = fh0 || await h.getFileHandle(name, { create: true });
     const w = await fh.createWritable();       // ⚠ createWritable は既存の中身を捨てて作り直す＝上書きになる
     await w.write(text); await w.close();
-    return { ok: true, path: (h.name ? h.name + '/' : '') + name };
+    return { ok: true, path: fh0 ? (fh0.name || name) : (h.name ? h.name + '/' : '') + name };
   },
 };
 
@@ -8127,7 +8159,8 @@ async function autoFlush(){
     /* r106: JSON と SQL の2つを置く。⚠ 中身は**1回だけ作って使い回す**＝2回作ると
        その間に記録が変わった時に、2つのファイルが食い違う（同じ瞬間の写しでなくなる）。 */
     const txt = await autoPayload();
-    const files = [{ name: AUTO_FILE, text: txt }, { name: AUTO_FILE_SQL, text: sqlDump(JSON.parse(txt)) }];
+    const made = { [AUTO_FILE]: txt, [AUTO_FILE_SQL]: sqlDump(JSON.parse(txt)) };
+    const files = AUTO_FILES.map(n => ({ name: n, text: made[n] }));
     let r = { ok: true };
     for (const f of files) {
       r = (await sink.write(f.name, f.text)) || { ok: false };
@@ -8172,9 +8205,12 @@ function autoRender(){
   sink.status().then(r => {
     const at = +(localStorage.getItem(AUTO.at) || 0), err = localStorage.getItem(AUTO.err) || '';
     const when = at ? new Date(at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const bound = (r.files || []);
     st.innerHTML =
-      (r.ok ? '📁 置き場: <b>' + hesc(r.label || '選んだフォルダ') + '</b> ／ <code>' + hesc(AUTO_FILE) + '</code> と <code>' + hesc(AUTO_FILE_SQL) + '</code>'
-            : '📁 置き場: <b>まだ選ばれていません</b>（「📁 フォルダを選ぶ」を押してください）')
+      (r.label ? '📁 置き場: <b>' + hesc(r.label) + '</b> ／ <code>' + hesc(AUTO_FILE) + '</code> と <code>' + hesc(AUTO_FILE_SQL) + '</code>'
+       : bound.length ? '📄 覚えたファイル: ' + bound.map(n => '<code>' + hesc(n) + '</code>').join('・')
+                        + (bound.length < AUTO_FILES.length ? '<br>⚠ <b>' + hesc(AUTO_FILES.filter(n => !bound.includes(n)).join('・')) + '</b> はまだ選ばれていません' : '')
+       : '📁 置き場: <b>まだ選ばれていません</b>（「📁 フォルダを選ぶ」を押してください）')
       + (when ? '<br>✅ 最後に書けたのは <b>' + hesc(when) + '</b>' : '')
       + (err ? '<br><span style="color:var(--err)">⚠ ' + hesc(err) + '</span>' : '');
   });
@@ -8195,6 +8231,25 @@ document.getElementById('btnAutoPick').onclick = async () => {
   if (r && r.ok) { toast('📁 置き場を覚えました'); autoRender(); await autoFlush(); }
   else { if (r && r.error) toast('❌ ' + r.error); autoRender(); }
 };
+/* ① 最初の1回だけ、共有シートで置き場（ドライブ）にファイルを作ってもらう。
+   ⚠ この道は r64 で実機確認ずみ（「ワンタップで Google ドライブに送れた」）＝新しい未知を足していない。
+   ⚠ **名前を合わせるのが肝**＝ここで作られる名前が、以後 ② で結びつける名前になる。 */
+document.getElementById('btnAutoSeed').onclick = async () => {
+  await noSilentFail('ドライブへの書き出し', async () => {
+    const txt = await autoPayload();
+    const made = { [AUTO_FILE]: txt, [AUTO_FILE_SQL]: sqlDump(JSON.parse(txt)) };
+    await exportOutMany(AUTO_FILES.map(n => ({ name: n, text: made[n],
+      mime: n.endsWith('.json') ? 'application/json' : 'text/plain' })));
+  });
+};
+/* ② 置いたファイルを1つずつ結びつける。⚠ 2つとも選ばないと、片方は古いままになる（画面で言う）。 */
+AUTO_FILES.forEach((slot, i) => {
+  document.getElementById('btnAutoBind' + i).onclick = async () => {
+    const r = await sink.pickFile(slot);
+    if (r && r.ok) { toast('📄 「' + slot + '」の置き場を覚えました'); autoRender(); await autoFlush(); }
+    else { if (r && r.error) toast('❌ ' + r.error); autoRender(); }
+  };
+});
 document.getElementById('btnAutoNow').onclick = async () => {
   const r = await noSilentFail('書き出し', () => autoFlush());
   if (r && r.ok) toast('⬆️ 置き場に書き出しました');
