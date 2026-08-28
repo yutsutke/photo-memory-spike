@@ -18,7 +18,7 @@
 
 | versionCode | versionName | 中身の web | 焼いた日 | 置き場 |
 |---|---|---|---|---|
-| **vc6** | **1.1** | **r108** | 2026-08-29 | receipt-signingeceipt-1.1-vc6.aab / .apk |
+| **vc6** | **1.1** | **r108** | 2026-08-29 | `receipt-signing\receipt-1.1-vc6.aab` / `.apk` |
 | vc5 | 1.0 | r104 | 2026-08-23 | `receipt-signing\receipt-1.0-vc5.aab` / `.apk` |
 | vc4 | 1.0 | r94 | 2026-08-21 | `receipt-signing\receipt-1.0-vc4.aab` / `.apk` |
 | vc3 | 1.0 | r81 | 2026-08-20 | `receipt-signing\receipt-1.0-vc3.aab` / `.apk` |
@@ -26,7 +26,7 @@
 | vc1 | 1.0 | r70 | 2026-08-17 | `receipt-signing\receipt-1.0-vc1.aab` / `.apk` |
 
 ⚠ **vc6 には r105〜r108 の4版ぶんが入っている＝1.1 の本体「AI に読ませる置き場へ自動で書き出す」**（r105 自動書き出し＋自前プラグイン folder-sink／r106 置き場に SQL も並べる＋版を 1.1 へ／r107 プラグインの取り出し方の修正／r108 フォルダを渡さない置き場むけに「ファイルを覚える」道）。**versionName も 1.0 → 1.1**（1.0 は App Store で公開済み）。
-⚠ **vc6 の焼き方**＝ で （**1分9秒・一発**）。検証3点 green（署名 / ／ versionCode 6・versionName 1.1 ／ 中の web が r108）。証明書 SHA-256 は登録済みのアップロード鍵と一致（・V2 Signer）。
+⚠ **vc6 の焼き方**＝`BUILD_NUMBER=6` で `clean bundleRelease assembleRelease`（**1分9秒・一発**）。検証3点 green（署名 `META-INF/RECEIPT-.SF`/`.RSA` ／ versionCode 6・versionName 1.1 ／ 中の web が r108）。証明書 SHA-256 は登録済みのアップロード鍵と一致（`a7911190…bd4b`・V2 Signer）。
 ⚠ **Android の folder-sink は一度も実機で動かしていない**（ビルドは通っているだけ）＝vc6 で初めて触ることになる。
 ⚠ **Android では Google ドライブが SAF に出ない見込み**＝ドライブの Android アプリは「ファイルを選ぶ」仕組み（DocumentsProvider）を提供していない。**内部ストレージ・OneDrive・Dropbox なら出る**はず。iOS と同じく、ドライブ対応は B案（Drive API）待ち。
 
