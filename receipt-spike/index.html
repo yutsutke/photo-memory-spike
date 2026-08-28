@@ -1132,6 +1132,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
       <details class="adv" id="autoAlt"><summary>📄 フォルダが選べない置き場のとき（Google ドライブなど）</summary>
         <div class="note" style="margin-top:6px">⚠ <b>Google ドライブは「フォルダ」を渡してくれません</b>（選ぶ画面で<b>灰色</b>になります）。その時は<b>「上書きし続けるファイル」を1つずつ選ぶ</b>と同じことができます。<br><b>①</b> でドライブに置く → <b>②</b> で置いたファイルを選ぶ → 以後は自動で上書き。</div>
         <button class="btn" id="btnAutoSeed">① ドライブに置く（最初の1回）<br><small>共有シートが開きます。<b>Google ドライブ</b>を選んで、2つとも保存してください</small></button>
+        <div class="note" style="margin:6px 0 0">⚠ ① は<b>押すたびに新しいファイルが作られます</b>（同じ名前でも別物として増えます）＝<b>最初の1回だけ</b>にしてください。<br>⚠ ② では<b>いま①で置いたファイル</b>を選んでください。<b>別のファイルを選ぶと、そちらが上書きされます</b>（選んだ名前は下に出ます）。</div>
         <div class="dual" style="margin-top:8px">
           <button class="btn" id="btnAutoBind0">② JSON を選ぶ</button>
           <button class="btn" id="btnAutoBind1">② SQL を選ぶ</button>
@@ -1724,7 +1725,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r108 📄 フォルダを渡してくれない置き場（Google ドライブ）むけに「上書きし続けるファイルを1つずつ覚える」道を足した＝①共有シートでドライブに置く→②そのファイルを選ぶ→以後は自動で上書き。実機でドライブのフォルダが灰色で選べなかったため（2026-08-28）｜r107 🩹 アプリ版で「この画面ではフォルダを選べません」と出たのを直した＝自前プラグインの取り出し方が違った（このアプリはバンドラ無しで registerPlugin が無い／Capacitor.Plugins から取る）。＋使えない理由を押す前に出す・使えない時はボタンを出さない・アプリ版でブラウザの仕組みに落ちない（2026-08-28）｜r106 🗄 置き場に SQL（レシートと健康.sql）も並べて置くようにした＝パソコンで深く掘る用（sqlite3 レシートと健康.db < ….sql の1行で本物の DB になる）。バイナリの .sqlite にしない理由＝部品700KBを抱えず、AI コネクタはテキストなら読めるため。表の形は JSON からその場で導く（2026-08-28）';
+const BUILD = 'r109 🩹 ② で結びつけた「実際のファイルの名前」を画面とトーストに出すようにした＝実機 Android で古い「レシートデータ.txt」に JSON を上書きしていたのに、画面はスロット名しか出さず正常に見えた。名前が食い違う時は⚠を出す／①は押すたびにファイルが増えることを明記（2026-08-29）｜r108 📄 フォルダを渡してくれない置き場（Google ドライブ）むけに「上書きし続けるファイルを1つずつ覚える」道を足した＝①共有シートでドライブに置く→②そのファイルを選ぶ→以後は自動で上書き。実機でドライブのフォルダが灰色で選べなかったため（2026-08-28）｜r107 🩹 アプリ版で「この画面ではフォルダを選べません」と出たのを直した＝自前プラグインの取り出し方が違った（このアプリはバンドラ無しで registerPlugin が無い／Capacitor.Plugins から取る）。＋使えない理由を押す前に出す・使えない時はボタンを出さない・アプリ版でブラウザの仕組みに落ちない（2026-08-28）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -7949,7 +7950,11 @@ document.getElementById('expTo').onchange = refreshExpCount;
       コネクタがあるのは Drive だけ。iCloud Drive は第三者向けの公開 API が無く、**どの AI からも
       直接は読めない孤島**（パソコン経由になる）＋Android の人は持っていない。
    ⚠ **既定オフの opt-in**＝入れていない人の振る舞いは今までと1つも変わらない。 */
-const AUTO = { on: 'rcpt.auto.on', at: 'rcpt.auto.at', err: 'rcpt.auto.err' };
+/* r109: name(slot) ＝ ② で結びつけた**実際のファイルの名前**。
+   ⚠ これを覚えていないと、**別のファイルを選んでも気づけない**（実機 Android で、古い
+      「レシートデータ.txt」に JSON を上書きしていたのに、画面はスロット名しか出さず正常に見えた）。 */
+const AUTO = { on: 'rcpt.auto.on', at: 'rcpt.auto.at', err: 'rcpt.auto.err',
+               name: slot => 'rcpt.auto.name.' + slot };
 /* ⚠ 名前は固定＝**毎回まるごと上書き**する。日時を付けると Drive に写しが溜まり、
    AI に「どれが最新か」を選ばせることになる（📤 の 💡 で「全期間で出して毎回上書き」と言っているのと同じ理由）。 */
 const AUTO_FILE = 'レシートと健康.json';
@@ -8206,9 +8211,17 @@ function autoRender(){
     const at = +(localStorage.getItem(AUTO.at) || 0), err = localStorage.getItem(AUTO.err) || '';
     const when = at ? new Date(at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
     const bound = (r.files || []);
+    /* r109: **どのファイルに書くのかを名前で出す**。⚠ スロット名（レシートと健康.json）だけを出すと、
+       ②で別のファイルを選んでいても正常に見える（実機でそれが起きた）。選んだ名前が食い違うなら言う。 */
+    const boundLines = bound.map(n => {
+      const real = localStorage.getItem(AUTO.name(n)) || '';
+      const odd = real && real !== n;
+      return '　<code>' + hesc(n) + '</code> → <b>' + hesc(real || '（名前が分かりません）') + '</b>'
+           + (odd ? ' <span style="color:var(--err)">⚠ 名前が違います</span>' : '');
+    });
     st.innerHTML =
       (r.label ? '📁 置き場: <b>' + hesc(r.label) + '</b> ／ <code>' + hesc(AUTO_FILE) + '</code> と <code>' + hesc(AUTO_FILE_SQL) + '</code>'
-       : bound.length ? '📄 覚えたファイル: ' + bound.map(n => '<code>' + hesc(n) + '</code>').join('・')
+       : bound.length ? '📄 書き込む先:<br>' + boundLines.join('<br>')
                         + (bound.length < AUTO_FILES.length ? '<br>⚠ <b>' + hesc(AUTO_FILES.filter(n => !bound.includes(n)).join('・')) + '</b> はまだ選ばれていません' : '')
        : '📁 置き場: <b>まだ選ばれていません</b>（「📁 フォルダを選ぶ」を押してください）')
       + (when ? '<br>✅ 最後に書けたのは <b>' + hesc(when) + '</b>' : '')
@@ -8228,6 +8241,8 @@ document.getElementById('autoChk').onchange = async e => {
 };
 document.getElementById('btnAutoPick').onclick = async () => {
   const r = await sink.pick();
+  // r109: フォルダに切り替えたら、ファイルの名前の記憶は捨てる（古い名前を出し続けない）
+  if (r && r.ok) for (const n of AUTO_FILES) localStorage.removeItem(AUTO.name(n));
   if (r && r.ok) { toast('📁 置き場を覚えました'); autoRender(); await autoFlush(); }
   else { if (r && r.error) toast('❌ ' + r.error); autoRender(); }
 };
@@ -8246,7 +8261,16 @@ document.getElementById('btnAutoSeed').onclick = async () => {
 AUTO_FILES.forEach((slot, i) => {
   document.getElementById('btnAutoBind' + i).onclick = async () => {
     const r = await sink.pickFile(slot);
-    if (r && r.ok) { toast('📄 「' + slot + '」の置き場を覚えました'); autoRender(); await autoFlush(); }
+    if (r && r.ok) {
+      const real = r.label || '';
+      localStorage.setItem(AUTO.name(slot), real);
+      /* r109: **選んだファイルの名前をそのまま言う**。⚠ 「覚えました」だけだと、別のファイルを
+         選んでいても気づけない（実機で古い「レシートデータ.txt」に JSON を上書きしていた）。 */
+      toast(real && real !== slot
+        ? '⚠ 「' + real + '」に ' + slot + ' の中身を書きます（名前が違います。違うなら選び直してください）'
+        : '📄 「' + (real || slot) + '」に書きます', null, real && real !== slot ? 7000 : undefined);
+      autoRender(); await autoFlush();
+    }
     else { if (r && r.error) toast('❌ ' + r.error); autoRender(); }
   };
 });
