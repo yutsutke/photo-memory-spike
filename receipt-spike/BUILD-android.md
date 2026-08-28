@@ -32,7 +32,7 @@
 ⚠ **vc6 には r105〜r108 の4版ぶんが入っている＝1.1 の本体「AI に読ませる置き場へ自動で書き出す」**（r105 自動書き出し＋自前プラグイン folder-sink／r106 置き場に SQL も並べる＋版を 1.1 へ／r107 プラグインの取り出し方の修正／r108 フォルダを渡さない置き場むけに「ファイルを覚える」道）。**versionName も 1.0 → 1.1**（1.0 は App Store で公開済み）。
 ⚠ **vc6 の焼き方**＝`BUILD_NUMBER=6` で `clean bundleRelease assembleRelease`（**1分9秒・一発**）。検証3点 green（署名 `META-INF/RECEIPT-.SF`/`.RSA` ／ versionCode 6・versionName 1.1 ／ 中の web が r108）。証明書 SHA-256 は登録済みのアップロード鍵と一致（`a7911190…bd4b`・V2 Signer）。
 ⚠ **Android の folder-sink は一度も実機で動かしていない**（ビルドは通っているだけ）＝vc6 で初めて触ることになる。
-⚠ **Android では Google ドライブが SAF に出ない見込み**＝ドライブの Android アプリは「ファイルを選ぶ」仕組み（DocumentsProvider）を提供していない。**内部ストレージ・OneDrive・Dropbox なら出る**はず。iOS と同じく、ドライブ対応は B案（Drive API）待ち。
+✅ **訂正（2026-08-29 実機）＝上の見込みは半分間違いだった**。**フォルダを選ぶ（`ACTION_OPEN_DOCUMENT_TREE`）では Drive は出ない**が、**ファイルを選ぶ（`ACTION_OPEN_DOCUMENT`）では Drive が出て、書ける**。→ **Android は ② のファイル方式で Google ドライブ対応が完成**（撮影 → 自動更新が Drive 側で確認ずみ）。**B案（Drive API）が要るのは iOS だけ**になった。
 
 ⚠ **vc5 には r95〜r104 の10版ぶんが入っている**＝⭐ いつものメニュー（r95）／📷 下の帯を設定で選べる・🍽 は食事の時間帯に大きく（r96）／⚖ 体組成計の5数値を体重と同じ1件に（r97）／🔁 繰り返しの管理画面（r98）／📷 下の帯ぜんぶを1タップで隠す（r100-r102）／📈 簡易分析に 🫀 血圧・体重＋渡すもの5種を選べる（r103）／🩹 iPhone で 📋🔁⭐ が無反応だったのを修正（r104）。
 ⚠ **vc5 の焼き方**＝`BUILD_NUMBER=5` で `clean bundleRelease assembleRelease`（**59秒・一発**）。検証3点 green（署名 `META-INF/RECEIPT-.SF`/`.RSA` ／ versionCode 5 ／ 中の web が r104）。証明書 SHA-256 は登録済みのアップロード鍵と一致（`a7911190…bd4b`・V2 Signer）。
