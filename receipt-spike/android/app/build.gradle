@@ -12,7 +12,8 @@ android {
         def _buildNum = System.getenv("BUILD_NUMBER")
         versionCode _buildNum ? _buildNum.toInteger() : 1
         // r70 で Play の内部テストに出す＝ストアに並ぶ版なので 0.1 から 1.0 に上げた
-        versionName "1.0"
+        // r105（2026-08-28）で 1.1 へ＝1.0 は App Store で公開済み（次に出す版は別の番号でないと受け取られない）
+        versionName "1.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

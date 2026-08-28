@@ -1124,7 +1124,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
       </div>
       <div class="note" id="autoState" style="margin-top:6px"></div>
     </div>
-    <div class="note">置き場は <b>Google ドライブ</b>がおすすめです＝<b>Claude / ChatGPT / Gemini の3つとも、ドライブのファイルなら直接読めます</b>（有料プランのコネクタ。無料なら「＋」から添付）。<br>⚠ <b>iCloud に置くと、どの AI からも直接は読めません</b>（パソコンを経由することになります）。<br>置くのは <code>レシートと健康.json</code> <b>1つだけ</b>で、押すたびではなく<b>変わるたびに、まるごと上書き</b>します（中身は 📄 JSON の「全期間・全部入り」と同じ）。<br>⚠ これは<b>端末どうしの同期ではありません</b>（2台で同じ記録を編集することはできません）。<b>📸 からだの写真は入りません</b>。</div>
+    <div class="note">置き場は <b>Google ドライブ</b>がおすすめです＝<b>Claude / ChatGPT / Gemini の3つとも、ドライブのファイルなら直接読めます</b>（有料プランのコネクタ。無料なら「＋」から添付）。<br>⚠ <b>iCloud に置くと、どの AI からも直接は読めません</b>（パソコンを経由することになります）。<br>置くのは <code>レシートと健康.json</code>（AI に読ませる本命）と <code>レシートと健康.sql</code>（パソコンで深く掘る用）の<b>2つ</b>で、押すたびではなく<b>変わるたびに、まるごと上書き</b>します（中身はどちらも 📄 JSON の「全期間・全部入り」と同じ）。<br>💡 <code>.sql</code> は<b>本物のデータベースのファイルではありません</b>が、パソコンで <code>sqlite3 レシートと健康.db &lt; レシートと健康.sql</code> と1行打てば、そのまま SQL で問える DB になります。<br>⚠ これは<b>端末どうしの同期ではありません</b>（2台で同じ記録を編集することはできません）。<b>📸 からだの写真は入りません</b>。</div>
   </div>
   <!-- r62: 頼み方の例（要望）。⚠ 例文に「レシートIDが同じ＝1回だけ数える」を入れてある＝
        ファイルが複数あっても二重に数えない（重なりの保険はデータ側の receipt_id と、この一文の両輪） -->
@@ -1710,7 +1710,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r105 🔄 自動で書き出すを付けた＝一度フォルダを選べば、記録が増えるたびに「レシートと健康.json」をAI に読ませる置き場（Google ドライブ等）へまるごと上書きする（既定オフ・端末どうしの同期ではない・📸 からだの写真は入らない／自前プラグイン FolderSink＝iOS は書類ピッカー＋許可証、Android は SAF、パソコンのブラウザは File System Access）（2026-08-28）｜r104 🩹 iPhone で 📋 この日に入れる・🔁 この繰り返しを始める・⭐ 覚える が無反応だったのを直した（DB から出した写真を別の記録へ書くと iOS だけ保存が返らない＝写真を作り直してから書く）／⏳ 押しても終わらない時は黙らず言う（2026-08-23）｜r103 📈 簡易分析に 🫀 血圧・体重も渡せるようにし、渡すもの5種（🧾 レシート／🍽 食事／🩺 健診／💊 薬／🫀 血圧・体重）を1か所で選べるようにした（🧾 も外せる・全部オフなら ▶ を止めて理由を出す）（2026-08-23）';
+const BUILD = 'r106 🗄 置き場に SQL（レシートと健康.sql）も並べて置くようにした＝パソコンで深く掘る用（sqlite3 レシートと健康.db < ….sql の1行で本物の DB になる）。バイナリの .sqlite にしない理由＝部品700KBを抱えず、AI コネクタはテキストなら読めるため。表の形は JSON からその場で導く（2026-08-28）｜r105 🔄 自動で書き出すを付けた＝一度フォルダを選べば、記録が増えるたびに「レシートと健康.json」をAI に読ませる置き場（Google ドライブ等）へまるごと上書きする（既定オフ・端末どうしの同期ではない・📸 からだの写真は入らない／自前プラグイン FolderSink＝iOS は書類ピッカー＋許可証、Android は SAF、パソコンのブラウザは File System Access）（2026-08-28）｜r104 🩹 iPhone で 📋 この日に入れる・🔁 この繰り返しを始める・⭐ 覚える が無反応だったのを直した（DB から出した写真を別の記録へ書くと iOS だけ保存が返らない＝写真を作り直してから書く）／⏳ 押しても終わらない時は黙らず言う（2026-08-23）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -7939,6 +7939,10 @@ const AUTO = { on: 'rcpt.auto.on', at: 'rcpt.auto.at', err: 'rcpt.auto.err' };
 /* ⚠ 名前は固定＝**毎回まるごと上書き**する。日時を付けると Drive に写しが溜まり、
    AI に「どれが最新か」を選ばせることになる（📤 の 💡 で「全期間で出して毎回上書き」と言っているのと同じ理由）。 */
 const AUTO_FILE = 'レシートと健康.json';
+/* r106: 同じ中身を SQL（テキスト）でも置く＝**パソコンで深く掘る人向けのおまけ**。
+   ⚠ 本物の .sqlite（データベースのファイル）ではない。`sqlite3 レシートと健康.db < レシートと健康.sql`
+      の1行で本物の DB になる。テキストにした理由は sqlDump のところに書いた。 */
+const AUTO_FILE_SQL = 'レシートと健康.sql';
 const autoOn = () => localStorage.getItem(AUTO.on) === '1';
 
 /* 置き場への出口。アプリ版＝自前プラグイン FolderSink（iOS の書類ピッカー＋許可証／Android の SAF）。
@@ -8009,6 +8013,86 @@ async function autoPayload(){
   return await exportPayload(rows, '', '', EXP_ALL);
 }
 
+/* ---------- 📄 JSON と同じ中身を SQL（テキスト）にする（r106） ----------
+   本人の言葉＝「SQLite もあれば便利だね」。⚠ 置くのは **.sql（テキスト）**で、.sqlite（バイナリ）ではない。
+   そう決めた理由:
+     ① 部品を抱えない＝本物の .sqlite を作るには SQLite を WASM にしたもの（約700KB）をアプリに同梱し、
+        さらに iOS/Android のプラグインに「バイナリを書く道」を足すことになる。A案（フォルダに書けるか）を
+        実機で確かめる回に、未検証の部分をもう1つ増やしたくない。
+     ② **AI コネクタはテキストなら読める**（バイナリの .sqlite は読めない）＝置き場に置く意味が残る。
+     ③ パソコンでは1行で本物の DB になる: sqlite3 レシートと健康.db < レシートと健康.sql
+   ⚠ 表の形は **JSON からその場で導く**＝列の一覧をコードの2か所に持たない
+      （持つと、項目を足した日に片方だけ直し忘れて、静かに欠けた表が出来る）。 */
+const sqlLit = v => v == null ? 'NULL'
+  : typeof v === 'number' ? (Number.isFinite(v) ? String(v) : 'NULL')
+  : typeof v === 'boolean' ? (v ? '1' : '0')
+  : "'" + String(v).replace(/'/g, "''") + "'";
+const sqlId = n => '"' + String(n).replace(/"/g, '""') + '"';
+const sqlIsObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+/* 「同じ形の並び」＝中身が全部 object の配列。これだけを子の表に分ける
+   （文字の並び＝findings などは、分けるほどの構造が無いので JSON の文字列のまま1列に置く）。 */
+const sqlIsRows = v => Array.isArray(v) && v.length > 0 && v.every(sqlIsObj);
+
+/* rows を表1つにして out に積む。中に「同じ形の並び」があれば子の表（親の鍵を1列足す）へ。 */
+function sqlEmit(table, rows, key, out){
+  if (!Array.isArray(rows) || !rows.length) return;
+  const kids = {};
+  const flat = rows.map((r, i) => {
+    const o = {};
+    for (const k of Object.keys(r)) {
+      const v = r[k];
+      if (sqlIsRows(v)) {
+        const cn = table + '_' + k, pk = key ? key : 'parent_row', pv = key ? r[key] : i;
+        (kids[cn] = kids[cn] || []).push(...v.map(x => Object.assign({ [pk]: pv }, x)));
+        continue;
+      }
+      o[k] = (v !== null && typeof v === 'object') ? JSON.stringify(v) : v;
+    }
+    return o;
+  });
+  const cols = [], typ = {};
+  for (const o of flat) for (const k of Object.keys(o)) {
+    if (!cols.includes(k)) cols.push(k);
+    if (typ[k] == null && o[k] != null)
+      typ[k] = typeof o[k] === 'number' ? 'REAL' : typeof o[k] === 'boolean' ? 'INTEGER' : 'TEXT';
+  }
+  if (!cols.length) return;
+  out.push('DROP TABLE IF EXISTS ' + sqlId(table) + ';');
+  out.push('CREATE TABLE ' + sqlId(table) + ' (\n  '
+    + cols.map(c => sqlId(c) + ' ' + (typ[c] || 'TEXT') + (c === key ? ' PRIMARY KEY' : '')).join(',\n  ') + '\n);');
+  for (const o of flat)
+    out.push('INSERT INTO ' + sqlId(table) + ' (' + cols.map(sqlId).join(', ') + ') VALUES ('
+      + cols.map(c => sqlLit(o[c])).join(', ') + ');');
+  // 子の表は親のすぐ後ろに（読む人が親子の並びで追える）
+  for (const cn of Object.keys(kids)) sqlEmit(cn, kids[cn], null, out);
+}
+
+function sqlDump(o){
+  const out = [];
+  out.push('-- ' + AUTO_FILE + ' と同じ中身を SQL にしたものです（レシートアプリ「レシート」が自動で書き出しました）。');
+  out.push('-- 使い方: sqlite3 レシートと健康.db < ' + AUTO_FILE_SQL);
+  out.push('-- 読み方の説明（何の数字か・どう数えるか）は、同じフォルダの ' + AUTO_FILE + ' の _readme にあります。');
+  out.push('-- ⚠ receipt_id が同じものは同じレシートです（同じ期間を2回渡されても二重に数えないため）。');
+  out.push('-- 書き出した時刻: ' + (o.exported_at || '') + '（' + (o.timezone || '') + '）');
+  out.push('');
+  out.push('BEGIN TRANSACTION;');
+  /* ⚠ 0件のものは表を作れない（列が何かを決められない）＝**作らなかったことを書き置く**。
+     黙って消えると、読む人は「SELECT できない＝壊れている」と読む。 */
+  const put = (t, rows, key) => {
+    if (Array.isArray(rows) && !rows.length) { out.push('-- ' + t + ': 0件（表は作っていません）'); return; }
+    sqlEmit(t, rows, key, out);
+  };
+  if (o.receipts)       put('receipts',    o.receipts,                   'receipt_id');
+  if (o.meal_log)       put('meals',       o.meal_log.meals,             'meal_id');
+  if (o.checkup_log)    put('checkups',    o.checkup_log.checkups,       'checkup_id');
+  if (o.medication_log) put('medications', o.medication_log.medications, 'medication_id');
+  if (o.body_log)       put('body',        o.body_log.readings,          null);
+  // 💰 予算は「1つのまとまり」＝1行の表にする（月ごとの中身は子の表 budget_months へ）
+  if (o.budget)         put('budget',      [o.budget],                   null);
+  out.push('COMMIT;');
+  return out.join('\n') + '\n';
+}
+
 let autoTimer = null, autoDirty = false, autoBusy = false;
 /* 保存のたびに呼ばれる（tx の唯一の書き込み口から）。⚠ 何度保存しても書き出しは**まとめて1回**
    ＝レシート1枚の取り込みで何度も DB に書くので、そのたびに置き場へ上げると遅く・重くなる。 */
@@ -8025,7 +8109,16 @@ async function autoFlush(){
   try {
     const st = await sink.status();
     if (!st.ok) { localStorage.setItem(AUTO.err, 'フォルダが選ばれていません'); return { ok: false, error: 'フォルダが選ばれていません' }; }
-    const r = (await sink.write(AUTO_FILE, await autoPayload())) || { ok: false };
+    /* r106: JSON と SQL の2つを置く。⚠ 中身は**1回だけ作って使い回す**＝2回作ると
+       その間に記録が変わった時に、2つのファイルが食い違う（同じ瞬間の写しでなくなる）。 */
+    const txt = await autoPayload();
+    const files = [{ name: AUTO_FILE, text: txt }, { name: AUTO_FILE_SQL, text: sqlDump(JSON.parse(txt)) }];
+    let r = { ok: true };
+    for (const f of files) {
+      r = (await sink.write(f.name, f.text)) || { ok: false };
+      // ⚠ 片方でも書けなければそこで止める＝古い方が残って「新しいつもりの古いデータ」を読ませない
+      if (!r.ok) { r = { ok: false, error: (r.error || '書けませんでした') + '（' + f.name + '）' }; break; }
+    }
     if (r.ok) { autoDirty = false; localStorage.setItem(AUTO.at, String(Date.now())); localStorage.removeItem(AUTO.err); }
     else localStorage.setItem(AUTO.err, r.error || '書けませんでした');
     return r;
@@ -8058,7 +8151,7 @@ function autoRender(){
     const at = +(localStorage.getItem(AUTO.at) || 0), err = localStorage.getItem(AUTO.err) || '';
     const when = at ? new Date(at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
     st.innerHTML =
-      (r.ok ? '📁 置き場: <b>' + hesc(r.label || '選んだフォルダ') + '</b> ／ <code>' + hesc(AUTO_FILE) + '</code>'
+      (r.ok ? '📁 置き場: <b>' + hesc(r.label || '選んだフォルダ') + '</b> ／ <code>' + hesc(AUTO_FILE) + '</code> と <code>' + hesc(AUTO_FILE_SQL) + '</code>'
             : '📁 置き場: <b>まだ選ばれていません</b>（「📁 フォルダを選ぶ」を押してください）')
       + (when ? '<br>✅ 最後に書けたのは <b>' + hesc(when) + '</b>' : '')
       + (err ? '<br><span style="color:var(--err)">⚠ ' + hesc(err) + '</span>' : '');
