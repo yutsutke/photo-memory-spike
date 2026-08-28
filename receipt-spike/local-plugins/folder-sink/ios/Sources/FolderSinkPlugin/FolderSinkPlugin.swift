@@ -136,7 +136,13 @@ public class FolderSinkPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func write(_ call: CAPPluginCall) {
         let name = call.getString("name") ?? ""
         let text = call.getString("text") ?? ""
+        // r111: .sqlite（バイナリ）のため。base64 があれば文字ではなくそのバイト列を書く
+        let b64  = call.getString("base64") ?? ""
         guard !name.isEmpty else { call.resolve(["ok": false, "error": "ファイル名がありません"]); return }
+        let payload: Data
+        if b64.isEmpty { payload = Data(text.utf8) }
+        else if let d = Data(base64Encoded: b64) { payload = d }
+        else { call.resolve(["ok": false, "error": "中身を読み取れませんでした"]); return }
         let d = UserDefaults.standard
         // ⚠ ファイルを覚えていればそちらが優先＝フォルダを渡せない置き場（Google ドライブ）でも書ける
         let fileBm = d.data(forKey: Self.fileKey(name))
@@ -161,7 +167,7 @@ public class FolderSinkPlugin: CAPPlugin, CAPBridgedPlugin {
                 UserDefaults.standard.set(fresh, forKey: isFile ? Self.fileKey(name) : Self.bmKey)
             }
             let target = isFile ? base : base.appendingPathComponent(name)
-            let data = Data(text.utf8)
+            let data = payload
             var writeErr: Error?
             var coordErr: NSError?
             NSFileCoordinator(filePresenter: nil).coordinate(writingItemAt: target, options: .forReplacing, error: &coordErr) { u in

@@ -133,8 +133,13 @@ class FolderSinkPlugin : Plugin() {
     fun write(call: PluginCall) {
         val name = call.getString("name") ?: ""
         val text = call.getString("text") ?: ""
+        // r111: .sqlite（バイナリ）のため。base64 があれば文字ではなくそのバイト列を書く
+        val b64 = call.getString("base64") ?: ""
         if (name.isEmpty()) { call.resolve(fail("ファイル名がありません")); return }
-        val bytes = text.toByteArray(Charsets.UTF_8)
+        val bytes = try {
+            if (b64.isNotEmpty()) android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+            else text.toByteArray(Charsets.UTF_8)
+        } catch (e: Exception) { call.resolve(fail("中身を読み取れませんでした")); return }
         try {
             // ⚠ ファイルを覚えていればそちらが優先＝フォルダを渡せない置き場でも書ける
             val slotUri = prefs.getString(fileKey(name), null)
