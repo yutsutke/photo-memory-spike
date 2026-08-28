@@ -18,13 +18,16 @@
 
 | versionCode | versionName | 中身の web | 焼いた日 | 置き場 |
 |---|---|---|---|---|
-| **vc7** | **1.1** | **r109** | 2026-08-29 | `receipt-signing\receipt-1.1-vc7.aab` / `.apk` |
+| **vc8** | **1.1** | **r110** | 2026-08-29 | `receipt-signing\receipt-1.1-vc8.aab` / `.apk` |
+| vc7 | 1.1 | r109 | 2026-08-29 | `receipt-signing\receipt-1.1-vc7.aab` / `.apk` |
 | vc6 | 1.1 | r108 | 2026-08-29 | `receipt-signing\receipt-1.1-vc6.aab` / `.apk` |
 | vc5 | 1.0 | r104 | 2026-08-23 | `receipt-signing\receipt-1.0-vc5.aab` / `.apk` |
 | vc4 | 1.0 | r94 | 2026-08-21 | `receipt-signing\receipt-1.0-vc4.aab` / `.apk` |
 | vc3 | 1.0 | r81 | 2026-08-20 | `receipt-signing\receipt-1.0-vc3.aab` / `.apk` |
 | vc2 | 1.0 | r79 | 2026-08-19 | `receipt-signing\receipt-1.0-vc2.aab` / `.apk` |
 | vc1 | 1.0 | r70 | 2026-08-17 | `receipt-signing\receipt-1.0-vc1.aab` / `.apk` |
+
+⚠ **vc8 ＝ vc7 ＋ r110**（🧹 自動書き出しを「ファイルを選ぶ」1本に＝📁 フォルダを選ぶ を画面から外し、①→②→⬆️ 今すぐ書き出す を1つの流れに）。**Play に上げるならこれ**。検証3点 green（署名 `META-INF/RECEIPT-.SF`/`.RSA`・証明書 `a7911190…bd4b` ／ versionCode 8・versionName 1.1 ／ 中の web が r110）。
 
 ⚠ **vc7 ＝ vc6 ＋ r109 だけ**（🩹 ② で結びつけた実際のファイル名を画面とトーストに出す）。vc6 を Android 実機で触って**②で古い「レシートデータ.txt」を選んでいた**ことが Drive 側の確認で分かったため、**間違った上書きが正常に見えない**ように直した版。検証3点 green（署名 `META-INF/RECEIPT-.SF`/`.RSA` ／ versionCode 7・versionName 1.1 ／ 中の web が r109）。証明書 SHA-256 は登録済みのアップロード鍵と一致（`a7911190…bd4b`）。
 🎉 **vc6 で Android 実機の判定が出た**＝**フォルダは選べない**（読み通り＝ドライブの Android アプリは SAF に出ない）が、**ファイル方式は動く・自動更新も効く**（06:10:31 撮影 → 06:10:40 書き出しを Drive 側で確認）。
