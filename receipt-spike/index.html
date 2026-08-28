@@ -1116,6 +1116,8 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
        ⚠ 置き場は 📤 の下＝手で押す 📄/📊 が主役のまま（自動は「慣れた人が入れる」もの）。 -->
   <div class="row" id="autoBox">
     <label>🔄 自動で書き出す（AI に読ませる置き場へ）</label>
+    <!-- 🩹 r107: 使えない理由は ☑ の**外**＝入れる前に見える（入れてから知らせるのでは遅い） -->
+    <div class="note" id="autoWarn" hidden style="color:var(--err); margin:0 0 8px"></div>
     <label class="anChk"><input type="checkbox" id="autoChk"><span><b>記録が増えるたびに、選んだフォルダへ自動で上書きする</b>（既定＝しない）</span></label>
     <div id="autoBody" hidden>
       <div class="dual">
@@ -1710,7 +1712,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r106 🗄 置き場に SQL（レシートと健康.sql）も並べて置くようにした＝パソコンで深く掘る用（sqlite3 レシートと健康.db < ….sql の1行で本物の DB になる）。バイナリの .sqlite にしない理由＝部品700KBを抱えず、AI コネクタはテキストなら読めるため。表の形は JSON からその場で導く（2026-08-28）｜r105 🔄 自動で書き出すを付けた＝一度フォルダを選べば、記録が増えるたびに「レシートと健康.json」をAI に読ませる置き場（Google ドライブ等）へまるごと上書きする（既定オフ・端末どうしの同期ではない・📸 からだの写真は入らない／自前プラグイン FolderSink＝iOS は書類ピッカー＋許可証、Android は SAF、パソコンのブラウザは File System Access）（2026-08-28）｜r104 🩹 iPhone で 📋 この日に入れる・🔁 この繰り返しを始める・⭐ 覚える が無反応だったのを直した（DB から出した写真を別の記録へ書くと iOS だけ保存が返らない＝写真を作り直してから書く）／⏳ 押しても終わらない時は黙らず言う（2026-08-23）';
+const BUILD = 'r107 🩹 アプリ版で「この画面ではフォルダを選べません」と出たのを直した＝自前プラグインの取り出し方が違った（このアプリはバンドラ無しで registerPlugin が無い／Capacitor.Plugins から取る）。＋使えない理由を押す前に出す・使えない時はボタンを出さない・アプリ版でブラウザの仕組みに落ちない（2026-08-28）｜r106 🗄 置き場に SQL（レシートと健康.sql）も並べて置くようにした＝パソコンで深く掘る用（sqlite3 レシートと健康.db < ….sql の1行で本物の DB になる）。バイナリの .sqlite にしない理由＝部品700KBを抱えず、AI コネクタはテキストなら読めるため。表の形は JSON からその場で導く（2026-08-28）｜r105 🔄 自動で書き出すを付けた＝一度フォルダを選べば、記録が増えるたびに「レシートと健康.json」をAI に読ませる置き場（Google ドライブ等）へまるごと上書きする（既定オフ・端末どうしの同期ではない・📸 からだの写真は入らない／自前プラグイン FolderSink＝iOS は書類ピッカー＋許可証、Android は SAF、パソコンのブラウザは File System Access）（2026-08-28）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -7948,9 +7950,22 @@ const autoOn = () => localStorage.getItem(AUTO.on) === '1';
 /* 置き場への出口。アプリ版＝自前プラグイン FolderSink（iOS の書類ピッカー＋許可証／Android の SAF）。
    パソコンのブラウザ＝File System Access API（Chrome / Edge）。**同じ4つのメソッドに揃える**ので、
    この下のコードは両方で同じ。⚠ iPhone の Safari にはどちらも無い＝「使えません」と正直に言う。 */
-const FolderSink = (IS_NATIVE && window.Capacitor && window.Capacitor.registerPlugin)
-  ? window.Capacitor.registerPlugin('FolderSink') : null;
-const webFsOk = () => typeof window.showDirectoryPicker === 'function';
+/* 🩹 r107: **アプリ版で「この画面ではフォルダを選べません」と出た**（実機・1.1(13)）。
+   原因＝このアプリはバンドラ（部品をまとめる道具）を使わない作りで、**`window.Capacitor.registerPlugin`
+   が存在しない**。native-bridge.js が入れてくれるのは `Capacitor.Plugins.〇〇` の方で、
+   このファイルの Filesystem / Share も前からそちらを使っていた。→ **Plugins を先に見る**。
+   ⚠ あの日（リポ直下）は PhotoLibrary / BackgroundLocation / AppShortcuts で**両方を試す形**に
+      してあったのに、こちらへ写す時にその一手を落とした。自前プラグインは必ずこの形で取り出す。 */
+const FolderSink = (() => {
+  if (!IS_NATIVE) return null;
+  const c = window.Capacitor || {};
+  return (c.Plugins && c.Plugins.FolderSink)
+      || (typeof c.registerPlugin === 'function' ? c.registerPlugin('FolderSink') : null);
+})();
+/* 🩹 r107: **アプリ版ではブラウザの仕組みに落ちない**。落ちると、部品の入っていない古いビルドで
+   「フォルダを選ぶ」を押した時に、原因と関係のない英語のエラーが出る（実際に出た）。
+   アプリ版で部品が無いなら「古いビルドです」と言い切るのが正しい。 */
+const webFsOk = () => !IS_NATIVE && typeof window.showDirectoryPicker === 'function';
 /* web が覚えたフォルダの置き場。⚠ localStorage には置けない（ハンドルは文字列にできない）＝KV（IndexedDB）へ */
 const kvGet = k => tx(KV, 'readonly', st => st.get(k)).then(r => r && r.v);
 const kvPut = (k, v) => tx(KV, 'readwrite', st => st.put({ k, v }));
@@ -8141,10 +8156,17 @@ function autoRender(){
   const on = autoOn();
   document.getElementById('autoChk').checked = on;
   body.hidden = !on;
-  const st = document.getElementById('autoState');
-  if (sink.kind() === 'none') {
-    st.innerHTML = '⚠ <b>この画面では使えません</b>（iPhone の Safari にはフォルダを覚える仕組みがありません）。'
-      + '<b>アプリ版</b>か、パソコンの <b>Chrome / Edge</b> でお使いください。ここでは今までどおり 📄 / 📊 で書き出せます。';
+  const st = document.getElementById('autoState'), warn = document.getElementById('autoWarn');
+  /* 🩹 r107: 使えない時は**理由を分けて言う**＝アプリ版なら「部品が入っていない古いビルド」、
+     ブラウザなら「この画面には仕組みが無い」。同じ文言だと打ち手（更新するのか、別の画面で開くのか）が分からない。 */
+  const bad = sink.kind() === 'none';
+  warn.hidden = !bad;
+  if (bad) {
+    body.hidden = true;   // 🩹 r107: 押しても動かないボタンを出さない（誘っておいて断らない）
+    warn.innerHTML = IS_NATIVE
+      ? '⚠ <b>このビルドにはフォルダの部品が入っていません</b>（古い版です）。TestFlight で<b>新しいビルドに更新</b>してください。'
+      : '⚠ <b>この画面では使えません</b>（iPhone の Safari には「フォルダを覚える」仕組みがありません）。<b>アプリ版</b>か、パソコンの <b>Chrome / Edge</b> でお使いください。ここでは今までどおり 📄 / 📊 で書き出せます。';
+    st.innerHTML = '';
     return;
   }
   sink.status().then(r => {
@@ -8162,6 +8184,7 @@ document.getElementById('autoChk').onchange = async e => {
   localStorage.setItem(AUTO.on, on ? '1' : '0');
   autoRender();
   if (!on) return;
+  if (sink.kind() === 'none') return;   // 🩹 r107: 使えない環境では押さない（理由は ☑ の上に出ている）
   // 入れた直後に置き場が無ければ、そのまま選ばせる（設定を入れて何も起きないのが一番迷う）
   const st = await sink.status();
   if (!st.ok) document.getElementById('btnAutoPick').click();
