@@ -18,7 +18,8 @@
 
 | versionCode | versionName | 中身の web | 焼いた日 | 置き場 |
 |---|---|---|---|---|
-| **vc9** | **1.1** | **r111** | 2026-08-29 | `receipt-signing\receipt-1.1-vc9.aab` / `.apk` |
+| **vc10** | **1.1** | **r112** | 2026-08-29 | `receipt-signing\receipt-1.1-vc10.aab` / `.apk` |
+| vc9 | 1.1 | r111 | 2026-08-29 | `receipt-signing\receipt-1.1-vc9.aab` / `.apk` |
 | vc8 | 1.1 | r110 | 2026-08-29 | `receipt-signing\receipt-1.1-vc8.aab` / `.apk` |
 | vc7 | 1.1 | r109 | 2026-08-29 | `receipt-signing\receipt-1.1-vc7.aab` / `.apk` |
 | vc6 | 1.1 | r108 | 2026-08-29 | `receipt-signing\receipt-1.1-vc6.aab` / `.apk` |
@@ -27,6 +28,8 @@
 | vc3 | 1.0 | r81 | 2026-08-20 | `receipt-signing\receipt-1.0-vc3.aab` / `.apk` |
 | vc2 | 1.0 | r79 | 2026-08-19 | `receipt-signing\receipt-1.0-vc2.aab` / `.apk` |
 | vc1 | 1.0 | r70 | 2026-08-17 | `receipt-signing\receipt-1.0-vc1.aab` / `.apk` |
+
+⚠ **vc10 ＝ vc9 ＋ r112**（📦 大きさを画面に出す・超えたら知らせる／🔎 期間と 🍽 食事の詳細をしぼれる／写しは詰めて書く）。**Play に上げるならこれ**。検証3点 green（署名・証明書 `a7911190…bd4b` ／ versionCode 10・versionName 1.1 ／ 中の web が r112）。
 
 ⚠ **vc9 ＝ vc8 ＋ r111**（🗃 書き出す種類を選べる＝📄 JSON／🗄 SQL／🗃 本物の SQLite）。**Play に上げるならこれ**。⚠ **サイズが 3.56MB → 3.90MB に増えた**＝sql.js（`vendor/sqljs`・約700KB）を同梱したため（バンドル内に確認ずみ）。検証3点 green（署名・証明書 `a7911190…bd4b` ／ versionCode 9・versionName 1.1 ／ 中の web が r111）。
 
