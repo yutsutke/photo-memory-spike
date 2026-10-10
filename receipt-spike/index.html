@@ -274,8 +274,14 @@ table.items td:last-child{text-align:right; white-space:nowrap;}
 #anPrompt{width:100%; min-height:96px; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:10px; padding:10px; font-family:inherit; font-size:15px; line-height:1.6; resize:vertical;}
 /* 🗒 ひとこと（r39）。⚠ textarea には `.row input` の width:100% が当たらない＝
    何も書かないと既定の cols（20文字ぶん）のまま横にはみ出す。⚠ 依頼文ほど高くしない（1〜2行のもの） */
-#mlMemo{width:100%; min-height:56px; background:var(--card); border:1px solid var(--line); color:var(--fg);
+#mlMemo,.rcMemo{width:100%; min-height:56px; background:var(--card); border:1px solid var(--line); color:var(--fg);
         border-radius:10px; padding:10px; font-family:inherit; font-size:15px; line-height:1.5; resize:vertical;}
+/* 🗒 r114: レシート・品目へのひとこと。⚠ 品目の行は「押すと開く」＝押せることが指で分かる程度に */
+table.items tr[data-it]{cursor:pointer;}
+table.items .itNote{color:var(--dim); font-size:12.5px; margin-top:2px; white-space:pre-wrap; word-break:break-word;}
+table.items tr.itMemoRow td{padding:6px 0 10px; text-align:left;}   /* ⚠ 1列にまたがる＝最後の列（金額）の右寄せを受け継がない */
+.rcMemoWhen{font-size:12px; color:var(--dim); margin-top:4px;}
+.rcMemo{font-size:16px;}   /* ⚠ 16px 未満だと iOS が触った瞬間に拡大する（品目の欄は開いてすぐ触るので特に） */
 /* ✏️ 手で直す（r19）の品目行。名前を広く・個数は狭く＝スマホ幅で3つ並べても読める */
 /* ✏️ 手で直す（r69）＝表の1行。⚠ スマホでは横に並べきれないので、狭い時は折り返して2段になる */
 .e2Row{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--line);}
@@ -1733,7 +1739,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r113 📝 文言を実測に合わせて直した＝🎉 Drive に置いた 📄 JSON を Claude が実際に読めることを実機で確認（レシート3件・合計1,947円を正しく答えた）。あわせて「.sql はテキストだから AI も読める」は保証できないと訂正（置き場が付ける種類しだい）＝AI に読ませるのは 📄 JSON だけ、SQL/SQLite はパソコンで掘る用（2026-08-29）｜r112 📦 置いたファイルの大きさを画面に出し、超えたら知らせるようにした（AI が一度に読めるのは約0.7MB＝実測で1年ぶんが1.5MB）。あわせて 🔎 入れる中身をしぼる（期間＝全部/12/6/3か月・🍽 食事の詳細を外す）を追加／写しは詰めて書く（-23%）（2026-08-29）｜r111 🗃 書き出す種類を選べるようにした＝📄 JSON（AI 向け・既定）／🗄 SQL（テキスト）／🗃 SQLite（本物のDBファイル）から要るものだけ。②は選んだ種類のぶんだけ出る（1つだけなら1回で終わる）。SQLite は同梱の sql.js で同じ SQL を流して作る（形が2つにならない）（2026-08-29）';
+const BUILD = 'r114 🗒 レシートに「ひとこと」を足した＝詳細の明細の下に1つ（この店を選んだ理由／買ってみてどうだったか）・明細の行をタップするとその品にも書ける。保存ボタンなし（食事と同じ）・最初に書いた日と最後に直した日を持つ。📤 の JSON（v6）・SQL・CSV に note として載る＝たまったら AI が価値観の下書きに使える（2026-10-10）｜r113 📝 文言を実測に合わせて直した＝🎉 Drive に置いた 📄 JSON を Claude が実際に読めることを実機で確認（レシート3件・合計1,947円を正しく答えた）。あわせて「.sql はテキストだから AI も読める」は保証できないと訂正（置き場が付ける種類しだい）＝AI に読ませるのは 📄 JSON だけ、SQL/SQLite はパソコンで掘る用（2026-08-29）｜r112 📦 置いたファイルの大きさを画面に出し、超えたら知らせるようにした（AI が一度に読めるのは約0.7MB＝実測で1年ぶんが1.5MB）。あわせて 🔎 入れる中身をしぼる（期間＝全部/12/6/3か月・🍽 食事の詳細を外す）を追加／写しは詰めて書く（-23%）（2026-08-29）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -2767,6 +2773,8 @@ const DATA_NOTES = {
     '日付の集計には date（レシートの印字）を使う。captured_at は「撮った時刻」なので、後日まとめて撮ると買った日と食い違う。',
     'date が null のレシートは、日付が要る話からは外す。',
     'entered_by が "hand" のものは、写真なしで手で入れた記録（レシートの写真は無い・captured_at は入れた日時ではなく本人が指定した日時）。数え方は写真から読んだものと同じ。',
+    /* r114: 🗒 ひとこと。⚠ 食事の note と同じ扱い（📤 の _readme にも 📈 の AN_SYSTEM にも、この1行が入る）。 */
+    'note は本人が書いたひとこと（なぜその店を選んだか・なぜその品を買ったか・使ってみてどうだったか）。レシートの note はその店・その買い物について、items[].note はその品について。本人の言葉そのまま（AI が書いたものではない）。⚠ 写真からは絶対に分からない唯一の情報なので重く扱う。note_written_at（最初に書いた日時）・note_updated_at（最後に直した日時）と date の差で、買った直後の言葉か、使ってから書いた言葉かが分かる。note が無いレシート・品目について、選んだ理由や感想を推測しない。',
   ],
   meal: [
     '食事の写真を書き起こしたもの（format: "meal-log"）。slot は 朝食/昼食/夕食/間食、summary はその食事の1行の要約、items は写っていた料理（name・kind・amount）。',
@@ -7223,14 +7231,16 @@ document.getElementById('sApply').onclick = () => {
    ⚠ 記録そのものは写真ごとに1件のまま（**写真は1枚しか無い**＝原本を複製したくない）。
       分けるのは**人が触るところ**＝詳細・✏️手で直す・🗑削除。他の写真に写っている
       レシートへは、写真の下の 🧾 で移る。 */
-let detailId = null, detailIdx = 0, detailUrl = null;
+let detailId = null, detailIdx = 0, detailUrl = null, detailRc = null;
 async function openDetail(id, i = 0){
+  await rcMemoFlush();   // 🗒 r114: 書きかけのひとことを先に書く（描き直すと欄ごと消える＝🧾 の切り替え・✏️ のあと）
   const r = await dbGet(id); if (!r) return;
   const rcs = receiptsOf(r);
   detailId = id;
   // 範囲外の番号で開かれても落とさない（削除やり直しで枚数が減ることがある）
   detailIdx = Math.min(Math.max(0, Math.round(+i) || 0), Math.max(0, rcs.length - 1));
   const d = rcs[detailIdx];
+  detailRc = d || null;
   if (detailUrl) URL.revokeObjectURL(detailUrl);
   detailUrl = null;
   /* ✍️ r93: 写真なしの記録は**画像の枠ごと出さない**＝空の黒い箱が残ると「写真が壊れている」に見える。 */
@@ -7265,13 +7275,16 @@ async function openDetail(id, i = 0){
             return t ? `${t.v ? '税込' : '税抜（本体価格）'}（${t.by}）` : null; })())
       + kv('カテゴリ', d.category) + kv('支払', d.payment) + kv('住所', d.address)
       + kv('登録番号', d.regno)
-      + (d.items?.length ? '<table class="items">' + d.items.map(it =>
-          `<tr><td>${esc(it.name)}${it.qty > 1 ? ' ×' + esc(it.qty) : ''}`
+      // 🗒 r114: 行を押すと、その品へのひとことの欄がすぐ下に開く（使う時だけ広がる＝20品のレシートで全部に聞かない）
+      + (d.items?.length ? '<table class="items">' + d.items.map((it, k) =>
+          `<tr data-it="${k}"><td>${esc(it.name)}${it.qty > 1 ? ' ×' + esc(it.qty) : ''}`
           + `${it.unit_price != null ? ` <small>@${yen(it.unit_price)}</small>` : ''}`
-          + `${it.tax_rate ? ` <small>${it.tax_rate}%</small>` : ''}</td>`
+          + `${it.tax_rate ? ` <small>${it.tax_rate}%</small>` : ''}`
+          + `<div class="itNote" data-itnote="${k}"${it.memo ? '' : ' hidden'}>${it.memo ? '🗒 ' + esc(it.memo) : ''}</div></td>`
           + `<td>${it.price != null ? yen(it.price) : ''}</td></tr>`).join('') + '</table>' : '')
       + (receiptIssues(d).length
           ? `<div class="note warn">⚠ 数字が合いません（読み違いの可能性）<br>${receiptIssues(d).map(esc).join('<br>')}<br>✏️ で直せます。</div>` : '')
+      + rcMemoHtml(r, d, detailIdx)
       + editBtn(rcs.length > 1 ? `この 🧾 ${detailIdx + 1}枚目 を手で直す` : '手で直す')
       /* r80: 撮り忘れた食事を、このレシートから起こす。⚠ **もう読み取ってあるので AI は呼ばない**
          （同じ写真を食事として読ませ直すと料金が2回・品目は印字の方が確か）。
@@ -7301,6 +7314,109 @@ async function renderRcptMeal(r){
     + `${m.madeBy ? ` ・ ${madeIcon(m)} ${esc(madeLabel(m))}` : ''}</small></span>
     <button type="button" data-mealgo="${esc(m.id)}">見る</button></div></div>`;
 }
+/* ---------- 🗒 ひとこと（r114） ----------
+   本人の言葉で「なぜこの店・なぜこれを買った・使ってみてどうだった」を残す。たまったら 📤 / 🔄 の JSON を
+   Claude が読んで、本人の価値観の下書きを出せる（アプリの中では読まない＝ここは「書く欄」だけ）。
+   ⚠ 欄は1つ＝「なぜ選んだ」と「どう感じた」を分けない（2つ並ぶと両方埋めないといけない気がする）。
+      代わりに日付を2つ持つ＝memoAt（最初に書いた）・memoEditedAt（最後に直した）。買った日との差で、
+      受け取った AI が「直後の言葉か、使ってからの言葉か」を見分けられる。
+   ⚠ 置き場はレシート1枚（rc）ごと＝写真（r）ではない（1枚の写真に2枚写っていることがある）。品目は it.memo。
+   ⚠ 保存ボタンは置かない（食事の saveMealMemo と同じ作法）＝打ち終わり（change）・手が止まって 800ms・閉じる時。
+   ⚠ 書く先は**欄に覚えさせる**（data-mrid / data-mri / data-mit）＝画面がよそへ移ってから書いても、書いた所に書く。 */
+const memoTimers = new Map();
+let rcMemoQ = Promise.resolve();   // ⚠ 1本の列で順に書く＝店と品目を続けて書いても、読んで書く間に追い越さない
+// 中身が変わった時だけ日付を付ける。⚠ 空にしたら3つとも外す＝書いていない日付だけが残らない
+function setMemo(o, v){
+  if ((o.memo || '') === v) return false;
+  if (!v) { delete o.memo; delete o.memoAt; delete o.memoEditedAt; return true; }
+  const now = Date.now();
+  o.memo = v; if (!o.memoAt) o.memoAt = now; o.memoEditedAt = now;
+  return true;
+}
+// 「10/10 に書いた・10/24 に直した」（同じ日なら1つだけ・今年でなければ年も）
+function memoWhen(o){
+  if (!o?.memo || !o.memoAt) return '';
+  const md = t => { const d = new Date(t);
+    return (d.getFullYear() !== new Date().getFullYear() ? d.getFullYear() + '/' : '') + (d.getMonth() + 1) + '/' + d.getDate(); };
+  const a = md(o.memoAt), b = md(o.memoEditedAt || o.memoAt);
+  return a === b ? `${a} に書いた` : `${a} に書いた・${b} に直した`;
+}
+// ⚠ 品目にも書けることは、まだ1つも書いていない時だけ言う（空状態にだけ出るヒント）
+const rcMemoWhenText = d => [memoWhen(d),
+  d.items?.length && !d.items.some(it => it?.memo) ? '明細の行をタップすると、品目ごとにも書けます' : ''].filter(Boolean).join(' ・ ');
+const rcMemoHtml = (r, d, i) => `<div class="row" style="margin-top:12px">
+    <label>🗒 ひとこと（任意・この店を選んだ理由／買ってみてどうだったか。あとから足せます）</label>
+    <textarea class="rcMemo" id="dMemo" rows="2" maxlength="300" data-mrid="${esc(r.id)}" data-mri="${i}"
+      placeholder="例: 帰り道にあって寄りやすい／ここの豆腐は濃くておいしい">${esc(d.memo || '')}</textarea>
+    <div class="rcMemoWhen" id="dMemoWhen">${esc(rcMemoWhenText(d))}</div></div>`;
+const itMemoRowHtml = (rid, ri, k, it) => `<tr class="itMemoRow" data-itrow="${k}"><td colspan="2">
+    <textarea class="rcMemo" rows="2" maxlength="300" data-mrid="${esc(rid)}" data-mri="${ri}" data-mit="${k}"
+      placeholder="🗒 この品へのひとこと（例: いつもの銘柄／使ってみたら香りが強かった）">${esc(it.memo || '')}</textarea>
+    <div class="rcMemoWhen" data-itwhen="${k}">${esc(memoWhen(it))}</div></td></tr>`;
+// 開いている詳細が書いた先と同じなら、日付と品名の下の 🗒 をその場で直す（描き直さない＝打っている欄を壊さない）
+function paintMemo(rid, ri, k){
+  if (rid !== detailId || ri !== detailIdx || !detailRc) return;
+  if (k != null) {
+    const it = detailRc.items?.[k]; if (!it) return;
+    const n = document.querySelector(`#dBody [data-itnote="${k}"]`);
+    if (n) { n.hidden = !it.memo; n.textContent = it.memo ? '🗒 ' + it.memo : ''; }
+    const w = document.querySelector(`#dBody [data-itwhen="${k}"]`); if (w) w.textContent = memoWhen(it);
+  }
+  const w = document.getElementById('dMemoWhen'); if (w) w.textContent = rcMemoWhenText(detailRc);
+}
+function rcMemoSave(el){
+  clearTimeout(memoTimers.get(el)); memoTimers.delete(el);
+  const rid = el.dataset.mrid, ri = +el.dataset.mri, k = el.dataset.mit == null ? null : +el.dataset.mit;
+  const v = el.value.trim();
+  // 画面の写し（detailRc）は先に直す＝保存が終わる前に同じ行を開き直しても、古い文が出ない
+  if (rid === detailId && ri === detailIdx && detailRc) {
+    const m = k == null ? detailRc : detailRc.items?.[k];
+    if (m) setMemo(m, v);
+  }
+  rcMemoQ = rcMemoQ.then(async () => {
+    const r = await dbGet(rid); if (!r) return;
+    const rcs = receiptsOf(r).map(x => ({ ...x }));          // 触るのは複製（edSave と同じ）
+    const rc = rcs[ri]; if (!rc) return;
+    let o = rc;
+    if (k != null) {
+      if (!Array.isArray(rc.items) || !rc.items[k]) return;
+      rc.items = rc.items.map(x => ({ ...x })); o = rc.items[k];
+    }
+    if (!setMemo(o, v)) { paintMemo(rid, ri, k); return; }
+    r.data = { receipts: rcs };
+    await dbPut(r);                                          // ⚠ edited は立てない＝読み取りを直したわけではない
+    paintMemo(rid, ri, k);
+  }).catch(err => toast('🗒 ひとことを保存できませんでした: ' + String(err?.message || err).slice(0, 80)));
+  return rcMemoQ;
+}
+// 詳細に出ている欄を全部書いて、書き終わるまで待つ（変わっていなければ何もしない）
+async function rcMemoFlush(){
+  document.querySelectorAll('#dBody textarea[data-mrid]').forEach(rcMemoSave);
+  await rcMemoQ;
+}
+const closeItMemo = () => document.querySelectorAll('#dBody tr.itMemoRow').forEach(x => x.remove());
+// 品目の行を押した＝その行の下に欄を開く（同じ行をもう一度押したら閉じる・開くのは1行だけ）
+function toggleItMemo(k){
+  const open = document.querySelector('#dBody tr.itMemoRow');
+  const was = open ? +open.dataset.itrow : null;
+  if (open) { const ta = open.querySelector('textarea'); if (ta) rcMemoSave(ta); open.remove(); }
+  if (was === k) return;
+  const tr = document.querySelector(`#dBody tr[data-it="${k}"]`), it = detailRc?.items?.[k];
+  if (!tr || !it) return;
+  tr.insertAdjacentHTML('afterend', itMemoRowHtml(detailId, detailIdx, k, it));
+  tr.nextElementSibling.querySelector('textarea').focus();   // ⚠ await の前に呼ぶ＝iOS はタップの直後でないとキーボードを出さない
+}
+const dBodyEl = document.getElementById('dBody');
+dBodyEl.addEventListener('input', e => {
+  const el = e.target.closest('textarea[data-mrid]'); if (!el) return;
+  clearTimeout(memoTimers.get(el));
+  memoTimers.set(el, setTimeout(() => rcMemoSave(el), 800));   // 打ち終わりを待って1回だけ書く
+});
+dBodyEl.addEventListener('change', e => { const el = e.target.closest('textarea[data-mrid]'); if (el) rcMemoSave(el); });
+// ⚠ 閉じる時にも書く＝change が来ないまま ✕ を押されることがある（キーボードを出したまま閉じた時）
+document.getElementById('ovDetail').addEventListener('click', e => {
+  if (e.target.closest('[data-close]') || e.target.id === 'ovDetail') rcMemoFlush();
+});
 document.getElementById('dBody').onclick = async e => {
   const mg = e.target.closest('[data-mealgo]');
   if (mg) { const m = await mlGet(mg.dataset.mealgo); if (m) { hide('ovDetail'); await setTopTab('meals'); openMeal(m); } return; }
@@ -7324,7 +7440,16 @@ document.getElementById('dBody').onclick = async e => {
     catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
     return;
   }
-  const b = e.target.closest('[data-edit]'); if (b) openEdit(detailId, +b.dataset.edit);
+  const b = e.target.closest('[data-edit]');
+  if (b) {
+    /* 🗒 r114: ✏️ の前に書きかけのひとことを書き切る（✏️ は DB から品目を読む＝書く前に読むと、保存した時に消える）。
+       ⚠ 品目の欄は閉じる＝✏️ で行を消すと番号がずれ、開いたままの欄が隣の品目に書いてしまう */
+    await rcMemoFlush(); closeItMemo();
+    openEdit(detailId, +b.dataset.edit);
+    return;
+  }
+  const itr = e.target.closest('tr[data-it]');
+  if (itr) toggleItMemo(+itr.dataset.it);   // 🗒 r114: 品目の行 → その品へのひとこと
 };
 /* 🔁 再分析（詳細の中）は r29 で撤去。実機で押すと読み取り失敗になり、しかも失敗すると
    status が error になって**読めていた店名・金額が一覧・📊統計・📤書き出しから消えて見える**
@@ -7339,9 +7464,13 @@ document.getElementById('dBody').onclick = async e => {
    ⚠ 直したことは `edited` に覚えておく＝詳細に「✏️ 手で直したレシート」と出る（r29 で 🔁 を
       撤去したので上書きの警告用途は消えたが、**人が触った印**としては残す）。 */
 let edId = null, edIdx = 0;
+/* 🗒 r114: 品目のひとことも欄を出さずに**行に持たせる**（unit_price と同じ）＝行を消す・足すと行といっしょに動く。
+   ⚠ 配列の番号で突き合わせない＝行を消すと番号がずれて、ひとことが隣の品目に付く。 */
+const edMemoAttrs = it => !it.memo ? ''
+  : ` data-memo="${esc(it.memo)}" data-memo-at="${it.memoAt ?? ''}" data-memo-ed="${it.memoEditedAt ?? ''}"`;
 function renderEdItems(list){
   // ⚠ 単価（unit_price）は欄を出さない代わりに data- で持ち回る＝手で直しても消えない
-  document.getElementById('edItems').innerHTML = list.map(it => `<div class="edIt" data-unit="${it.unit_price == null ? '' : it.unit_price}">
+  document.getElementById('edItems').innerHTML = list.map(it => `<div class="edIt" data-unit="${it.unit_price == null ? '' : it.unit_price}"${edMemoAttrs(it)}>
     <input class="nm" placeholder="品目" value="${esc(it.name)}" autocomplete="off">
     <input class="pr" type="number" inputmode="numeric" placeholder="金額" value="${it.price == null ? '' : it.price}">
     <input class="qt" type="number" inputmode="numeric" placeholder="個" value="${it.qty == null ? '' : it.qty}">
@@ -7355,7 +7484,9 @@ const readEdItems = () => [...document.querySelectorAll('#edItems .edIt')].map(e
   const num = v => { const n = Math.round(+v); return v === '' || !Number.isFinite(n) ? null : n; };
   return { name: el.querySelector('.nm').value.trim(), price: num(el.querySelector('.pr').value),
            qty: num(el.querySelector('.qt').value), tax_rate: num(el.querySelector('.tx').value),
-           unit_price: num(el.dataset.unit) };
+           unit_price: num(el.dataset.unit),
+           ...(el.dataset.memo ? { memo: el.dataset.memo, memoAt: num(el.dataset.memoAt),
+                                   memoEditedAt: num(el.dataset.memoEd) } : {}) };   // 🗒 r114
 });
 document.getElementById('edAddItem').onclick = () =>
   renderEdItems(readEdItems().concat([{ name: '', price: null, qty: null, tax_rate: null, unit_price: null }]));
@@ -7387,7 +7518,9 @@ async function openEdit(id, i){
   cat.innerHTML = cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
   cat.value = cats.includes(d.category) ? d.category : CAT_ETC;
   renderEdItems((d.items || []).map(it => ({ name: it.name || '', price: it.price ?? null, qty: it.qty ?? null,
-                                             tax_rate: it.tax_rate ?? null, unit_price: it.unit_price ?? null })));
+                                             tax_rate: it.tax_rate ?? null, unit_price: it.unit_price ?? null,
+                                             ...(it.memo ? { memo: it.memo, memoAt: it.memoAt ?? null,
+                                                             memoEditedAt: it.memoEditedAt ?? null } : {}) })));
   show('ovEdit');
 }
 /* ✍️ r93: 写真の無い収支を1件入れる（要望）。
@@ -7466,6 +7599,9 @@ document.getElementById('edSave').onclick = async () => {
       （AI が1枚を2枚と読み違えた時に、片方を消す使い方ができる。r29 で 🔁 を撤去したので、
       消した1枚が AI の読み直しで復活することはもう無い）。 */
 document.getElementById('btnDelete').onclick = async () => {
+  /* 🗒 r114: 書きかけのひとことを先に書き切る＝2枚写った写真で1枚目を消すと番号が詰まり、
+     あとから届いた書き込みが残った2枚目に入ってしまう */
+  await rcMemoFlush();
   const r = await dbGet(detailId); if (!r) { hide('ovDetail'); return; }
   const rcs = receiptsOf(r);
   if (rcs.length > 1) {
@@ -7509,13 +7645,29 @@ async function exportTargets(){
                                  .sort((a, b) => a.date.localeCompare(b.date));
   return { from, to, rows };
 }
+/* 🗒 r114: ひとことは書き出しでは note にする（食事・健診・薬・からだと同じ名前）。
+   ⚠ 中の名前（memo / memoAt / memoEditedAt）は外に出さない＝受け取る側に見せる意味は note の1つだけ。
+   ⚠ 書いたものにだけキーが付く（無い＝書いていない。空の note を並べて「書いたが空」と読ませない）。 */
+const MEMO_KEYS = ['memo', 'memoAt', 'memoEditedAt'];
+const noteOut = o => !o?.memo ? {} : { note: o.memo,
+  note_written_at: o.memoAt ? isoLocal(new Date(o.memoAt)) : null,
+  note_updated_at: o.memoEditedAt ? isoLocal(new Date(o.memoEditedAt)) : null };
+const noMemo = o => Object.fromEntries(Object.entries(o).filter(([k]) => !MEMO_KEYS.includes(k)));
+function rcOut(rc){
+  const o = noMemo(rc);
+  if (Array.isArray(o.items))
+    o.items = o.items.map(it => it && typeof it === 'object' ? { ...noMemo(it), ...noteOut(it) } : it);
+  return { ...o, ...noteOut(rc) };
+}
 function exportJson(rows, from, to){
   // 統計は入れない＝生データからAI/表計算が自分で計算する（ライフログの交換フォーマットと同方針）
   return JSON.stringify({
+    // v6（r114）＝本人のひとこと note / note_written_at / note_updated_at を、レシートと品目（items[]）に追加。
+    //   ⚠ 書いたものにだけ付く。時刻はローカル＋オフセット（captured_at と同じ書き方）。
     // v5（r22）＝税と数量（total_excl_tax / tax / discount / price_incl_tax、品目の unit_price / tax_rate）を追加。
     //   ⚠ price は「その行の合計」＝ qty を掛けたあとの数字（掛け直さないこと）。
     // v4（r21）＝ receipt_id（一意な鍵）を追加・時刻をローカル時刻＋オフセットに。v3 は regno 追加、v2 はフラット化
-    format: 'receipt-spike-export', version: 5,
+    format: 'receipt-spike-export', version: 6,
     exported_at: isoLocal(new Date()),
     timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone || null),  // date/time（レシートの印字）が指す地域
     period: { from: from || null, to: to || null },
@@ -7525,20 +7677,22 @@ function exportJson(rows, from, to){
       receipt_id: `${x.rec.id}-${x.i + 1}`, receipt_no: x.i + 1, photo_id: x.rec.id,
       captured_at: isoLocal(new Date(x.rec.ts)),   // 撮った時刻（ローカル＋オフセット）
       ...(x.rec.noPhoto ? { entered_by: 'hand' } : {}),   // r93: 写真なしで手で入れたもの（無ければ写真から）
-      ...x.rc })),
+      ...rcOut(x.rc) })),
   }, null, 1);
 }
 function exportCsv(rows){
   const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
   // ⚠ 先頭は レシートID（写真の id ＋ 何枚目）＝表計算で主キーにできる。photo_id だけだと重複する
   const out = [['レシートID', '日付', '時刻', '店名', '支店', '金額(税込)', '税抜合計', '消費税', '値引き',
-                '種別', 'カテゴリ', '支払', '住所', '登録番号', '品目', '入れ方'].join(',')];   // r93: 入れ方＝写真/手入力
+                '種別', 'カテゴリ', '支払', '住所', '登録番号', '品目', '入れ方',   // r93: 入れ方＝写真/手入力
+                'ひとこと', '品目のひとこと'].join(',')];   // r114: 品目のひとこと＝「品名: ひとこと」を「、」でつなぐ
   for (const x of rows) {
     const d = x.rc;
     out.push([`${x.rec.id}-${x.i + 1}`, x.date, d.time, d.store, d.branch, d.total,
               d.total_excl_tax, d.tax, d.discount, d.kind === 'income' ? '収入' : '支出',
               d.category, d.payment, d.address, d.regno, (d.items || []).map(i => i.name).join('、'),
-              x.rec.noPhoto ? '手入力' : '写真'].map(esc).join(','));
+              x.rec.noPhoto ? '手入力' : '写真', d.memo,
+              (d.items || []).filter(i => i?.memo).map(i => `${i.name}: ${i.memo}`).join('、')].map(esc).join(','));
   }
   return '﻿' + out.join('\n'); // BOM: Excel の文字化け対策
 }
