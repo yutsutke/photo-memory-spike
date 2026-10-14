@@ -282,6 +282,55 @@ table.items .itNote{color:var(--dim); font-size:12.5px; margin-top:2px; white-sp
 table.items tr.itMemoRow td{padding:6px 0 10px; text-align:left;}   /* ⚠ 1列にまたがる＝最後の列（金額）の右寄せを受け継がない */
 .rcMemoWhen{font-size:12px; color:var(--dim); margin-top:4px;}
 .rcMemo{font-size:16px;}   /* ⚠ 16px 未満だと iOS が触った瞬間に拡大する（品目の欄は開いてすぐ触るので特に） */
+/* 💭 r115: 🤔 なぜ／✍ どうだった。⚠ 空の欄は小さなボタンだけ（押すと開く）＝「両方埋めないといけない気がする」を形で消す。
+   ⚠ ボタンは指で押せる高さ（44px）＝小さく見せても当たり判定は削らない */
+.vSec{margin-top:14px; border-top:1px solid var(--line); padding-top:10px;}
+.vHead{font-size:14px; font-weight:700; margin-bottom:8px;}
+.vHead small{display:block; font-weight:400; font-size:12px; color:var(--dim); margin-top:2px;}
+.nfs{display:flex; flex-wrap:wrap; gap:8px;}
+.nf{flex:0 0 auto; min-width:0;}
+.nf.open{flex:1 1 100%;}
+.nf .nfLbl,.nf textarea,.nf .rcMemoWhen{display:none;}
+.nf.open .nfBtn{display:none;}
+.nf.open .nfLbl{display:block; font-size:12.5px; color:var(--dim); margin-bottom:4px;}
+.nf.open textarea{display:block;}
+.nf.open .rcMemoWhen{display:block;}
+.nfBtn{background:none; border:1px dashed var(--line); color:var(--acc); border-radius:20px; padding:8px 14px; font-size:14px; min-height:44px;}
+.chAdd{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+.chAdd button{background:none; border:1px solid var(--line); color:var(--fg); border-radius:10px; padding:8px 12px; font-size:13.5px; min-height:44px;}
+/* 🔀 選択の1行（💭 タブ・レシートの詳細の下）。⚠ 本人の言葉は2行まで見せて、続きは開いた先で */
+.vRow{display:flex; gap:10px; align-items:flex-start; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px; cursor:pointer;}
+.vRow .ic{font-size:20px; line-height:1.2; flex:none; width:26px; text-align:center;}
+.vRow .mid{flex:1; min-width:0;}
+.vRow .nm{font-weight:600; word-break:break-word;}
+.vRow .sub{color:var(--dim); font-size:12.5px; margin-top:2px;}
+.vRow .say{font-size:13px; margin-top:4px; white-space:pre-wrap; word-break:break-word; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.vRow .say + .say{margin-top:2px;}
+.vRow .say.none{color:var(--dim);}
+/* 💭 価値観のカード。⚠ 確定・下書き・当てはまらないで見た目を変える（下書きは仮説＝点線・当てはまらないは薄く） */
+.vCard{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px;}
+.vCard.draft{border-style:dashed;}
+.vCard.retired{opacity:.6;}
+.vCard .body{font-size:15.5px; line-height:1.5; word-break:break-word;}
+.vCard.confirmed .body{font-weight:700;}
+.vCard .tags{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;}
+.vCard .tags span{font-size:11.5px; color:var(--dim); border:1px solid var(--line); border-radius:8px; padding:1px 7px;}
+.vCard .tags span.st{color:#04121f; background:var(--acc); border-color:var(--acc);}
+.vCard.draft .tags span.st{background:none; color:var(--warn); border-color:var(--warn);}
+.vCard.retired .tags span.st{background:none; color:var(--dim);}
+.vCard .basis{font-size:12.5px; color:var(--dim); margin-top:6px; word-break:break-word;}
+.vCard details{margin-top:6px;} .vCard summary{font-size:12.5px; color:var(--acc); cursor:pointer; padding:6px 0;}
+.vCard .ev{font-size:12.5px; padding:6px 0; border-top:1px solid var(--line); cursor:pointer; word-break:break-word;}
+.vCard .ev.gone{cursor:default; color:var(--dim);}
+.vCard .acts{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+.vCard .acts button{background:none; border:1px solid var(--line); color:var(--fg); border-radius:10px; padding:8px 12px; font-size:13.5px; min-height:40px;}
+.vCard .acts button.pri{background:var(--acc); color:#04121f; border-color:var(--acc); font-weight:700;}
+.vSecTitle{font-size:13px; color:var(--dim); margin:16px 0 8px; display:flex; align-items:center; gap:8px;}
+/* 🤖 下書きの候補（取り込む前）。⚠ 1件ずつ「残す・確定・残さない」を選ぶ＝まとめて確定させない（確定は本人が1つずつ） */
+.vaCand{border:1px dashed var(--line); border-radius:12px; padding:10px; margin-bottom:10px;}
+.vaCand textarea{width:100%; min-height:56px; background:var(--card); border:1px solid var(--line); color:var(--fg); border-radius:10px; padding:10px; font-family:inherit; font-size:16px; line-height:1.5;}
+.vaCand .warn{color:var(--warn); font-size:12.5px; margin-top:4px;}
+.vaCand .seg button{font-size:13.5px; padding:8px 4px;}
 /* ✏️ 手で直す（r19）の品目行。名前を広く・個数は狭く＝スマホ幅で3つ並べても読める */
 /* ✏️ 手で直す（r69）＝表の1行。⚠ スマホでは横に並べきれないので、狭い時は折り返して2段になる */
 .e2Row{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--line);}
@@ -398,6 +447,14 @@ details.anErrFold>summary{color:var(--dim); font-size:13px; cursor:pointer; padd
    ⚠ 切ってあることが**押す前から分かる**ように、消し線と灰色にする（同じ絵のままだと壊れたように見える）。 */
 #topTabs .topRow{display:flex; gap:8px; align-items:stretch;}
 #topTabs .topRow .seg{flex:1; min-width:0;}
+@media (max-width: 440px){
+  #topSeg{gap:6px;}
+  #topSeg button{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; line-height:1.15; padding:6px 2px; white-space:nowrap;}
+  #topSeg button span{font-size:12.5px;}
+}
+/* 💭 r115: 🔀 の絞り込み＝5つ。⚠ 3＋2 段で「買わなかった」が語の途中で折れない大きさに */
+#vlFilterSeg button{font-size:13.5px; padding:8px 2px;}
+.btn.sm{font-size:14.5px; padding:10px 6px;}
 #btnPhotos{flex:none; width:48px; background:var(--card); border:1px solid var(--line); color:var(--fg);
   border-radius:10px; font-size:17px; line-height:1; position:relative;}
 #btnPhotos.off{color:var(--dim); background:var(--bg);}
@@ -630,9 +687,13 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 <div id="topTabs">
   <div class="topRow">
     <div class="seg" id="topSeg">
-      <button type="button" data-top="receipts">🧾 レシート</button>
-      <button type="button" data-top="meals">🍽 食事</button>
-      <button type="button" data-top="health">🩺 健康</button>
+      <!-- 💭 r115: 4つ目（💭 価値観）を足したら 375px で「レシ／ート」「価値／観」と語の途中で折れた（実測）。
+           ⚠ 狭い画面では**絵文字を上・言葉を下**に積む（語の途中で折らない・r33 の教訓＝折り返すくらいなら形を変える） -->
+      <button type="button" data-top="receipts">🧾<span> レシート</span></button>
+      <button type="button" data-top="meals">🍽<span> 食事</span></button>
+      <button type="button" data-top="health">🩺<span> 健康</span></button>
+      <!-- 💭 r115: 価値観（要望「レシートアプリに価値観を導入」）。⚠ ⚙ やヘッダではなくトップ＝毎日書きためる場所 -->
+      <button type="button" data-top="values">💭<span> 価値観</span></button>
     </div>
     <!-- 📷 r101: 下の帯（撮るボタン）ぜんぶを隠す／出す（要望）。⚠ **どのタブに居ても同じ場所**に1つだけ置く
          （画面ごとに置くと押す場所が散る）＝隠している間もここに居るのが、戻す道そのもの。 -->
@@ -792,6 +853,29 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     </div>
     <div class="anAi" id="hAiLine"></div>
     <div class="note" id="hNote"></div>
+  </div>
+  <!-- 💭 r115: 価値観＋選んだ・選ばなかった。
+       ⚠ 記録の材料は「本人の言葉」＝🤔 なぜ／✍ どうだった。レシートから分かるもの（買った品目・行った店）は
+          レシートの詳細で書く（同じ買い物を2か所に持たない）＝ここの 🛒/📍 はレシートから集めた一覧で、押すとそのレシートへ飛ぶ。
+       ⚠ 手で足すのは「レシートに無いもの」＝🙅 買わなかった物・🚶 行かなかった場所（とレシートの無い 買った／行った）。 -->
+  <div id="valuesPane" hidden>
+    <div class="seg" id="vlSeg" style="margin-bottom:10px">
+      <button type="button" data-vltab="values">💭 価値観</button>
+      <button type="button" data-vltab="log">🔀 選択の記録</button>
+    </div>
+    <div id="vlValuesPane"></div>
+    <div id="vlLogPane" hidden>
+      <div class="seg wrap" id="vlFilterSeg" style="margin-bottom:8px">
+        <button type="button" data-vlf="written">✍️ 書いたもの</button>
+        <button type="button" data-vlf="bought">🛒 買った</button>
+        <button type="button" data-vlf="notbought">🙅 買わなかった</button>
+        <button type="button" data-vlf="went">📍 行った</button>
+        <button type="button" data-vlf="notwent">🚶 行かなかった</button>
+      </div>
+      <div class="row" id="vlQRow" hidden style="margin-bottom:8px"><input id="vlQ" placeholder="名前で探す" autocomplete="off" enterkeyhint="search"></div>
+      <div class="dual" id="vlAddRow" style="margin-bottom:8px"></div>
+      <div id="vlLogList"></div>
+    </div>
   </div>
 </main>
 
@@ -1101,6 +1185,11 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <label class="anChk" style="margin-left:26px"><input type="checkbox" id="expMedAllChk"><span>🗂 <b>終わった薬も全部入れる</b>（履歴として）</span></label>
   </div>
   <!-- r83: 🫀 からだの数字＝計測の日付で期間に入るものを出す（🩺💊 と行を分ける＝1件も無い人には出さない） -->
+  <!-- 💭 r115: 選択の記録（🙅 買わなかった・🚶 行かなかった…）と 💭 価値観。⚠ 1件も無い端末には行を出さない。
+       ⚠ 価値観は日付を持たない（考え）＝期間に関わらず全部入る。選択の記録は決めた日で期間に入るものだけ -->
+  <div class="row" id="expValRow" hidden><label>💭 選択の記録と価値観</label>
+    <label class="anChk"><input type="checkbox" id="expValChk"><span>💭 <b>選んだ・選ばなかった と 価値観を入れる</b>（<span id="expValN"></span>）</span></label>
+  </div>
   <div class="row" id="expBodyRow" hidden><label>🫀 からだの数字</label>
     <label class="anChk"><input type="checkbox" id="expBodyChk"><span>🫀 <b>血圧・体重を入れる</b>（<span id="expBodyN"></span>）</span></label>
   </div>
@@ -1676,6 +1765,52 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 </div></div>
 
 <!-- 詳細 -->
+<!-- 💭 r115: 価値観を自分で書く／直す／言い直す。
+     ⚠ 確定した文は書き換えない＝「言い直す」は新しい1件（前の版は、新しい版を確定した時に「当てはまらない」へ）。 -->
+<div class="overlay" id="ovValEd"><div class="sheet">
+  <button class="x" data-close>✕</button><h2 id="veTitle">💭 価値観</h2>
+  <div class="note" id="veNote" style="margin:0 0 10px"></div>
+  <div class="row"><label>どんなことを大事にして選んでいるか（短い1文）</label>
+    <textarea class="rcMemo" id="veBody" rows="3" maxlength="300" placeholder="例: 判断の軸は体の感覚にある"></textarea></div>
+  <div class="row"><label>どの場面の話か</label><div class="seg wrap" id="veDomSeg"></div></div>
+  <div class="row" id="veStRow"><label>どうする</label>
+    <div class="seg" id="veStSeg">
+      <button type="button" data-vest="draft">📝 下書きで残す</button>
+      <button type="button" data-vest="confirmed">✅ 確定する</button>
+    </div></div>
+  <button class="btn pri" id="veSave">💾 保存</button>
+</div></div>
+
+<!-- 💭 r115: 🤖 価値観の下書きを AI に作ってもらう。
+     道は2つ＝📋 AI アプリで（キー不要・材料と頼む文を渡して、返事を貼る）／🤖 このアプリの AI で（⚙ のキー・1回ぶん課金）。
+     ⚠ どちらも返事は同じ形（receipt-values-draft）＝取り込みは1本。🔄 で Drive に書き出している人は、JSON の _readme に
+        同じ頼み方が入っているので、AI アプリで「読んで下書きして」と言うだけでも同じ返事が来る。
+     ⚠ 取り込んでも勝手に確定しない＝1件ずつ「下書きで残す／確定する／残さない」を本人が選ぶ（既定は下書き）。 -->
+<div class="overlay" id="ovValAi"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2>🤖 価値観の下書きを作る</h2>
+  <div class="note" id="vaMat" style="margin:0 0 10px"></div>
+  <div class="seg" id="vaRouteSeg" style="margin-bottom:10px">
+    <button type="button" data-varoute="app">📋 AI アプリで<small>キー不要・おすすめ</small></button>
+    <button type="button" data-varoute="key">🤖 このアプリの AI で<small>⚙ のキー・1回ぶん</small></button>
+  </div>
+  <div id="vaAppPane">
+    <div class="note" style="margin:0 0 6px"><b>①</b> 頼む文（あなたが書いた 🤔/✍ が入っています）を Claude・ChatGPT などのアプリへ</div>
+    <div class="dual"><button class="btn" id="vaCopy">📋 コピー</button><button class="btn" id="vaShare">📤 AI アプリに渡す</button></div>
+    <div class="note" style="margin:4px 0 6px"><b>②</b> AI の返事を<b>まるごと</b>下に貼って「取り込む」（前後の文や <code>```json</code> が付いていてもかまいません）</div>
+    <textarea class="rcMemo" id="vaPaste" rows="5" placeholder='{"format":"receipt-values-draft", "values":[…]}'></textarea>
+    <button class="btn pri" id="vaImport" style="margin-top:8px">📥 取り込む</button>
+    <div class="note" id="vaDriveNote"></div>
+  </div>
+  <div id="vaKeyPane" hidden>
+    <div class="note" id="vaAiLine" style="margin:0 0 8px"></div>
+    <button class="btn pri" id="vaRun">▶ 下書きを作ってもらう</button>
+    <button class="btn" id="vaStop" hidden>⏹ やめる</button>
+  </div>
+  <div class="note" id="vaErr" hidden style="color:var(--err)"></div>
+  <div id="vaCands"></div>
+  <button class="btn pri" id="vaSave" hidden>💾 選んだとおりに保存</button>
+</div></div>
+
 <div class="overlay" id="ovDetail"><div class="sheet">
   <button class="x" data-close>✕</button><h2 id="dTitle">レシート</h2>
   <img id="dImg" alt="レシート画像">
@@ -1735,11 +1870,41 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <div class="note">直した内容は<b>この端末に保存</b>され、📊 統計・📤 書き出し・📈 分析にそのまま効きます。写真は変わりません。<br>⚠ そのあと <b>📝 で読ませ直すと、AI の読み取りで上書きされます</b>（押した時に確かめます）。</div>
 </div></div>
 
+<!-- 💭 r115: 🔀 選んだ・選ばなかった を手で足す／直す（レシートに無いもの）。
+     ⚠ **いちばん後ろに置く**＝レシートの詳細（ovDetail）から開くので、それより上に重なる必要がある（重なりは HTML の順・r81）。
+     ⚠ 欄の言い方は「何について × 選んだか」で変わる（なぜ買った／なぜ買わなかった／なぜ行かなかった…）＝choiceWords 1か所で決める。
+     ⚠ 保存ボタンあり（レシートの 💭 と違う）＝新しく作る記録なので、押した時に初めてできる（途中でやめたら何も残らない）。 -->
+<div class="overlay" id="ovChoice"><div class="sheet tall">
+  <button class="x" data-close>✕</button><h2 id="chTitle">🔀 選んだ・選ばなかった</h2>
+  <div class="row"><label>何について</label>
+    <div class="seg" id="chSubjSeg">
+      <button type="button" data-chsubj="item">🛒 物（品目）</button>
+      <button type="button" data-chsubj="place">📍 場所・お店</button>
+    </div></div>
+  <div class="row"><label>選んだ？</label>
+    <div class="seg" id="chPickSeg">
+      <button type="button" data-chpick="0"></button>
+      <button type="button" data-chpick="1"></button>
+    </div></div>
+  <div class="row"><label id="chNameLbl">名前</label><input id="chName" maxlength="120" autocomplete="off"></div>
+  <div class="dual">
+    <div class="row" style="flex:1"><label>いつ</label><input type="date" id="chDate"></div>
+    <div class="row" style="flex:1" id="chWhereRow"><label>どこで（任意）</label><input id="chWhere" maxlength="80" autocomplete="off" placeholder="店・サイト"></div>
+  </div>
+  <div class="note" id="chLink" hidden style="margin:0 0 12px"></div>
+  <div class="row"><label id="chWhyLbl">🤔 なぜ</label><textarea class="rcMemo" id="chWhy" rows="3" maxlength="300"></textarea>
+    <div class="rcMemoWhen" id="chWhyWhen"></div></div>
+  <div class="row"><label id="chAfterLbl">✍ どうだった</label><textarea class="rcMemo" id="chAfter" rows="3" maxlength="300"></textarea>
+    <div class="rcMemoWhen" id="chAfterWhen"></div></div>
+  <div class="note" style="margin:0 0 12px">🤔 と ✍ は<b>どちらか片方だけでも</b>、<b>あとから</b>でも書けます（使ってから・行かずに過ごしてから）。書いたことは 💭 価値観の材料になります（AI が下書き・確定するのはあなた）。</div>
+  <div class="dual"><button class="btn dang" id="chDel">🗑 削除</button><button class="btn pri" id="chSave">💾 保存</button></div>
+</div></div>
+
 <div id="toast"></div>
 
 <script>
 'use strict';
-const BUILD = 'r114 🗒 レシートに「ひとこと」を足した＝詳細の明細の下に1つ（この店を選んだ理由／買ってみてどうだったか）・明細の行をタップするとその品にも書ける。保存ボタンなし（食事と同じ）・最初に書いた日と最後に直した日を持つ。📤 の JSON（v6）・SQL・CSV に note として載る＝たまったら AI が価値観の下書きに使える（2026-10-10）｜r113 📝 文言を実測に合わせて直した＝🎉 Drive に置いた 📄 JSON を Claude が実際に読めることを実機で確認（レシート3件・合計1,947円を正しく答えた）。あわせて「.sql はテキストだから AI も読める」は保証できないと訂正（置き場が付ける種類しだい）＝AI に読ませるのは 📄 JSON だけ、SQL/SQLite はパソコンで掘る用（2026-08-29）｜r112 📦 置いたファイルの大きさを画面に出し、超えたら知らせるようにした（AI が一度に読めるのは約0.7MB＝実測で1年ぶんが1.5MB）。あわせて 🔎 入れる中身をしぼる（期間＝全部/12/6/3か月・🍽 食事の詳細を外す）を追加／写しは詰めて書く（-23%）（2026-08-29）';
+const BUILD = 'r115 💭 価値観を入れた＝レシートの店と品目に 🤔 なぜ／✍ どうだった を別々に書ける・🙅 買わなかった物と 🚶 行かなかった場所を手で足せる・💭 タブで AI が価値観の下書き（AI アプリに渡して貼り戻す／このアプリの AI）→ 確定は本人・📤/🔄 の JSON v7 に choice_log と value_log（2026-10-14）｜r114 🗒 レシートに「ひとこと」を足した＝詳細の明細の下に1つ（この店を選んだ理由／買ってみてどうだったか）・明細の行をタップするとその品にも書ける。保存ボタンなし（食事と同じ）・最初に書いた日と最後に直した日を持つ。📤 の JSON（v6）・SQL・CSV に note として載る＝たまったら AI が価値観の下書きに使える（2026-10-10）｜r113 📝 文言を実測に合わせて直した＝🎉 Drive に置いた 📄 JSON を Claude が実際に読めることを実機で確認（レシート3件・合計1,947円を正しく答えた）。あわせて「.sql はテキストだから AI も読める」は保証できないと訂正（置き場が付ける種類しだい）＝AI に読ませるのは 📄 JSON だけ、SQL/SQLite はパソコンで掘る用（2026-08-29）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -1825,6 +1990,7 @@ const AN = {
 const EX = { meals: 'rcpt.exp.meals', mealDetail: 'rcpt.exp.mealdetail', period: 'rcpt.exp.period',
              preset: 'rcpt.exp.preset',
              receipts: 'rcpt.exp.receipts',   // r92: 🧾 レシートを出すか（既定＝出す）
+             values: 'rcpt.exp.values',       // r115: 💭 選択の記録と価値観を出すか（既定＝出す）
              // r65: 🩺 健康診断・💊 薬をどこまで出すか（既定＝健診は期間内＋直近1件・薬はその期間に飲んでいたもの）
              chk: 'rcpt.exp.chk', chkAll: 'rcpt.exp.chkall', med: 'rcpt.exp.med', medAll: 'rcpt.exp.medall',
              body: 'rcpt.exp.body' };   // r83: 🫀 からだの数字（既定＝出す）
@@ -1835,7 +2001,7 @@ const ML = { slots: 'rcpt.meal.slots', day: 'rcpt.meal.day', view: 'rcpt.meal.vi
 // r65: 🩺 健康診断の結果を読む AI／💊 薬の説明書を読む AI（どちらも空 = レシートの読み取りと同じ）
 const CK = { prov: 'rcpt.chk.provider', model: p => `rcpt.chk.model.${p}` };
 const MD = { prov: 'rcpt.med.provider', model: p => `rcpt.med.model.${p}` };
-const TOP_TAB = 'rcpt.top.tab';   // r65: トップで見ているタブ（receipts / meals / health）
+const TOP_TAB = 'rcpt.top.tab';   // r65: トップで見ているタブ（receipts / meals / health / values＝r115）
 /* ---------- AI の役割（r40） ----------
    3つ＝ 📷 レシートを読む（ocr・基準）／🍽 食事の写真を読む（meal）／📈 データを分析する（an）。
    r65 で 🩺 健康診断（chk）と 💊 薬（med）を足して5つ。
@@ -1909,7 +2075,7 @@ function ctxFor(role){
 // v3（r15）で ANALYSES＝📈 分析の結果を貯める場所を追加（既存の2つはそのまま）
 const DB_NAME = 'receipt-spike', STORE = 'receipts', PLACES = 'places', ANALYSES = 'analyses', MEALS = 'meals',
       CHECKUPS = 'checkups', MEDS = 'meds', REPEATS = 'repeats', BODY = 'body', PICS = 'bodypics',
-      MENUS = 'menus', KV = 'kv';
+      MENUS = 'menus', KV = 'kv', CHOICES = 'choices', VALUES = 'values';
 let _db = null;
 function db(){ return _db ? Promise.resolve(_db) : new Promise((ok, ng) => {
   // v4（r35）で MEALS＝🍽 食事の記録を追加（既存の3つはそのまま）
@@ -1919,7 +2085,8 @@ function db(){ return _db ? Promise.resolve(_db) : new Promise((ok, ng) => {
   // v8（r85）で PICS＝📸 からだの写真（重ね撮り）を追加（既存の8つはそのまま）
   // v9（r95）で MENUS＝⭐ いつものメニュー を追加（既存の9つはそのまま）
   // v10（r105）で KV＝小物入れを追加（既存の10個はそのまま）
-  const rq = indexedDB.open(DB_NAME, 10);
+  // v11（r115）で CHOICES＝🙅 買わなかった・🚶 行かなかった（手で足す選択）・VALUES＝💭 価値観 を追加（既存の11個はそのまま）
+  const rq = indexedDB.open(DB_NAME, 11);
   rq.onupgradeneeded = () => {
     const d = rq.result;
     if (!d.objectStoreNames.contains(STORE))    d.createObjectStore(STORE,    { keyPath: 'id' });
@@ -1954,6 +2121,15 @@ function db(){ return _db ? Promise.resolve(_db) : new Promise((ok, ng) => {
        ⚠ localStorage に置けない＝ハンドルは文字列にできない（IndexedDB は構造化複製で保存できる）。
        ⚠ 記録ではないので 📊 統計・📤 書き出し・🧹 削除の対象にしない（他の箱と役割が違う）。 */
     if (!d.objectStoreNames.contains(KV))       d.createObjectStore(KV,       { keyPath: 'k' });
+    /* r115: 🔀 選んだ・選ばなかった（手で足すもの）＝1件＝「品目か場所」×「選んだか選ばなかったか」＋なぜ・どうだった。
+       ⚠ **レシートから分かるもの（買った品目・行った店）はここに入れない**＝レシートの側（rc・items）に書く
+          （同じ買い物を2か所に持つと、片方だけ直る）。ここに入るのは**レシートに無いもの**だけ
+          ＝買わなかった物・行かなかった場所・レシートの無い「買った／行った」。
+       ⚠ レシート（食事・予算と同じ）とは別の箱＝📊 統計・💰 予算・🔍 検索が「買っていない物」を数えない（r28/r29 の線引き）。 */
+    if (!d.objectStoreNames.contains(CHOICES))  d.createObjectStore(CHOICES,  { keyPath: 'id' });
+    /* r115: 💭 価値観＝1件＝1つ。AI の下書き（draft）→ 本人が確定（confirmed）→ 当てはまらなくなったら retired。
+       ⚠ 確定した文は書き換えない＝言い直しは新しい1件（supersedes＝前の版）。ライフログの personal_values と同じ約束。 */
+    if (!d.objectStoreNames.contains(VALUES))   d.createObjectStore(VALUES,   { keyPath: 'id' });
   };
   rq.onsuccess = () => { _db = rq.result; ok(_db); };
   rq.onerror = () => ng(rq.error);
@@ -1988,6 +2164,15 @@ async function noSilentFail(label, fn, ms = 8000){
   finally { done = true; clearTimeout(t); }
 }
 const dbPut = rec => tx(STORE, 'readwrite', s => s.put(rec));
+// r115: 🔀 選んだ・選ばなかった ／ 💭 価値観（どちらも tx を通る＝🔄 自動書き出しの印も付く）
+const chPut = rec => tx(CHOICES, 'readwrite', s => s.put(rec));
+const chDel = id  => tx(CHOICES, 'readwrite', s => s.delete(id));
+const chGet = id  => tx(CHOICES, 'readonly',  s => s.get(id));
+const chAll = ()  => tx(CHOICES, 'readonly',  s => s.getAll());
+const vlPut = rec => tx(VALUES, 'readwrite', s => s.put(rec));
+const vlDel = id  => tx(VALUES, 'readwrite', s => s.delete(id));
+const vlGet = id  => tx(VALUES, 'readonly',  s => s.get(id));
+const vlAll = ()  => tx(VALUES, 'readonly',  s => s.getAll());
 const dbDel = id  => tx(STORE, 'readwrite', s => s.delete(id));
 const dbGet = id  => tx(STORE, 'readonly',  s => s.get(id));
 const dbAll = ()  => tx(STORE, 'readonly',  s => s.getAll());
@@ -2775,6 +2960,21 @@ const DATA_NOTES = {
     'entered_by が "hand" のものは、写真なしで手で入れた記録（レシートの写真は無い・captured_at は入れた日時ではなく本人が指定した日時）。数え方は写真から読んだものと同じ。',
     /* r114: 🗒 ひとこと。⚠ 食事の note と同じ扱い（📤 の _readme にも 📈 の AN_SYSTEM にも、この1行が入る）。 */
     'note は本人が書いたひとこと（なぜその店を選んだか・なぜその品を買ったか・使ってみてどうだったか）。レシートの note はその店・その買い物について、items[].note はその品について。本人の言葉そのまま（AI が書いたものではない）。⚠ 写真からは絶対に分からない唯一の情報なので重く扱う。note_written_at（最初に書いた日時）・note_updated_at（最後に直した日時）と date の差で、買った直後の言葉か、使ってから書いた言葉かが分かる。note が無いレシート・品目について、選んだ理由や感想を推測しない。',
+    /* r115: 💭 なぜ・どうだった（note を2つに分けたもの）。⚠ 📈 の AN_SYSTEM にも同じ1行が入る */
+    'why（🤔 なぜその店へ行った・なぜその品を買った）と after（✍ 行ってみて・使ってみてどうだった）も本人の言葉そのまま（AI が書いたものではない）。note と同じく重く扱い、書いていない記録について推測しない。*_written_at・*_updated_at と date の差で、直後の言葉か使ってからの言葉かが分かる。note_id はその記録の鍵（value_log の evidence が指す）。',
+  ],
+  // r115: 🔀 選んだ・選ばなかった（手で足したもの）
+  choice: [
+    '選んだ・選ばなかった の記録（format: "choice-log"）。レシートに無いものを本人が手で足したもの。about が "item"＝物・"place"＝場所（お店・行き先）。chosen が false＝買わなかった物・行かなかった場所（選ばなかったこと）、true＝レシートの無い買い物・行き先。',
+    'why は 🤔 なぜそうしたか、after は ✍ やってみて（やらずに）どうだったか。どちらも本人の言葉そのまま（AI が書いたものではない）。書いていない記録の理由を推測しない。date は決めた日。',
+    'at_receipt_id があるものは、そのレシートの時の選択（その店で買わなかった物／代わりにその店へ行った）。⚠ 金額は持たない＝支出の集計に混ぜない（買っていない物を数えない）。',
+  ],
+  // r115: 💭 価値観
+  value: [
+    '本人の価値観（format: "value-log"）。status が confirmed＝本人が確定したもの、draft＝下書き（AI か本人が書いた仮説・まだ確定していない）、retired＝本人が「もう当てはまらない」としたもの（前の考え）。',
+    '⚠ 本人の考えとして根拠にしてよいのは confirmed だけ。draft は仮説なので言い切らない。retired は過去の考えとして読む（いまの考えとして使わない）。',
+    'drafted_by が "ai" は AI が書いた文を本人がそのまま残したもの、"human" は本人の言葉。basis は AI がどう読んだか（本人の考えそのものではない）。',
+    'evidence は根拠にした記録の鍵の並び（receipts[].note_id・receipts[].items[].note_id・choice_log の choice_id）。supersedes は言い直す前の版の value_id（確定した文は書き換えず、版を重ねる）。',
   ],
   meal: [
     '食事の写真を書き起こしたもの（format: "meal-log"）。slot は 朝食/昼食/夕食/間食、summary はその食事の1行の要約、items は写っていた料理（name・kind・amount）。',
@@ -4959,13 +5159,14 @@ document.getElementById('rpMgList').addEventListener('click', async e => {
    🧾 レシート（今までどおりの一覧）／🍽 食事（旧モーダルの中身）／🩺 健康（健診＋薬）。
    ⚠ 帯（撮るボタン）は見ているタブで変わる＝🧾/🍽 では今までどおり レシート＋料理、🩺 では 診断＋薬。
    ⚠ 🔍 検索はレシートの一覧に効くので、開く時は 🧾 に戻す（他のタブで検索しても何も出ない）。 */
-let topTab = ['receipts', 'meals', 'health'].includes(localStorage.getItem(TOP_TAB)) ? localStorage.getItem(TOP_TAB) : 'receipts';
+let topTab = ['receipts', 'meals', 'health', 'values'].includes(localStorage.getItem(TOP_TAB)) ? localStorage.getItem(TOP_TAB) : 'receipts';
 async function setTopTab(t){
   topTab = t; localStorage.setItem(TOP_TAB, t);
   document.querySelectorAll('#topSeg button').forEach(b => b.classList.toggle('on', b.dataset.top === t));
   document.getElementById('receiptsPane').hidden = t !== 'receipts';
   document.getElementById('mealsPane').hidden = t !== 'meals';
   document.getElementById('healthPane').hidden = t !== 'health';
+  document.getElementById('valuesPane').hidden = t !== 'values';   // 💭 r115
   // r96: 帯（撮るボタン）の出し分けは renderShootBar に一本化した（syncHealthTab の末尾で呼ばれる）
   syncHealthTab();   // r84: 🩺 の中のサブタブに合わせて、節と帯を出し分ける
   if (t === 'meals') {
@@ -4975,6 +5176,7 @@ async function setTopTab(t){
     await setMlView(mlView);
   }
   else if (t === 'health') await renderHealth();
+  else if (t === 'values') await renderValuesTab();
 }
 /* 📷 r101: 下の帯ぜんぶを隠す／出す。
    ⚠ 描き直すのは帯だけ（renderShootBar が 出し入れ・余白の両方を面倒を見る）。
@@ -5046,7 +5248,8 @@ function renderShootBar(){
      一覧の最後が帯の裏に潜る。2段になった時の実寸合わせだけを rAF に任せる。 */
   document.body.style.paddingBottom = '';
   const pins = shootPins();
-  const ctx = topTab === 'health' ? [healthTab] : ['rcpt', 'meal'];   // 見ているタブの塊＝今までどおりの分
+  // 💭 r115: 価値観のタブはレシートの塊だけ（材料はレシートから集める＝撮る道は残す・料理は関係が薄い）
+  const ctx = topTab === 'health' ? [healthTab] : topTab === 'values' ? ['rcpt'] : ['rcpt', 'meal'];   // 見ているタブの塊＝今までどおりの分
   const mealNow = slotOfTime(Date.now()) !== 'snack';                 // 朝/昼/夕の窓の中か
   for (const [id, , , el] of SHOOT_GRPS) {
     const g = document.getElementById(el);
@@ -7275,12 +7478,12 @@ async function openDetail(id, i = 0){
             return t ? `${t.v ? '税込' : '税抜（本体価格）'}（${t.by}）` : null; })())
       + kv('カテゴリ', d.category) + kv('支払', d.payment) + kv('住所', d.address)
       + kv('登録番号', d.regno)
-      // 🗒 r114: 行を押すと、その品へのひとことの欄がすぐ下に開く（使う時だけ広がる＝20品のレシートで全部に聞かない）
+      // 🗒 r114 → 💭 r115: 行を押すと、その品への 🤔 なぜ／✍ どうだった の欄がすぐ下に開く（使う時だけ広がる＝20品のレシートで全部に聞かない）
       + (d.items?.length ? '<table class="items">' + d.items.map((it, k) =>
           `<tr data-it="${k}"><td>${esc(it.name)}${it.qty > 1 ? ' ×' + esc(it.qty) : ''}`
           + `${it.unit_price != null ? ` <small>@${yen(it.unit_price)}</small>` : ''}`
           + `${it.tax_rate ? ` <small>${it.tax_rate}%</small>` : ''}`
-          + `<div class="itNote" data-itnote="${k}"${it.memo ? '' : ' hidden'}>${it.memo ? '🗒 ' + esc(it.memo) : ''}</div></td>`
+          + `<div class="itNote" data-itnote="${k}"${hasNote(it) ? '' : ' hidden'}>${esc(itNoteText(it))}</div></td>`
           + `<td>${it.price != null ? yen(it.price) : ''}</td></tr>`).join('') + '</table>' : '')
       + (receiptIssues(d).length
           ? `<div class="note warn">⚠ 数字が合いません（読み違いの可能性）<br>${receiptIssues(d).map(esc).join('<br>')}<br>✏️ で直せます。</div>` : '')
@@ -7297,6 +7500,7 @@ async function openDetail(id, i = 0){
       + '<div id="dMeal"></div>'   // r70: 結び付いた 🍽 食事（あとから埋める）
       + (r.meta ? `<div class="note">${esc(r.meta.model)} / in ${r.meta.in} · out ${r.meta.out} tokens</div>` : '');
   renderRcptMeal(r);   // r70: 反対側からも見える＝どちらから入っても行き来できる
+  if (d) renderRcChoices(r, d);   // 💭 r115: このレシートにつながる 🙅/🚶（手で足した選択）
   // ボタンの名前も「いま何に効くのか」に合わせる（🗑 が写真ごと消すのか1枚だけかは、押す前に分かる必要がある）
   document.getElementById('btnDelete').textContent = rcs.length > 1 ? '🗑 この1枚を削除' : '🗑 削除';
   show('ovDetail');
@@ -7314,64 +7518,108 @@ async function renderRcptMeal(r){
     + `${m.madeBy ? ` ・ ${madeIcon(m)} ${esc(madeLabel(m))}` : ''}</small></span>
     <button type="button" data-mealgo="${esc(m.id)}">見る</button></div></div>`;
 }
-/* ---------- 🗒 ひとこと（r114） ----------
-   本人の言葉で「なぜこの店・なぜこれを買った・使ってみてどうだった」を残す。たまったら 📤 / 🔄 の JSON を
-   Claude が読んで、本人の価値観の下書きを出せる（アプリの中では読まない＝ここは「書く欄」だけ）。
-   ⚠ 欄は1つ＝「なぜ選んだ」と「どう感じた」を分けない（2つ並ぶと両方埋めないといけない気がする）。
-      代わりに日付を2つ持つ＝memoAt（最初に書いた）・memoEditedAt（最後に直した）。買った日との差で、
-      受け取った AI が「直後の言葉か、使ってからの言葉か」を見分けられる。
-   ⚠ 置き場はレシート1枚（rc）ごと＝写真（r）ではない（1枚の写真に2枚写っていることがある）。品目は it.memo。
-   ⚠ 保存ボタンは置かない（食事の saveMealMemo と同じ作法）＝打ち終わり（change）・手が止まって 800ms・閉じる時。
-   ⚠ 書く先は**欄に覚えさせる**（data-mrid / data-mri / data-mit）＝画面がよそへ移ってから書いても、書いた所に書く。 */
-const memoTimers = new Map();
-let rcMemoQ = Promise.resolve();   // ⚠ 1本の列で順に書く＝店と品目を続けて書いても、読んで書く間に追い越さない
-// 中身が変わった時だけ日付を付ける。⚠ 空にしたら3つとも外す＝書いていない日付だけが残らない
-function setMemo(o, v){
-  if ((o.memo || '') === v) return false;
-  if (!v) { delete o.memo; delete o.memoAt; delete o.memoEditedAt; return true; }
+/* ---------- 💭 なぜ・どうだった（r115）＝r114 の 🗒 ひとことを「なぜ」と「どうだった」に分けた ----------
+   本人の言葉（2026-10-14）＝「なぜそれを選んだのか？選ばなかったのか？実際体験して、しなくてどんな体験だったのか？
+   を個別に入力できる」。✅ 決定（2026-10-14）＝r114 の「欄は1つ（分けない）」を上書きした。
+   ⚠ r114 で分けなかった理由（2つ並ぶと両方埋めないといけない気がする）は**形で**解く＝空の欄は小さなボタンだけ・
+      押した欄だけが開く（使う時だけ広がる・DECISION-FRAMEWORK §2.3-1）。書いてある欄は最初から開いている。
+   欄は3つ（NOTE_F）:
+     why   ＝🤔 なぜ（選んだ理由）
+     after ＝✍ どうだった（行ってみて・使ってみて）
+     memo  ＝🗒 r114 のひとこと＝**書いてあるものだけ出す**（新しくは作らない・消さない＝そのまま書き出しの note に出る）
+   ⚠ 書いた時刻は欄ごと（f+'At' 最初に書いた / f+'EditedAt' 最後に直した）＝買った日との差で「直後の言葉か・使ってからか」が分かる。
+   ⚠ nid＝この記録の鍵（何かを書いた最初の時に付ける）。💭 価値観の根拠はこの鍵で指す＝**番号で指さない**
+      （✏️ で行を消すと番号がずれる・r114 の教訓）。品目の nid は ✏️ の作り直しでも行といっしょに動く（data-notes）。
+   ⚠ 置き場はレシート1枚（rc）ごと・品目（it）ごと（r114 と同じ）。保存ボタンは置かない（打ち終わり・手が止まって 800ms・閉じる時）。
+   ⚠ 書く先は**欄に覚えさせる**（data-mrid / data-mri / data-mit / data-mf）＝画面がよそへ移ってから書いても、書いた所に書く。 */
+const NOTE_F = ['why', 'after', 'memo'];
+const NOTE_KEYS = NOTE_F.flatMap(f => [f, f + 'At', f + 'EditedAt']).concat(['nid']);
+const NOTE_ICON = { why: '🤔', after: '✍', memo: '🗒' };
+const hasNote = o => !!o && NOTE_F.some(f => o[f]);
+// 置き場ごとの言い方（店＝行った場所／品目＝買った物）。⚠ 手で足す選択（🙅🚶）は choiceWords が受け持つ
+const NOTE_WORDS = {
+  store: { why: ['🤔 なぜこの店に', '例: 帰り道にあって寄りやすい／ここでしか売っていない'],
+           after: ['✍ 行ってみてどうだった', '例: 混んでいたけど店員さんが親切だった'] },
+  item:  { why: ['🤔 なぜこれを買った', '例: いつもの銘柄／肌に合う物を探して'],
+           after: ['✍ 使ってみてどうだった', '例: 香りが強すぎた／大きさがちょうどよかった'] },
+};
+const newNid = () => newId('n');
+// 中身が変わった時だけ日付を付ける。⚠ 空にしたらその欄の3つを外す＝書いていない日付だけが残らない（nid は残す＝指し先を消さない）
+// ⚠ mkNid=false＝画面の写しを先に直す時（鍵は DB 側で1回だけ決めて syncNid で写し戻す＝鍵が2つできない）
+function setNote(o, f, v, mkNid = true){
+  if ((o[f] || '') === v) return false;
+  if (!v) { delete o[f]; delete o[f + 'At']; delete o[f + 'EditedAt']; return true; }
   const now = Date.now();
-  o.memo = v; if (!o.memoAt) o.memoAt = now; o.memoEditedAt = now;
+  o[f] = v; if (!o[f + 'At']) o[f + 'At'] = now; o[f + 'EditedAt'] = now;
+  if (mkNid && !o.nid) o.nid = newNid();
   return true;
 }
+const setMemo = (o, v) => setNote(o, 'memo', v);   // r114 の呼び名（残す）
+const mdOf = t => { const d = new Date(t);
+  return (d.getFullYear() !== new Date().getFullYear() ? d.getFullYear() + '/' : '') + (d.getMonth() + 1) + '/' + d.getDate(); };
 // 「10/10 に書いた・10/24 に直した」（同じ日なら1つだけ・今年でなければ年も）
-function memoWhen(o){
-  if (!o?.memo || !o.memoAt) return '';
-  const md = t => { const d = new Date(t);
-    return (d.getFullYear() !== new Date().getFullYear() ? d.getFullYear() + '/' : '') + (d.getMonth() + 1) + '/' + d.getDate(); };
-  const a = md(o.memoAt), b = md(o.memoEditedAt || o.memoAt);
+function noteWhen(o, f = 'memo'){
+  if (!o?.[f] || !o[f + 'At']) return '';
+  const a = mdOf(o[f + 'At']), b = mdOf(o[f + 'EditedAt'] || o[f + 'At']);
   return a === b ? `${a} に書いた` : `${a} に書いた・${b} に直した`;
 }
+const memoWhen = o => noteWhen(o, 'memo');
+// 品名の下に出す本人の言葉（書いた欄だけ・1行ずつ）
+const itNoteText = it => NOTE_F.filter(f => it?.[f]).map(f => NOTE_ICON[f] + ' ' + it[f]).join('\n');
 // ⚠ 品目にも書けることは、まだ1つも書いていない時だけ言う（空状態にだけ出るヒント）
-const rcMemoWhenText = d => [memoWhen(d),
-  d.items?.length && !d.items.some(it => it?.memo) ? '明細の行をタップすると、品目ごとにも書けます' : ''].filter(Boolean).join(' ・ ');
-const rcMemoHtml = (r, d, i) => `<div class="row" style="margin-top:12px">
-    <label>🗒 ひとこと（任意・この店を選んだ理由／買ってみてどうだったか。あとから足せます）</label>
-    <textarea class="rcMemo" id="dMemo" rows="2" maxlength="300" data-mrid="${esc(r.id)}" data-mri="${i}"
-      placeholder="例: 帰り道にあって寄りやすい／ここの豆腐は濃くておいしい">${esc(d.memo || '')}</textarea>
-    <div class="rcMemoWhen" id="dMemoWhen">${esc(rcMemoWhenText(d))}</div></div>`;
-const itMemoRowHtml = (rid, ri, k, it) => `<tr class="itMemoRow" data-itrow="${k}"><td colspan="2">
-    <textarea class="rcMemo" rows="2" maxlength="300" data-mrid="${esc(rid)}" data-mri="${ri}" data-mit="${k}"
-      placeholder="🗒 この品へのひとこと（例: いつもの銘柄／使ってみたら香りが強かった）">${esc(it.memo || '')}</textarea>
-    <div class="rcMemoWhen" data-itwhen="${k}">${esc(memoWhen(it))}</div></td></tr>`;
-// 開いている詳細が書いた先と同じなら、日付と品名の下の 🗒 をその場で直す（描き直さない＝打っている欄を壊さない）
-function paintMemo(rid, ri, k){
-  if (rid !== detailId || ri !== detailIdx || !detailRc) return;
-  if (k != null) {
-    const it = detailRc.items?.[k]; if (!it) return;
-    const n = document.querySelector(`#dBody [data-itnote="${k}"]`);
-    if (n) { n.hidden = !it.memo; n.textContent = it.memo ? '🗒 ' + it.memo : ''; }
-    const w = document.querySelector(`#dBody [data-itwhen="${k}"]`); if (w) w.textContent = memoWhen(it);
-  }
-  const w = document.getElementById('dMemoWhen'); if (w) w.textContent = rcMemoWhenText(detailRc);
+const itHintText = d => d.items?.length && !d.items.some(hasNote) ? '明細の行をタップすると、品目ごとにも書けます' : '';
+/* 欄1つ。⚠ 空なら小さなボタンだけ（押すと開いてすぐ focus）・書いてあれば開いた形。
+   ⚠ memo（r114）は書いてある時しか呼ばない＝新しくは作らせない（2欄に分けた意味が消える） */
+function noteFieldHtml(place, o, f, rid, ri, k){
+  const v = o?.[f] || '';
+  const [label, ph] = f === 'memo' ? ['🗒 ひとこと（前の欄）', ''] : NOTE_WORDS[place][f];
+  const at = `data-mrid="${esc(rid)}" data-mri="${ri}"${k == null ? '' : ` data-mit="${k}"`} data-mf="${f}"`;
+  return `<div class="nf${v ? ' open' : ''}" data-nf="${f}">`
+    + `<button type="button" class="nfBtn" data-nfopen>${label}</button>`
+    + `<div class="nfLbl">${label}</div>`
+    + `<textarea class="rcMemo" rows="2" maxlength="300" ${at} placeholder="${esc(ph)}">${esc(v)}</textarea>`
+    + `<div class="rcMemoWhen" data-when="${k == null ? 'rc' : k}-${f}">${esc(noteWhen(o, f))}</div></div>`;
 }
+const noteFieldsHtml = (place, o, rid, ri, k) => '<div class="nfs">'
+  + noteFieldHtml(place, o, 'why', rid, ri, k) + noteFieldHtml(place, o, 'after', rid, ri, k)
+  + (o?.memo ? noteFieldHtml(place, o, 'memo', rid, ri, k) : '') + '</div>';
+// 小さなボタンを押した＝その欄を開いてすぐ focus（⚠ await の前に呼ぶ＝iOS はタップの直後でないとキーボードを出さない）
+function openNf(btn){
+  const nf = btn.closest('.nf'); if (!nf) return;
+  nf.classList.add('open');
+  const ta = nf.querySelector('textarea'); if (ta) ta.focus();
+}
+/* 💭 この店（＝行った場所）の節。レシートの詳細の明細の下に出す。
+   ⚠ 「この店で買わなかった物」「代わりに行かなかった場所」は手で足す選択（🔀）＝このレシートにつながる（下の dChoices） */
+const rcMemoHtml = (r, d, i) => `<div class="vSec">
+    <div class="vHead">💭 この店を選んだこと<small>📍 行った場所・本人の言葉だけを残します（AI は書きません）</small></div>
+    ${noteFieldsHtml('store', d, r.id, i)}
+    <div class="rcMemoWhen" id="dMemoWhen">${esc(itHintText(d))}</div>
+    <div id="dChoices"></div></div>`;
+const itMemoRowHtml = (rid, ri, k, it) => `<tr class="itMemoRow" data-itrow="${k}"><td colspan="2">${noteFieldsHtml('item', it, rid, ri, k)}</td></tr>`;
+// 開いている詳細が書いた先と同じなら、日付と品名の下の言葉をその場で直す（描き直さない＝打っている欄を壊さない）
+function paintMemo(rid, ri, k, f = 'memo'){
+  if (rid !== detailId || ri !== detailIdx || !detailRc) return;
+  const o = k == null ? detailRc : detailRc.items?.[k];
+  if (!o) return;
+  if (k != null) {
+    const n = document.querySelector(`#dBody [data-itnote="${k}"]`);
+    if (n) { const t = itNoteText(o); n.hidden = !t; n.textContent = t; }
+  }
+  const w = document.querySelector(`#dBody [data-when="${k == null ? 'rc' : k}-${f}"]`); if (w) w.textContent = noteWhen(o, f);
+  const h = document.getElementById('dMemoWhen'); if (h) h.textContent = itHintText(detailRc);
+}
+const memoTimers = new Map();
+let rcMemoQ = Promise.resolve();   // ⚠ 1本の列で順に書く＝店と品目を続けて書いても、読んで書く間に追い越さない
 function rcMemoSave(el){
   clearTimeout(memoTimers.get(el)); memoTimers.delete(el);
   const rid = el.dataset.mrid, ri = +el.dataset.mri, k = el.dataset.mit == null ? null : +el.dataset.mit;
+  const f = NOTE_F.includes(el.dataset.mf) ? el.dataset.mf : 'memo';
   const v = el.value.trim();
   // 画面の写し（detailRc）は先に直す＝保存が終わる前に同じ行を開き直しても、古い文が出ない
   if (rid === detailId && ri === detailIdx && detailRc) {
     const m = k == null ? detailRc : detailRc.items?.[k];
-    if (m) setMemo(m, v);
+    if (m) setNote(m, f, v, false);   // ⚠ 鍵は DB 側で1回だけ決める（下の syncNid で写し戻す）
   }
   rcMemoQ = rcMemoQ.then(async () => {
     const r = await dbGet(rid); if (!r) return;
@@ -7382,12 +7630,34 @@ function rcMemoSave(el){
       if (!Array.isArray(rc.items) || !rc.items[k]) return;
       rc.items = rc.items.map(x => ({ ...x })); o = rc.items[k];
     }
-    if (!setMemo(o, v)) { paintMemo(rid, ri, k); return; }
+    if (!setNote(o, f, v)) { syncNid(rid, ri, k, o.nid); paintMemo(rid, ri, k, f); return; }
     r.data = { receipts: rcs };
     await dbPut(r);                                          // ⚠ edited は立てない＝読み取りを直したわけではない
-    paintMemo(rid, ri, k);
-  }).catch(err => toast('🗒 ひとことを保存できませんでした: ' + String(err?.message || err).slice(0, 80)));
+    syncNid(rid, ri, k, o.nid);
+    paintMemo(rid, ri, k, f);
+    if (topTab === 'values') renderValuesTab();              // 💭 の一覧が開いていれば数を合わせる
+  }).catch(err => toast('💭 書いたことを保存できませんでした: ' + String(err?.message || err).slice(0, 80)));
   return rcMemoQ;
+}
+// DB で決まった鍵を画面の写しへ戻す（写しで別の鍵を作ると、根拠の指し先が2つになる）
+function syncNid(rid, ri, k, nid){
+  if (!nid || rid !== detailId || ri !== detailIdx || !detailRc) return;
+  const m = k == null ? detailRc : detailRc.items?.[k];
+  if (m) m.nid = nid;
+}
+/* レシート1枚（rc）の鍵を決めて返す（まだ無ければ付けて保存）。🔀 の選択をこのレシートにつなぐ時に使う。
+   ⚠ 書き込みの列（rcMemoQ）に並べる＝ひとことの保存と追い越し合わない */
+function ensureRcNid(rid, ri){
+  const job = rcMemoQ.then(async () => {
+    const r = await dbGet(rid); if (!r) return null;
+    const rcs = receiptsOf(r).map(x => ({ ...x }));
+    const rc = rcs[ri]; if (!rc) return null;
+    if (!rc.nid) { rc.nid = newNid(); r.data = { receipts: rcs }; await dbPut(r); }
+    syncNid(rid, ri, null, rc.nid);
+    return rc.nid;
+  });
+  rcMemoQ = job.catch(() => {});
+  return job;
 }
 // 詳細に出ている欄を全部書いて、書き終わるまで待つ（変わっていなければ何もしない）
 async function rcMemoFlush(){
@@ -7395,16 +7665,19 @@ async function rcMemoFlush(){
   await rcMemoQ;
 }
 const closeItMemo = () => document.querySelectorAll('#dBody tr.itMemoRow').forEach(x => x.remove());
-// 品目の行を押した＝その行の下に欄を開く（同じ行をもう一度押したら閉じる・開くのは1行だけ）
+/* 品目の行を押した＝その行の下に欄を開く（同じ行をもう一度押したら閉じる・開くのは1行だけ）。
+   ⚠ まだ何も書いていない品なら「🤔 なぜ」を開いてすぐ focus＝書くために押したので、もう1手を省く */
 function toggleItMemo(k){
   const open = document.querySelector('#dBody tr.itMemoRow');
   const was = open ? +open.dataset.itrow : null;
-  if (open) { const ta = open.querySelector('textarea'); if (ta) rcMemoSave(ta); open.remove(); }
+  if (open) { open.querySelectorAll('textarea').forEach(rcMemoSave); open.remove(); }
   if (was === k) return;
   const tr = document.querySelector(`#dBody tr[data-it="${k}"]`), it = detailRc?.items?.[k];
   if (!tr || !it) return;
   tr.insertAdjacentHTML('afterend', itMemoRowHtml(detailId, detailIdx, k, it));
-  tr.nextElementSibling.querySelector('textarea').focus();   // ⚠ await の前に呼ぶ＝iOS はタップの直後でないとキーボードを出さない
+  const row = tr.nextElementSibling;
+  if (!row.querySelector('.nf.open')) row.querySelector('.nf[data-nf="why"]').classList.add('open');
+  row.querySelector('.nf.open textarea').focus();   // ⚠ await の前に呼ぶ＝iOS はタップの直後でないとキーボードを出さない
 }
 const dBodyEl = document.getElementById('dBody');
 dBodyEl.addEventListener('input', e => {
@@ -7418,6 +7691,12 @@ document.getElementById('ovDetail').addEventListener('click', e => {
   if (e.target.closest('[data-close]') || e.target.id === 'ovDetail') rcMemoFlush();
 });
 document.getElementById('dBody').onclick = async e => {
+  const nfo = e.target.closest('[data-nfopen]');
+  if (nfo) { openNf(nfo); return; }   // 💭 r115: ⚠ 最初に（await より前）＝iOS のキーボードを出すため
+  const chb = e.target.closest('[data-chadd]');
+  if (chb) { await openChoiceFromReceipt(chb.dataset.chadd); return; }   // 💭 r115: 🙅 この店で買わなかった物／🚶 代わりに行かなかった場所
+  const che = e.target.closest('[data-chopen]');
+  if (che) { const c = await chGet(che.dataset.chopen); if (c) openChoice(c); return; }
   const mg = e.target.closest('[data-mealgo]');
   if (mg) { const m = await mlGet(mg.dataset.mealgo); if (m) { hide('ovDetail'); await setTopTab('meals'); openMeal(m); } return; }
   // r80: 🧾 → 🍽（写真なしの食事を、いま開いているレシートから作る）
@@ -7465,9 +7744,13 @@ document.getElementById('dBody').onclick = async e => {
       撤去したので上書きの警告用途は消えたが、**人が触った印**としては残す）。 */
 let edId = null, edIdx = 0;
 /* 🗒 r114: 品目のひとことも欄を出さずに**行に持たせる**（unit_price と同じ）＝行を消す・足すと行といっしょに動く。
-   ⚠ 配列の番号で突き合わせない＝行を消すと番号がずれて、ひとことが隣の品目に付く。 */
-const edMemoAttrs = it => !it.memo ? ''
-  : ` data-memo="${esc(it.memo)}" data-memo-at="${it.memoAt ?? ''}" data-memo-ed="${it.memoEditedAt ?? ''}"`;
+   ⚠ 配列の番号で突き合わせない＝行を消すと番号がずれて、ひとことが隣の品目に付く。
+   💭 r115: 欄が3つ（なぜ・どうだった・ひとこと）＋鍵（nid）になったので、まとめて1つの data-notes（JSON）で持ち回る。
+   ⚠ nid も一緒に動く＝💭 価値観の根拠が、行を消した後も同じ品目を指す。 */
+const noteKeysOf = it => Object.fromEntries(NOTE_KEYS.filter(k => it?.[k] != null).map(k => [k, it[k]]));
+const edMemoAttrs = it => { const n = noteKeysOf(it);
+  return Object.keys(n).length ? ` data-notes="${esc(JSON.stringify(n))}"` : ''; };
+const edNotesOf = el => { try { return el.dataset.notes ? JSON.parse(el.dataset.notes) : {}; } catch (_) { return {}; } };
 function renderEdItems(list){
   // ⚠ 単価（unit_price）は欄を出さない代わりに data- で持ち回る＝手で直しても消えない
   document.getElementById('edItems').innerHTML = list.map(it => `<div class="edIt" data-unit="${it.unit_price == null ? '' : it.unit_price}"${edMemoAttrs(it)}>
@@ -7485,8 +7768,7 @@ const readEdItems = () => [...document.querySelectorAll('#edItems .edIt')].map(e
   return { name: el.querySelector('.nm').value.trim(), price: num(el.querySelector('.pr').value),
            qty: num(el.querySelector('.qt').value), tax_rate: num(el.querySelector('.tx').value),
            unit_price: num(el.dataset.unit),
-           ...(el.dataset.memo ? { memo: el.dataset.memo, memoAt: num(el.dataset.memoAt),
-                                   memoEditedAt: num(el.dataset.memoEd) } : {}) };   // 🗒 r114
+           ...edNotesOf(el) };   // 🗒 r114 / 💭 r115
 });
 document.getElementById('edAddItem').onclick = () =>
   renderEdItems(readEdItems().concat([{ name: '', price: null, qty: null, tax_rate: null, unit_price: null }]));
@@ -7519,8 +7801,7 @@ async function openEdit(id, i){
   cat.value = cats.includes(d.category) ? d.category : CAT_ETC;
   renderEdItems((d.items || []).map(it => ({ name: it.name || '', price: it.price ?? null, qty: it.qty ?? null,
                                              tax_rate: it.tax_rate ?? null, unit_price: it.unit_price ?? null,
-                                             ...(it.memo ? { memo: it.memo, memoAt: it.memoAt ?? null,
-                                                             memoEditedAt: it.memoEditedAt ?? null } : {}) })));
+                                             ...noteKeysOf(it) })));
   show('ovEdit');
 }
 /* ✍️ r93: 写真の無い収支を1件入れる（要望）。
@@ -7647,12 +7928,19 @@ async function exportTargets(){
 }
 /* 🗒 r114: ひとことは書き出しでは note にする（食事・健診・薬・からだと同じ名前）。
    ⚠ 中の名前（memo / memoAt / memoEditedAt）は外に出さない＝受け取る側に見せる意味は note の1つだけ。
-   ⚠ 書いたものにだけキーが付く（無い＝書いていない。空の note を並べて「書いたが空」と読ませない）。 */
-const MEMO_KEYS = ['memo', 'memoAt', 'memoEditedAt'];
-const noteOut = o => !o?.memo ? {} : { note: o.memo,
-  note_written_at: o.memoAt ? isoLocal(new Date(o.memoAt)) : null,
-  note_updated_at: o.memoEditedAt ? isoLocal(new Date(o.memoEditedAt)) : null };
-const noMemo = o => Object.fromEntries(Object.entries(o).filter(([k]) => !MEMO_KEYS.includes(k)));
+   ⚠ 書いたものにだけキーが付く（無い＝書いていない。空の note を並べて「書いたが空」と読ませない）。
+   💭 r115: 🤔 why ／ ✍ after も同じ形（*_written_at・*_updated_at）。note_id＝その記録の鍵（💭 価値観の根拠が指す）。 */
+const isoAt = t => t ? isoLocal(new Date(t)) : null;
+const noteOut = o => {
+  if (!o) return {};
+  const x = {};
+  if (o.memo)  Object.assign(x, { note: o.memo,   note_written_at: isoAt(o.memoAt),  note_updated_at: isoAt(o.memoEditedAt) });
+  if (o.why)   Object.assign(x, { why: o.why,     why_written_at: isoAt(o.whyAt),    why_updated_at: isoAt(o.whyEditedAt) });
+  if (o.after) Object.assign(x, { after: o.after, after_written_at: isoAt(o.afterAt), after_updated_at: isoAt(o.afterEditedAt) });
+  if (Object.keys(x).length && o.nid) x.note_id = o.nid;
+  return x;
+};
+const noMemo = o => Object.fromEntries(Object.entries(o).filter(([k]) => !NOTE_KEYS.includes(k)));
 function rcOut(rc){
   const o = noMemo(rc);
   if (Array.isArray(o.items))
@@ -7662,12 +7950,14 @@ function rcOut(rc){
 function exportJson(rows, from, to){
   // 統計は入れない＝生データからAI/表計算が自分で計算する（ライフログの交換フォーマットと同方針）
   return JSON.stringify({
+    // v7（r115）＝🤔 why / ✍ after（＋*_written_at・*_updated_at）と note_id を、レシートと品目（items[]）に追加。
+    //   ⚠ 書いたものにだけ付く。note（r114）はそのまま（新しくは増えない）。
     // v6（r114）＝本人のひとこと note / note_written_at / note_updated_at を、レシートと品目（items[]）に追加。
     //   ⚠ 書いたものにだけ付く。時刻はローカル＋オフセット（captured_at と同じ書き方）。
     // v5（r22）＝税と数量（total_excl_tax / tax / discount / price_incl_tax、品目の unit_price / tax_rate）を追加。
     //   ⚠ price は「その行の合計」＝ qty を掛けたあとの数字（掛け直さないこと）。
     // v4（r21）＝ receipt_id（一意な鍵）を追加・時刻をローカル時刻＋オフセットに。v3 は regno 追加、v2 はフラット化
-    format: 'receipt-spike-export', version: 6,
+    format: 'receipt-spike-export', version: 7,
     exported_at: isoLocal(new Date()),
     timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone || null),  // date/time（レシートの印字）が指す地域
     period: { from: from || null, to: to || null },
@@ -7685,14 +7975,17 @@ function exportCsv(rows){
   // ⚠ 先頭は レシートID（写真の id ＋ 何枚目）＝表計算で主キーにできる。photo_id だけだと重複する
   const out = [['レシートID', '日付', '時刻', '店名', '支店', '金額(税込)', '税抜合計', '消費税', '値引き',
                 '種別', 'カテゴリ', '支払', '住所', '登録番号', '品目', '入れ方',   // r93: 入れ方＝写真/手入力
-                'ひとこと', '品目のひとこと'].join(',')];   // r114: 品目のひとこと＝「品名: ひとこと」を「、」でつなぐ
+                'ひとこと', '品目のひとこと',   // r114: 品目のひとこと＝「品名: ひとこと」を「、」でつなぐ
+                'なぜこの店に', '行ってみてどうだった', '品目のなぜ・どうだった'].join(',')];   // r115: ⚠ 末尾に足す（既存の列をずらさない）
   for (const x of rows) {
     const d = x.rc;
     out.push([`${x.rec.id}-${x.i + 1}`, x.date, d.time, d.store, d.branch, d.total,
               d.total_excl_tax, d.tax, d.discount, d.kind === 'income' ? '収入' : '支出',
               d.category, d.payment, d.address, d.regno, (d.items || []).map(i => i.name).join('、'),
               x.rec.noPhoto ? '手入力' : '写真', d.memo,
-              (d.items || []).filter(i => i?.memo).map(i => `${i.name}: ${i.memo}`).join('、')].map(esc).join(','));
+              (d.items || []).filter(i => i?.memo).map(i => `${i.name}: ${i.memo}`).join('、'),
+              d.why, d.after,
+              (d.items || []).filter(i => i?.why || i?.after).map(i => `${i.name}: ${[i.why && '🤔' + i.why, i.after && '✍' + i.after].filter(Boolean).join(' ')}`).join('、')].map(esc).join(','));
   }
   return '﻿' + out.join('\n'); // BOM: Excel の文字化け対策
 }
@@ -7791,12 +8084,33 @@ document.getElementById('btnCsv').onclick = async () => {
   if (h.meds.length)     files.push({ name: `medications_${from || 'all'}_${to || 'all'}.csv`, text: exportMedCsv(h.meds), mime: 'text/csv' });
   const bd = expBodyOn() ? await bodyFor(from, to) : [];   // r83: 🫀 も列が違うので別ファイル（1行＝1回の計測）
   if (bd.length) files.push({ name: `body_${from || 'all'}_${to || 'all'}.csv`, text: exportBodyCsv(bd), mime: 'text/csv' });
+  // r115: 💭 選択の記録・価値観も列が違うので別ファイル
+  const vf = expValOn() ? await valuesFor(from, to) : { choices: [], values: [] };
+  if (vf.choices.length) files.push({ name: `choices_${from || 'all'}_${to || 'all'}.csv`, text: exportChoiceCsv(vf.choices, vf.rcIds), mime: 'text/csv' });
+  if (vf.values.length)  files.push({ name: 'values.csv', text: exportValueCsv(vf.values), mime: 'text/csv' });
   if (!files.length) { toast('出すものが選ばれていません（上のチェックを1つ以上入れてください）'); return; }   // r92
   const how = await exportOutMany(files);
   // ⚠ キャンセルした時は黙る（how === ''）＝出していないのに「保存しました」と言わない
   if (files.length > 1 && how === 'downloaded')
-    toast(`📊 ${files.length}つのファイルを保存しました（レシート・料理・健診・薬・からだの数字は列が違うため）`);
+    toast(`📊 ${files.length}つのファイルを保存しました（レシート・料理・健診・薬・からだの数字・選択・価値観は列が違うため）`);
 };
+// r115: 🔀 選択の記録の CSV（1行＝1つ）／💭 価値観の CSV（1行＝1つ・期間に関わらず全部）
+function exportChoiceCsv(list, rcIds){
+  const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+  const out = [['選択ID', '日付', '何について', '選んだか', '名前', 'どこで', 'つながるレシートID', 'なぜ', 'どうだった'].join(',')];
+  for (const c of list)
+    out.push([c.id, c.date, c.subject === 'place' ? '場所' : '物', choiceWords(c.subject, c.chosen).verb, c.name, c.where || c.link?.store,
+              c.link ? (rcIds.get(c.link.nid) || '') : '', c.why, c.after].map(esc).join(','));
+  return '\ufeff' + out.join('\n');
+}
+function exportValueCsv(list){
+  const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+  const out = [['価値観ID', '状態', '領域', '文', '書いた人', 'AIの読み', '根拠の数', '前の版', '確定した日', 'やめた日'].join(',')];
+  for (const v of list)
+    out.push([v.id, VAL_ST[v.status] || v.status, domText(v.domain), v.body, v.draftedBy === 'ai' ? 'AI' : '本人', v.basis,
+              (v.evidence || []).length, v.supersedes, isoAt(v.confirmedAt), isoAt(v.retiredAt)].map(esc).join(','));
+  return '\ufeff' + out.join('\n');
+}
 function exportChkCsv(list){
   const esc = v => v == null ? '' : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
   const out = [['健診ID', '検査日', '種類', '施設', '本検査/再検査', '区分', '項目', '値', '単位', '基準範囲', '判定', '備考', '期間内か', '入れた理由'].join(',')];
@@ -7872,6 +8186,7 @@ async function exportMealsFor(from, to, on){
 /* r92: 🧾 レシートを出すか（要望＝「レシートも書き出すかどうか選べるように」）。
    ⚠ 既定は出す＝これまで書き出していた人の結果を勝手に変えない。 */
 const expRcptOn       = () => localStorage.getItem(EX.receipts) !== '0';
+const expValOn        = () => localStorage.getItem(EX.values) !== '0';     // r115: 💭（既定＝出す）
 const expMealsOn      = () => localStorage.getItem(EX.meals) !== '0';        // 既定＝出す
 const expMealDetailOn = () => localStorage.getItem(EX.mealDetail) !== '0';   // 既定＝詳細も入れる
 // r65: 🩺 健診・💊 薬（既定＝出す／「すべての年」「終わった薬も」は既定オフ）
@@ -7928,9 +8243,9 @@ const expHealthOpt = () => ({ chk: expChkOn(), chkAll: expChkAllOn(), med: expMe
 /* r105: 「何を書き出すか」をひとまとめにした（📤 は画面の ☑ どおり・🔄 自動は全部入り）。
    ⚠ 既定（引数なし）は今までと1文字も変わらない＝📤 を押した人の結果は同じ。 */
 const expOpts = () => ({ rcpt: expRcptOn(), meals: expMealsOn(), mealDetail: expMealDetailOn(),
-                         health: expHealthOpt(), body: expBodyOn() });
+                         health: expHealthOpt(), body: expBodyOn(), values: expValOn() });
 const EXP_ALL = { rcpt: true, meals: true, mealDetail: true,
-                  health: { chk: true, chkAll: true, med: true, medAll: true }, body: true };
+                  health: { chk: true, chkAll: true, med: true, medAll: true }, body: true, values: true };
 // 📤/📈 に載せる形（受け取る側の読み方は DATA_NOTES.checkup / .med）
 const chkItemsOut = a => (a || []).map(x => ({ category: x.category, name: x.name, value: x.value, unit: x.unit, ref: x.ref, flag: x.flag, ...(x.note ? { note: x.note } : {}) }));
 function exportChecksJson(list){
@@ -7954,6 +8269,27 @@ const healthBlocks = h => ({
   ...(h.checkups.length ? { checkup_log: { format: 'checkup-log', version: 1, count: h.checkups.length, checkups: exportChecksJson(h.checkups) } } : {}),
   ...(h.meds.length ? { medication_log: { format: 'medication-log', version: 1, count: h.meds.length, medications: exportMedsJson(h.meds) } } : {}),
 });
+/* 💭 r115: 書き出しに載せる 選択の記録・価値観。
+   ⚠ 選択の記録は決めた日（date）で期間に入るもの。価値観は日付を持たない「考え」＝いつも全部。
+   ⚠ レシートへのつながりは鍵（nid）で持っている＝書き出しの receipt_id（写真＋何枚目）に直して渡す（受け取る側はそちらで引く） */
+async function valuesFor(from, to){
+  const rcIds = new Map();
+  for (const r of await dbAll()) receiptsOf(r).forEach((rc, i) => { if (rc.nid) rcIds.set(rc.nid, `${r.id}-${i + 1}`); });
+  const choices = (await chAll()).filter(c => (!from || (c.date || '') >= from) && (!to || (c.date || '') <= to))
+    .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0));
+  const values = (await vlAll()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  return { choices, values, rcIds };
+}
+const choiceLogJson = (list, rcIds) => ({ format: 'choice-log', version: 1, count: list.length,
+  choices: list.map(c => ({ choice_id: c.id, about: c.subject === 'place' ? 'place' : 'item', chosen: !!c.chosen,
+    what: c.name, date: c.date || null, ...(c.where ? { where: c.where } : {}),
+    ...(c.link ? { at_receipt_id: (rcIds && rcIds.get(c.link.nid)) || null, at_store: c.link.store || null } : {}),
+    ...noteOut(c) })) });
+const valueLogJson = list => ({ format: 'value-log', version: 1, count: list.length,
+  values: list.map(v => ({ value_id: v.id, body: v.body, domain: v.domain || null, status: v.status,
+    drafted_by: v.draftedBy || null, ...(v.basis ? { basis: v.basis } : {}), evidence: v.evidence || [],
+    supersedes: v.supersedes || null, confirmed_at: isoAt(v.confirmedAt), retired_at: isoAt(v.retiredAt),
+    created_at: isoAt(v.createdAt) })) });
 /* 📤 の出力ひとまとめ（r41）。
    ⚠ **ここでは食事をレシートの JSON の中に入れる**（`meal_log` という別のキーとして）。
       r37 で「交換形式に混ぜない」と決めたのは 📈 に渡す**文章**の話で、あちらは2つの塊を
@@ -7983,6 +8319,10 @@ async function exportPayload(rows, from, to, opt){
   // r83: 🫀 からだの数字（血圧・体重）＝1行が1回の計測
   const bd = opt.body ? await bodyFor(from, to) : [];
   if (bd.length) o.body_log = bodyLogJson(bd);
+  // r115: 💭 選択の記録（期間に入るもの）と価値観（考え＝期間に関わらず全部）。⚠ 無ければキーごと付けない
+  const vf = opt.values ? await valuesFor(from, to) : { choices: [], values: [] };
+  if (vf.choices.length) o.choice_log = choiceLogJson(vf.choices, vf.rcIds);
+  if (vf.values.length) o.value_log = valueLogJson(vf.values);
   const readme = {
     これは何: 'レシートアプリ「レシート」から書き出したデータです。AI に読ませて相談するためのものです。',
     ...(rcOn ? { 読み方: DATA_NOTES.receipt } : {}),   // r92: 出していないものの読み方は書かない
@@ -7991,6 +8331,11 @@ async function exportPayload(rows, from, to, opt){
     ...(h.meds.length ? { '💊 薬（medication_log）の読み方': DATA_NOTES.med } : {}),
     ...(bd.length ? { '🫀 からだの数字（body_log）の読み方': DATA_NOTES.body } : {}),
     ...(bud ? { '💰 予算（budget）の読み方': DATA_NOTES.budget } : {}),
+    ...(vf.choices.length ? { '🔀 選んだ・選ばなかった（choice_log）の読み方': DATA_NOTES.choice } : {}),
+    ...(vf.values.length ? { '💭 価値観（value_log）の読み方': DATA_NOTES.value } : {}),
+    // r115: 価値観の下書きの頼み方＝言葉（why/after/note）か選択の記録がある時だけ（材料の無いファイルに載せない）
+    ...(opt.values && (vf.choices.length || (rcOn && rows.some(x => hasNote(x.rc) || (x.rc.items || []).some(hasNote))))
+        ? { '💭 価値観の下書きの作り方': VAL_HOWTO_FILE } : {}),
     答える時のお願い: [
       'データから分からないことは、分からないと書く。推測を事実のように書かない。',
       '数字を出す時は「何件で、いくら」を添えて、どこから来た数字か分かるようにする。',
@@ -8047,7 +8392,9 @@ async function refreshExpCount(){
     + (all.length ? `/ 🍽 料理 ${on ? `${all.length}件（${detail ? '詳細つき' : '要約のみ'}）` : '出しません'} ` : '')
     + (h.checkups.length ? `/ 🩺 健診 ${h.checkups.length}件 ` : '') + (h.meds.length ? `/ 💊 薬 ${h.meds.length}件 ` : '')
     + (bdAllN && bdOn ? `/ 🫀 血圧・体重 ${bdAllN}件 ` : '')
-    + (budgetExport(from, to, rows) ? '/ 💰 予算あり' : '');   // r94: 予算は決めていれば必ず入る（小さいので選ばせない）
+    + (budgetExport(from, to, rows) ? '/ 💰 予算あり ' : '')   // r94: 予算は決めていれば必ず入る（小さいので選ばせない）
+    + (expValOn() ? await (async () => { const v = await valuesFor(from, to);   // r115
+        return (v.choices.length ? `/ 🔀 選択 ${v.choices.length}件 ` : '') + (v.values.length ? `/ 💭 価値観 ${v.values.length}件` : ''); })() : '');
   // r83: 🫀 の行＝1件も無い端末には出さない（🩺💊 と同じ）
   const bodyAny = (await bodyAll()).some(r => bodyReadingsOf(r).length);
   document.getElementById('expBodyRow').hidden = !bodyAny;
@@ -8073,8 +8420,18 @@ async function refreshExpCount(){
       const el = document.getElementById(sub); el.disabled = !on2; el.closest('label').style.opacity = on2 ? '' : '.45';
     }
   }
+  // r115: 💭 の行＝選択も価値観も1件も無い端末には出さない（使わない設定を置かない）
+  const vfAll = await valuesFor(from, to), vlOn = expValOn();
+  const vlAny = (await chAll()).length + vfAll.values.length > 0;
+  document.getElementById('expValRow').hidden = !vlAny;
+  if (vlAny) {
+    document.getElementById('expValChk').checked = vlOn;
+    document.getElementById('expValN').textContent = vlOn
+      ? `この期間の選択 ${vfAll.choices.length}件・価値観 ${vfAll.values.length}件（価値観は期間に関わらず全部）` : 'いまは入れません';
+  }
+  const vlN = vlOn ? (vfAll.choices.length ? 1 : 0) + (vfAll.values.length ? 1 : 0) : 0;
   // r62: 料理も出る時は CSV ボタンの但し書きで「2ファイルになる」と先に言う（押してから驚かせない）
-  const nFiles = (rcOn ? 1 : 0) + (all.length && on ? 1 : 0) + (h.checkups.length ? 1 : 0) + (h.meds.length ? 1 : 0) + (bdAllN && bdOn ? 1 : 0);
+  const nFiles = (rcOn ? 1 : 0) + (all.length && on ? 1 : 0) + (h.checkups.length ? 1 : 0) + (h.meds.length ? 1 : 0) + (bdAllN && bdOn ? 1 : 0) + vlN;
   document.getElementById('csvSmall').textContent = nFiles > 1 ? `${nFiles}ファイル（列が違うため）` : '表計算向け';
   if (all.length) {
     document.getElementById('expMealChk').checked = on;
@@ -8097,7 +8454,7 @@ document.getElementById('expMealChk').onchange = e => {
 document.getElementById('expMealDetailChk').onchange = e => {
   localStorage.setItem(EX.mealDetail, e.target.checked ? '1' : '0'); refreshExpCount();
 };
-[['expRcptChk', EX.receipts], ['expChkChk', EX.chk], ['expChkAllChk', EX.chkAll], ['expMedChk', EX.med], ['expMedAllChk', EX.medAll], ['expBodyChk', EX.body]].forEach(([id, key]) => {
+[['expRcptChk', EX.receipts], ['expChkChk', EX.chk], ['expChkAllChk', EX.chkAll], ['expMedChk', EX.med], ['expMedAllChk', EX.medAll], ['expBodyChk', EX.body], ['expValChk', EX.values]].forEach(([id, key]) => {
   document.getElementById(id).onchange = e => { localStorage.setItem(key, e.target.checked ? '1' : '0'); refreshExpCount(); };
 });
 document.getElementById('expFrom').onchange = refreshExpCount;
@@ -8359,6 +8716,9 @@ function sqlDump(o){
   if (o.body_log)       put('body',        o.body_log.readings,          null);
   // 💰 予算は「1つのまとまり」＝1行の表にする（月ごとの中身は子の表 budget_months へ）
   if (o.budget)         put('budget',      [o.budget],                   null);
+  // r115: 💭 ⚠ 表の名前を values にしない＝SQL の VALUES と紛れる（ライフログと同じ personal_values）
+  if (o.choice_log)     put('choices',         o.choice_log.choices,     'choice_id');
+  if (o.value_log)      put('personal_values', o.value_log.values,       'value_id');
   out.push('COMMIT;');
   return out.join('\n') + '\n';
 }
@@ -11005,6 +11365,698 @@ document.getElementById('btnAnalyze').onclick = async () => {
   await setAnTab(anTab);
 };
 
+/* ======================================================================
+   💭 価値観と 🔀 選んだ・選ばなかった（r115）
+   本人の言葉（2026-10-14）＝「レシートアプリに価値観を導入、購入品品目、購入しなかった品目、行った場所、行かなかった場所。
+     できるだけ情報はレシートから集めて、足りない分は手入力可能。なぜそれを選んだのか？選ばなかったのか？
+     実際体験して、しなくてどんな体験だったのか？を個別に入力できる。手元のAIで価値観分析と記入ができるといい」
+   ✅ 決定（2026-10-14）＝r114 の「アプリの中で価値観を抽出・提案しない」を上書き（本人の明示要求＋r114 の欄で材料の形が決まった）。
+   手本＝ライフログ（owntracks-supabase-notion）の 💭 personal_values と 🔀 choices。判断ごと移した:
+     ① 確定するのは本人だけ（AI は下書き＝仮説）。確定した文は書き換えない＝言い直しは新しい1件（supersedes）
+        ＝新しい版を確定した瞬間に前の版が「当てはまらない」へ（消さない＝考えの変化が残る）
+     ② 根拠は記録の鍵だけ（文字の写しを持たない＝読む時に元を引く）
+     ③ 材料は本人の言葉だけ（品名・店名・金額から性格を作らない＝数字を作らせない §2.6-2 と同じ）
+     ④ 領域の鍵はライフログと同じ（shopping / meal / life …）＝Supabase に入れた人がそのまま並べられる
+   レシートから集めるもの＝🛒 買った品目・📍 行った店（数・最後の日）。手で足すもの＝🙅 買わなかった・🚶 行かなかった（と、レシートの無い買った・行った）。
+   ====================================================================== */
+const VL_TAB = 'rcpt.values.tab', VL_FILTER = 'rcpt.values.filter', VL_ROUTE = 'rcpt.values.route';
+const VL_FILTERS = ['written', 'bought', 'notbought', 'went', 'notwent'];
+let vlTab = ['values', 'log'].includes(localStorage.getItem(VL_TAB)) ? localStorage.getItem(VL_TAB) : 'values';
+let vlFilter = VL_FILTERS.includes(localStorage.getItem(VL_FILTER)) ? localStorage.getItem(VL_FILTER) : 'written';
+let vlQ = '', vlShow = 60;
+// 領域＝ライフログの personal_values と同じ鍵。⚠ このアプリで選べるのは3つ（睡眠・人・仕事はレシートからは出てこない）。
+//   ⚠ 知らない鍵でも消さずに表示する（Supabase で AI が他の鍵を書いてくることがある）
+const VAL_DOM = { shopping: ['🛍', '買い物・お店'], meal: ['🍽', '食事'], life: ['🌱', '暮らし・場所'],
+                  sleep: ['😴', '睡眠'], people: ['🧑', '人付き合い'], work: ['💼', '仕事'] };
+const VAL_DOM_PICK = ['shopping', 'meal', 'life'];
+const domText = d => VAL_DOM[d] ? VAL_DOM[d].join(' ') : (d || '（領域なし）');
+const VAL_ST = { confirmed: '✅ 確定', draft: '📝 下書き', retired: '🗂 当てはまらない' };
+const storeLine = rc => [rc?.store, rc?.branch].filter(Boolean).join(' ');
+const mdShort = ymd => ymd ? `${+ymd.slice(5, 7)}/${+ymd.slice(8, 10)}` : '';
+const ymdOf = t => t ? ymdLocal(new Date(t)) : null;
+/* 🛒 商品キー（ライフログ logic_items.ts の itemKey をそのまま移植）＝同じ品の書き方違いをまとめる鍵。保存しない（読む時に作る）。
+   ①全角を半角（NFKC）②小文字 ③括弧と中身（型番・色）を落とす ④空白を落とす ⑤末尾の数量（×2・@119×2）だけ落とす。
+   ⚠ 容量（60本・2L）は落とさない＝別の商品をまとめない側に倒す。 */
+const QTY_TAIL = /(?:\d+[コ個本点])?(?:@\d+)?[x×]単?@?\d+$/;
+function itemKey(name){
+  const base = String(name ?? '').normalize('NFKC').toLowerCase().replace(/\([^)]*\)/g, '').replace(/\s+/g, '');
+  return base.replace(QTY_TAIL, '') || base;
+}
+// 手で足す選択の言い方＝「何について × 選んだか」の4通り（欄の名前・例文・印）。⚠ ここ1か所で決める
+function choiceWords(subject, chosen){
+  if (subject === 'place') return chosen
+    ? { icon: '📍', verb: '行った', name: '行った場所・お店', ph: '例: ○○公園／△△書店',
+        why: ['🤔 なぜそこへ行った', '例: 静かに本を読みたくて'], after: ['✍ 行ってみてどうだった', '例: 混んでいて落ち着かなかった'] }
+    : { icon: '🚶', verb: '行かなかった', name: '行かなかった場所・お店', ph: '例: いつものカフェ／駅前のジム',
+        why: ['🤔 なぜ行かなかった', '例: 雨で遠回りになるので'], after: ['✍ 行かずにどうだった', '例: 家で十分だった／やっぱり行けばよかった'] };
+  return chosen
+    ? { icon: '🛒', verb: '買った', name: '買った物', ph: '例: 洗濯ネット',
+        why: ['🤔 なぜ買った', '例: 前のが破れたので同じ物を'], after: ['✍ 使ってみてどうだった', '例: 大きさがちょうどよかった'] }
+    : { icon: '🙅', verb: '買わなかった', name: '買わなかった物', ph: '例: 新しいスニーカー',
+        why: ['🤔 なぜ買わなかった', '例: 今あるもので足りると思った'], after: ['✍ 買わずにどうだった', '例: 困らなかった／やっぱり欲しくなった'] };
+}
+
+/* ---------- 材料＝本人が書いた言葉の一覧（💭 の数・🤖 の材料・根拠の引き先が全部ここを通る） ----------
+   ⚠ 1本にする＝画面の「材料 N件」と、AI に渡す件数と、根拠として引ける記録が食い違わない。
+   ⚠ r114 のひとこと（memo）だけで鍵（nid）の無い記録には、ここで鍵を付けてから並べる（根拠として指せるように）。 */
+async function ensureNoteNids(){
+  const fix = [];
+  for (const r of await dbAll()) {
+    const rcs = receiptsOf(r);
+    if (!rcs.some(rc => (hasNote(rc) && !rc.nid) || (rc.items || []).some(it => hasNote(it) && !it.nid))) continue;
+    fix.push(r.id);
+  }
+  for (const id of fix) {
+    rcMemoQ = rcMemoQ.then(async () => {
+      const r = await dbGet(id); if (!r) return;
+      const rcs = receiptsOf(r).map(rc => {
+        const x = { ...rc };
+        if (hasNote(x) && !x.nid) x.nid = newNid();
+        if (Array.isArray(x.items)) x.items = x.items.map(it => it && hasNote(it) && !it.nid ? { ...it, nid: newNid() } : it);
+        return x;
+      });
+      r.data = { receipts: rcs }; await dbPut(r);
+    }).catch(() => {});
+  }
+  await rcMemoQ;
+}
+async function valSources(){
+  await ensureNoteNids();
+  const rows = (await listRows()).filter(x => x.rc);
+  const times = new Map();   // 同じ品をレシートで何回買ったか（商品キーで数える）
+  rows.forEach(x => (x.rc.items || []).forEach(it => { if (it?.name) { const k = itemKey(it.name); times.set(k, (times.get(k) || 0) + 1); } }));
+  const out = [];
+  rows.forEach(x => {
+    const rc = x.rc, st = storeLine(rc);
+    if (hasNote(rc) && rc.nid)
+      out.push({ ref: rc.nid, kind: 'store', subject: 'place', chosen: true, name: st || '（店名なし）', date: x.date,
+                 o: rc, rid: x.rec.id, ri: x.i });
+    (rc.items || []).forEach((it, k) => {
+      if (hasNote(it) && it.nid)
+        out.push({ ref: it.nid, kind: 'item', subject: 'item', chosen: true, name: it.name || '（品名なし）', store: st || null,
+                   date: x.date, o: it, rid: x.rec.id, ri: x.i, k, times: times.get(itemKey(it.name)) || 1 });
+    });
+  });
+  for (const c of await chAll())
+    out.push({ ref: c.id, kind: 'choice', subject: c.subject, chosen: !!c.chosen, name: c.name,
+               store: c.subject === 'item' ? (c.where || c.link?.store || null) : (c.link?.store || null),
+               date: c.date, o: c, choice: c });
+  return out;
+}
+const srcIcon = x => x.kind === 'store' ? '📍' : x.kind === 'item' ? '🛒' : choiceWords(x.subject, x.chosen).icon;
+const srcVerb = x => x.kind === 'store' ? '行った' : x.kind === 'item' ? '買った' : choiceWords(x.subject, x.chosen).verb;
+const lastWrote = o => Math.max(0, ...NOTE_F.map(f => o?.[f + 'EditedAt'] || o?.[f + 'At'] || 0));
+// 本人の言葉を1行ずつ（🤔/✍/🗒）。⚠ 手で足した選択は欄の言い方が違う（なぜ買わなかった…）が、印は同じ
+const saysHtml = o => NOTE_F.filter(f => o?.[f]).map(f => `<div class="say">${NOTE_ICON[f]} ${esc(o[f])}</div>`).join('');
+
+/* ---------- 🔀 手で足す選択の入力（ovChoice） ---------- */
+let chCur = null;   // 開いている選択（新しく作る時は id が無い）
+const newChoice = (subject, chosen, extra) => ({ subject, chosen, name: '', date: todayStr(), where: '', ...(extra || {}) });
+function openChoice(c){
+  chCur = { ...c };
+  const g = id => document.getElementById(id);
+  g('chName').value = c.name || ''; g('chDate').value = c.date || todayStr(); g('chWhere').value = c.where || '';
+  g('chWhy').value = c.why || ''; g('chAfter').value = c.after || '';
+  g('chWhyWhen').textContent = noteWhen(c, 'why'); g('chAfterWhen').textContent = noteWhen(c, 'after');
+  g('chDel').hidden = !c.id;
+  syncChoiceForm();
+  g('ovChoice').querySelector('.sheet').scrollTop = 0;
+  show('ovChoice');
+}
+// 「何について × 選んだか」で欄の言い方を変える（⚠ 入力済みの中身は触らない＝切り替えても消えない）
+function syncChoiceForm(){
+  const c = chCur, w = choiceWords(c.subject, c.chosen), g = id => document.getElementById(id);
+  document.querySelectorAll('#chSubjSeg button').forEach(b => b.classList.toggle('on', b.dataset.chsubj === c.subject));
+  const [y, n] = [choiceWords(c.subject, true), choiceWords(c.subject, false)];
+  document.querySelectorAll('#chPickSeg button').forEach(b => {
+    const on = b.dataset.chpick === '1';
+    b.textContent = on ? `${y.icon} ${y.verb}` : `${n.icon} ${n.verb}`;
+    b.classList.toggle('on', on === !!c.chosen);
+  });
+  g('chTitle').textContent = `${w.icon} ${w.verb}${c.id ? '（直す）' : 'を足す'}`;
+  g('chNameLbl').textContent = w.name; g('chName').placeholder = w.ph;
+  g('chWhyLbl').textContent = w.why[0]; g('chWhy').placeholder = w.why[1];
+  g('chAfterLbl').textContent = w.after[0]; g('chAfter').placeholder = w.after[1];
+  g('chWhereRow').hidden = c.subject !== 'item';   // ⚠ 場所に「どこで」は要らない（名前が場所そのもの）
+  /* レシートへのつながり＝選ばなかった時だけ意味がある（この店で買わなかった／代わりにこの店へ行った）。
+     ⚠ 「選んだ」に切り替えたら見せない（保存の時に外す）＝買った物はレシートの明細に書く方が正しい置き場 */
+  const L = c.link, lk = g('chLink');
+  lk.hidden = !(L && !c.chosen);
+  if (!lk.hidden) lk.innerHTML = `🧾 ${c.subject === 'item' ? 'この時の買い物' : '代わりに行った店'}：<b>${esc(L.store || '店名なし')}</b>`
+    + `${L.date ? `（${esc(mdShort(L.date))}${L.total != null ? '・' + yen(L.total) : ''}）` : ''}`
+    + ` <a href="#" data-chlinkgo>見る</a> ・ <a href="#" data-chlinkx>つながりを外す</a>`;
+}
+document.getElementById('chSubjSeg').onclick = e => {
+  const b = e.target.closest('[data-chsubj]'); if (!b || !chCur) return;
+  chCur.subject = b.dataset.chsubj; syncChoiceForm();
+};
+document.getElementById('chPickSeg').onclick = e => {
+  const b = e.target.closest('[data-chpick]'); if (!b || !chCur) return;
+  chCur.chosen = b.dataset.chpick === '1'; syncChoiceForm();
+};
+document.getElementById('chLink').onclick = async e => {
+  if (e.target.closest('[data-chlinkx]')) { e.preventDefault(); chCur.link = null; syncChoiceForm(); return; }
+  if (e.target.closest('[data-chlinkgo]')) {
+    e.preventDefault();
+    const at = await linkAt(chCur.link);
+    if (!at) { toast('🧾 そのレシートはもう見つかりません（消したか、写真ごと削除しました）'); return; }
+    hide('ovChoice'); openDetail(at.rid, at.ri);
+  }
+};
+// つながっているレシートを探す（鍵 nid で引く＝同じ写真の番号がずれても同じ1枚を指す）
+async function linkAt(L){
+  if (!L?.rid) return null;
+  const r = await dbGet(L.rid); if (!r) return null;
+  const ri = receiptsOf(r).findIndex(rc => rc.nid && rc.nid === L.nid);
+  return ri < 0 ? null : { rid: r.id, ri, rc: receiptsOf(r)[ri] };
+}
+document.getElementById('chSave').onclick = async () => {
+  const g = id => document.getElementById(id).value.trim();
+  const name = g('chName'), date = g('chDate');
+  if (!name) { toast(`${choiceWords(chCur.subject, chCur.chosen).name}を入れてください`); return; }
+  if (!date) { toast('いつのことかを入れてください'); return; }
+  const now = Date.now();
+  const c = chCur.id ? ((await chGet(chCur.id)) || { ...chCur }) : { id: newId('c'), createdAt: now };
+  c.subject = chCur.subject === 'place' ? 'place' : 'item';
+  c.chosen = !!chCur.chosen;
+  c.name = name.slice(0, 120); c.date = date;
+  if (c.subject === 'item' && g('chWhere')) c.where = g('chWhere').slice(0, 80); else delete c.where;
+  if (chCur.link && !c.chosen) c.link = chCur.link; else delete c.link;
+  setNote(c, 'why', g('chWhy'), false); setNote(c, 'after', g('chAfter'), false);   // ⚠ 鍵は id（nid は要らない）
+  c.updatedAt = now;
+  await chPut(c);
+  hide('ovChoice');
+  const w = choiceWords(c.subject, c.chosen);
+  toast(`${w.icon} 「${c.name}」を残しました${c.why || c.after ? '' : '（🤔/✍ はあとからでも書けます）'}`);
+  await afterChoiceChange();
+};
+document.getElementById('chDel').onclick = async () => {
+  if (!chCur?.id) return;
+  const used = (await vlAll()).filter(v => (v.evidence || []).includes(chCur.id)).length;
+  if (!confirm(`「${chCur.name}」を削除しますか？` + (used ? `\n\nこれを根拠にしている価値観が ${used}件あります（価値観は残り、根拠が1つ減ります）。` : ''))) return;
+  await chDel(chCur.id);
+  hide('ovChoice'); toast('🗑 削除しました');
+  await afterChoiceChange();
+};
+async function afterChoiceChange(){
+  if (isOpen('ovDetail') && detailRc) { const r = await dbGet(detailId); if (r) await renderRcChoices(r, detailRc); }
+  if (topTab === 'values') await renderValuesTab();
+}
+// レシートの詳細の 🙅/🚶 から＝このレシートにつないで開く（日付と店は既定で入る）
+async function openChoiceFromReceipt(kind){
+  const rid = detailId, ri = detailIdx, rc = detailRc; if (!rc) return;
+  await rcMemoFlush();
+  const nid = await ensureRcNid(rid, ri); if (!nid) { toast('このレシートが見つかりませんでした'); return; }
+  const subject = kind === 'place0' ? 'place' : 'item';
+  openChoice(newChoice(subject, false, {
+    date: rc.date || todayStr(), where: subject === 'item' ? storeLine(rc) : '',
+    link: { rid, nid, store: storeLine(rc) || null, date: rc.date || null, total: rc.total ?? null } }));
+}
+// レシートの詳細の下＝このレシートにつながる選択と、足すボタン
+async function renderRcChoices(r, d){
+  const el = document.getElementById('dChoices'); if (!el) return;
+  const list = d.nid ? (await chAll()).filter(c => c.link?.rid === r.id && c.link?.nid === d.nid)
+                                      .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)) : [];
+  if (detailId !== r.id) return;   // 待っている間に別のレシートへ移った
+  el.innerHTML = list.map(c => { const w = choiceWords(c.subject, c.chosen);
+      return `<div class="vRow" data-chopen="${esc(c.id)}" style="margin-top:8px"><div class="ic">${w.icon}</div><div class="mid">`
+        + `<div class="nm">${esc(c.name)}<small style="color:var(--dim); font-weight:400"> ・ ${w.verb}</small></div>`
+        + (saysHtml(c) || '<div class="say none">（🤔/✍ はまだ。押すと書けます）</div>') + '</div></div>'; }).join('')
+    + `<div class="chAdd"><button type="button" data-chadd="item0">🙅 この店で買わなかった物</button>`
+    + `<button type="button" data-chadd="place0">🚶 代わりに行かなかった場所</button></div>`;
+}
+
+/* ---------- 💭 タブ ---------- */
+async function renderValuesTab(){
+  document.querySelectorAll('#vlSeg button').forEach(b => b.classList.toggle('on', b.dataset.vltab === vlTab));
+  document.getElementById('vlValuesPane').hidden = vlTab !== 'values';
+  document.getElementById('vlLogPane').hidden = vlTab !== 'log';
+  if (vlTab === 'values') await renderValueList(); else await renderChoiceLog();
+}
+document.getElementById('vlSeg').onclick = e => {
+  const b = e.target.closest('[data-vltab]'); if (!b) return;
+  vlTab = b.dataset.vltab; localStorage.setItem(VL_TAB, vlTab); renderValuesTab();
+};
+document.getElementById('vlFilterSeg').onclick = e => {
+  const b = e.target.closest('[data-vlf]'); if (!b) return;
+  vlFilter = b.dataset.vlf; localStorage.setItem(VL_FILTER, vlFilter); vlShow = 60; renderChoiceLog();
+};
+document.getElementById('vlQ').addEventListener('input', e => { vlQ = e.target.value; vlShow = 60; renderChoiceLog(); });
+
+// 💭 価値観の一覧
+async function renderValueList(){
+  const el = document.getElementById('vlValuesPane');
+  const [src, vals] = [await valSources(), await vlAll()];
+  const by = { confirmed: [], draft: [], retired: [] };
+  vals.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).forEach(v => (by[v.status] || by.draft).push(v));
+  const refs = new Map(src.map(x => [x.ref, x])), ids = new Map(vals.map(v => [v.id, v]));
+  const nKind = k => src.filter(x => x.kind === k).length;
+  const mat = src.length
+    ? `📝 材料＝あなたが書いた言葉 <b>${src.length}件</b>（📍 店 ${nKind('store')}・🛒 品目 ${nKind('item')}・🔀 手で足した ${nKind('choice')}）`
+    : '📝 材料（あなたが書いた 🤔 なぜ／✍ どうだった）は<b>まだありません</b>。🧾 レシートの詳細の「💭 この店を選んだこと」・明細の行・上の 🔀 で書くとたまります。';
+  el.innerHTML = (vals.length ? '' : `<div class="note" style="margin-top:0">💭 <b>何を大事にして選んでいるか</b>を残す場所です。材料は<b>あなたが書いた言葉だけ</b>（レシートの品名や金額からは作りません）。AI は<b>下書き</b>を出すだけで、<b>確定するのはあなた</b>です。確定した文は書き換えず、考えが変わったら「言い直す」で新しい版を足します。</div>`)
+    + `<div class="note" style="margin-top:6px">${mat}</div>`
+    + `<div class="dual" style="margin-top:10px"><button class="btn pri sm" id="btnValAi"${src.length ? '' : ' disabled'}>🤖 AI に下書きを頼む</button>`
+    + `<button class="btn sm" id="btnValNew">✍️ 自分で書く</button></div>`
+    + (by.confirmed.length ? `<div class="vSecTitle">✅ 確定（${by.confirmed.length}）</div>` + by.confirmed.map(v => valCardHtml(v, refs, ids)).join('') : '')
+    + (by.draft.length ? `<div class="vSecTitle">📝 下書き（${by.draft.length}）＝仮説。確かめて「確定する」か「消す」</div>` + by.draft.map(v => valCardHtml(v, refs, ids)).join('') : '')
+    + (by.retired.length ? `<details style="margin-top:12px"><summary class="vSecTitle" style="cursor:pointer">🗂 当てはまらない（${by.retired.length}）＝前の考え。消さずに残しています</summary>`
+       + by.retired.map(v => valCardHtml(v, refs, ids)).join('') + '</details>' : '');
+}
+function evRowHtml(ref, refs){
+  const x = refs.get(ref);
+  if (!x) return `<div class="ev gone">（この記録はもう見つかりません＝消したか、言葉を消しました）</div>`;
+  return `<div class="ev" data-evgo="${esc(ref)}">${srcIcon(x)} <b>${esc(x.name)}</b> <small style="color:var(--dim)">${esc(srcVerb(x))} ・ ${esc(mdShort(x.date))}${x.store && x.kind !== 'store' ? ' ・ ' + esc(x.store) : ''}</small>`
+    + saysHtml(x.o).replace(/class="say"/g, 'class="say" style="-webkit-line-clamp:3"') + '</div>';
+}
+function valCardHtml(v, refs, ids){
+  const ev = v.evidence || [], prev = v.supersedes && ids.get(v.supersedes);
+  const next = [...ids.values()].find(x => x.supersedes === v.id);
+  const acts = v.status === 'draft'
+      ? `<button class="pri" data-vact="confirm" data-vid="${esc(v.id)}">✅ 確定する</button><button data-vact="edit" data-vid="${esc(v.id)}">✏️ 直す</button><button data-vact="del" data-vid="${esc(v.id)}">🗑 消す</button>`
+    : v.status === 'confirmed'
+      ? `<button data-vact="reword" data-vid="${esc(v.id)}">✏️ 言い直す</button><button data-vact="retire" data-vid="${esc(v.id)}">🗂 もう当てはまらない</button>`
+      : `<button data-vact="reconfirm" data-vid="${esc(v.id)}">✅ もう一度確定する</button>`;
+  const when = v.status === 'confirmed' && v.confirmedAt ? ` ${mdOf(v.confirmedAt)}`
+             : v.status === 'retired' && v.retiredAt ? ` ${mdOf(v.retiredAt)}〜` : '';
+  return `<div class="vCard ${esc(v.status)}">`
+    + `<div class="tags"><span class="st">${VAL_ST[v.status] || esc(v.status)}${when}</span><span>${esc(domText(v.domain))}</span>`
+    + `<span>${v.draftedBy === 'ai' ? '🤖 AI の文' : '✍️ あなたの言葉'}</span></div>`
+    + `<div class="body">${esc(v.body)}</div>`
+    + (v.basis ? `<div class="basis">🤖 AI の読み：${esc(v.basis)}</div>` : '')
+    + (prev ? `<div class="basis">↩ 前の版：「${esc(prev.body)}」</div>` : '')
+    + (next ? `<div class="basis">↪ 新しい版：「${esc(next.body)}」</div>` : '')
+    + (ev.length ? `<details><summary>根拠 ${ev.length}件（あなたが書いた言葉）</summary>${ev.map(r => evRowHtml(r, refs)).join('')}</details>`
+                 : '<div class="basis">根拠の記録はつながっていません</div>')
+    + `<div class="acts">${acts}</div></div>`;
+}
+// 根拠を押した＝その記録へ（レシートなら詳細・品目ならその行を開く・手で足したものは入力画面）
+async function openSource(ref){
+  const x = (await valSources()).find(s => s.ref === ref);
+  if (!x) { toast('この記録はもう見つかりません'); return; }
+  if (x.kind === 'choice') return openChoice(x.choice);
+  await openDetail(x.rid, x.ri);
+  if (x.kind === 'item') toggleItMemo(x.k);
+}
+document.getElementById('vlValuesPane').onclick = async e => {
+  if (e.target.closest('#btnValAi')) return openValAi();
+  if (e.target.closest('#btnValNew')) return openValEd(null);
+  const go = e.target.closest('[data-evgo]'); if (go) return openSource(go.dataset.evgo);
+  const b = e.target.closest('[data-vact]'); if (!b) return;
+  await valAction(b.dataset.vact, b.dataset.vid);
+};
+/* 状態の変え方。⚠ 確定・当てはまらない・消すは**押す前に聞く**（本人の判断そのものなので、指が触れただけで動かさない） */
+async function valAction(act, id){
+  const v = await vlGet(id); if (!v) return;
+  const now = Date.now();
+  if (act === 'confirm') {
+    if (!confirm(`この価値観を確定しますか？\n\n「${v.body}」\n\n確定した文はあとから書き換えません（考えが変わったら「言い直す」で新しい版を足します）。`)) return;
+    await confirmValue(v);
+    toast('✅ 確定しました');
+  } else if (act === 'reconfirm') {
+    if (!confirm(`「${v.body}」をもう一度、いまの価値観として確定しますか？`)) return;
+    await confirmValue(v);
+    toast('✅ もう一度確定しました');
+  } else if (act === 'retire') {
+    if (!confirm(`「${v.body}」を「もう当てはまらない」にしますか？\n\n消さずに残します（前の考えとして読めます）。`)) return;
+    v.status = 'retired'; v.retiredAt = now; v.updatedAt = now; await vlPut(v);
+    toast('🗂 当てはまらない、にしました');
+  } else if (act === 'del') {
+    if (v.status !== 'draft') return;   // ⚠ 消せるのは下書きだけ（確定した考えは「当てはまらない」で残す）
+    if (!confirm(`この下書きを消しますか？\n\n「${v.body}」`)) return;
+    await vlDel(v.id); toast('🗑 下書きを消しました');
+  } else if (act === 'edit') return openValEd(v, 'edit');
+  else if (act === 'reword') return openValEd(v, 'reword');
+  await renderValuesTab();
+}
+// 確定する＝前の版（supersedes）がいま確定なら「当てはまらない」へ（考えの変化が残る）
+async function confirmValue(v){
+  const now = Date.now();
+  v.status = 'confirmed'; v.confirmedAt = now; delete v.retiredAt; v.updatedAt = now;
+  await vlPut(v);
+  if (v.supersedes) {
+    const old = await vlGet(v.supersedes);
+    if (old && old.status !== 'retired') { old.status = 'retired'; old.retiredAt = now; old.updatedAt = now; await vlPut(old); }
+  }
+}
+
+/* ---------- ✍️ 価値観を自分で書く／直す／言い直す（ovValEd） ---------- */
+let veCur = null;   // { mode: 'new'|'edit'|'reword', v, st, dom }
+function openValEd(v, mode){
+  mode = mode || 'new';
+  veCur = { mode, v, st: mode === 'edit' ? v.status : 'confirmed', dom: v?.domain || 'shopping' };
+  const g = id => document.getElementById(id);
+  g('veTitle').textContent = mode === 'edit' ? '✏️ 下書きを直す' : mode === 'reword' ? '✏️ 言い直す（新しい版）' : '✍️ 価値観を自分で書く';
+  g('veNote').innerHTML = mode === 'reword'
+    ? `前の版：「${esc(v.body)}」<br>⚠ 前の版は書き換えません。新しい版を<b>確定した時に</b>、前の版は「当てはまらない」になります（消えません）。`
+    : mode === 'edit' ? (v.draftedBy === 'ai' ? '🤖 AI の文を直すと「あなたの言葉」になります。' : '')
+    : 'あなた自身の言葉で書く時に。根拠はつながりません（あとから 🤖 の下書きで足せます）。';
+  g('veBody').value = mode === 'new' ? '' : v.body;
+  g('veStRow').hidden = mode === 'edit' && v.status !== 'draft';
+  renderVeSegs();
+  show('ovValEd');
+}
+function renderVeSegs(){
+  document.getElementById('veDomSeg').innerHTML = [...new Set(VAL_DOM_PICK.concat(veCur.dom ? [veCur.dom] : []))].map(d =>
+    `<button type="button" data-vedom="${esc(d)}"${d === veCur.dom ? ' class="on"' : ''}>${esc(domText(d))}</button>`).join('');
+  document.querySelectorAll('#veStSeg button').forEach(b => b.classList.toggle('on', b.dataset.vest === veCur.st));
+}
+document.getElementById('veDomSeg').onclick = e => { const b = e.target.closest('[data-vedom]'); if (b) { veCur.dom = b.dataset.vedom; renderVeSegs(); } };
+document.getElementById('veStSeg').onclick = e => { const b = e.target.closest('[data-vest]'); if (b) { veCur.st = b.dataset.vest; renderVeSegs(); } };
+document.getElementById('veSave').onclick = async () => {
+  const body = document.getElementById('veBody').value.trim().slice(0, 300);
+  if (!body) { toast('価値観を短い1文で書いてください'); return; }
+  const now = Date.now(), { mode, v } = veCur;
+  if (mode === 'edit') {
+    if (body !== v.body) { v.body = body; v.draftedBy = 'human'; }
+    v.domain = veCur.dom; v.updatedAt = now;
+    if (veCur.st === 'confirmed' && v.status === 'draft') await confirmValue(v); else await vlPut(v);
+  } else {
+    if (mode === 'reword' && body === v.body) { toast('前の版と同じ文です（変えたところがありません）'); return; }
+    const nv = { id: newId('v'), body, domain: veCur.dom, status: 'draft', draftedBy: 'human', basis: null,
+                 evidence: mode === 'reword' ? [...(v.evidence || [])] : [], supersedes: mode === 'reword' ? v.id : null,
+                 via: 'hand', createdAt: now, updatedAt: now };
+    if (veCur.st === 'confirmed') await confirmValue(nv); else await vlPut(nv);
+  }
+  hide('ovValEd');
+  toast(veCur.st === 'confirmed' ? '✅ 確定しました' : '📝 下書きで残しました');
+  await renderValuesTab();
+};
+
+/* ---------- 🔀 選んだ・選ばなかった の一覧 ---------- */
+async function renderChoiceLog(){
+  document.querySelectorAll('#vlFilterSeg button').forEach(b => b.classList.toggle('on', b.dataset.vlf === vlFilter));
+  const qRow = document.getElementById('vlQRow'); qRow.hidden = false;
+  const add = document.getElementById('vlAddRow');
+  const btn = (k, label) => `<button class="btn sm" data-vladd="${k}">${label}</button>`;
+  add.innerHTML = vlFilter === 'bought' ? btn('item1', '＋ レシートの無い買い物を足す')
+    : vlFilter === 'went' ? btn('place1', '＋ レシートの無い行き先を足す')
+    : vlFilter === 'notbought' ? btn('item0', '＋ 🙅 買わなかった物')
+    : vlFilter === 'notwent' ? btn('place0', '＋ 🚶 行かなかった場所')
+    : btn('item0', '＋ 🙅 買わなかった物') + btn('place0', '＋ 🚶 行かなかった場所');
+  const q = sNorm(vlQ.trim());
+  const hit = s => !q || sNorm(s).includes(q);
+  const list = document.getElementById('vlLogList');
+  const rows = (await listRows()).filter(x => x.rc);
+  const choices = await chAll();
+  let html = '', items = [];
+  if (vlFilter === 'written') {
+    items = (await valSources()).filter(x => hit([x.name, x.store, ...NOTE_F.map(f => x.o[f])].join(' ')))
+      .sort((a, b) => lastWrote(b.o) - lastWrote(a.o));
+    html = items.slice(0, vlShow).map(x => srcRowHtml(x)).join('');
+    if (!items.length) html = `<div class="empty">${q ? '見つかりません' : 'まだ何も書いていません。<br>🧾 レシートを開いて「💭 この店を選んだこと」や明細の行から、または上のボタンで 🙅/🚶 を足すと、ここにたまります。'}</div>`;
+  } else if (vlFilter === 'bought' || vlFilter === 'went') {
+    items = vlFilter === 'bought' ? productGroups(rows) : placeGroups(rows);
+    const manual = choices.filter(c => c.chosen && c.subject === (vlFilter === 'bought' ? 'item' : 'place'))
+      .map(c => ({ manual: c, name: c.name, last: c.date, n: 1 }));
+    items = items.concat(manual).filter(g => hit(g.name)).sort((a, b) => (b.last || '').localeCompare(a.last || ''));
+    html = items.slice(0, vlShow).map(g => g.manual ? choiceRowHtml(g.manual) : groupRowHtml(g, vlFilter)).join('');
+    if (!items.length) html = `<div class="empty">${q ? '見つかりません' : vlFilter === 'bought' ? 'まだ品目の読めたレシートがありません。' : 'まだ店名の読めたレシートがありません。'}</div>`;
+    else html = `<div class="note" style="margin:0 0 8px">🧾 <b>レシートから集めた一覧</b>です（新しい順）。押すと、そのレシートが開いて ${vlFilter === 'bought' ? '品目' : 'この店'}に 🤔/✍ を書けます。</div>` + html;
+  } else {
+    const chosen = false, subject = vlFilter === 'notbought' ? 'item' : 'place';
+    items = choices.filter(c => !!c.chosen === chosen && c.subject === subject && hit([c.name, c.where, c.why, c.after].join(' ')))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
+    html = items.slice(0, vlShow).map(choiceRowHtml).join('');
+    if (!items.length) html = `<div class="empty">${q ? '見つかりません' : subject === 'item'
+      ? 'まだありません。<br>店で手に取ったけれど買わなかった物・ネットで見送った物を残すと、「選ばなかった理由」も価値観の材料になります。'
+      : 'まだありません。<br>行こうと思って行かなかった場所・いつもの店に行かなかった日を残すと、「行かなかった理由」も価値観の材料になります。'}</div>`;
+  }
+  if (items.length > vlShow) html += `<button class="btn" data-vlmore>もっと見る（あと ${items.length - vlShow}件）</button>`;
+  list.innerHTML = html;
+}
+// ⚠ 店の言い方は「何について」で変わる＝物は「◯◯で」（そこで買わなかった）・場所は「代わりに ◯◯」（そこへ行った）
+const choiceWhere = c => c.subject === 'place'
+  ? (c.link?.store ? `代わりに ${c.link.store}` : '')
+  : (c.where || c.link?.store ? `${c.where || c.link.store} で` : '');
+const choiceRowHtml = c => { const w = choiceWords(c.subject, c.chosen), at = choiceWhere(c);
+  return `<div class="vRow" data-chopen="${esc(c.id)}"><div class="ic">${w.icon}</div><div class="mid">`
+    + `<div class="nm">${esc(c.name)}</div><div class="sub">${w.verb} ・ ${esc(mdShort(c.date))}`
+    + `${at ? ' ・ ' + esc(at) : ''}${c.chosen ? ' ・ レシートなし' : ''}</div>`
+    + (saysHtml(c) || '<div class="say none">（🤔/✍ はまだ。押すと書けます）</div>') + '</div></div>'; };
+const srcRowHtml = x => x.kind === 'choice' ? choiceRowHtml(x.choice)
+  : `<div class="vRow" data-srcgo="${esc(x.ref)}"><div class="ic">${srcIcon(x)}</div><div class="mid">`
+    + `<div class="nm">${esc(x.name)}</div><div class="sub">${srcVerb(x)} ・ ${esc(mdShort(x.date))}${x.kind === 'item' && x.store ? ' ・ ' + esc(x.store) : ''}`
+    + `${x.times > 1 ? ` ・ 🛒 ${x.times}回` : ''}</div>${saysHtml(x.o)}</div></div>`;
+// 🛒 品目をまとめる（商品キー）。代表の名前＝いちばん多い書き方。押した時に開くのは「言葉のある最新」→無ければ最新の買い物
+function productGroups(rows){
+  const G = new Map();
+  rows.forEach(x => (x.rc.items || []).forEach((it, k) => {
+    if (!it?.name) return;
+    const key = itemKey(it.name);
+    const g = G.get(key) || { key, names: {}, n: 0, last: '', at: null, noteAt: null, notes: 0, say: null };
+    g.n++; g.names[it.name] = (g.names[it.name] || 0) + 1;
+    if (x.date >= g.last) { g.last = x.date; g.at = { rid: x.rec.id, ri: x.i, k, store: storeLine(x.rc) }; }
+    if (hasNote(it)) { g.notes++; if (!g.noteAt || lastWrote(it) > g.noteAt.t) { g.noteAt = { rid: x.rec.id, ri: x.i, k, t: lastWrote(it) }; g.say = it; } }
+    G.set(key, g);
+  }));
+  return [...G.values()].map(g => ({ ...g, name: Object.entries(g.names).sort((a, b) => b[1] - a[1] || a[0].length - b[0].length)[0][0] }));
+}
+// 📍 店をまとめる（📊 統計と同じ名寄せ＝groupStores）
+function placeGroups(rows){
+  return groupStores(rows).filter(g => g.name !== STORE_NONE).map(g => {
+    let last = '', at = null, noteAt = null, say = null, notes = 0;
+    g.rows.forEach(x => {
+      if (x.date >= last) { last = x.date; at = { rid: x.rec.id, ri: x.i }; }
+      if (hasNote(x.rc)) { notes++; if (!noteAt || lastWrote(x.rc) > noteAt.t) { noteAt = { rid: x.rec.id, ri: x.i, t: lastWrote(x.rc) }; say = x.rc; } }
+    });
+    return { name: g.name, n: g.n, last, at, noteAt, say, notes };
+  });
+}
+function groupRowHtml(g, kind){
+  const go = g.noteAt || g.at;
+  return `<div class="vRow" data-grpgo="${esc(go.rid)}|${go.ri}|${go.k ?? ''}"><div class="ic">${kind === 'bought' ? '🛒' : '📍'}</div><div class="mid">`
+    + `<div class="nm">${esc(g.name)}</div><div class="sub">${kind === 'bought' ? '買った' : '行った'} ${g.n}回 ・ 最後 ${esc(mdShort(g.last))}`
+    + `${kind === 'bought' && g.at?.store ? ' ・ ' + esc(g.at.store) : ''}${g.notes ? ` ・ 💭 ${g.notes}件` : ''}</div>`
+    + (g.say ? saysHtml(g.say) : '') + '</div></div>';
+}
+document.getElementById('vlLogPane').onclick = async e => {
+  const ad = e.target.closest('[data-vladd]');
+  if (ad) { const k = ad.dataset.vladd; return openChoice(newChoice(k.startsWith('place') ? 'place' : 'item', k.endsWith('1'))); }
+  if (e.target.closest('[data-vlmore]')) { vlShow += 100; return renderChoiceLog(); }
+  const co = e.target.closest('[data-chopen]');
+  if (co) { const c = await chGet(co.dataset.chopen); if (c) openChoice(c); return; }
+  const sg = e.target.closest('[data-srcgo]'); if (sg) return openSource(sg.dataset.srcgo);
+  const gg = e.target.closest('[data-grpgo]');
+  if (gg) {
+    const [rid, ri, k] = gg.dataset.grpgo.split('|');
+    await openDetail(rid, +ri);
+    if (k !== '') toggleItMemo(+k);
+  }
+};
+
+/* ---------- 🤖 価値観の下書きを AI に作ってもらう（ovValAi） ----------
+   ⚠ 頼み方（VAL_WRITE ほか）は1か所＝📋 AI アプリに渡す文・🤖 このアプリの AI・📤/🔄 の JSON の _readme が同じ決まりを読む
+      （同じ説明を2か所に書くとズレる・r55）。返事の形も1つ（receipt-values-draft）＝取り込みは1本。 */
+/* 決まりは3つに分けて持つ＝材料の読み方（アプリから渡す時／ファイルを読む時で鍵の名前が違う）と、書き方（共通）。 */
+const VAL_READ_MAT = [
+  '材料（notes）は本人が自分の言葉で書いたもの。about が "item"＝物（品目）・"place"＝場所（お店・行き先）。chosen が true＝買った／行った、false＝買わなかった／行かなかった（選ばなかったこと）。鍵は ref。',
+  'why＝🤔 なぜそうしたか、after＝✍ やってみて（やらずに）どうだったか、note＝前の版の欄（なぜ・どうだったが混ざっている）。date は買った・行った・決めた日、*_written は書いた日（date との差で「直後の言葉か・使ってからか」が分かる）。times_bought は同じ物をレシートで何回買ったか。',
+  'values は本人の価値観のいまの姿（id・status: confirmed＝本人が確定 / draft＝下書き / retired＝もう当てはまらないと本人が決めた）。',
+];
+const VAL_READ_FILE = [
+  '材料は、receipts[]（その店＝行った場所）と receipts[].items[]（買った物）の why・after・note、choice_log.choices[]（買わなかった物・行かなかった場所など＝about・chosen で分かる）の why・after。why・after・note の無い記録は材料にしない。',
+  '鍵は receipts[].note_id・receipts[].items[].note_id・choice_log の choice_id。いまの価値観は value_log.values[]（value_id・status）。',
+];
+const VAL_WRITE = [
+  '本人の言葉（why・after・note）から、本人がくり返し大事にしていることを、短い1文（40字くらいまで）で3〜7個書く。',
+  '1つごとに、根拠にした記録の鍵を evidence に並べる（できれば2件以上。1件しか無いなら basis にそう書く）。材料に無い鍵は書かない。',
+  '選ばなかったこと（chosen: false）と、その後どうだったか（after）も、選んだことと同じ重さで読む。',
+  '本人の言葉に無いことを足さない。品名・店名・金額・回数だけから性格や好みを作らない。',
+  '確定（confirmed）と同じことは書かない。言い直した方がよいと思ったら新しい文を書き、supersedes にその id を入れる。もう当てはまらない（retired）と同じことは書かない。',
+  'basis には「どう読んだか」（例: 12件のうち5件が『肌に合う』の言葉）を1〜2文で書く。domain は shopping（買い物・お店）／meal（食事）／life（暮らし・場所）から1つ。',
+  '言い切らない・診断しない・説教しない（下書き＝仮説として書く）。確定するのは本人だけ。',
+];
+const VAL_FORMAT = '{"format":"receipt-values-draft","version":1,"values":[{"body":"短い1文","domain":"shopping","basis":"どう読んだか","evidence":["鍵","鍵"],"supersedes":null}]}';
+const VAL_SYSTEM = 'あなたは、本人が「何を大事にして選んでいるか（価値観）」の下書きを手伝う。\n'
+  + VAL_READ_MAT.concat(VAL_WRITE).map(s => '- ' + s).join('\n')
+  + '\n\n返事は次の形の JSON だけ（前後に文を付けない）:\n' + VAL_FORMAT;
+// 📤/🔄 の JSON の _readme に入れる頼み方（Drive に置いた JSON を AI アプリが読む時）
+const VAL_HOWTO_FILE = [
+  '本人に「価値観の下書きを作って」と頼まれた時だけ、この決まりで書く。返事の最後に次の形の JSON を付ける（本人がアプリの 💭 → 🤖 → ② に貼って取り込む）: ' + VAL_FORMAT,
+  ...VAL_READ_FILE, ...VAL_WRITE,
+];
+// 材料（AI に渡す JSON）。⚠ 言葉の無い記録は入れない＝そもそも渡さないので、数字から作りようがない
+function valMaterial(src, vals){
+  const at = (o, f) => o?.[f] ? { [f === 'memo' ? 'note' : f]: o[f], ...(o[f + 'At'] && f !== 'memo' ? { [f + '_written']: ymdOf(o[f + 'EditedAt'] || o[f + 'At']) } : {}) } : {};
+  return JSON.stringify({
+    format: 'receipt-values-material', version: 1, today: todayStr(),
+    notes: src.map(x => ({ ref: x.ref, about: x.subject === 'place' ? 'place' : 'item', chosen: x.chosen,
+      what: x.name, ...(x.store && x.kind !== 'store' ? { where: x.store } : {}), date: x.date || null,
+      ...(x.times > 1 ? { times_bought: x.times } : {}),
+      ...at(x.o, 'why'), ...at(x.o, 'after'), ...at(x.o, 'memo') })),
+    values: vals.map(v => ({ id: v.id, body: v.body, domain: v.domain, status: v.status })),
+  }, null, 1);
+}
+let vaRoute = localStorage.getItem(VL_ROUTE) === 'key' ? 'key' : 'app';
+let vaCands = [], vaVia = 'paste', vaModel = null, vaBusy = false, vaAbort = null;
+async function vaPrep(){
+  const [src, vals] = [await valSources(), await vlAll()];
+  return { src, vals, text: valMaterial(src, vals) };
+}
+async function openValAi(){
+  vaCands = []; renderVaCands();
+  document.getElementById('vaPaste').value = '';
+  document.getElementById('vaErr').hidden = true;
+  await renderValAi();
+  document.getElementById('ovValAi').querySelector('.sheet').scrollTop = 0;
+  show('ovValAi');
+}
+async function renderValAi(){
+  const { src, vals, text } = await vaPrep();
+  const conf = vals.filter(v => v.status === 'confirmed').length, dr = vals.filter(v => v.status === 'draft').length;
+  document.getElementById('vaMat').innerHTML = `AI が読むのは<b>あなたが書いた言葉 ${src.length}件</b>（🤔 なぜ・✍ どうだった）と、いまの価値観（確定 ${conf}・下書き ${dr}）だけです。レシートの金額や写真は渡しません。`
+    + (src.length < 10 ? `<br>⚠ 材料が <b>${src.length}件</b> と少ないので、当てずっぽうの下書きになりやすいです（目安は 20〜30件）。` : '')
+    + '<br>返ってきた下書きは<b>勝手に確定しません</b>＝1件ずつ選んで保存します。';
+  document.querySelectorAll('#vaRouteSeg button').forEach(b => b.classList.toggle('on', b.dataset.varoute === vaRoute));
+  document.getElementById('vaAppPane').hidden = vaRoute !== 'app';
+  document.getElementById('vaKeyPane').hidden = vaRoute !== 'key';
+  let drive = '';
+  try { drive = autoOn() ? `💡 🔄 自動書き出しを使っているので、AI アプリで「<b>${esc(AUTO_FILE)} を読んで、_readme の『💭 価値観の下書きの作り方』で下書きを作って</b>」と頼むだけでも同じ形の返事が来ます（①がいりません）。返事は②に貼ってください。` : ''; } catch (_) {}
+  document.getElementById('vaDriveNote').innerHTML = drive;
+  const ctx = ctxFor('an'), pr = priceOf(ctx.prov, ctx.model);
+  const inTok = estTokens((VAL_SYSTEM + text).length), maxTok = 8000;
+  document.getElementById('vaAiLine').innerHTML = !ctx.key
+    ? `⚠ ${esc(ctx.p.vendor)} のAPIキーが未登録です（⚙ から登録してください）。キーが無くても「📋 AI アプリで」なら使えます。`
+    : `🤖 <b>${esc(ctx.p.label)}</b> ・ ${esc(ctx.model || '（モデル未選択）')}（⚙ の「📈 データの分析」と同じ AI）<br>送る量 約${(VAL_SYSTEM + text).length.toLocaleString('ja-JP')}文字（およそ ${inTok.toLocaleString('ja-JP')}トークン）`
+      + (pr ? ` ・ 送るぶん <b>${costText(inTok * pr[0])}</b> ＋ 返事は最大 <b>${costText(maxTok * pr[1])}</b>` : ' <span style="color:var(--dim)">（この AI は値段を返さないので、トークン数だけ出しています）</span>');
+  document.getElementById('vaRun').disabled = !ctx.key || !src.length || vaBusy;
+}
+document.getElementById('vaRouteSeg').onclick = e => {
+  const b = e.target.closest('[data-varoute]'); if (!b) return;
+  vaRoute = b.dataset.varoute; localStorage.setItem(VL_ROUTE, vaRoute); renderValAi();
+};
+const vaAskText = text => VAL_SYSTEM + '\n\n--- 材料（JSON） ---\n' + text;
+document.getElementById('vaCopy').onclick = async () => {
+  const { src, text } = await vaPrep();
+  if (!src.length) { toast('まだ材料（🤔/✍）がありません'); return; }
+  try { await navigator.clipboard.writeText(vaAskText(text)); toast('📋 頼む文をコピーしました（AI アプリに貼ってください）'); }
+  catch (err) { toast('コピーできませんでした: ' + (err.message || err)); }
+};
+document.getElementById('vaShare').onclick = async () => {
+  const { src, text } = await vaPrep();
+  if (!src.length) { toast('まだ材料（🤔/✍）がありません'); return; }
+  await shareTextOut('価値観の下書きのお願い', vaAskText(text), 'values_request.txt', 'AIに渡す');
+};
+document.getElementById('vaImport').onclick = async () => {
+  const t = document.getElementById('vaPaste').value.trim();
+  if (!t) { toast('AI の返事を貼ってください'); return; }
+  await vaTake(t, 'paste', null);
+};
+document.getElementById('vaRun').onclick = async () => {
+  if (vaBusy) return;
+  const ctx = ctxFor('an');
+  if (!ctx.key) { toast(`${ctx.p.vendor} のAPIキーが未登録です（⚙ から登録してください）`); return; }
+  if (!ctx.model) { toast('分析モデルが未選択です（⚙ の「分析モデル」で選んでください）'); return; }
+  const { src, text } = await vaPrep();
+  if (!src.length) { toast('まだ材料（🤔/✍）がありません'); return; }
+  const run = document.getElementById('vaRun'), stop = document.getElementById('vaStop');
+  vaBusy = true; vaAbort = new AbortController(); run.disabled = true; stop.hidden = false;
+  const t0 = Date.now(), tick = setInterval(() => { run.textContent = `🤖 下書きを作っています… ${Math.round((Date.now() - t0) / 1000)}秒`; }, 1000);
+  document.getElementById('vaErr').hidden = true;
+  try {
+    const r = await ctx.p.chat(ctx, VAL_SYSTEM, [{ kind: 'text', text: '--- 材料（JSON） ---\n' + text }], 8000, vaAbort.signal);
+    if (isCut(r.stop) && !String(r.text || '').trim()) throw new Error('上限に達して返事が返りませんでした（別のモデルをお試しください）');
+    await vaTake(String(r.text || ''), 'app-ai', r.model || ctx.model);
+  } catch (err) {
+    const m = String(err.message || err);
+    if (m === 'やめました') toast('⏹ やめました');
+    else { const box = document.getElementById('vaErr'); box.hidden = false; box.textContent = '❌ ' + m; }
+  } finally {
+    clearInterval(tick); vaBusy = false; vaAbort = null; stop.hidden = true; run.textContent = '▶ 下書きを作ってもらう';
+    renderValAi();
+  }
+};
+document.getElementById('vaStop').onclick = () => { if (vaAbort) vaAbort.abort(); };
+/* 返事を候補にする。⚠ ここで確かめること＝根拠の ref が材料に在るか（無いものは外して言う）・前の版の id が在るか・
+   同じ文がもう無いか。根拠の無い候補と同じ文は「残さない」を既定にする（捏造を黙って残さない・§1⑥） */
+const normBody = s => String(s || '').normalize('NFKC').replace(/[\s。、.,！!？?「」『』]/g, '');
+function vaParse(text){
+  let o;
+  try { o = parseJsonLoose(text); }
+  catch (_) { throw new Error('返事の中に JSON が見つかりませんでした（AI の返事をまるごと貼ってください）'); }
+  const arr = Array.isArray(o) ? o : Array.isArray(o?.values) ? o.values : null;
+  if (!arr) throw new Error('返事の中に values（下書きの並び）が見つかりませんでした');
+  return arr.slice(0, 15);
+}
+async function vaTake(text, via, model){
+  const box = document.getElementById('vaErr');
+  let arr;
+  try { arr = vaParse(text); } catch (err) { box.hidden = false; box.textContent = '❌ ' + err.message; return; }
+  const [src, vals] = [await valSources(), await vlAll()];
+  const refs = new Set(src.map(x => x.ref)), ids = new Map(vals.map(v => [v.id, v]));
+  const bodies = new Set(vals.filter(v => v.status !== 'retired').map(v => normBody(v.body)));
+  vaCands = arr.map(raw => {
+    const body = String(raw?.body ?? '').trim().slice(0, 300);
+    const evIn = Array.isArray(raw?.evidence) ? raw.evidence.map(String) : [];
+    const ev = [...new Set(evIn.filter(r => refs.has(r)))];
+    const lost = evIn.length - evIn.filter(r => refs.has(r)).length;
+    const sup = raw?.supersedes != null && ids.has(String(raw.supersedes)) ? String(raw.supersedes) : null;
+    const dup = bodies.has(normBody(body));
+    const warn = [];
+    if (!ev.length) warn.push('根拠の記録がつながっていません（AI の想像かもしれません）');
+    if (lost) warn.push(`材料に無い根拠 ${lost}件は外しました`);
+    if (dup) warn.push('同じ文がもうあります');
+    if (raw?.supersedes != null && !sup) warn.push('言い直しの元（前の版）が見つからないので、新しい1件として扱います');
+    return { body, orig: body, domain: VAL_DOM[raw?.domain] ? raw.domain : 'shopping',
+             basis: raw?.basis ? String(raw.basis).trim().slice(0, 600) : null, evidence: ev, supersedes: sup,
+             warn, pick: !ev.length || dup ? 'skip' : 'draft' };
+  }).filter(c => c.body);
+  vaVia = via; vaModel = model;
+  box.hidden = !!vaCands.length;
+  if (!vaCands.length) box.textContent = '❌ 下書きが1件も入っていませんでした';
+  renderVaCands();
+  if (vaCands.length) document.getElementById('vaCands').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+async function renderVaCands(){
+  const el = document.getElementById('vaCands'), save = document.getElementById('vaSave');
+  if (!vaCands.length) { el.innerHTML = ''; save.hidden = true; return; }
+  const [src, vals] = [await valSources(), await vlAll()];
+  const refs = new Map(src.map(x => [x.ref, x])), ids = new Map(vals.map(v => [v.id, v]));
+  el.innerHTML = `<div class="vSecTitle">🤖 下書きの候補 ${vaCands.length}件＝1件ずつ選んでください（既定は「下書きで残す」）</div>`
+    + vaCands.map((c, i) => `<div class="vaCand" data-vci="${i}">`
+      + `<textarea data-vcbody rows="2" maxlength="300">${esc(c.body)}</textarea>`
+      + `<div class="seg wrap" style="margin-top:6px">${VAL_DOM_PICK.map(d => `<button type="button" data-vcdom="${d}"${d === c.domain ? ' class="on"' : ''}>${esc(domText(d))}</button>`).join('')}</div>`
+      + (c.basis ? `<div class="note" style="margin-top:6px">🤖 AI の読み：${esc(c.basis)}</div>` : '')
+      + (c.supersedes && ids.get(c.supersedes) ? `<div class="note" style="margin-top:4px">↩ 言い直しの元：「${esc(ids.get(c.supersedes).body)}」（これを確定すると、元は「当てはまらない」へ）</div>` : '')
+      + (c.evidence.length ? `<details style="margin-top:6px"><summary style="font-size:12.5px; color:var(--acc); cursor:pointer">根拠 ${c.evidence.length}件</summary>${c.evidence.map(r => evRowHtml(r, refs)).join('')}</details>` : '')
+      + c.warn.map(w => `<div class="warn">⚠ ${esc(w)}</div>`).join('')
+      + `<div class="seg" style="margin-top:8px">${[['draft', '📝 下書きで残す'], ['confirmed', '✅ 確定する'], ['skip', '残さない']].map(([k, l]) =>
+          `<button type="button" data-vcpick="${k}"${k === c.pick ? ' class="on"' : ''}>${l}</button>`).join('')}</div></div>`).join('');
+  const n = vaCands.filter(c => c.pick !== 'skip').length;
+  save.hidden = false; save.disabled = !n;
+  save.textContent = n ? `💾 選んだとおりに保存（${n}件）` : '💾 残すものが選ばれていません';
+}
+document.getElementById('vaCands').addEventListener('input', e => {
+  const ta = e.target.closest('[data-vcbody]'); if (!ta) return;
+  const c = vaCands[+ta.closest('[data-vci]').dataset.vci]; if (c) c.body = ta.value;
+});
+document.getElementById('vaCands').onclick = e => {
+  const card = e.target.closest('[data-vci]'); if (!card) return;
+  const c = vaCands[+card.dataset.vci]; if (!c) return;
+  const go = e.target.closest('[data-evgo]'); if (go) { openSource(go.dataset.evgo); return; }
+  const d = e.target.closest('[data-vcdom]'); if (d) { c.domain = d.dataset.vcdom; return renderVaCands(); }
+  const p = e.target.closest('[data-vcpick]'); if (p) { c.pick = p.dataset.vcpick; return renderVaCands(); }
+};
+document.getElementById('vaSave').onclick = async () => {
+  const pick = vaCands.filter(c => c.pick !== 'skip' && c.body.trim());
+  if (!pick.length) return;
+  const nConf = pick.filter(c => c.pick === 'confirmed').length;
+  if (nConf && !confirm(`${nConf}件を「確定」として保存します。\n\n確定した文はあとから書き換えません（考えが変わったら「言い直す」）。よろしいですか？`)) return;
+  const now = Date.now();
+  for (const c of pick) {
+    const body = c.body.trim().slice(0, 300);
+    const v = { id: newId('v'), body, domain: c.domain, status: 'draft', draftedBy: body === c.orig ? 'ai' : 'human',
+                basis: c.basis, evidence: c.evidence, supersedes: c.supersedes, via: vaVia,
+                ...(vaModel ? { model: vaModel } : {}), createdAt: now, updatedAt: now };
+    if (c.pick === 'confirmed') await confirmValue(v); else await vlPut(v);
+  }
+  hide('ovValAi');
+  toast(`💭 ${pick.length}件を残しました（確定 ${nConf}・下書き ${pick.length - nConf}）`);
+  vlTab = 'values'; localStorage.setItem(VL_TAB, vlTab);
+  if (topTab !== 'values') await setTopTab('values'); else await renderValuesTab();
+};
+
 /* ---------- モーダル・toast ---------- */
 function show(id){ document.getElementById(id).classList.add('on'); }
 function hide(id){ document.getElementById(id).classList.remove('on'); }
@@ -11131,6 +12183,9 @@ const WIPE_KINDS = [
   { id: 'rp',    icon: '🔁', label: '繰り返しの決まり' },
   // r95: ⭐ いつものメニュー。⚠ **見本は日付を持たない**＝🔁・📍 と同じ扱い（「全期間」の時だけ）
   { id: 'menu',  icon: '⭐', label: 'いつものメニュー' },
+  // r115: 🔀 手で足した選択（決めた日で数える）・💭 価値観（日付を持たない考え＝「全期間」の時だけ）
+  { id: 'choice', icon: '🔀', label: '選んだ・選ばなかった（手で足したもの）' },
+  { id: 'value',  icon: '💭', label: '価値観' },
 ];
 let wipeMode = 'month', wipeSel = new Set(), wipeBusy = false;
 /* 期間の言葉づかいは 📤/📈/📊 と同じにする（同じ言葉が画面ごとに違う意味だと、出た数字を信じられない）。
@@ -11166,7 +12221,7 @@ async function wipePlan(){
   if (per.bad) return { per, bad: per.bad };
   const { from, to } = per, all = wipeMode === 'all';
   const inP = d => !!d && (!from || d >= from) && (!to || d <= to);
-  const p = { per, all, rcptDel: [], rcptTrim: [], meals: [], chks: [], meds: [], ans: [], places: [], rps: [], menus: [], skipped: [] };
+  const p = { per, all, rcptDel: [], rcptTrim: [], meals: [], chks: [], meds: [], ans: [], places: [], rps: [], menus: [], choices: [], vals: [], skipped: [] };
   let rcptN = 0;
   for (const r of await dbAll()) {
     const rcs = receiptsOf(r);
@@ -11188,6 +12243,9 @@ async function wipePlan(){
   p.places = all ? pls : [];
   p.rps    = all ? rps : [];   // r73: 決まりは日付でなく規則＝📍 と同じ扱い（全期間の時だけ）
   p.menus  = all ? mns : [];   // r95: ⭐ 見本も日付を持たない＝🔁 と同じ
+  const vls = await vlAll();
+  p.choices = (await chAll()).filter(c => all || inP(c.date));   // r115: 🔀 決めた日で数える
+  p.vals    = all ? vls : [];                                   // r115: 💭 考えは日付を持たない＝全期間の時だけ
   /* r83: 🫀 は**計測の日付**で数える（🧾 と同じ形＝1枚の写真に期間外の計測が残る時は、写真は残してその計測だけ抜く） */
   p.bodyDel = []; p.bodyTrim = [];
   let bodyN = 0;
@@ -11207,11 +12265,12 @@ async function wipePlan(){
     if (pls.length) p.skipped.push(`📍 お店の場所 ${pls.length}件`);
     if (rps.length) p.skipped.push(`🔁 繰り返しの決まり ${rps.length}件`);
     if (mns.length) p.skipped.push(`⭐ いつものメニュー ${mns.length}件`);
+    if (vls.length) p.skipped.push(`💭 価値観 ${vls.length}件`);
   }
   p.pics = (await picAll()).filter(r => inP(r.date));   // r85: 📸 は撮った日（date）で数える
   p.count = { rcpt: rcptN, meal: p.meals.length, chk: p.chks.length,
               med: p.meds.length, body: bodyN, pic: p.pics.length, an: p.ans.length, place: p.places.length,
-              rp: p.rps.length, menu: p.menus.length };
+              rp: p.rps.length, menu: p.menus.length, choice: p.choices.length, value: p.vals.length };
   return p;
 }
 async function renderWipe(){
@@ -11277,6 +12336,9 @@ async function runWipe(p, kinds){
   if (kinds.has('rp'))    await delMany(REPEATS, p.rps.map(r => r.id));
   // r95: ⭐ を消しても、そこから入れた食事は残す（🔁 と同じ＝別のもの）
   if (kinds.has('menu'))  await delMany(MENUS, p.menus.map(m => m.id));
+  // r115: 🔀 を消しても、それを根拠にした 💭 は残る（根拠が見つからないと出る＝黙って価値観を消さない）
+  if (kinds.has('choice')) await delMany(CHOICES, p.choices.map(c => c.id));
+  if (kinds.has('value'))  await delMany(VALUES, p.vals.map(v => v.id));
   /* 消えたものを指している結び付きを外す。
      ⚠ 手がかりの印（extras[].rcptId）は消さない＝消したレシートが 📝 のたびに作り直され（課金され）
         よみがえるのを防ぐ（r70 の「同じ手がかりから二度作らない」印をそのまま生かす）。 */
@@ -11289,10 +12351,11 @@ async function runWipe(p, kinds){
   }
   /* 開いたままの画面が「消したもの」を出し続けないようにする。
      ⚠ とくに詳細・編集は、開いたまま保存されると**消したはずのものが戻る**（⚙ は 🍽 の「⚙ 変える」からも開ける） */
-  ['ovDetail', 'ovEdit', 'ovEd2', 'ovMeal', 'ovChk', 'ovMed', 'ovBody', 'ovPic', 'ovAnRes', 'ovPlace', 'ovMlRep', 'ovMenuEd']
+  ['ovDetail', 'ovEdit', 'ovEd2', 'ovMeal', 'ovChk', 'ovMed', 'ovBody', 'ovPic', 'ovAnRes', 'ovPlace', 'ovMlRep', 'ovMenuEd', 'ovChoice', 'ovValEd', 'ovValAi']
     .forEach(id => { if (isOpen(id)) hide(id); });
   closeScope(null);   // r73: 「この食事だけ／全部」を聞いたまま消すと、答えた先の食事がもう居ない
   await renderList(); await renderMeals(); await renderHealth();
+  if (topTab === 'values') await renderValuesTab();   // r115
   if (isOpen('ovStats')) renderTab();
   if (isOpen('ovAnalyze')) await renderAnHistory();
 }

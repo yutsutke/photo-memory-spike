@@ -67,7 +67,7 @@
     <h2>3. AI に読ませるとき（いちばん大事な項目）</h2>
     <p>本アプリは <strong>BYOK（Bring Your Own Key／自分のキーを持ち込む）</strong>方式です。あなたが AI 事業者と直接契約し、そのキーを ⚙ 設定に登録します。写真を読ませると、<strong>端末からその事業者の API へ直接</strong>送信されます。</p>
     <ul>
-      <li><strong>何が送られるか</strong>: 読ませる写真（縮小したもの）と、その回の依頼文・あなたが足した手がかりの文。📈 簡易分析を使った場合は、選んだ期間の記録（店名・金額・品目・料理・健診・薬・からだの数字など）も送られます。</li>
+      <li><strong>何が送られるか</strong>: 読ませる写真（縮小したもの）と、その回の依頼文・あなたが足した手がかりの文。📈 簡易分析を使った場合は、選んだ期間の記録（店名・金額・品目・料理・健診・薬・からだの数字など）も送られます。💭 価値観の下書きを「このアプリの AI で」作った場合は、あなたが書いた「なぜ・どうだった」の言葉（とその店名・品名・日付）と、いまの価値観が送られます（金額と写真は送りません）。</li>
       <li><strong>どこへ送られるか</strong>: あなたが ⚙ で選んだ事業者です（Anthropic／OpenAI／OpenRouter、または自分で指定した OpenAI 互換のサービス）。<strong>私たちの元へは送られません</strong>（受け取る場所を持っていません）。</li>
       <li><strong>送られた先での扱い</strong>: <strong>その事業者のプライバシーポリシーと利用規約</strong>が適用されます。事業者によっては、不正利用の監視などのために一定期間データを保持することがあります。ご利用前にご自身で確認してください。
         <ul>
@@ -104,7 +104,7 @@
 
     <h2>7. データの削除</h2>
     <ul>
-      <li><strong>アプリの中でまとめて消せます</strong>: ⚙ 設定の一番下「🧹 まとめて削除」で、<strong>期間</strong>（今月・先月・全期間など）と<strong>種類</strong>（レシート／料理・食事／健康診断／薬／からだの数字（血圧・体重）／からだの写真／分析の履歴／お店の場所／繰り返しの決まり／いつものメニュー）を選んで削除できます。すべてを選べば全データの削除になります。</li>
+      <li><strong>アプリの中でまとめて消せます</strong>: ⚙ 設定の一番下「🧹 まとめて削除」で、<strong>期間</strong>（今月・先月・全期間など）と<strong>種類</strong>（レシート／料理・食事／健康診断／薬／からだの数字（血圧・体重）／からだの写真／分析の履歴／お店の場所／繰り返しの決まり／いつものメニュー／選んだ・選ばなかった の記録／価値観）を選んで削除できます。すべてを選べば全データの削除になります。</li>
       <li>1件ずつの削除も、それぞれの詳細画面からできます。</li>
       <li><strong>アプリを削除</strong>すると、端末内のすべてのデータ（写真・読み取り結果・APIキー）が消去されます。</li>
       <li>⚠ すでに AI 事業者へ送られたデータの削除は、<strong>その事業者へ</strong>お問い合わせください（私たちは保持していないため、削除できません）。</li>
@@ -157,7 +157,7 @@
     <h2>3. When AI reads your photos (the most important section)</h2>
     <p>This app uses <strong>BYOK (Bring Your Own Key)</strong>. You hold your own account with an AI provider and enter that key in ⚙ Settings. When you have a photo read, it is sent <strong>directly from your device to that provider’s API</strong>.</p>
     <ul>
-      <li><strong>What is sent</strong>: the photo being read (downscaled), the request text for that run, and any hints you added. If you use 📈 Quick analysis, the records for the period you selected (store names, amounts, items, meals, check-ups, medications) are also sent.</li>
+      <li><strong>What is sent</strong>: the photo being read (downscaled), the request text for that run, and any hints you added. If you use 📈 Quick analysis, the records for the period you selected (store names, amounts, items, meals, check-ups, medications) are also sent. If you draft 💭 values “with this app’s AI”, the “why / how it went” notes you wrote (with their store names, item names and dates) and your current values are sent (amounts and photos are not).</li>
       <li><strong>Where it is sent</strong>: the provider you selected in ⚙ (Anthropic, OpenAI, OpenRouter, or an OpenAI-compatible endpoint you configure). <strong>It is never sent to us</strong> — we have nowhere to receive it.</li>
       <li><strong>How it is handled there</strong>: <strong>that provider’s privacy policy and terms apply</strong>. Some providers retain data for a period, e.g. for abuse monitoring. Please review their policies yourself.
         <ul>
@@ -194,7 +194,7 @@
 
     <h2>7. Deleting your data</h2>
     <ul>
-      <li><strong>You can delete in bulk inside the app</strong>: “🧹 Delete in bulk” at the bottom of ⚙ Settings lets you choose a <strong>period</strong> (this month, last month, all time…) and the <strong>kinds</strong> of data (receipts / meals / health check-ups / medications / analysis history / store locations). Selecting everything deletes all data.</li>
+      <li><strong>You can delete in bulk inside the app</strong>: “🧹 Delete in bulk” at the bottom of ⚙ Settings lets you choose a <strong>period</strong> (this month, last month, all time…) and the <strong>kinds</strong> of data (receipts / meals / health check-ups / medications / analysis history / store locations / chosen-or-not records / values). Selecting everything deletes all data.</li>
       <li>Individual records can also be deleted from their detail screens.</li>
       <li><strong>Deleting the app</strong> erases all data on the device (photos, extracted results, API key).</li>
       <li>⚠ For data already sent to an AI provider, please contact <strong>that provider</strong> (we do not hold it and therefore cannot delete it).</li>
