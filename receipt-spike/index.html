@@ -1244,6 +1244,32 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     </div>
     <div class="note">置き場は <b>Google ドライブ</b>がおすすめです＝<b>Claude / ChatGPT / Gemini の3つとも、ドライブのファイルなら直接読めます</b>（有料プランのコネクタ。無料なら「＋」から添付）。<br>⚠ <b>iCloud に置くと、どの AI からも直接は読めません</b>（パソコンを経由することになります）。<br>置くのは<b>選んだ種類のファイルだけ</b>で、押すたびではなく<b>変わるたびに、まるごと上書き</b>します。<b>中身はどれも同じ「全期間・全部入り」</b>で、形だけが違います（📄 JSON と同じ中身）。<br>💡 <b>ふつうは 📄 JSON だけで足ります</b>（AI に読ませるのはこれ）。<br>💡 <code>.sql</code> と <code>.sqlite</code> は<b>パソコンで掘る人むけ</b>です。<code>.sql</code> はパソコンで <code>sqlite3 レシートと健康.db &lt; レシートと健康.sql</code> と1行打てば DB になります。⚠ <b>AI に読ませる用と思わないでください</b>＝置き場が付ける種類しだいで読めたり読めなかったりします（実測）。<br>💡 <code>.sqlite</code> は<b>ダブルクリックで開ける本物のデータベース</b>です。⚠ <b>AI は中身を読めません</b>（文字ではないため）＝パソコンで自分で開くか、Claude Code などに SQL を打たせて掘る人むけです。<br>⚠ これは<b>端末どうしの同期ではありません</b>（2台で同じ記録を編集することはできません）。<b>📸 からだの写真は入りません</b>。</div>
   </div>
+  <!-- 🗄 r116: 自分の Supabase へ自動で書く（要望「スパベースを使う人と、グーグルドライブを使う人に対応」）。
+       ⚠ アプリのサーバーは今も持たない＝書き込む先は**その人が持っている Supabase**（BYOK と同じ考え＝BYO-Supabase）。
+       ⚠ 既定オフの opt-in＝入れていない人の見え方・振る舞いは今までと1つも変わらない（🔄 と同じ）。
+       ⚠ 端末どうしの同期ではない＝**アプリが元**で、毎回まるごと書き直す（例外＝AI が足した 💭 の下書きだけ、アプリが取り込む）。 -->
+  <div class="row" id="sbBox">
+    <label>🗄 自分の Supabase へ自動で書く（Supabase を使う人）</label>
+    <label class="anChk"><input type="checkbox" id="sbChk"><span><b>記録が増えるたびに、自分の Supabase の表へ自動で書く</b>（既定＝しない）</span></label>
+    <div id="sbBody" hidden>
+      <div class="note" style="margin:0 0 8px"><b>①</b> 準備の SQL を Supabase の <b>SQL Editor</b> で1回流す → <b>②</b> <b>Authentication → Users → Add user</b> で自分のユーザーを作る（<b>Auto Confirm User</b> に印）→ <b>③</b> 下に入れて 🔑 サインイン。あとは記録が増えるたびに自動で書きます。</div>
+      <details class="adv" id="sbSqlBox" style="margin-top:0"><summary>① 準備の SQL（表と鍵の決まりを作る・何度流しても同じ）</summary>
+        <textarea id="sbSql" readonly rows="10" style="width:100%; font-family:monospace; font-size:12px; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:8px"></textarea>
+        <button class="btn" id="sbCopySql" style="margin-top:6px">📋 SQL をコピー</button>
+      </details>
+      <div class="row"><label>Project URL（Settings → API）</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url"></div>
+      <div class="row"><label>anon（publishable）key（Settings → API）</label><input id="sbAnon" placeholder="eyJ… または sb_publishable_…" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+      <div class="dual">
+        <div class="row" style="flex:1"><label>メール</label><input id="sbEmail" type="email" autocomplete="username" autocapitalize="none"></div>
+        <div class="row" style="flex:1"><label>パスワード</label><input id="sbPass" type="password" autocomplete="current-password"></div>
+      </div>
+      <div class="dual"><button class="btn pri" id="sbSignIn">🔑 サインイン</button><button class="btn" id="sbSignUp">🆕 新しく作る</button></div>
+      <button class="btn" id="sbSignOut" hidden>サインアウト（この端末から）</button>
+      <button class="btn" id="sbNow">⬆️ 今すぐ書く</button>
+      <div class="note" id="sbState" style="margin-top:6px"></div>
+    </div>
+    <div class="note">書き込むのは<b>あなたの Supabase だけ</b>です（このアプリの運営者には届きません）。表は <code>rcpt_receipts</code>（レシート）・<code>rcpt_items</code>（明細）・<code>rcpt_choices</code>（🙅🚶）・<code>rcpt_values</code>（💭）・<code>rcpt_snapshot</code>（📄 JSON と同じ全部入り）と、AI 向けの <code>rcpt_notes</code>（あなたが書いた言葉だけ）。<br>💡 Claude などの <b>Supabase コネクタ</b>から直接読めます。「<b>rcpt_notes を読んで、rcpt_values に価値観の下書きを足して（表の説明の決まりで）</b>」と頼めば、次に 💭 を開いた時にアプリが取り込みます（確定するかはあなたが選びます）。<br>⚠ <b>アプリが元</b>です＝Supabase 側で直した行は、次にアプリが書く時に上書きされます。端末どうしの同期ではありません。<b>写真は送りません</b>。<br>⚠ <b>パスワードは保存しません</b>（サインインの印だけを端末に置きます）。anon key は公開されても困らない鍵で、表は<b>サインインしたあなたの行だけ</b>が読み書きできます（RLS）。</div>
+  </div>
   <!-- r62: 頼み方の例（要望）。⚠ 例文に「レシートIDが同じ＝1回だけ数える」を入れてある＝
        ファイルが複数あっても二重に数えない（重なりの保険はデータ側の receipt_id と、この一文の両輪） -->
   <details class="adv" id="expPromptBox"><summary>🗣 AI への頼み方の例（7種類・選んでコピーできます）</summary>
@@ -1904,7 +1930,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
 
 <script>
 'use strict';
-const BUILD = 'r115 💭 価値観を入れた＝レシートの店と品目に 🤔 なぜ／✍ どうだった を別々に書ける・🙅 買わなかった物と 🚶 行かなかった場所を手で足せる・💭 タブで AI が価値観の下書き（AI アプリに渡して貼り戻す／このアプリの AI）→ 確定は本人・📤/🔄 の JSON v7 に choice_log と value_log（2026-10-14）｜r114 🗒 レシートに「ひとこと」を足した＝詳細の明細の下に1つ（この店を選んだ理由／買ってみてどうだったか）・明細の行をタップするとその品にも書ける。保存ボタンなし（食事と同じ）・最初に書いた日と最後に直した日を持つ。📤 の JSON（v6）・SQL・CSV に note として載る＝たまったら AI が価値観の下書きに使える（2026-10-10）｜r113 📝 文言を実測に合わせて直した＝🎉 Drive に置いた 📄 JSON を Claude が実際に読めることを実機で確認（レシート3件・合計1,947円を正しく答えた）。あわせて「.sql はテキストだから AI も読める」は保証できないと訂正（置き場が付ける種類しだい）＝AI に読ませるのは 📄 JSON だけ、SQL/SQLite はパソコンで掘る用（2026-08-29）';
+const BUILD = 'r116 🗄 自分の Supabase へ自動で書けるようにした（📤 の 🗄・既定オフ）＝準備の SQL（表と RLS）・メールとパスワードでサインイン（パスワードは保存しない）・記録が増えるたびに表へ写す・AI が rcpt_values に足した下書きを 💭 で取り込む・空の端末では自動で書かない（2026-10-14）｜r115 💭 価値観を入れた＝レシートの店と品目に 🤔 なぜ／✍ どうだった を別々に書ける・🙅 買わなかった物と 🚶 行かなかった場所を手で足せる・💭 タブで AI が価値観の下書き（AI アプリに渡して貼り戻す／このアプリの AI）→ 確定は本人・📤/🔄 の JSON v7 に choice_log と value_log（2026-10-14）｜r114 🗒 レシートに「ひとこと」を足した＝詳細の明細の下に1つ（この店を選んだ理由／買ってみてどうだったか）・明細の行をタップするとその品にも書ける。保存ボタンなし（食事と同じ）・最初に書いた日と最後に直した日を持つ。📤 の JSON（v6）・SQL・CSV に note として載る＝たまったら AI が価値観の下書きに使える（2026-10-10）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -8630,6 +8656,7 @@ function autoPeriod(){
 }
 const autoMealDetailOn = () => localStorage.getItem(AUTO.mealDetail) !== '0';
 async function autoPayload(){
+  await ensureNoteNids();   // 💭 r115: r114 の鍵の無いひとことに鍵を付けてから（_readme の頼み方で根拠に指せるように）
   const { from, to } = autoPeriod();
   const rows = (await listRows()).filter(x => x.rc && (!from || x.date >= from))
                                  .sort((a, b) => a.date.localeCompare(b.date));
@@ -8773,10 +8800,18 @@ let autoTimer = null, autoDirty = false, autoBusy = false;
 /* 保存のたびに呼ばれる（tx の唯一の書き込み口から）。⚠ 何度保存しても書き出しは**まとめて1回**
    ＝レシート1枚の取り込みで何度も DB に書くので、そのたびに置き場へ上げると遅く・重くなる。 */
 function autoMark(){
-  try { if (!autoOn()) return; } catch (_) { return; }   // 起動の途中（まだ定義前）＝何もしない
-  autoDirty = true;
+  /* 🗄 r116: 置き場は2つ（🔄 ファイル／🗄 Supabase）＝どちらかが入っていれば印を付け、4秒後にまとめて書く */
+  let a = false, b = false;
+  try { a = autoOn(); } catch (_) {}   // 起動の途中（まだ定義前）＝何もしない
+  try { b = sbOn(); } catch (_) {}
+  if (!a && !b) return;
+  if (a) autoDirty = true;
+  if (b) try { sbDirty = true; } catch (_) {}
   clearTimeout(autoTimer);
-  autoTimer = setTimeout(() => autoFlush(), 4000);
+  autoTimer = setTimeout(() => {
+    if (a && autoOn()) autoFlush();
+    if (b && sbOn()) sbSync();
+  }, 4000);
 }
 async function autoFlush(){
   if (!autoOn()) return { ok: false, error: 'オフです' };
@@ -8812,6 +8847,7 @@ async function autoFlush(){
 /* 4秒待っている途中でアプリを閉じられた時のため＝裏に回る瞬間に書き残しを出す（届かないこともある・保険） */
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && autoDirty && autoOn()) autoFlush();
+  if (document.visibilityState === 'hidden' && sbDirty && sbOn()) sbSync();   // 🗄 r116
 });
 
 /* ⚠ このアプリには HTML 用の逃がし処理が無かった（CSV 用の esc は別物）。フォルダ名は本人が付けた
@@ -8940,6 +8976,380 @@ document.getElementById('btnAutoNow').onclick = async () => {
   if (r && r.ok) toast('⬆️ 置き場に書き出しました');
   else if (r && r.error) toast('❌ ' + r.error);
 };
+/* ======================================================================
+   🗄 自分の Supabase へ自動で書く（r116）
+   本人の言葉（2026-10-14）＝「スパベースを使う人と、グーグルドライブを使う人に対応」。
+   ✅ 決定（2026-10-14）＝「BYO-Supabase（自分の DB を持ち込む）は作らない」を上書き（本人の明示要求）。
+   形は 🔄 自動書き出し（Drive）と同じ考え＝**アプリが元・置き場には写しを書く**。違いは置き場が「表」になること:
+     rcpt_snapshot（📄 JSON と同じ全部入り）・rcpt_receipts／rcpt_items／rcpt_choices／rcpt_values（SQL で引ける形）・
+     rcpt_notes（ビュー＝本人が書いた言葉だけ＝AI の材料）。
+   🥇 **鍵の決まり（RLS）で守る**＝anon key は公開されても困らない鍵。サインインしたその人の行だけが読み書きできる
+      （準備の SQL で作る・ローカルの PostgreSQL で「他人の行は見えない・書けない・anon は何もできない」を実測した）。
+      パスワードは保存しない（サインインの印＝refresh token だけを端末に置く・BYOK のキーと同じ置き場の重さ）。
+   🥇 **AI の下書きだけは逆向き**＝AI（Claude の Supabase コネクタなど）が rcpt_values に sync_batch 空の行を足すと、
+      アプリが取り込んで 💭 の候補画面に出す（確定は本人・r115 と同じ1本の取り込み）。
+   ⚠ 毎回まるごと書き直す＝書いた行に今回の印（sync_batch）を付け、印の違う行（＝アプリで消したもの）を消す。
+      AI の下書き（印が空）はこの掃除にかからない。
+   ⚠ **空の端末で書かない**＝新しい端末でサインインしただけで、Supabase の写しを空にしてしまわない（押した時だけ・聞いてから）。
+   ====================================================================== */
+const SB = { on: 'rcpt.sb.on', url: 'rcpt.sb.url', anon: 'rcpt.sb.anon', sess: 'rcpt.sb.sess',
+             at: 'rcpt.sb.at', err: 'rcpt.sb.err', n: 'rcpt.sb.n' };
+const SB_SETUP_SQL = `-- レシートアプリ「レシート」の置き場（あなたの Supabase）。SQL Editor に貼って Run。何度流しても同じ結果になります。
+-- 表はどれも「あなた（サインインしたユーザー）の行だけ」が見える・書ける（RLS）。anon key だけでは何も読めません。
+-- アプリが元の記録です（アプリが毎回まるごと書き直します）。ここで直した行は、次にアプリが書く時に上書きされます。
+-- 例外は rcpt_values の「AI の下書き」（sync_batch が空の行）＝アプリが取り込んで、あなたが確定するかを選びます。
+
+create table if not exists public.rcpt_snapshot (
+  owner       uuid primary key default auth.uid() references auth.users (id) on delete cascade,
+  exported_at timestamptz,
+  payload     jsonb not null,
+  updated_at  timestamptz not null default now()
+);
+comment on table public.rcpt_snapshot is
+  'レシートアプリの全部入りの写し（📤 の 📄 JSON と同じ中身）。payload._readme に読み方と「💭 価値観の下書きの作り方」がある。';
+
+-- AI が rcpt_values に下書きを足す時、owner を自動で入れるための関数（あなた1人の置き場の時だけ答える）
+create or replace function public.rcpt_owner() returns uuid
+  language sql stable security definer set search_path = public
+as $$ select (array_agg(owner))[1] from public.rcpt_snapshot having count(*) = 1 $$;
+revoke execute on function public.rcpt_owner() from public, anon, authenticated;
+
+create table if not exists public.rcpt_receipts (
+  owner      uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  receipt_id text not null,
+  date date, time text, store text, branch text, total integer, kind text, category text, payment text,
+  why text, after text, note text, note_id text,
+  data       jsonb not null,
+  sync_batch text,
+  synced_at  timestamptz not null default now(),
+  primary key (owner, receipt_id)
+);
+comment on table public.rcpt_receipts is
+  '🧾 レシート1枚＝1行（receipt_id＝写真＋何枚目）。why＝🤔 なぜこの店に／after＝✍ 行ってみてどうだった／note＝前の版のひとこと（どれも本人の言葉）。note_id はその言葉の鍵（rcpt_values.evidence が指す）。data は書き出しと同じ形の全部。';
+
+create table if not exists public.rcpt_items (
+  owner      uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  receipt_id text not null,
+  line       integer not null,
+  name text, price integer, qty integer,
+  why text, after text, note text, note_id text,
+  sync_batch text,
+  synced_at  timestamptz not null default now(),
+  primary key (owner, receipt_id, line)
+);
+comment on table public.rcpt_items is
+  '🛒 明細の1行＝1行。price はその行の合計（qty を掛けたあと）。why＝🤔 なぜこれを買った／after＝✍ 使ってみてどうだった（本人の言葉）。';
+
+create table if not exists public.rcpt_choices (
+  owner      uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  choice_id  text not null,
+  about      text,          -- item＝物 / place＝場所
+  chosen     boolean,       -- false＝買わなかった・行かなかった
+  what       text,
+  date       date,
+  "where"    text,
+  at_receipt_id text,
+  why text, after text,
+  data       jsonb,
+  sync_batch text,
+  synced_at  timestamptz not null default now(),
+  primary key (owner, choice_id)
+);
+comment on table public.rcpt_choices is
+  '🔀 選んだ・選ばなかった（レシートに無いものを本人が手で足したもの）。chosen=false＝買わなかった物・行かなかった場所。金額は無い＝支出に数えない。';
+
+create table if not exists public.rcpt_values (
+  owner        uuid not null default coalesce(auth.uid(), public.rcpt_owner()) references auth.users (id) on delete cascade,
+  value_id     text not null default gen_random_uuid()::text,
+  body         text not null,
+  domain       text,
+  status       text not null default 'draft',
+  drafted_by   text not null default 'ai',
+  basis        text,
+  evidence     jsonb not null default '[]'::jsonb,
+  supersedes   text,
+  confirmed_at timestamptz,
+  retired_at   timestamptz,
+  created_at   timestamptz not null default now(),
+  sync_batch   text,
+  synced_at    timestamptz,
+  primary key (owner, value_id)
+);
+comment on table public.rcpt_values is
+  '💭 価値観。status: confirmed＝本人が確定 / draft＝下書き（仮説） / retired＝本人が「もう当てはまらない」とした前の考え。'
+  ' AI が下書きを足す時は body・domain（shopping / meal / life）・basis・evidence（rcpt_notes の ref の配列）・supersedes（言い直す元の value_id）だけを入れて insert する'
+  '（status は draft・sync_batch は空のまま＝アプリが次に開いた時に取り込み、確定するかは本人が選ぶ）。AI は confirmed にしない・既存の行を書き換えない。';
+
+-- AI が価値観を読む材料＝本人が書いた言葉だけ（言葉の無い記録は入らない）
+create or replace view public.rcpt_notes with (security_invoker = true) as
+  select owner, note_id as ref, 'place'::text as about, true as chosen, concat_ws(' ', store, branch) as what,
+         null::text as "where", date, why, after, note
+    from public.rcpt_receipts where note_id is not null and (why is not null or after is not null or note is not null)
+  union all
+  select i.owner, i.note_id, 'item', true, i.name, concat_ws(' ', r.store, r.branch), r.date, i.why, i.after, i.note
+    from public.rcpt_items i join public.rcpt_receipts r on r.owner = i.owner and r.receipt_id = i.receipt_id
+   where i.note_id is not null and (i.why is not null or i.after is not null or i.note is not null)
+  union all
+  select owner, choice_id, about, chosen, what, coalesce("where", data->>'at_store'), date, why, after, null
+    from public.rcpt_choices where why is not null or after is not null;
+comment on view public.rcpt_notes is
+  '💭 価値観の材料＝本人が書いた言葉（why＝🤔 なぜ・after＝✍ どうだった・note＝前の版のひとこと）。about: item＝物 / place＝場所、chosen=false＝選ばなかった。where＝物はどこで・選ばなかった場所は代わりに行った店。ref を rcpt_values.evidence に入れる。';
+
+-- 鍵の決まり（RLS）＝サインインしたあなたの行だけ
+do $$
+declare t text;
+begin
+  foreach t in array array['rcpt_snapshot', 'rcpt_receipts', 'rcpt_items', 'rcpt_choices', 'rcpt_values'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists rcpt_own on public.%I', t);
+    execute format('create policy rcpt_own on public.%I for all to authenticated using (owner = (select auth.uid())) with check (owner = (select auth.uid()))', t);
+    execute format('revoke all on public.%I from anon', t);
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
+  end loop;
+end $$;
+revoke all on public.rcpt_notes from anon;
+grant select on public.rcpt_notes to authenticated;
+create index if not exists rcpt_items_receipt_idx on public.rcpt_items (owner, receipt_id);
+create index if not exists rcpt_values_batch_idx on public.rcpt_values (owner) where sync_batch is null;
+`;
+const sbUrl  = () => (localStorage.getItem(SB.url) || '').trim().replace(/\/+$/, '');
+const sbAnon = () => (localStorage.getItem(SB.anon) || '').trim();
+const sbSess = () => { try { return JSON.parse(localStorage.getItem(SB.sess) || 'null'); } catch (_) { return null; } };
+const sbOn   = () => localStorage.getItem(SB.on) === '1' && !!sbSess();
+// ⚠ https だけ（自分で建てた Supabase も通す）。http は手元の試し（localhost）だけ
+const sbUrlOk = u => { try { const x = new URL(u); return x.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(x.hostname); } catch (_) { return false; } };
+let sbBusy = false, sbDirty = false, sbDraftRows = [], sbPulledAt = 0;
+// Supabase の断り文句を、次に何をすればよいかが分かる日本語にする
+function sbErr(status, j){
+  const code = String(j?.code || j?.error_code || '');
+  const msg = String(j?.message || j?.msg || j?.error_description || j?.error || ('HTTP ' + status));
+  const ja = code === '42P01' || code === 'PGRST205' || /does not exist|Could not find the table/i.test(msg)
+      ? '表がまだありません（① 準備の SQL を Supabase の SQL Editor で流してください）'
+    : /Invalid login credentials/i.test(msg) ? 'メールかパスワードが違います'
+    : /Email not confirmed/i.test(msg) ? 'メールの確認がまだです（届いたメールのリンクを押すか、Supabase の Authentication → Users で確認済みにしてください）'
+    : /Invalid API key|No API key/i.test(msg) ? 'anon key が違います（Settings → API の anon / publishable key）'
+    : /JWT expired|invalid JWT|bad_jwt/i.test(msg) || status === 401 ? 'サインインが切れました（もう一度 🔑 サインインしてください）'
+    : /row-level security/i.test(msg) ? '鍵の決まり（RLS）で断られました（① 準備の SQL を流し直してください）'
+    : /signups not allowed|Signups not allowed/i.test(msg) ? 'この Supabase は新しいユーザーを受け付けていません（② Authentication → Users → Add user で作ってください）'
+    : msg;
+  const e = new Error(ja); e.status = status; e.raw = msg; return e;
+}
+async function sbFetch(path, init){
+  if (!sbUrlOk(sbUrl())) throw new Error('Project URL を入れてください（https://xxxx.supabase.co）');
+  if (!sbAnon()) throw new Error('anon key を入れてください');
+  let res;
+  try { res = await fetch(sbUrl() + path, init); }
+  catch (_) { throw new Error('Supabase に届きませんでした（URL を確かめてください・圏外かもしれません）'); }
+  if (!res.ok) throw sbErr(res.status, await res.json().catch(() => ({})));
+  return res.status === 204 ? null : res.json().catch(() => null);
+}
+const sbAuth = (path, body) => sbFetch('/auth/v1/' + path,
+  { method: 'POST', headers: { apikey: sbAnon(), 'content-type': 'application/json' }, body: JSON.stringify(body) });
+function sbSaveSess(j){
+  if (!j?.access_token || !j?.refresh_token) throw new Error('サインインの印が返ってきませんでした');
+  const s = { access_token: j.access_token, refresh_token: j.refresh_token,
+              expires_at: j.expires_at ? j.expires_at * 1000 : Date.now() + (j.expires_in || 3600) * 1000,
+              uid: j.user?.id || sbSess()?.uid, email: j.user?.email || sbSess()?.email };
+  localStorage.setItem(SB.sess, JSON.stringify(s));
+  return s;
+}
+// 印が切れそうなら取り替える（⚠ 取り替えの印も新しくなる＝必ず保存し直す）
+async function sbToken(){
+  let s = sbSess(); if (!s) throw new Error('サインインしていません');
+  if (Date.now() > s.expires_at - 60000) {
+    try { s = sbSaveSess(await sbAuth('token?grant_type=refresh_token', { refresh_token: s.refresh_token })); }
+    catch (e) {
+      if (e.status === 400 || e.status === 401) { localStorage.removeItem(SB.sess); throw new Error('サインインが切れました（もう一度 🔑 サインインしてください）'); }
+      throw e;
+    }
+  }
+  return s;
+}
+async function sbRest(method, path, body, prefer){
+  const s = await sbToken();
+  return sbFetch('/rest/v1/' + path, { method,
+    headers: { apikey: sbAnon(), authorization: 'Bearer ' + s.access_token, 'content-type': 'application/json',
+               ...(prefer ? { prefer } : {}) },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+}
+// ⚠ 表の型に合わない値で1回まるごと断られないように、ここで形をそろえる（読み取りの日付は壊れていることがある）
+const sbDate = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(new Date(v + 'T00:00:00').getTime()) ? v : null;
+const sbInt  = v => typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : null;
+const sbTxt  = v => v == null || v === '' ? null : String(v);
+// 書き出し（📄 JSON と同じもの）から表の行を作る。⚠ どの行も同じ鍵をそろえる（PostgREST はまとめて送る行の鍵が違うと断る）
+function sbRows(o, own, batch){
+  const now = new Date().toISOString();
+  const tag = { sync_batch: batch, synced_at: now };
+  const receipts = (o.receipts || []).map(r => ({ owner: own, receipt_id: r.receipt_id,
+    date: sbDate(r.date), time: sbTxt(r.time), store: sbTxt(r.store), branch: sbTxt(r.branch), total: sbInt(r.total),
+    kind: sbTxt(r.kind), category: sbTxt(r.category), payment: sbTxt(r.payment),
+    why: sbTxt(r.why), after: sbTxt(r.after), note: sbTxt(r.note), note_id: sbTxt(r.note_id), data: r, ...tag }));
+  const items = (o.receipts || []).flatMap(r => (r.items || []).map((it, k) => ({ owner: own, receipt_id: r.receipt_id, line: k + 1,
+    name: sbTxt(it?.name), price: sbInt(it?.price), qty: sbInt(it?.qty),
+    why: sbTxt(it?.why), after: sbTxt(it?.after), note: sbTxt(it?.note), note_id: sbTxt(it?.note_id), ...tag })));
+  const choices = (o.choice_log?.choices || []).map(c => ({ owner: own, choice_id: c.choice_id, about: sbTxt(c.about),
+    chosen: !!c.chosen, what: sbTxt(c.what), date: sbDate(c.date), where: sbTxt(c.where), at_receipt_id: sbTxt(c.at_receipt_id),
+    why: sbTxt(c.why), after: sbTxt(c.after), data: c, ...tag }));
+  const values = (o.value_log?.values || []).map(v => ({ owner: own, value_id: v.value_id, body: v.body,
+    domain: sbTxt(v.domain), status: v.status, drafted_by: v.drafted_by || 'human', basis: sbTxt(v.basis),
+    evidence: v.evidence || [], supersedes: sbTxt(v.supersedes), confirmed_at: v.confirmed_at || null,
+    retired_at: v.retired_at || null, created_at: v.created_at || now, ...tag }));
+  return { receipts, items, choices, values };
+}
+const SB_TABLES = [['receipts', 'rcpt_receipts', 'owner,receipt_id'], ['items', 'rcpt_items', 'owner,receipt_id,line'],
+                   ['choices', 'rcpt_choices', 'owner,choice_id'], ['values', 'rcpt_values', 'owner,value_id']];
+/* 💭 AI が足した下書き（sync_batch が空）を読む。⚠ もうアプリに取り込んだ id は外す（次に書くまで印が空のまま残るため） */
+async function sbPullDrafts(){
+  const rows = await sbRest('GET', 'rcpt_values?select=value_id,body,domain,basis,evidence,supersedes,created_at&sync_batch=is.null&order=created_at.asc&limit=50');
+  const have = new Set((await vlAll()).map(v => v.id));
+  sbDraftRows = (Array.isArray(rows) ? rows : []).filter(r => r && r.value_id && !have.has(String(r.value_id)) && String(r.body || '').trim());
+  sbPulledAt = Date.now();
+  return sbDraftRows;
+}
+// 💭 を開いた時に、AI の下書きが来ていないかだけ見る（1分に1回まで・失敗しても黙る＝書く時に理由が出る）
+async function sbMaybePull(){
+  if (!sbOn() || sbBusy || Date.now() - sbPulledAt < 60000) return;
+  try { const before = sbDraftRows.length; await sbPullDrafts(); if (sbDraftRows.length !== before && topTab === 'values') renderValuesTab(); }
+  catch (_) {}
+}
+/* 書く。force＝⬆️ を押した時（空の端末の確認を済ませた後）。返り値 { ok, error } */
+async function sbSync(force){
+  if (!sbOn()) return { ok: false, error: 'オフです' };
+  if (sbBusy) { sbDirty = true; return { ok: false, error: '' }; }
+  sbBusy = true; sbDirty = false;
+  try {
+    const s = await sbToken();
+    await ensureNoteNids();   // r114 の鍵の無いひとことにも鍵を付けてから（rcpt_notes と 💭 の根拠に入るように）
+    await sbPullDrafts();
+    const rows = (await listRows()).filter(x => x.rc).sort((a, b) => a.date.localeCompare(b.date));
+    const o = JSON.parse(await exportPayload(rows, '', '', Object.assign({}, EXP_ALL, { mealDetail: autoMealDetailOn(), compact: true })));
+    const batch = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const T = sbRows(o, s.uid, batch);
+    /* ⚠ 空の端末（レシート・選択・価値観が1つも無い）で書くと、置き場の写しまで空になる。
+       置き場に何か入っているなら、押した時（force）以外は書かない＝新しい端末でサインインしただけで消さない */
+    if (!force && !T.receipts.length && !T.choices.length && !T.values.length) {
+      const prev = await sbRest('GET', 'rcpt_receipts?select=receipt_id&limit=1');
+      if (Array.isArray(prev) && prev.length) throw new Error('この端末には記録がまだ無いので、自動では書きません（Supabase の写しを空にしないため）。空にしてよい時は ⬆️ 今すぐ書く を押してください');
+    }
+    await sbRest('POST', 'rcpt_snapshot?on_conflict=owner',
+      [{ owner: s.uid, exported_at: new Date().toISOString(), payload: o, updated_at: new Date().toISOString() }],
+      'resolution=merge-duplicates,return=minimal');
+    for (const [k, table, key] of SB_TABLES)
+      for (let i = 0; i < T[k].length; i += 200)
+        await sbRest('POST', `${table}?on_conflict=${key}`, T[k].slice(i, i + 200), 'resolution=merge-duplicates,return=minimal');
+    /* アプリで消したもの＝今回の印が付かなかった行を消す。⚠ 印が空の行（AI の下書き）は neq にかからない（null は比べられない） */
+    for (const [, table] of SB_TABLES)
+      await sbRest('DELETE', `${table}?sync_batch=neq.${batch}`, undefined, 'return=minimal');
+    localStorage.setItem(SB.at, String(Date.now())); localStorage.removeItem(SB.err);
+    localStorage.setItem(SB.n, JSON.stringify({ receipts: T.receipts.length, items: T.items.length, choices: T.choices.length, values: T.values.length }));
+    return { ok: true };
+  } catch (e) {
+    const m = String((e && e.message) || e).slice(0, 200);
+    localStorage.setItem(SB.err, m);
+    return { ok: false, error: m };
+  } finally {
+    sbBusy = false; sbRender();
+    if (topTab === 'values') renderValuesTab();
+    if (sbDirty && sbOn()) setTimeout(() => sbSync(), 4000);   // 書いている間に変わったぶん
+  }
+}
+// 💭 AI の下書きを候補画面へ（r115 の取り込み1本を通す）
+async function sbOpenDrafts(){
+  try { await sbPullDrafts(); } catch (e) { toast('❌ ' + e.message); return; }
+  if (!sbDraftRows.length) { toast('🗄 Supabase に新しい下書きはありません'); if (topTab === 'values') renderValuesTab(); return; }
+  await openValAi();
+  await vaTakeArr(sbDraftRows.map(r => ({ ...r, _sbId: String(r.value_id) })), 'supabase', null);
+}
+// AI の下書きのうち「残さない」にしたものを Supabase から消す（⚠ 印が空の行だけ＝アプリが書いた行は消さない）
+async function sbDropDrafts(ids){
+  if (!ids.length || !sbOn()) return;
+  const list = ids.map(id => '"' + String(id).replace(/"/g, '') + '"').join(',');
+  await sbRest('DELETE', `rcpt_values?value_id=in.(${encodeURIComponent(list)})&sync_batch=is.null`, undefined, 'return=minimal');
+  sbDraftRows = sbDraftRows.filter(r => !ids.includes(String(r.value_id)));
+}
+
+/* ---------- 画面（📤 の 🗄 の節） ---------- */
+function sbRender(){
+  const body = document.getElementById('sbBody'); if (!body) return;
+  const want = localStorage.getItem(SB.on) === '1', s = sbSess();
+  document.getElementById('sbChk').checked = want;
+  body.hidden = !want;
+  const sql = document.getElementById('sbSql'); if (!sql.value) sql.value = SB_SETUP_SQL;
+  const u = document.getElementById('sbUrl'), a = document.getElementById('sbAnon'), em = document.getElementById('sbEmail');
+  if (document.activeElement !== u) u.value = localStorage.getItem(SB.url) || '';
+  if (document.activeElement !== a) a.value = localStorage.getItem(SB.anon) || '';
+  if (document.activeElement !== em && !em.value) em.value = s?.email || '';
+  document.getElementById('sbSignOut').hidden = !s;
+  document.getElementById('sbSignIn').textContent = s ? '🔑 サインインし直す' : '🔑 サインイン';
+  document.getElementById('sbNow').disabled = !s;
+  const at = +(localStorage.getItem(SB.at) || 0), err = localStorage.getItem(SB.err) || '';
+  let n = null; try { n = JSON.parse(localStorage.getItem(SB.n) || 'null'); } catch (_) {}
+  const when = at ? new Date(at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  document.getElementById('sbState').innerHTML =
+    (s ? `✅ サインイン中: <b>${hesc(s.email || '')}</b>` : '⚠ <b>まだサインインしていません</b>（③）')
+    + (sbBusy ? '<br>⏳ 書いています…' : '')
+    + (when ? `<br>✅ 最後に書けたのは <b>${hesc(when)}</b>${n ? `（レシート ${n.receipts}・明細 ${n.items}・選択 ${n.choices}・価値観 ${n.values}）` : ''}` : '')
+    + (sbDraftRows.length ? `<br>💭 AI が書いた下書きが <b>${sbDraftRows.length}件</b> 届いています（💭 タブで取り込めます）` : '')
+    + (err ? `<br><span style="color:var(--err)">⚠ ${hesc(err)}</span>` : '');
+}
+document.getElementById('sbChk').onchange = async e => {
+  localStorage.setItem(SB.on, e.target.checked ? '1' : '0');
+  sbRender();
+  if (e.target.checked && sbSess()) { const r = await sbSync(); if (r.ok) toast('🗄 Supabase に書きました'); else if (r.error) toast('❌ ' + r.error); }
+};
+// URL と key は打ったら覚える（⚠ 前後の空白・末尾の / は外す）。変えたらサインインの印は捨てる（別の置き場の印を持ち越さない）
+['sbUrl', 'sbAnon'].forEach(id => document.getElementById(id).addEventListener('change', e => {
+  const k = id === 'sbUrl' ? SB.url : SB.anon;
+  let v = e.target.value.trim(); if (id === 'sbUrl') v = v.replace(/\/+$/, '');
+  if ((localStorage.getItem(k) || '') !== v) { localStorage.setItem(k, v); localStorage.removeItem(SB.sess); localStorage.removeItem(SB.at); localStorage.removeItem(SB.n); }
+  sbRender();
+}));
+function sbReadForm(){
+  ['sbUrl', 'sbAnon'].forEach(id => document.getElementById(id).dispatchEvent(new Event('change')));
+  return { email: document.getElementById('sbEmail').value.trim(), password: document.getElementById('sbPass').value };
+}
+document.getElementById('sbSignIn').onclick = async () => {
+  const { email, password } = sbReadForm();
+  if (!email || !password) { toast('メールとパスワードを入れてください'); return; }
+  try {
+    const s = sbSaveSess(await sbAuth('token?grant_type=password', { email, password }));
+    document.getElementById('sbPass').value = '';   // ⚠ パスワードは画面にも残さない
+    localStorage.removeItem(SB.err);
+    toast(`🔑 ${s.email || email} でサインインしました`);
+    sbRender();
+    const r = await sbSync();
+    if (r.ok) toast('🗄 Supabase に書きました'); else if (r.error) toast('❌ ' + r.error);
+  } catch (e) { localStorage.setItem(SB.err, e.message); sbRender(); toast('❌ ' + e.message); }
+};
+document.getElementById('sbSignUp').onclick = async () => {
+  const { email, password } = sbReadForm();
+  if (!email || password.length < 6) { toast('メールと、6文字以上のパスワードを入れてください'); return; }
+  try {
+    const j = await sbAuth('signup', { email, password });
+    if (j?.access_token) {
+      sbSaveSess(j); document.getElementById('sbPass').value = '';
+      toast('🆕 ユーザーを作ってサインインしました'); sbRender(); await sbSync();
+    } else toast('🆕 ユーザーを作りました。届いたメールのリンクを押してから 🔑 サインインしてください');
+  } catch (e) { localStorage.setItem(SB.err, e.message); sbRender(); toast('❌ ' + e.message); }
+};
+document.getElementById('sbSignOut').onclick = () => {
+  if (!confirm('この端末で Supabase からサインアウトしますか？\n（Supabase の表はそのまま残ります。自動で書くのも止まります）')) return;
+  localStorage.removeItem(SB.sess); localStorage.removeItem(SB.err); sbDraftRows = [];
+  sbRender(); toast('サインアウトしました');
+};
+document.getElementById('sbNow').onclick = async () => {
+  const rows = (await listRows()).filter(x => x.rc).length, ch = (await chAll()).length, vl = (await vlAll()).length;
+  if (!rows && !ch && !vl && !confirm('この端末には記録がまだありません。\n書くと、Supabase の表（写し）も空になります。よろしいですか？')) return;
+  const b = document.getElementById('sbNow'); b.disabled = true; b.textContent = '⏳ 書いています…';
+  const r = await sbSync(true);
+  b.disabled = false; b.textContent = '⬆️ 今すぐ書く';
+  if (r.ok) toast('🗄 Supabase に書きました'); else if (r.error) toast('❌ ' + r.error);
+};
+document.getElementById('sbCopySql').onclick = async () => {
+  try { await navigator.clipboard.writeText(SB_SETUP_SQL); toast('📋 準備の SQL をコピーしました（Supabase の SQL Editor に貼って Run）'); }
+  catch (e) { toast('コピーできませんでした: ' + (e.message || e)); }
+};
+
 /* r62: 期間ボタン（📈 の anPeriodSeg と同じ作法）。「期間を選ぶ」にした時は直前の期間を初期値に入れる
    ＝空の日付欄から打たせない */
 function renderExport(){
@@ -8947,6 +9357,7 @@ function renderExport(){
   document.getElementById('expRangeRow').style.display = expMode === 'range' ? 'flex' : 'none';
   renderExpPreset();
   autoRender();       // r105: 置き場・最後に書けた時刻・失敗の理由をここで描き直す
+  sbRender();         // 🗄 r116
   return refreshExpCount();
 }
 document.querySelectorAll('#expPeriodSeg button').forEach(b => b.onclick = () => {
@@ -11614,7 +12025,10 @@ async function renderValueList(){
   const mat = src.length
     ? `📝 材料＝あなたが書いた言葉 <b>${src.length}件</b>（📍 店 ${nKind('store')}・🛒 品目 ${nKind('item')}・🔀 手で足した ${nKind('choice')}）`
     : '📝 材料（あなたが書いた 🤔 なぜ／✍ どうだった）は<b>まだありません</b>。🧾 レシートの詳細の「💭 この店を選んだこと」・明細の行・上の 🔀 で書くとたまります。';
-  el.innerHTML = (vals.length ? '' : `<div class="note" style="margin-top:0">💭 <b>何を大事にして選んでいるか</b>を残す場所です。材料は<b>あなたが書いた言葉だけ</b>（レシートの品名や金額からは作りません）。AI は<b>下書き</b>を出すだけで、<b>確定するのはあなた</b>です。確定した文は書き換えず、考えが変わったら「言い直す」で新しい版を足します。</div>`)
+  sbMaybePull();   // 🗄 r116: AI が Supabase に下書きを足していないか（1分に1回まで・待たない）
+  const sbBanner = sbOn() && sbDraftRows.length
+    ? `<div class="vRow" id="vlSbDrafts" style="border-color:var(--warn)"><div class="ic">🗄</div><div class="mid"><div class="nm">Supabase に AI が書いた下書きが ${sbDraftRows.length}件</div><div class="sub">押すと候補として開きます（確定するか・残さないかはあなたが選びます）</div></div></div>` : '';
+  el.innerHTML = sbBanner + (vals.length ? '' : `<div class="note" style="margin-top:0">💭 <b>何を大事にして選んでいるか</b>を残す場所です。材料は<b>あなたが書いた言葉だけ</b>（レシートの品名や金額からは作りません）。AI は<b>下書き</b>を出すだけで、<b>確定するのはあなた</b>です。確定した文は書き換えず、考えが変わったら「言い直す」で新しい版を足します。</div>`)
     + `<div class="note" style="margin-top:6px">${mat}</div>`
     + `<div class="dual" style="margin-top:10px"><button class="btn pri sm" id="btnValAi"${src.length ? '' : ' disabled'}>🤖 AI に下書きを頼む</button>`
     + `<button class="btn sm" id="btnValNew">✍️ 自分で書く</button></div>`
@@ -11660,6 +12074,7 @@ async function openSource(ref){
 }
 document.getElementById('vlValuesPane').onclick = async e => {
   if (e.target.closest('#btnValAi')) return openValAi();
+  if (e.target.closest('#vlSbDrafts')) return sbOpenDrafts();   // 🗄 r116
   if (e.target.closest('#btnValNew')) return openValEd(null);
   const go = e.target.closest('[data-evgo]'); if (go) return openSource(go.dataset.evgo);
   const b = e.target.closest('[data-vact]'); if (!b) return;
@@ -11913,6 +12328,7 @@ async function renderValAi(){
   document.getElementById('vaKeyPane').hidden = vaRoute !== 'key';
   let drive = '';
   try { drive = autoOn() ? `💡 🔄 自動書き出しを使っているので、AI アプリで「<b>${esc(AUTO_FILE)} を読んで、_readme の『💭 価値観の下書きの作り方』で下書きを作って</b>」と頼むだけでも同じ形の返事が来ます（①がいりません）。返事は②に貼ってください。` : ''; } catch (_) {}
+  try { if (sbOn()) drive += (drive ? '<br>' : '') + '💡 🗄 Supabase に書き出しているので、Claude の <b>Supabase コネクタ</b>で「<b>rcpt_notes を読んで、rcpt_values に価値観の下書きを足して（表の説明の決まりで）</b>」と頼むこともできます＝貼らなくても、次に 💭 を開いた時に取り込めます。'; } catch (_) {}
   document.getElementById('vaDriveNote').innerHTML = drive;
   const ctx = ctxFor('an'), pr = priceOf(ctx.prov, ctx.model);
   const inTok = estTokens((VAL_SYSTEM + text).length), maxTok = 8000;
@@ -11983,6 +12399,11 @@ async function vaTake(text, via, model){
   const box = document.getElementById('vaErr');
   let arr;
   try { arr = vaParse(text); } catch (err) { box.hidden = false; box.textContent = '❌ ' + err.message; return; }
+  return vaTakeArr(arr, via, model);
+}
+/* 🗄 r116: Supabase に AI が書いた下書きも同じ道（_sbId＝Supabase の value_id。残すならその id のまま・残さないなら Supabase から消す） */
+async function vaTakeArr(arr, via, model){
+  const box = document.getElementById('vaErr');
   const [src, vals] = [await valSources(), await vlAll()];
   const refs = new Set(src.map(x => x.ref)), ids = new Map(vals.map(v => [v.id, v]));
   const bodies = new Set(vals.filter(v => v.status !== 'retired').map(v => normBody(v.body)));
@@ -12000,7 +12421,7 @@ async function vaTake(text, via, model){
     if (raw?.supersedes != null && !sup) warn.push('言い直しの元（前の版）が見つからないので、新しい1件として扱います');
     return { body, orig: body, domain: VAL_DOM[raw?.domain] ? raw.domain : 'shopping',
              basis: raw?.basis ? String(raw.basis).trim().slice(0, 600) : null, evidence: ev, supersedes: sup,
-             warn, pick: !ev.length || dup ? 'skip' : 'draft' };
+             warn, pick: !ev.length || dup ? 'skip' : 'draft', ...(raw?._sbId ? { sbId: raw._sbId } : {}) };
   }).filter(c => c.body);
   vaVia = via; vaModel = model;
   box.hidden = !!vaCands.length;
@@ -12023,9 +12444,10 @@ async function renderVaCands(){
       + c.warn.map(w => `<div class="warn">⚠ ${esc(w)}</div>`).join('')
       + `<div class="seg" style="margin-top:8px">${[['draft', '📝 下書きで残す'], ['confirmed', '✅ 確定する'], ['skip', '残さない']].map(([k, l]) =>
           `<button type="button" data-vcpick="${k}"${k === c.pick ? ' class="on"' : ''}>${l}</button>`).join('')}</div></div>`).join('');
-  const n = vaCands.filter(c => c.pick !== 'skip').length;
-  save.hidden = false; save.disabled = !n;
-  save.textContent = n ? `💾 選んだとおりに保存（${n}件）` : '💾 残すものが選ばれていません';
+  const n = vaCands.filter(c => c.pick !== 'skip').length, drop = vaCands.filter(c => c.pick === 'skip' && c.sbId).length;
+  save.hidden = false; save.disabled = !n && !drop;
+  // 🗄 r116: Supabase から来た候補は「残さない」も1つの答え（Supabase から消す＝次に開いた時にまた出さない）
+  save.textContent = n || drop ? `💾 選んだとおりに保存（残す ${n}件${drop ? `・Supabase から消す ${drop}件` : ''}）` : '💾 残すものが選ばれていません';
 }
 document.getElementById('vaCands').addEventListener('input', e => {
   const ta = e.target.closest('[data-vcbody]'); if (!ta) return;
@@ -12040,19 +12462,27 @@ document.getElementById('vaCands').onclick = e => {
 };
 document.getElementById('vaSave').onclick = async () => {
   const pick = vaCands.filter(c => c.pick !== 'skip' && c.body.trim());
-  if (!pick.length) return;
+  const drop = vaCands.filter(c => c.pick === 'skip' && c.sbId).map(c => c.sbId);
+  if (!pick.length && !drop.length) return;
   const nConf = pick.filter(c => c.pick === 'confirmed').length;
   if (nConf && !confirm(`${nConf}件を「確定」として保存します。\n\n確定した文はあとから書き換えません（考えが変わったら「言い直す」）。よろしいですか？`)) return;
-  const now = Date.now();
+  const now = Date.now(), have = new Set((await vlAll()).map(v => v.id)), clash = [];
   for (const c of pick) {
     const body = c.body.trim().slice(0, 300);
-    const v = { id: newId('v'), body, domain: c.domain, status: 'draft', draftedBy: body === c.orig ? 'ai' : 'human',
+    // 🗄 r116: Supabase の下書きは同じ id で持つ（次に書く時に同じ行が「アプリの行」になる）。⚠ 万一ぶつかったら新しい id にして元の行は消す
+    const id = c.sbId && !have.has(c.sbId) ? c.sbId : newId('v');
+    if (c.sbId && id !== c.sbId) clash.push(c.sbId);
+    const v = { id, body, domain: c.domain, status: 'draft', draftedBy: body === c.orig ? 'ai' : 'human',
                 basis: c.basis, evidence: c.evidence, supersedes: c.supersedes, via: vaVia,
                 ...(vaModel ? { model: vaModel } : {}), createdAt: now, updatedAt: now };
     if (c.pick === 'confirmed') await confirmValue(v); else await vlPut(v);
   }
+  if (drop.length || clash.length) {
+    try { await sbDropDrafts(drop.concat(clash)); }
+    catch (e) { toast('⚠ Supabase の下書きを消せませんでした（次に開いた時にまた出ます）: ' + e.message); }
+  }
   hide('ovValAi');
-  toast(`💭 ${pick.length}件を残しました（確定 ${nConf}・下書き ${pick.length - nConf}）`);
+  toast(`💭 ${pick.length}件を残しました（確定 ${nConf}・下書き ${pick.length - nConf}）${drop.length ? `・Supabase の下書き ${drop.length}件を消しました` : ''}`);
   vlTab = 'values'; localStorage.setItem(VL_TAB, vlTab);
   if (topTab !== 'values') await setTopTab('values'); else await renderValuesTab();
 };
