@@ -41,10 +41,11 @@
 
   <!-- ============ 日本語 ============ -->
   <section id="ja">
-    <p class="updated">最終更新日: 2026年8月23日</p>
+    <p class="updated">最終更新日: 2026年10月15日</p>
 
     <p class="lead"><strong>ひとことで。</strong> 本アプリは<strong>サーバーを持ちません</strong>。レシート・料理・健康診断・薬・からだの数字（血圧・体重など）・からだの写真の記録は<strong>あなたの端末の中だけ</strong>に保存され、私たち（開発者）がそれを受け取ることも、見ることも、保存することもできません。<br>
-    ただし1つだけ例外があります。<strong>写真を AI に読ませるとき、その写真は端末から外へ出ます</strong>——あなたが登録した<strong>あなた自身の APIキー</strong>で、<strong>あなたが選んだ AI 事業者</strong>へ、端末から直接送られます。この点は下の「3. AI に読ませるとき（いちばん大事な項目）」に詳しく書きます。</p>
+    ただし1つだけ例外があります。<strong>写真を AI に読ませるとき、その写真は端末から外へ出ます</strong>——あなたが登録した<strong>あなた自身の APIキー</strong>で、<strong>あなたが選んだ AI 事業者</strong>へ、端末から直接送られます。この点は下の「3. AI に読ませるとき（いちばん大事な項目）」に詳しく書きます。<br>
+    <strong>私たちはあなたのデータを売りません。</strong>そもそも受け取らないので、売ることも、広告に使うことも、誰かに渡すこともできません。</p>
 
     <h2>1. 本アプリが扱う情報</h2>
     <ul>
@@ -53,6 +54,7 @@
       <li><strong>あなたが記録したからだの数字</strong>: 血圧・脈、体重、体組成計の数値（体脂肪率・骨格筋率・基礎代謝・BMI・内臓脂肪レベル）。手で入力するほか、表示を撮った写真から読み取ることもできます。</li>
       <li><strong>あなたが決めた繰り返しの設定・よく使う献立</strong>（🔁 繰り返しの決まり・⭐ いつものメニュー）、<strong>予算</strong>の設定。</li>
       <li><strong>あなたが手で入力したもの</strong>: メモ、修正した項目、分類（カテゴリ）、AI への依頼文など。</li>
+      <li><strong>選んだ理由と価値観</strong>: 店や品目への「🤔 なぜ・✍ どうだった」の言葉、<strong>❓ ついでの1問</strong>で押した「選んだ理由の印」（決まった選択肢）、買わなかった物・行かなかった場所の記録、💭 価値観。</li>
       <li><strong>写真の撮影時刻</strong>（EXIF）。⚠ <strong>写真に埋め込まれた位置情報（GPS）は読み取りません。</strong></li>
       <li><strong>APIキー</strong>: あなたが ⚙ 設定で登録した、AI 事業者のキー。</li>
     </ul>
@@ -60,7 +62,8 @@
     <h2>2. 情報の保存場所</h2>
     <ul>
       <li>すべて<strong>あなたの端末内</strong>に保存されます（アプリ版は端末内のアプリ領域、ブラウザ版は IndexedDB と localStorage）。</li>
-      <li><strong>私たちのサーバーは存在しません。</strong>バックエンドもアカウントもクラウド同期もありません。ログインは不要です。</li>
+      <li><strong>私たちのサーバーは存在しません。</strong>私たちが運営するバックエンド・アカウント・クラウド同期はありません。ログインは不要です。⚠ ただし、あなたが自分で選んだ置き場（Google ドライブなどのファイル、あなた自身の Supabase）へ写しを書き出す機能はあります（既定はオフ・「5. 書き出し・共有」）。そこへのサインインは<strong>あなたの置き場</strong>のためのもので、私たちのアカウントではありません。</li>
+      <li><strong>❓ ついでの1問</strong>は、端末の中の決まり（はじめて買った物・前より高かった物・はじめての店）で聞く物を選びます。<strong>AI には送らず、通知も出しません</strong>。⚙ 設定と、聞く画面の 🔕 で止められます。</li>
       <li>APIキーも<strong>端末内にのみ</strong>保存されます。私たちが受け取ることはありません。</li>
     </ul>
 
@@ -92,8 +95,8 @@
     </ul>
 
     <h2>5. 書き出し・共有</h2>
-    <p>📤 書き出しでファイル（JSON / CSV / テキスト）を作ると、<strong>あなたが選んだ相手</strong>（保存先のアプリ、クラウド、AI アプリなど）へ渡されます。渡した先での扱いは、その相手のサービスの方針によります。本アプリはファイルを預かるサーバーやリンクの発行を<strong>行いません</strong>。</p>
-    <p>📤 の「🗄 自分の Supabase へ自動で書く」を入れた場合（既定はオフ）は、<strong>あなたが用意した Supabase のプロジェクト</strong>へ、端末から直接、記録の写し（写真を除く）が送られます。<strong>私たちの元へは送られません</strong>。表は「サインインしたあなたの行だけが読み書きできる」決まり（RLS）で作られます。端末に保存するのは Supabase の URL・anon key・サインインの印だけで、<strong>パスワードは保存しません</strong>。Supabase での扱いは Supabase（<a href="https://supabase.com/privacy">プライバシーポリシー</a>）と、あなたのプロジェクトの設定によります。</p>
+    <p>📤 書き出しでファイル（JSON / CSV / テキスト）を作ると、<strong>あなたが選んだ相手</strong>（保存先のアプリ、クラウド、AI アプリなど）へ渡されます。渡した先での扱いは、その相手のサービスの方針によります。本アプリはファイルを預かるサーバーやリンクの発行を<strong>行いません</strong>。📤 の「🔄 自動で書き出す」を入れた場合（既定はオフ）は、記録が増えるたびに、<strong>あなたが選んだファイル</strong>（Google ドライブのフォルダなど）を上書きします。</p>
+    <p>📤 の「🗄 自分の Supabase へ自動で書く」を入れた場合（既定はオフ）は、<strong>あなたが用意した Supabase のプロジェクト</strong>へ、端末から直接、記録の写し（写真を除く）が送られます。⚠ 写しは 📄 JSON と同じ全部入りで、<strong>健康診断・薬・血圧・体重などの健康の記録も含まれます</strong>（写真は含みません）。<strong>私たちの元へは送られません</strong>。表は「サインインしたあなたの行だけが読み書きできる」決まり（RLS）で作られます。端末に保存するのは Supabase の URL・anon key・サインインの印だけで、<strong>パスワードは保存しません</strong>。Supabase での扱いは Supabase（<a href="https://supabase.com/privacy">プライバシーポリシー</a>）と、あなたのプロジェクトの設定によります。</p>
 
     <h2>6. 権限について</h2>
     <ul>
@@ -109,6 +112,7 @@
       <li>1件ずつの削除も、それぞれの詳細画面からできます。</li>
       <li><strong>アプリを削除</strong>すると、端末内のすべてのデータ（写真・読み取り結果・APIキー）が消去されます。</li>
       <li>⚠ すでに AI 事業者へ送られたデータの削除は、<strong>その事業者へ</strong>お問い合わせください（私たちは保持していないため、削除できません）。</li>
+      <li><strong>書き出した写しについて</strong>: 「🔄 自動で書き出す」「🗄 自分の Supabase へ自動で書く」を入れている間は、アプリで消すと、<strong>次に自動で書く時に写しからも消えます</strong>（どちらも毎回まるごと書き直します）。⚠ ただし、端末の記録を全部消した時だけは、Supabase の写しを空にしないよう自動では書きません（📤 の 🗄 で「⬆️ 今すぐ書く」を押すと空にできます）。自動をやめたあとに残っている写し・手で書き出したファイル・AI アプリに渡した文は、アプリからは消せません＝それぞれの置き場（Google ドライブ／あなたの Supabase のプロジェクト＝<code>rcpt_</code> で始まる表、またはプロジェクトごと／AI アプリ）で消してください。</li>
     </ul>
 
     <h2>8. お子様のプライバシー</h2>
@@ -134,16 +138,19 @@
 
   <!-- ============ English ============ -->
   <section id="en" hidden>
-    <p class="updated">Last updated: August 18, 2026</p>
+    <p class="updated">Last updated: October 15, 2026</p>
 
-    <p class="lead"><strong>In one line.</strong> This app has <strong>no server</strong>. Your receipts, meals, health check-ups, and medication records are stored <strong>only on your device</strong>; we (the developer) never receive, view, or store them.<br>
-    There is exactly one exception: <strong>when you have a photo read by AI, that photo leaves your device</strong> — sent directly from your device to <strong>the AI provider you chose</strong>, using <strong>your own API key</strong>. See section 3 below.</p>
+    <p class="lead"><strong>In one line.</strong> This app has <strong>no server</strong>. Your receipts, meals, health check-ups, medications, body measurements (blood pressure, weight, etc.) and body photos are stored <strong>only on your device</strong>; we (the developer) never receive, view, or store them.<br>
+    There is exactly one exception: <strong>when you have a photo read by AI, that photo leaves your device</strong> — sent directly from your device to <strong>the AI provider you chose</strong>, using <strong>your own API key</strong>. See section 3 below.<br>
+    <strong>We do not sell your data.</strong> We never receive it in the first place, so we cannot sell it, use it for advertising, or hand it to anyone.</p>
 
     <h2>1. Information the app handles</h2>
     <ul>
       <li><strong>Photos you take or select</strong>: receipts, meals, health check-up results, medication leaflets or medication notebooks.</li>
       <li><strong>Content read from those photos</strong>: store name, date, amount, line items, payment method, printed address and registration number, meal contents, test items and values, medication names and dosage.</li>
       <li><strong>What you type</strong>: notes, manual corrections, categories, and the requests you write for the AI.</li>
+      <li><strong>Body measurements you record</strong>: blood pressure and pulse, weight and body-composition values, typed in or read from a photo of the display; and <strong>body photos</strong> taken to compare over time.</li>
+      <li><strong>Why you chose, and your values</strong>: the “🤔 why / ✍ how it went” notes on stores and items, the “reason” tags you tap in <strong>❓ One quick question</strong> (a fixed set of choices), records of things you did not buy or places you did not go, and your 💭 values.</li>
       <li><strong>Photo capture time</strong> (EXIF). ⚠ <strong>We do not read GPS location embedded in photos.</strong></li>
       <li><strong>Your API key</strong>, which you enter in ⚙ Settings.</li>
     </ul>
@@ -151,14 +158,15 @@
     <h2>2. Where information is stored</h2>
     <ul>
       <li>Everything is stored <strong>on your device</strong> (app storage in the app version; IndexedDB and localStorage in the browser version).</li>
-      <li><strong>We operate no servers.</strong> There is no backend, no account, and no cloud sync. No sign-in is required.</li>
+      <li><strong>We operate no servers.</strong> We run no backend, no account system and no cloud sync. No sign-in is required. ⚠ The app can, however, write a copy to a place <strong>you</strong> choose (a file in Google Drive etc., or your own Supabase project) — off by default, see section 5. Any sign-in there is for <strong>your own storage</strong>, not an account with us.</li>
+      <li><strong>❓ One quick question</strong> picks what to ask using fixed rules on your device (first-time items, items that cost more than last time, first-time stores). <strong>Nothing is sent to an AI and no notifications are shown.</strong> You can turn it off in ⚙ Settings or with 🔕 on the question itself.</li>
       <li>Your API key is also stored <strong>only on your device</strong>. We never receive it.</li>
     </ul>
 
     <h2>3. When AI reads your photos (the most important section)</h2>
     <p>This app uses <strong>BYOK (Bring Your Own Key)</strong>. You hold your own account with an AI provider and enter that key in ⚙ Settings. When you have a photo read, it is sent <strong>directly from your device to that provider’s API</strong>.</p>
     <ul>
-      <li><strong>What is sent</strong>: the photo being read (downscaled), the request text for that run, and any hints you added. If you use 📈 Quick analysis, the records for the period you selected (store names, amounts, items, meals, check-ups, medications) are also sent. If you draft 💭 values “with this app’s AI”, the “why / how it went” notes you wrote (with their store names, item names and dates) and your current values are sent (amounts and photos are not).</li>
+      <li><strong>What is sent</strong>: the photo being read (downscaled), the request text for that run, and any hints you added. If you use 📈 Quick analysis, the records for the period you selected (store names, amounts, items, meals, check-ups, medications, body measurements) are also sent. If you draft 💭 values “with this app’s AI”, the “why / how it went” notes you wrote (with their store names, item names and dates) and your current values are sent (amounts and photos are not).</li>
       <li><strong>Where it is sent</strong>: the provider you selected in ⚙ (Anthropic, OpenAI, OpenRouter, or an OpenAI-compatible endpoint you configure). <strong>It is never sent to us</strong> — we have nowhere to receive it.</li>
       <li><strong>How it is handled there</strong>: <strong>that provider’s privacy policy and terms apply</strong>. Some providers retain data for a period, e.g. for abuse monitoring. Please review their policies yourself.
         <ul>
@@ -183,8 +191,8 @@
     </ul>
 
     <h2>5. Export and sharing</h2>
-    <p>When you create a file with 📤 Export (JSON / CSV / text), it goes <strong>to whatever destination you choose</strong> (a storage app, a cloud service, an AI app). Its handling there is governed by that service. This app <strong>does not</strong> host files or issue links.</p>
-    <p>If you turn on “🗄 Write to your own Supabase” in 📤 (off by default), a copy of your records (excluding photos) is sent directly from your device to <strong>the Supabase project you set up</strong>. <strong>Nothing is sent to us.</strong> The tables are created with rules (RLS) so that only you, signed in, can read or write your rows. The device stores only the Supabase URL, the anon key and a sign-in token — <strong>never your password</strong>. Handling on Supabase is governed by Supabase (<a href="https://supabase.com/privacy">privacy policy</a>) and your project’s settings.</p>
+    <p>When you create a file with 📤 Export (JSON / CSV / text), it goes <strong>to whatever destination you choose</strong> (a storage app, a cloud service, an AI app). Its handling there is governed by that service. This app <strong>does not</strong> host files or issue links. If you turn on “🔄 Export automatically” in 📤 (off by default), the app overwrites <strong>the file you chose</strong> (e.g. in a Google Drive folder) whenever your records change.</p>
+    <p>If you turn on “🗄 Write to your own Supabase” in 📤 (off by default), a copy of your records (excluding photos) is sent directly from your device to <strong>the Supabase project you set up</strong>. ⚠ The copy contains the same full set as the 📄 JSON export, <strong>including health records such as check-ups, medications, blood pressure and weight</strong> (photos are not included). <strong>Nothing is sent to us.</strong> The tables are created with rules (RLS) so that only you, signed in, can read or write your rows. The device stores only the Supabase URL, the anon key and a sign-in token — <strong>never your password</strong>. Handling on Supabase is governed by Supabase (<a href="https://supabase.com/privacy">privacy policy</a>) and your project’s settings.</p>
 
     <h2>6. Permissions</h2>
     <ul>
@@ -196,10 +204,11 @@
 
     <h2>7. Deleting your data</h2>
     <ul>
-      <li><strong>You can delete in bulk inside the app</strong>: “🧹 Delete in bulk” at the bottom of ⚙ Settings lets you choose a <strong>period</strong> (this month, last month, all time…) and the <strong>kinds</strong> of data (receipts / meals / health check-ups / medications / analysis history / store locations / chosen-or-not records / values). Selecting everything deletes all data.</li>
+      <li><strong>You can delete in bulk inside the app</strong>: “🧹 Delete in bulk” at the bottom of ⚙ Settings lets you choose a <strong>period</strong> (this month, last month, all time…) and the <strong>kinds</strong> of data (receipts / meals / health check-ups / medications / body measurements / body photos / analysis history / store locations / repeat rules / usual menus / chosen-or-not records / values). Selecting everything deletes all data.</li>
       <li>Individual records can also be deleted from their detail screens.</li>
       <li><strong>Deleting the app</strong> erases all data on the device (photos, extracted results, API key).</li>
       <li>⚠ For data already sent to an AI provider, please contact <strong>that provider</strong> (we do not hold it and therefore cannot delete it).</li>
+      <li><strong>About exported copies</strong>: while “🔄 Export automatically” or “🗄 Write to your own Supabase” is on, anything you delete in the app <strong>is also removed from the copy the next time it is written</strong> (both are rewritten in full each time). ⚠ The one exception: if you delete everything on the device, the app does not empty your Supabase copy automatically (press “⬆️ Write now” under 🗄 in 📤 to empty it). Copies left after you turn these off, files you exported by hand, and text you gave to an AI app cannot be deleted from inside the app — delete them where they are (Google Drive / your Supabase project: the tables starting with <code>rcpt_</code>, or the whole project / the AI app).</li>
     </ul>
 
     <h2>8. Children’s privacy</h2>

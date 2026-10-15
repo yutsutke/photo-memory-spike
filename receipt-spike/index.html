@@ -298,6 +298,27 @@ table.items tr.itMemoRow td{padding:6px 0 10px; text-align:left;}   /* ⚠ 1列�
 .nfBtn{background:none; border:1px dashed var(--line); color:var(--acc); border-radius:20px; padding:8px 14px; font-size:14px; min-height:44px;}
 .chAdd{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
 .chAdd button{background:none; border:1px solid var(--line); color:var(--fg); border-radius:10px; padding:8px 12px; font-size:13.5px; min-height:44px;}
+/* ❓ r117: 選んだ理由の印（チップ）＝ついでの1問と、詳細の 🤔 の両方で使う。⚠ 指で押せる高さ（40px）は削らない */
+.wtags{display:flex; flex-wrap:wrap; gap:8px;}
+.wtags button{background:none; border:1px solid var(--line); color:var(--fg); border-radius:999px; padding:8px 14px; font-size:14px; min-height:40px;}
+.wtags button.on{background:var(--acc); color:#04121f; font-weight:700; border-color:var(--acc);}
+.nf .wtags{display:none; margin:2px 0 8px;}
+.nf.open .wtags{display:flex;}
+/* ❓ r117: ついでの1問（ovAsk） */
+.akWhat{display:flex; gap:10px; align-items:flex-start; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px;}
+.akWhat .ic{font-size:22px; line-height:1.3;}
+.akWhat .mid{flex:1; min-width:0;}
+.akWhat .nm{font-weight:700; font-size:15px; word-break:break-word;}
+.akWhat .sub{font-size:12.5px; color:var(--dim); margin-top:2px;}
+.akWhat .why{font-size:12.5px; color:var(--acc); margin-top:4px;}
+.akQ{font-size:15px; font-weight:700; margin:14px 0 8px;}
+.akQ small{display:block; font-weight:400; font-size:12px; color:var(--dim); margin-top:2px;}
+#akNf{margin-top:10px;}
+#akNf.open textarea{margin-top:0;}
+.akOff{margin-top:12px;}
+.akOff a{color:var(--dim);}
+.akTally{margin-top:6px;}
+.akTally b{font-weight:700;}
 /* 🔀 選択の1行（💭 タブ・レシートの詳細の下）。⚠ 本人の言葉は2行まで見せて、続きは開いた先で */
 .vRow{display:flex; gap:10px; align-items:flex-start; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px; cursor:pointer;}
 .vRow .ic{font-size:20px; line-height:1.2; flex:none; width:26px; text-align:center;}
@@ -1072,6 +1093,14 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
     <input type="checkbox" id="ckShootPick">
     <span class="n">🖼 「写真から選ぶ」も出す<br><small>外すと、下の帯は <b>📷 撮る</b> だけになります。⚠ カメラロールにある写真を入れる道はこの 🖼 だけなので、使う時はここを戻してください。帯を<b>ぜんぶ</b>今すぐ消したい時は、上の 📷 を押します。</small></span>
   </label>
+  <!-- ❓ r117: ついでの1問＝本人の選択「ついでもモーダル上でも設定でもオフにできるように」（聞く画面の 🔕 と同じキー） -->
+  <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
+    <label>❓ ついでの1問</label>
+    <label class="mlChk" for="ckAsk">
+      <input type="checkbox" id="ckAsk">
+      <span class="n">レシートを読み取ったあと、ついでに1問だけ「なぜ？」を聞く<br><small>はじめて買った物・前より高かった物・はじめての店から、<b>アプリが決まりで1つだけ</b>選びます（AI は使いません・通知は出しません）。答えは決まった選択肢を押すだけ（言葉で書いてもよい）＝💭 価値観の材料になります。外しても、💭 の「❓ 1問ずつ答える」からはいつでも答えられます。</small></span>
+    </label>
+  </div>
   <!-- 📷 写真の保存サイズ（r75）＝要望「そのままか、縮小か選べるように」 -->
   <div class="row" style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
     <label>📷 写真の保存サイズ</label>
@@ -1268,7 +1297,7 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
       <button class="btn" id="sbNow">⬆️ 今すぐ書く</button>
       <div class="note" id="sbState" style="margin-top:6px"></div>
     </div>
-    <div class="note">書き込むのは<b>あなたの Supabase だけ</b>です（このアプリの運営者には届きません）。表は <code>rcpt_receipts</code>（レシート）・<code>rcpt_items</code>（明細）・<code>rcpt_choices</code>（🙅🚶）・<code>rcpt_values</code>（💭）・<code>rcpt_snapshot</code>（📄 JSON と同じ全部入り）と、AI 向けの <code>rcpt_notes</code>（あなたが書いた言葉だけ）。<br>💡 Claude などの <b>Supabase コネクタ</b>から直接読めます。「<b>rcpt_notes を読んで、rcpt_values に価値観の下書きを足して（表の説明の決まりで）</b>」と頼めば、次に 💭 を開いた時にアプリが取り込みます（確定するかはあなたが選びます）。<br>⚠ <b>アプリが元</b>です＝Supabase 側で直した行は、次にアプリが書く時に上書きされます。端末どうしの同期ではありません。<b>写真は送りません</b>。<br>⚠ <b>パスワードは保存しません</b>（サインインの印だけを端末に置きます）。anon key は公開されても困らない鍵で、表は<b>サインインしたあなたの行だけ</b>が読み書きできます（RLS）。</div>
+    <div class="note">書き込むのは<b>あなたの Supabase だけ</b>です（このアプリの運営者には届きません）。表は <code>rcpt_receipts</code>（レシート）・<code>rcpt_items</code>（明細）・<code>rcpt_choices</code>（🙅🚶）・<code>rcpt_values</code>（💭）・<code>rcpt_snapshot</code>（📄 JSON と同じ全部入り）と、AI 向けの <code>rcpt_notes</code>（あなたが書いた言葉と押した印だけ）。<br>🆕 ❓ 選んだ理由の印（<code>why_tags</code>）を <code>rcpt_notes</code> に足しました＝前に準備の SQL を流した人は、<b>もう一度流すと</b>印も出ます（流さなくても書き込みは止まりません・印は <code>rcpt_receipts.data</code> にも入っています）。<br>💡 Claude などの <b>Supabase コネクタ</b>から直接読めます。「<b>rcpt_notes を読んで、rcpt_values に価値観の下書きを足して（表の説明の決まりで）</b>」と頼めば、次に 💭 を開いた時にアプリが取り込みます（確定するかはあなたが選びます）。<br>⚠ <b>アプリが元</b>です＝Supabase 側で直した行は、次にアプリが書く時に上書きされます。端末どうしの同期ではありません。<b>写真は送りません</b>。<br>⚠ <b>パスワードは保存しません</b>（サインインの印だけを端末に置きます）。anon key は公開されても困らない鍵で、表は<b>サインインしたあなたの行だけ</b>が読み書きできます（RLS）。</div>
   </div>
   <!-- r62: 頼み方の例（要望）。⚠ 例文に「レシートIDが同じ＝1回だけ数える」を入れてある＝
        ファイルが複数あっても二重に数えない（重なりの保険はデータ側の receipt_id と、この一文の両輪） -->
@@ -1926,11 +1955,18 @@ table.ck tr.bad td.f{color:var(--err); font-weight:600;}
   <div class="dual"><button class="btn dang" id="chDel">🗑 削除</button><button class="btn pri" id="chSave">💾 保存</button></div>
 </div></div>
 
+<!-- ❓ r117: ついでの1問＝読み取りが終わったあとに、アプリが決まりで選んだ1つだけ「なぜ？」を聞く（AI は使わない・通知はしない）。
+     ⚠ 中身は JS が描く（問い → 残した／スキップ → もう少し答える？）。⚠ 他の画面より後ろに置く＝重なった時に上に出る -->
+<div class="overlay" id="ovAsk"><div class="sheet">
+  <button class="x" data-close>✕</button><h2>❓ ついでに1問 <small style="font-weight:400; color:var(--dim); font-size:12.5px">答えなくても大丈夫です</small></h2>
+  <div id="akBody"></div>
+</div></div>
+
 <div id="toast"></div>
 
 <script>
 'use strict';
-const BUILD = 'r116 🗄 自分の Supabase へ自動で書けるようにした（📤 の 🗄・既定オフ）＝準備の SQL（表と RLS）・メールとパスワードでサインイン（パスワードは保存しない）・記録が増えるたびに表へ写す・AI が rcpt_values に足した下書きを 💭 で取り込む・空の端末では自動で書かない（2026-10-14）｜r115 💭 価値観を入れた＝レシートの店と品目に 🤔 なぜ／✍ どうだった を別々に書ける・🙅 買わなかった物と 🚶 行かなかった場所を手で足せる・💭 タブで AI が価値観の下書き（AI アプリに渡して貼り戻す／このアプリの AI）→ 確定は本人・📤/🔄 の JSON v7 に choice_log と value_log（2026-10-14）｜r114 🗒 レシートに「ひとこと」を足した＝詳細の明細の下に1つ（この店を選んだ理由／買ってみてどうだったか）・明細の行をタップするとその品にも書ける。保存ボタンなし（食事と同じ）・最初に書いた日と最後に直した日を持つ。📤 の JSON（v6）・SQL・CSV に note として載る＝たまったら AI が価値観の下書きに使える（2026-10-10）';
+const BUILD = 'r117 ❓ ついでの1問＝レシートを読み終えたあと、アプリが決まりで選んだ1つ（はじめて買った物→前より高かった物→はじめての店）に「なぜ？」を聞く・答えは決まった選択肢（チップ）を押すだけ・スキップした物はもう聞かない・🔕 と ⚙ で止められる・AI と通知は使わない・💭 に「1問ずつ答える」と印の数（仮の結果）・JSON v8 に why_tags・プライバシーポリシーを直した（2026-10-15）｜r116 🗄 自分の Supabase へ自動で書けるようにした（📤 の 🗄・既定オフ）＝準備の SQL（表と RLS）・メールとパスワードでサインイン（パスワードは保存しない）・記録が増えるたびに表へ写す・AI が rcpt_values に足した下書きを 💭 で取り込む・空の端末では自動で書かない（2026-10-14）｜r115 💭 価値観を入れた＝レシートの店と品目に 🤔 なぜ／✍ どうだった を別々に書ける・🙅 買わなかった物と 🚶 行かなかった場所を手で足せる・💭 タブで AI が価値観の下書き（AI アプリに渡して貼り戻す／このアプリの AI）→ 確定は本人・📤/🔄 の JSON v7 に choice_log と value_log（2026-10-14）';
 
 // native（Capacitor WebView）判定。Capacitor は native-bridge.js を自動注入するので JS 追加なしで分かる。
 // 効き目: アプリ版のデータは「サイトデータ」ではなくアプリ領域＝Safari/ブラウザの自動削除の対象外。
@@ -2988,6 +3024,8 @@ const DATA_NOTES = {
     'note は本人が書いたひとこと（なぜその店を選んだか・なぜその品を買ったか・使ってみてどうだったか）。レシートの note はその店・その買い物について、items[].note はその品について。本人の言葉そのまま（AI が書いたものではない）。⚠ 写真からは絶対に分からない唯一の情報なので重く扱う。note_written_at（最初に書いた日時）・note_updated_at（最後に直した日時）と date の差で、買った直後の言葉か、使ってから書いた言葉かが分かる。note が無いレシート・品目について、選んだ理由や感想を推測しない。',
     /* r115: 💭 なぜ・どうだった（note を2つに分けたもの）。⚠ 📈 の AN_SYSTEM にも同じ1行が入る */
     'why（🤔 なぜその店へ行った・なぜその品を買った）と after（✍ 行ってみて・使ってみてどうだった）も本人の言葉そのまま（AI が書いたものではない）。note と同じく重く扱い、書いていない記録について推測しない。*_written_at・*_updated_at と date の差で、直後の言葉か使ってからの言葉かが分かる。note_id はその記録の鍵（value_log の evidence が指す）。',
+    /* ❓ r117: 選んだ理由の印。⚠ 言葉より軽いことを必ず言う（数から性格を作らせない） */
+    'why_tags は、アプリの決まった選択肢（安い・いつもの・必要だった・近い・通り道 など）から本人が押した「選んだ理由」の印（本人が選んだもの・AI が付けたものではない）。⚠ 言葉（why）より軽い＝選択肢に無い理由は表せない。why_tags だけで本人の性格や好みを言い切らない（何件にも同じ印が並ぶ時の傾向として読み、言葉のある記録を優先する）。印の付いていない記録の理由を推測しない。',
   ],
   // r115: 🔀 選んだ・選ばなかった（手で足したもの）
   choice: [
@@ -6869,6 +6907,7 @@ async function runAnalysis(id){
   if (rec.status === 'done') {
     autoGeoSweep();                     // 印字住所から場所も入れる（r20・待たない）
     budgetSaved(receiptsOf(rec));       // r90: 読めた金額を、その場で予算に照らして帯で出す
+    askAfterScan(rec.id);               // ❓ r117: ついでの1問（読み終わって落ち着いたら・待たない）
   }
   // ⚠ toast は数秒で消える＝「控えてあります」まで言う（人が慌てて書き写さなくてよい）
   if (rec.status === 'error') toast('❌ ' + rec.error + '（理由は詳細に残しました）');
@@ -7559,9 +7598,13 @@ async function renderRcptMeal(r){
    ⚠ 置き場はレシート1枚（rc）ごと・品目（it）ごと（r114 と同じ）。保存ボタンは置かない（打ち終わり・手が止まって 800ms・閉じる時）。
    ⚠ 書く先は**欄に覚えさせる**（data-mrid / data-mri / data-mit / data-mf）＝画面がよそへ移ってから書いても、書いた所に書く。 */
 const NOTE_F = ['why', 'after', 'memo'];
-const NOTE_KEYS = NOTE_F.flatMap(f => [f, f + 'At', f + 'EditedAt']).concat(['nid']);
+/* ❓ r117: whyTags＝選んだ理由の印（チップ・鍵の並び）／askSkip＝「ついでの1問」で スキップ した時刻（もう聞かない印）。
+   ⚠ どちらも NOTE_KEYS に入れる＝✏️ の作り直しで行といっしょに動き、書き出しでは noMemo が外す（印は noteOut が why_tags にして出す・askSkip は出さない）。 */
+const NOTE_KEYS = NOTE_F.flatMap(f => [f, f + 'At', f + 'EditedAt']).concat(['nid', 'whyTags', 'whyTagsAt', 'whyTagsEditedAt', 'askSkip']);
 const NOTE_ICON = { why: '🤔', after: '✍', memo: '🗒' };
-const hasNote = o => !!o && NOTE_F.some(f => o[f]);
+const hasTags = o => !!o && Array.isArray(o.whyTags) && o.whyTags.length > 0;
+// ⚠ r117: 押した印（チップ）も「本人が書いたもの」に数える＝💭 の材料・根拠の鍵（nid）・🔀 の一覧に入る（言葉より軽いことは AI への決まりで言う）
+const hasNote = o => !!o && (NOTE_F.some(f => o[f]) || hasTags(o));
 // 置き場ごとの言い方（店＝行った場所／品目＝買った物）。⚠ 手で足す選択（🙅🚶）は choiceWords が受け持つ
 const NOTE_WORDS = {
   store: { why: ['🤔 なぜこの店に', '例: 帰り道にあって寄りやすい／ここでしか売っていない'],
@@ -7581,6 +7624,27 @@ function setNote(o, f, v, mkNid = true){
   return true;
 }
 const setMemo = (o, v) => setNote(o, 'memo', v);   // r114 の呼び名（残す）
+/* ❓ r117: 選んだ理由の印（チップ）＝**決まった選択肢**（本人の選択「チップは固定」）。
+   ⚠ 記録に残すのは**鍵**（cheap など）＝言葉はあとから直せる（表示する時にここで引く）。⚠ 鍵は変えない・消さない（過去の記録が読めなくなる）。
+   ⚠ AI に作らせない＝毎回違う選択肢だと、数えて比べられない（「安い」が何件、が成り立たない）。
+   ⚠ 物（item）と店（store）で並びを分ける。同じ鍵は同じ言葉（cheap＝安い）＝数える時に混ざらない。 */
+const WHY_TAG_LABEL = { cheap: '安い', usual: 'いつもの', need: '必要だった', quality: '質がいい', try: '試してみたい',
+                        rec: '勧められた', whim: 'なんとなく', near: '近い・通り道', range: '品ぞろえ', mood: '雰囲気', chance: 'たまたま' };
+const WHY_TAG_SET = { item:  ['cheap', 'usual', 'need', 'quality', 'try', 'rec', 'whim'],
+                      store: ['near', 'usual', 'cheap', 'range', 'mood', 'rec', 'chance'] };
+const tagWord = k => WHY_TAG_LABEL[k] || String(k);   // ⚠ 知らない鍵も消さずに出す
+const tagsText = o => hasTags(o) ? o.whyTags.map(tagWord).join('・') : '';
+// 印を置き換える（並びは選択肢の順に揃えてから渡す）。⚠ 同じなら何もしない・空なら3つとも外す（setNote と同じ約束）
+function setTags(o, tags, mkNid = true){
+  const v = [...new Set((tags || []).map(String))];
+  const cur = hasTags(o) ? o.whyTags : [];
+  if (cur.length === v.length && cur.every((t, i) => t === v[i])) return false;
+  if (!v.length) { delete o.whyTags; delete o.whyTagsAt; delete o.whyTagsEditedAt; return true; }
+  const now = Date.now();
+  o.whyTags = v; if (!o.whyTagsAt) o.whyTagsAt = now; o.whyTagsEditedAt = now;
+  if (mkNid && !o.nid) o.nid = newNid();
+  return true;
+}
 const mdOf = t => { const d = new Date(t);
   return (d.getFullYear() !== new Date().getFullYear() ? d.getFullYear() + '/' : '') + (d.getMonth() + 1) + '/' + d.getDate(); };
 // 「10/10 に書いた・10/24 に直した」（同じ日なら1つだけ・今年でなければ年も）
@@ -7591,7 +7655,8 @@ function noteWhen(o, f = 'memo'){
 }
 const memoWhen = o => noteWhen(o, 'memo');
 // 品名の下に出す本人の言葉（書いた欄だけ・1行ずつ）
-const itNoteText = it => NOTE_F.filter(f => it?.[f]).map(f => NOTE_ICON[f] + ' ' + it[f]).join('\n');
+const itNoteText = it => (hasTags(it) ? ['🏷 ' + tagsText(it)] : [])
+  .concat(NOTE_F.filter(f => it?.[f]).map(f => NOTE_ICON[f] + ' ' + it[f])).join('\n');
 // ⚠ 品目にも書けることは、まだ1つも書いていない時だけ言う（空状態にだけ出るヒント）
 const itHintText = d => d.items?.length && !d.items.some(hasNote) ? '明細の行をタップすると、品目ごとにも書けます' : '';
 /* 欄1つ。⚠ 空なら小さなボタンだけ（押すと開いてすぐ focus）・書いてあれば開いた形。
@@ -7600,12 +7665,19 @@ function noteFieldHtml(place, o, f, rid, ri, k){
   const v = o?.[f] || '';
   const [label, ph] = f === 'memo' ? ['🗒 ひとこと（前の欄）', ''] : NOTE_WORDS[place][f];
   const at = `data-mrid="${esc(rid)}" data-mri="${ri}"${k == null ? '' : ` data-mit="${k}"`} data-mf="${f}"`;
-  return `<div class="nf${v ? ' open' : ''}" data-nf="${f}">`
+  // ❓ r117: 🤔 なぜ には選んだ理由の印（チップ）も置く＝押した印があれば開いた形で出す（ついでの1問で押したものをここで直せる）
+  const tags = f === 'why' ? wtagsHtml(place, o, `data-wrid="${esc(rid)}" data-wri="${ri}"${k == null ? '' : ` data-wit="${k}"`}`) : '';
+  return `<div class="nf${v || (f === 'why' && hasTags(o)) ? ' open' : ''}" data-nf="${f}">`
     + `<button type="button" class="nfBtn" data-nfopen>${label}</button>`
-    + `<div class="nfLbl">${label}</div>`
+    + `<div class="nfLbl">${label}</div>` + tags
     + `<textarea class="rcMemo" rows="2" maxlength="300" ${at} placeholder="${esc(ph)}">${esc(v)}</textarea>`
     + `<div class="rcMemoWhen" data-when="${k == null ? 'rc' : k}-${f}">${esc(noteWhen(o, f))}</div></div>`;
 }
+// ❓ r117: 選んだ理由のチップの並び（押すと付く・もう一度押すと外れる・いくつでも）。⚠ 決まった選択肢だけ＝知らない鍵が付いていれば消さずに並べる
+const wtagsHtml = (place, o, at) => `<div class="wtags" ${at}>`
+  + [...new Set((WHY_TAG_SET[place] || []).concat(hasTags(o) ? o.whyTags : []))].map(t =>
+      `<button type="button" data-wtag="${esc(t)}"${hasTags(o) && o.whyTags.includes(t) ? ' class="on"' : ''}>${esc(tagWord(t))}</button>`).join('')
+  + '</div>';
 const noteFieldsHtml = (place, o, rid, ri, k) => '<div class="nfs">'
   + noteFieldHtml(place, o, 'why', rid, ri, k) + noteFieldHtml(place, o, 'after', rid, ri, k)
   + (o?.memo ? noteFieldHtml(place, o, 'memo', rid, ri, k) : '') + '</div>';
@@ -7618,7 +7690,7 @@ function openNf(btn){
 /* 💭 この店（＝行った場所）の節。レシートの詳細の明細の下に出す。
    ⚠ 「この店で買わなかった物」「代わりに行かなかった場所」は手で足す選択（🔀）＝このレシートにつながる（下の dChoices） */
 const rcMemoHtml = (r, d, i) => `<div class="vSec">
-    <div class="vHead">💭 この店を選んだこと<small>📍 行った場所・本人の言葉だけを残します（AI は書きません）</small></div>
+    <div class="vHead">💭 この店を選んだこと<small>📍 行った場所・あなたの言葉と押した印だけを残します（AI は書きません）</small></div>
     ${noteFieldsHtml('store', d, r.id, i)}
     <div class="rcMemoWhen" id="dMemoWhen">${esc(itHintText(d))}</div>
     <div id="dChoices"></div></div>`;
@@ -7685,6 +7757,43 @@ function ensureRcNid(rid, ri){
   rcMemoQ = job.catch(() => {});
   return job;
 }
+/* ❓ r117: レシート1枚・品目1つを書き換える共通の道（印・スキップ・ついでの1問の言葉）。rcMemoSave と同じ列に並ぶ。
+   fn(o, db) が true を返した時だけ書く。db＝DB 側の複製（鍵を付けてよい）／false＝画面の写し（鍵は付けない＝syncNid で写し戻す）。
+   ⚠ 返すのは「書いたか」。失敗は投げる（呼んだ側が言う）。 */
+function rcPatch(rid, ri, k, fn){
+  if (rid === detailId && ri === detailIdx && detailRc) {
+    const m = k == null ? detailRc : detailRc.items?.[k];
+    if (m) fn(m, false);
+  }
+  const job = rcMemoQ.then(async () => {
+    const r = await dbGet(rid); if (!r) return false;
+    const rcs = receiptsOf(r).map(x => ({ ...x }));
+    const rc = rcs[ri]; if (!rc) return false;
+    let o = rc;
+    if (k != null) {
+      if (!Array.isArray(rc.items) || !rc.items[k]) return false;
+      rc.items = rc.items.map(x => ({ ...x })); o = rc.items[k];
+    }
+    if (!fn(o, true)) { syncNid(rid, ri, k, o.nid); return false; }
+    r.data = { receipts: rcs };
+    await dbPut(r);                                          // ⚠ edited は立てない（読み取りを直したわけではない）
+    syncNid(rid, ri, k, o.nid);
+    paintMemo(rid, ri, k, 'why');
+    if (topTab === 'values') renderValuesTab();
+    return true;
+  });
+  rcMemoQ = job.catch(() => {});
+  return job;
+}
+// 詳細の 🤔 のチップを押した＝その場で付け外し（押した順でなく選択肢の順に並べて残す）
+async function rcTagToggle(btn){
+  const box = btn.closest('.wtags'); if (!box) return;
+  btn.classList.toggle('on');
+  const rid = box.dataset.wrid, ri = +box.dataset.wri, k = box.dataset.wit == null ? null : +box.dataset.wit;
+  const tags = [...box.querySelectorAll('[data-wtag].on')].map(b => b.dataset.wtag);
+  try { await rcPatch(rid, ri, k, (o, db) => setTags(o, tags, db)); }
+  catch (err) { toast('🏷 印を保存できませんでした: ' + String(err?.message || err).slice(0, 80)); }
+}
 // 詳細に出ている欄を全部書いて、書き終わるまで待つ（変わっていなければ何もしない）
 async function rcMemoFlush(){
   document.querySelectorAll('#dBody textarea[data-mrid]').forEach(rcMemoSave);
@@ -7719,6 +7828,8 @@ document.getElementById('ovDetail').addEventListener('click', e => {
 document.getElementById('dBody').onclick = async e => {
   const nfo = e.target.closest('[data-nfopen]');
   if (nfo) { openNf(nfo); return; }   // 💭 r115: ⚠ 最初に（await より前）＝iOS のキーボードを出すため
+  const wt = e.target.closest('[data-wtag]');
+  if (wt) { await rcTagToggle(wt); return; }   // ❓ r117: 🤔 の選んだ理由の印
   const chb = e.target.closest('[data-chadd]');
   if (chb) { await openChoiceFromReceipt(chb.dataset.chadd); return; }   // 💭 r115: 🙅 この店で買わなかった物／🚶 代わりに行かなかった場所
   const che = e.target.closest('[data-chopen]');
@@ -7899,6 +8010,7 @@ document.getElementById('edSave').onclick = async () => {
   if (isOpen('ovDetail')) await openDetail(edId, edIdx); // 直した本人の1枚に戻る（r28）
   if (isOpen('ovStats')) renderTab();
   autoGeoSweep();   // 住所を直したなら、その住所で場所も探し直す（r20・待たない）
+  if (isNew) askAfterScan(edId);   // ❓ r117: 写真なしで手で入れた時も「記録したついで」（直した時は聞かない）
 };
 /* 🗑 は「いま見ている1枚」を消す（r28）。
    ⚠ 同じ写真に他のレシートが写っている間は**写真を消さない**＝写真は原本（紙を捨てたら唯一のコピー）で、
@@ -7963,6 +8075,8 @@ const noteOut = o => {
   if (o.memo)  Object.assign(x, { note: o.memo,   note_written_at: isoAt(o.memoAt),  note_updated_at: isoAt(o.memoEditedAt) });
   if (o.why)   Object.assign(x, { why: o.why,     why_written_at: isoAt(o.whyAt),    why_updated_at: isoAt(o.whyEditedAt) });
   if (o.after) Object.assign(x, { after: o.after, after_written_at: isoAt(o.afterAt), after_updated_at: isoAt(o.afterEditedAt) });
+  // ❓ r117: 選んだ理由の印（決まった選択肢の言葉で出す＝受け取る側が鍵の表を知らなくても読める）
+  if (hasTags(o)) Object.assign(x, { why_tags: o.whyTags.map(tagWord), why_tags_written_at: isoAt(o.whyTagsAt), why_tags_updated_at: isoAt(o.whyTagsEditedAt) });
   if (Object.keys(x).length && o.nid) x.note_id = o.nid;
   return x;
 };
@@ -7976,6 +8090,8 @@ function rcOut(rc){
 function exportJson(rows, from, to){
   // 統計は入れない＝生データからAI/表計算が自分で計算する（ライフログの交換フォーマットと同方針）
   return JSON.stringify({
+    // v8（r117）＝❓ 選んだ理由の印 why_tags（＋why_tags_written_at・why_tags_updated_at）を、レシートと品目（items[]）に追加。
+    //   ⚠ 決まった選択肢の言葉の並び（例 ["安い","いつもの"]）。押したものにだけ付く。
     // v7（r115）＝🤔 why / ✍ after（＋*_written_at・*_updated_at）と note_id を、レシートと品目（items[]）に追加。
     //   ⚠ 書いたものにだけ付く。note（r114）はそのまま（新しくは増えない）。
     // v6（r114）＝本人のひとこと note / note_written_at / note_updated_at を、レシートと品目（items[]）に追加。
@@ -7983,7 +8099,7 @@ function exportJson(rows, from, to){
     // v5（r22）＝税と数量（total_excl_tax / tax / discount / price_incl_tax、品目の unit_price / tax_rate）を追加。
     //   ⚠ price は「その行の合計」＝ qty を掛けたあとの数字（掛け直さないこと）。
     // v4（r21）＝ receipt_id（一意な鍵）を追加・時刻をローカル時刻＋オフセットに。v3 は regno 追加、v2 はフラット化
-    format: 'receipt-spike-export', version: 7,
+    format: 'receipt-spike-export', version: 8,
     exported_at: isoLocal(new Date()),
     timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone || null),  // date/time（レシートの印字）が指す地域
     period: { from: from || null, to: to || null },
@@ -8002,7 +8118,8 @@ function exportCsv(rows){
   const out = [['レシートID', '日付', '時刻', '店名', '支店', '金額(税込)', '税抜合計', '消費税', '値引き',
                 '種別', 'カテゴリ', '支払', '住所', '登録番号', '品目', '入れ方',   // r93: 入れ方＝写真/手入力
                 'ひとこと', '品目のひとこと',   // r114: 品目のひとこと＝「品名: ひとこと」を「、」でつなぐ
-                'なぜこの店に', '行ってみてどうだった', '品目のなぜ・どうだった'].join(',')];   // r115: ⚠ 末尾に足す（既存の列をずらさない）
+                'なぜこの店に', '行ってみてどうだった', '品目のなぜ・どうだった',   // r115: ⚠ 末尾に足す（既存の列をずらさない）
+                'この店を選んだ理由（印）', '品目の選んだ理由（印）'].join(',')];   // ❓ r117: ⚠ ここも末尾に足す
   for (const x of rows) {
     const d = x.rc;
     out.push([`${x.rec.id}-${x.i + 1}`, x.date, d.time, d.store, d.branch, d.total,
@@ -8011,7 +8128,8 @@ function exportCsv(rows){
               x.rec.noPhoto ? '手入力' : '写真', d.memo,
               (d.items || []).filter(i => i?.memo).map(i => `${i.name}: ${i.memo}`).join('、'),
               d.why, d.after,
-              (d.items || []).filter(i => i?.why || i?.after).map(i => `${i.name}: ${[i.why && '🤔' + i.why, i.after && '✍' + i.after].filter(Boolean).join(' ')}`).join('、')].map(esc).join(','));
+              (d.items || []).filter(i => i?.why || i?.after).map(i => `${i.name}: ${[i.why && '🤔' + i.why, i.after && '✍' + i.after].filter(Boolean).join(' ')}`).join('、'),
+              tagsText(d), (d.items || []).filter(hasTags).map(i => `${i.name}: ${tagsText(i)}`).join('、')].map(esc).join(','));
   }
   return '﻿' + out.join('\n'); // BOM: Excel の文字化け対策
 }
@@ -9083,17 +9201,19 @@ comment on table public.rcpt_values is
 -- AI が価値観を読む材料＝本人が書いた言葉だけ（言葉の無い記録は入らない）
 create or replace view public.rcpt_notes with (security_invoker = true) as
   select owner, note_id as ref, 'place'::text as about, true as chosen, concat_ws(' ', store, branch) as what,
-         null::text as "where", date, why, after, note
-    from public.rcpt_receipts where note_id is not null and (why is not null or after is not null or note is not null)
+         null::text as "where", date, why, after, note, data->'why_tags' as why_tags
+    from public.rcpt_receipts where note_id is not null and (why is not null or after is not null or note is not null or data ? 'why_tags')
   union all
-  select i.owner, i.note_id, 'item', true, i.name, concat_ws(' ', r.store, r.branch), r.date, i.why, i.after, i.note
+  select i.owner, i.note_id, 'item', true, i.name, concat_ws(' ', r.store, r.branch), r.date, i.why, i.after, i.note,
+         r.data->'items'->(i.line - 1)->'why_tags'
     from public.rcpt_items i join public.rcpt_receipts r on r.owner = i.owner and r.receipt_id = i.receipt_id
-   where i.note_id is not null and (i.why is not null or i.after is not null or i.note is not null)
+   where i.note_id is not null and (i.why is not null or i.after is not null or i.note is not null
+         or (r.data->'items'->(i.line - 1)) ? 'why_tags')
   union all
-  select owner, choice_id, about, chosen, what, coalesce("where", data->>'at_store'), date, why, after, null
+  select owner, choice_id, about, chosen, what, coalesce("where", data->>'at_store'), date, why, after, null, null::jsonb
     from public.rcpt_choices where why is not null or after is not null;
 comment on view public.rcpt_notes is
-  '💭 価値観の材料＝本人が書いた言葉（why＝🤔 なぜ・after＝✍ どうだった・note＝前の版のひとこと）。about: item＝物 / place＝場所、chosen=false＝選ばなかった。where＝物はどこで・選ばなかった場所は代わりに行った店。ref を rcpt_values.evidence に入れる。';
+  '💭 価値観の材料＝本人が書いた言葉（why＝🤔 なぜ・after＝✍ どうだった・note＝前の版のひとこと）と、押した印（why_tags＝決まった選択肢から本人が選んだ「選んだ理由」・言葉より軽い＝印だけで言い切らない）。about: item＝物 / place＝場所、chosen=false＝選ばなかった。where＝物はどこで・選ばなかった場所は代わりに行った店。ref を rcpt_values.evidence に入れる。';
 
 -- 鍵の決まり（RLS）＝サインインしたあなたの行だけ
 do $$
@@ -11876,9 +11996,11 @@ async function valSources(){
 }
 const srcIcon = x => x.kind === 'store' ? '📍' : x.kind === 'item' ? '🛒' : choiceWords(x.subject, x.chosen).icon;
 const srcVerb = x => x.kind === 'store' ? '行った' : x.kind === 'item' ? '買った' : choiceWords(x.subject, x.chosen).verb;
-const lastWrote = o => Math.max(0, ...NOTE_F.map(f => o?.[f + 'EditedAt'] || o?.[f + 'At'] || 0));
+const lastWrote = o => Math.max(0, ...NOTE_F.map(f => o?.[f + 'EditedAt'] || o?.[f + 'At'] || 0), o?.whyTagsEditedAt || o?.whyTagsAt || 0);
 // 本人の言葉を1行ずつ（🤔/✍/🗒）。⚠ 手で足した選択は欄の言い方が違う（なぜ買わなかった…）が、印は同じ
-const saysHtml = o => NOTE_F.filter(f => o?.[f]).map(f => `<div class="say">${NOTE_ICON[f]} ${esc(o[f])}</div>`).join('');
+// ❓ r117: 押した印（🏷）は言葉の前に1行（言葉より軽い＝先に短く）
+const saysHtml = o => (hasTags(o) ? `<div class="say">🏷 ${esc(tagsText(o))}</div>` : '')
+  + NOTE_F.filter(f => o?.[f]).map(f => `<div class="say">${NOTE_ICON[f]} ${esc(o[f])}</div>`).join('');
 
 /* ---------- 🔀 手で足す選択の入力（ovChoice） ---------- */
 let chCur = null;   // 開いている選択（新しく作る時は id が無い）
@@ -11997,6 +12119,187 @@ async function renderRcChoices(r, d){
     + `<button type="button" data-chadd="place0">🚶 代わりに行かなかった場所</button></div>`;
 }
 
+/* ---------- ❓ ついでの1問（r117） ----------
+   本人の選択（2026-10-15）＝「『ついで』だけで始める／ついでもモーダル上でも設定でもオフにできる／チップは固定／アプリが決める」。
+   🥇 **聞くのはレシートを読み終えた時だけ**（通知・催促は出さない＝TODO「今は作らない」の「書くよう促す通知・催促」のまま）。
+      何枚かまとめて撮った時は、読み終わってから1問だけ（撮ったレシートの中から）。
+   🥇 **何を聞くかはアプリが決まりで決める**（AI は使わない＝課金も、毎回違う選び方も無い）。強い順に:
+        ① はじめて買った物（同じ商品キーの品が、全部のレシートでこの1回だけ）
+        ② 前より高かった物（同じ品の前回より ¥10 以上かつ 5% 以上高い）
+        ③ はじめての店（📊 と同じ名寄せで、この店はこの1回だけ）
+      ⚠ 30日より前のレシートは後回し・1個 ¥100 未満の品（レジ袋など）と 交通 は聞かない。
+      ⚠ もう 🤔/✍/🗒 か印のある品・店、一度 スキップ した品・店は聞かない（商品キーで見る＝同じ品を別の日に聞き直さない）。
+   🥇 **答えは今ある器に入れる**＝印は whyTags（品目・レシートに直接）、言葉は 🤔 why（r115 の欄そのもの）。新しい箱は作らない。
+      ⚠ スキップは「もう聞かない」ためだけの印（askSkip）＝💭 の材料にも書き出しにも入れない（答えなかったことを価値観の根拠にしない）。
+   🥇 **もう少し答える？**＝聞ける物は保存しない（毎回レシートから数え直す）。⚠ 残りの数は見せない（数を見せると義務になる）。
+      5問ごとに「今日はここまで」を先に出す。 */
+const ASK_ON = 'rcpt.ask.on';
+const askOn = () => localStorage.getItem(ASK_ON) !== '0';   // 既定＝聞く（⚙ と、この画面の 🔕 で止める）
+const ASK_MIN_YEN = 100, ASK_RECENT_DAYS = 30, ASK_UP_YEN = 10, ASK_UP_RATE = 0.05, ASK_BREAK = 5;
+const ASK_NO_CATS = ['交通'];
+// 1個あたりの値段（unit_price があればそれ・無ければ行の合計を個数で割る）。⚠ 数えられない時は null（0 にしない）
+const unitOf = it => {
+  if (it?.unit_price != null && Number.isFinite(+it.unit_price)) return Math.round(+it.unit_price);
+  if (it?.price == null || !Number.isFinite(+it.price)) return null;
+  const q = +it.qty; return q > 1 ? Math.round(+it.price / q) : Math.round(+it.price);
+};
+/* 聞ける物の一覧（強い順）。onlyIds＝この写真たちの中からだけ（読み終えた直後の1問）／null＝全部（もう少し答える）。
+   ⚠ 判定に使う「はじめて」「前回」は**全部のレシート**で見る（範囲を絞っても、比べる相手は絞らない）。 */
+async function askCands(onlyIds){
+  const rows = (await listRows()).filter(x => x.rc && x.rc.kind !== 'income');
+  const recentFrom = addDays(todayStr(), -ASK_RECENT_DAYS);
+  const inScope = x => !onlyIds || onlyIds.has(x.rec.id);
+  const hist = new Map();   // 商品キー → 買った記録（古い順）
+  rows.forEach(x => (x.rc.items || []).forEach((it, k) => {
+    if (!it?.name) return;
+    const key = itemKey(it.name); if (!key) return;
+    if (!hist.has(key)) hist.set(key, []);
+    hist.get(key).push({ x, k, it, unit: unitOf(it) });
+  }));
+  const out = [];
+  hist.forEach(a => {
+    if (a.some(h => hasNote(h.it) || h.it.askSkip)) return;   // この品はもう答えた／もう聞かない
+    a.sort((p, q) => p.x.date.localeCompare(q.x.date) || p.x.rec.ts - q.x.rec.ts || p.k - q.k);
+    a.forEach((h, n) => {
+      const x = h.x;
+      if (!inScope(x) || ASK_NO_CATS.includes(x.rc.category) || h.unit == null || h.unit < ASK_MIN_YEN) return;
+      let why = null;
+      if (a.length === 1) why = { rank: 0, text: '🆕 はじめて買った物' };
+      else if (n > 0) {
+        const p = a[n - 1];
+        if (p.unit != null && h.unit - p.unit >= Math.max(ASK_UP_YEN, p.unit * ASK_UP_RATE))
+          why = { rank: 1, text: `📈 前回（${mdShort(p.x.date)}・${yen(p.unit)}）より ${yen(h.unit - p.unit)} 高い` };
+      }
+      if (!why) return;
+      out.push({ id: `i|${x.rec.id}|${x.i}|${h.k}`, place: 'item', rid: x.rec.id, ri: x.i, k: h.k, name: h.it.name,
+                 where: storeLine(x.rc), date: x.date, yen: h.unit, old: x.date < recentFrom, ...why });
+    });
+  });
+  groupStores(rows).forEach(g => {
+    if (g.n !== 1 || g.name === STORE_NONE) return;
+    const x = g.rows[0];
+    if (!inScope(x) || hasNote(x.rc) || x.rc.askSkip || ASK_NO_CATS.includes(x.rc.category)) return;
+    out.push({ id: `s|${x.rec.id}|${x.i}`, place: 'store', rid: x.rec.id, ri: x.i, k: null, name: storeLine(x.rc) || g.name,
+               where: '', date: x.date, yen: x.rc.total ?? null, old: x.date < recentFrom, rank: 2, text: '🆕 はじめての店' });
+  });
+  return out.sort((a, b) => (a.old - b.old) || (a.rank - b.rank) || b.date.localeCompare(a.date) || (b.yen || 0) - (a.yen || 0));
+}
+// 読み終えた写真を覚えて、落ち着いたら1問（まとめて撮ったら最後に1回）
+const askNewIds = new Set();
+let askTimer = null, askTries = 0;
+function askAfterScan(id){
+  if (!askOn() || !id) return;
+  askNewIds.add(id); askTries = 0;
+  clearTimeout(askTimer); askTimer = setTimeout(askTry, 1500);
+}
+async function askTry(){
+  askTimer = null;
+  if (!askOn()) { askNewIds.clear(); return; }
+  /* ⚠ 邪魔をしない＝まだ読んでいる写真がある・何かの画面を開いている・アプリが裏にいる間は待つ（3秒ごと・2分まで）。
+     2分たっても落ち着かなければ聞かない（💭 の「❓ 1問ずつ答える」からいつでも答えられる） */
+  const busy = document.hidden || !!document.querySelector('.overlay.on') || (await dbAll()).some(r => r.status === 'pending');
+  if (busy) { if (++askTries < 40) askTimer = setTimeout(askTry, 3000); else askNewIds.clear(); return; }
+  const ids = new Set(askNewIds); askNewIds.clear();
+  const c = (await askCands(ids))[0];
+  if (c && askOn() && !document.querySelector('.overlay.on')) openAsk('scan', c);
+}
+let akCur = null, akNext = null, akMode = 'scan', akRun = 0, akSeen = new Set(), akBusy = false;
+function openAsk(mode, c){
+  akMode = mode; akRun = 0; akSeen = new Set();
+  showAskQ(c);
+  document.getElementById('ovAsk').querySelector('.sheet').scrollTop = 0;
+  show('ovAsk');
+}
+const akOffHtml = () => askOn()
+  ? `<div class="note akOff">スキップした品・店は、もう聞きません。<br><a href="#" data-akoff>🔕 読み取りのあとに、この1問を出さない</a>（⚙ 設定でいつでも戻せます）</div>`
+  : `<div class="note akOff">読み取りのあとの1問は止めています（⚙ 設定の「❓ ついでの1問」で戻せます）。</div>`;
+function showAskQ(c){
+  akCur = c; akSeen.add(c.id);
+  const item = c.place === 'item';
+  document.getElementById('akBody').innerHTML = `<div class="akWhat"><div class="ic">${item ? '🛒' : '📍'}</div><div class="mid">`
+      + `<div class="nm">${esc(c.name)}</div>`
+      + `<div class="sub">${[c.where, mdShort(c.date), c.yen != null ? yen(c.yen) + (item ? '' : '（この時の合計）') : ''].filter(Boolean).map(esc).join(' ・ ')}</div>`
+      + `<div class="why">${esc(c.text)}なので聞いています</div></div></div>`
+    + `<div class="akQ">${item ? '🤔 なぜこれを買った？' : '🤔 なぜこの店に？'}<small>当てはまるものを押す（いくつでも）</small></div>`
+    + wtagsHtml(c.place, null, 'id="akTags"')
+    + `<div class="nf" id="akNf"><button type="button" class="nfBtn" data-akwords>✍ 自分の言葉で書く</button>`
+    + `<textarea class="rcMemo" id="akText" rows="2" maxlength="300" placeholder="${esc(NOTE_WORDS[c.place].why[1])}"></textarea></div>`
+    + `<div class="dual" style="margin-top:14px"><button class="btn" data-akskip>スキップ</button><button class="btn pri" data-aksave>✅ 残す</button></div>`
+    + akOffHtml();
+}
+async function showAskAfter(how){
+  const msg = how === 'saved' ? '✅ 残しました（🧾 そのレシートの「💭 この店を選んだこと」・明細の行でいつでも直せます）'
+                              : '🙈 スキップしました（もう聞きません）';
+  akNext = (await askCands(null)).find(c => !akSeen.has(c.id)) || null;
+  const rest = akRun % ASK_BREAK === 0;
+  document.getElementById('akBody').innerHTML = `<div class="note" style="margin-top:0">${msg}</div>`
+    + (!akNext ? `<div class="akQ">いまは聞くことがありません</div><button class="btn" data-akend>閉じる</button>`
+      : rest ? `<div class="akQ">${akRun}問 答えました。今日はここまでにしますか？</div>`
+             + `<div class="dual"><button class="btn" data-aknext>もう1問</button><button class="btn pri" data-akend>今日はここまで</button></div>`
+      : `<div class="akQ">もう少し答える？<small>1問ずつ・いつやめても大丈夫です</small></div>`
+             + `<div class="dual"><button class="btn" data-akend>閉じる</button><button class="btn pri" data-aknext>もう1問</button></div>`)
+    + akOffHtml();
+}
+// 書く前に「まだ同じ品・店か」を確かめる（聞いている間に ✏️ で行を消すと、番号が隣の品にずれる）
+const akSame = (o, c) => c.place === 'item' ? (o?.name || '') === c.name : !!o;
+async function akAnswer(kind){
+  if (akBusy || !akCur) return;
+  const c = akCur, body = document.getElementById('akBody');
+  const tags = [...body.querySelectorAll('#akTags [data-wtag].on')].map(b => b.dataset.wtag);
+  const text = (document.getElementById('akText')?.value || '').trim();
+  if (kind === 'save' && !tags.length && !text) { toast('当てはまるものを押すか、言葉を書いてください（答えたくない時は スキップ）'); return; }
+  akBusy = true;
+  try {
+    let gone = false;
+    await rcPatch(c.rid, c.ri, c.k, (o, db) => {
+      if (!akSame(o, c)) { gone = true; return false; }
+      if (kind === 'skip') { if (o.askSkip) return false; o.askSkip = Date.now(); return true; }
+      let ch = setTags(o, tags, db);
+      if (text) ch = setNote(o, 'why', text, db) || ch;
+      return ch;
+    });
+    if (gone) { toast('このレシートが変わっていたので、書きませんでした（✏️ で直したか、消しました）'); }
+    akRun++;
+    await showAskAfter(gone ? 'skip' : kind === 'skip' ? 'skip' : 'saved');
+  } catch (err) {
+    toast('❓ 保存できませんでした: ' + String(err?.message || err).slice(0, 80));
+  } finally { akBusy = false; }
+}
+document.getElementById('akBody').addEventListener('click', async e => {
+  const w = e.target.closest('[data-akwords]');
+  if (w) {   // ⚠ await の前に focus＝iOS はタップの直後でないとキーボードを出さない
+    const nf = document.getElementById('akNf'); nf.classList.add('open');
+    document.getElementById('akText').focus(); return;
+  }
+  const t = e.target.closest('#akTags [data-wtag]'); if (t) { t.classList.toggle('on'); return; }
+  if (e.target.closest('[data-aksave]')) return akAnswer('save');
+  if (e.target.closest('[data-akskip]')) return akAnswer('skip');
+  if (e.target.closest('[data-aknext]')) { if (akNext) showAskQ(akNext); return; }
+  if (e.target.closest('[data-akend]')) { hide('ovAsk'); return; }
+  if (e.target.closest('[data-akoff]')) {
+    e.preventDefault();
+    localStorage.setItem(ASK_ON, '0'); askNewIds.clear(); clearTimeout(askTimer);
+    hide('ovAsk');
+    toast('🔕 読み取りのあとの1問を止めました（⚙ 設定の「❓ ついでの1問」でまた出せます・💭 の「❓ 1問ずつ答える」はいつでも使えます）', null, 6000);
+  }
+});
+// 💭 から自分で開く（読み取りのあとの1問を止めていても使える）
+async function openAskMore(){
+  const c = (await askCands(null))[0];
+  if (!c) { toast('いまは聞くことがありません'); return; }
+  openAsk('more', c);
+}
+// 仮の結果＝押した印を数えただけ（AI は使わない）。⚠ 言葉より軽い＝「何を大事にしているか」は言い切らない
+function askTallyHtml(src){
+  const cnt = { item: new Map(), store: new Map() };
+  src.forEach(x => { if ((x.kind === 'item' || x.kind === 'store') && hasTags(x.o))
+    x.o.whyTags.forEach(t => cnt[x.kind].set(t, (cnt[x.kind].get(t) || 0) + 1)); });
+  if (!cnt.item.size && !cnt.store.size) return '';
+  const line = m => [...m].sort((a, b) => b[1] - a[1]).map(([t, n]) => `${esc(tagWord(t))} <b>${n}</b>`).join('・');
+  return `<div class="note akTally">🏷 <b>選んだ理由の印</b>（仮の結果＝押した数を数えただけ・AI は使っていません）`
+    + (cnt.item.size ? `<br>🛒 買った物：${line(cnt.item)}` : '') + (cnt.store.size ? `<br>📍 お店：${line(cnt.store)}` : '') + '</div>';
+}
+
 /* ---------- 💭 タブ ---------- */
 async function renderValuesTab(){
   document.querySelectorAll('#vlSeg button').forEach(b => b.classList.toggle('on', b.dataset.vltab === vlTab));
@@ -12023,13 +12326,17 @@ async function renderValueList(){
   const refs = new Map(src.map(x => [x.ref, x])), ids = new Map(vals.map(v => [v.id, v]));
   const nKind = k => src.filter(x => x.kind === k).length;
   const mat = src.length
-    ? `📝 材料＝あなたが書いた言葉 <b>${src.length}件</b>（📍 店 ${nKind('store')}・🛒 品目 ${nKind('item')}・🔀 手で足した ${nKind('choice')}）`
-    : '📝 材料（あなたが書いた 🤔 なぜ／✍ どうだった）は<b>まだありません</b>。🧾 レシートの詳細の「💭 この店を選んだこと」・明細の行・上の 🔀 で書くとたまります。';
+    ? `📝 材料＝あなたが書いた言葉と押した印 <b>${src.length}件</b>（📍 店 ${nKind('store')}・🛒 品目 ${nKind('item')}・🔀 手で足した ${nKind('choice')}）`
+    : '📝 材料（あなたが書いた 🤔 なぜ／✍ どうだった・押した 🏷 印）は<b>まだありません</b>。🧾 レシートの詳細の「💭 この店を選んだこと」・明細の行・上の 🔀・❓ ついでの1問 でたまります。';
+  // ❓ r117: 聞ける物がある時だけ入口を出す（残りの数は出さない）＋押した印を数えただけの仮の結果
+  const askAny = (await askCands(null)).length > 0;
+  const askRow = (askAny ? `<button class="btn sm" id="btnAskMore" style="margin-top:8px">❓ 選んだ理由に1問ずつ答える</button>` : '')
+    + askTallyHtml(src);
   sbMaybePull();   // 🗄 r116: AI が Supabase に下書きを足していないか（1分に1回まで・待たない）
   const sbBanner = sbOn() && sbDraftRows.length
     ? `<div class="vRow" id="vlSbDrafts" style="border-color:var(--warn)"><div class="ic">🗄</div><div class="mid"><div class="nm">Supabase に AI が書いた下書きが ${sbDraftRows.length}件</div><div class="sub">押すと候補として開きます（確定するか・残さないかはあなたが選びます）</div></div></div>` : '';
-  el.innerHTML = sbBanner + (vals.length ? '' : `<div class="note" style="margin-top:0">💭 <b>何を大事にして選んでいるか</b>を残す場所です。材料は<b>あなたが書いた言葉だけ</b>（レシートの品名や金額からは作りません）。AI は<b>下書き</b>を出すだけで、<b>確定するのはあなた</b>です。確定した文は書き換えず、考えが変わったら「言い直す」で新しい版を足します。</div>`)
-    + `<div class="note" style="margin-top:6px">${mat}</div>`
+  el.innerHTML = sbBanner + (vals.length ? '' : `<div class="note" style="margin-top:0">💭 <b>何を大事にして選んでいるか</b>を残す場所です。材料は<b>あなたが書いた言葉と押した印だけ</b>（レシートの品名や金額からは作りません）。AI は<b>下書き</b>を出すだけで、<b>確定するのはあなた</b>です。確定した文は書き換えず、考えが変わったら「言い直す」で新しい版を足します。</div>`)
+    + `<div class="note" style="margin-top:6px">${mat}</div>` + askRow
     + `<div class="dual" style="margin-top:10px"><button class="btn pri sm" id="btnValAi"${src.length ? '' : ' disabled'}>🤖 AI に下書きを頼む</button>`
     + `<button class="btn sm" id="btnValNew">✍️ 自分で書く</button></div>`
     + (by.confirmed.length ? `<div class="vSecTitle">✅ 確定（${by.confirmed.length}）</div>` + by.confirmed.map(v => valCardHtml(v, refs, ids)).join('') : '')
@@ -12076,6 +12383,7 @@ document.getElementById('vlValuesPane').onclick = async e => {
   if (e.target.closest('#btnValAi')) return openValAi();
   if (e.target.closest('#vlSbDrafts')) return sbOpenDrafts();   // 🗄 r116
   if (e.target.closest('#btnValNew')) return openValEd(null);
+  if (e.target.closest('#btnAskMore')) return openAskMore();   // ❓ r117
   const go = e.target.closest('[data-evgo]'); if (go) return openSource(go.dataset.evgo);
   const b = e.target.closest('[data-vact]'); if (!b) return;
   await valAction(b.dataset.vact, b.dataset.vid);
@@ -12267,14 +12575,16 @@ document.getElementById('vlLogPane').onclick = async e => {
 const VAL_READ_MAT = [
   '材料（notes）は本人が自分の言葉で書いたもの。about が "item"＝物（品目）・"place"＝場所（お店・行き先）。chosen が true＝買った／行った、false＝買わなかった／行かなかった（選ばなかったこと）。鍵は ref。',
   'why＝🤔 なぜそうしたか、after＝✍ やってみて（やらずに）どうだったか、note＝前の版の欄（なぜ・どうだったが混ざっている）。date は買った・行った・決めた日、*_written は書いた日（date との差で「直後の言葉か・使ってからか」が分かる）。times_bought は同じ物をレシートで何回買ったか。',
+  'why_tags＝アプリの決まった選択肢から本人が押した「選んだ理由」の印（安い・いつもの など）。本人が選んだもの（AI ではない）だが、言葉より軽い（選択肢に無い理由は表せない）。',
   'values は本人の価値観のいまの姿（id・status: confirmed＝本人が確定 / draft＝下書き / retired＝もう当てはまらないと本人が決めた）。',
 ];
 const VAL_READ_FILE = [
-  '材料は、receipts[]（その店＝行った場所）と receipts[].items[]（買った物）の why・after・note、choice_log.choices[]（買わなかった物・行かなかった場所など＝about・chosen で分かる）の why・after。why・after・note の無い記録は材料にしない。',
+  '材料は、receipts[]（その店＝行った場所）と receipts[].items[]（買った物）の why・after・note・why_tags（押した印）、choice_log.choices[]（買わなかった物・行かなかった場所など＝about・chosen で分かる）の why・after。why・after・note・why_tags の無い記録は材料にしない。',
   '鍵は receipts[].note_id・receipts[].items[].note_id・choice_log の choice_id。いまの価値観は value_log.values[]（value_id・status）。',
 ];
 const VAL_WRITE = [
-  '本人の言葉（why・after・note）から、本人がくり返し大事にしていることを、短い1文（40字くらいまで）で3〜7個書く。',
+  '本人の言葉（why・after・note）と押した印（why_tags）から、本人がくり返し大事にしていることを、短い1文（40字くらいまで）で3〜7個書く。',
+  'why_tags（印）は言葉より軽い根拠。印だけの記録を1件だけの根拠にしない＝言葉のある記録と合わせるか、何件にも同じ印が並ぶ時の傾向として使い、basis に「印だけの記録 N件」と書く。',
   '1つごとに、根拠にした記録の鍵を evidence に並べる（できれば2件以上。1件しか無いなら basis にそう書く）。材料に無い鍵は書かない。',
   '選ばなかったこと（chosen: false）と、その後どうだったか（after）も、選んだことと同じ重さで読む。',
   '本人の言葉に無いことを足さない。品名・店名・金額・回数だけから性格や好みを作らない。',
@@ -12299,7 +12609,8 @@ function valMaterial(src, vals){
     notes: src.map(x => ({ ref: x.ref, about: x.subject === 'place' ? 'place' : 'item', chosen: x.chosen,
       what: x.name, ...(x.store && x.kind !== 'store' ? { where: x.store } : {}), date: x.date || null,
       ...(x.times > 1 ? { times_bought: x.times } : {}),
-      ...at(x.o, 'why'), ...at(x.o, 'after'), ...at(x.o, 'memo') })),
+      ...at(x.o, 'why'), ...at(x.o, 'after'), ...at(x.o, 'memo'),
+      ...(hasTags(x.o) ? { why_tags: x.o.whyTags.map(tagWord) } : {}) })),   // ❓ r117: 押した印（言葉より軽い＝決まりで言う）
     values: vals.map(v => ({ id: v.id, body: v.body, domain: v.domain, status: v.status })),
   }, null, 1);
 }
@@ -12320,7 +12631,7 @@ async function openValAi(){
 async function renderValAi(){
   const { src, vals, text } = await vaPrep();
   const conf = vals.filter(v => v.status === 'confirmed').length, dr = vals.filter(v => v.status === 'draft').length;
-  document.getElementById('vaMat').innerHTML = `AI が読むのは<b>あなたが書いた言葉 ${src.length}件</b>（🤔 なぜ・✍ どうだった）と、いまの価値観（確定 ${conf}・下書き ${dr}）だけです。レシートの金額や写真は渡しません。`
+  document.getElementById('vaMat').innerHTML = `AI が読むのは<b>あなたが書いた言葉と押した印 ${src.length}件</b>（🤔 なぜ・✍ どうだった・🏷 選んだ理由の印＝言葉より軽く扱うよう頼みます）と、いまの価値観（確定 ${conf}・下書き ${dr}）だけです。レシートの金額や写真は渡しません。`
     + (src.length < 10 ? `<br>⚠ 材料が <b>${src.length}件</b> と少ないので、当てずっぽうの下書きになりやすいです（目安は 20〜30件）。` : '')
     + '<br>返ってきた下書きは<b>勝手に確定しません</b>＝1件ずつ選んで保存します。';
   document.querySelectorAll('#vaRouteSeg button').forEach(b => b.classList.toggle('on', b.dataset.varoute === vaRoute));
@@ -12844,6 +13155,7 @@ async function openSettings(){
   renderCatTags();
   renderImgKeep();   // r75: 📷 写真の保存サイズ
   renderShootPins(); // r96: 📷 撮るボタンの帯
+  document.getElementById('ckAsk').checked = askOn();   // ❓ r117: ついでの1問
   document.getElementById('imgSizeOut').hidden = true;   // ⚠ 前に数えた古い合計を出したままにしない
   resetWipe(); await renderWipe();   // r71: 🧹 は開くたび白紙＋件数を数え直す
   document.getElementById('noteStore').innerHTML = IS_NATIVE
@@ -12853,6 +13165,11 @@ async function openSettings(){
   show('ovSettings');
 }
 document.getElementById('btnSettings').onclick = openSettings;
+// ❓ r117: ⚠ トーストを出さない（☑ そのものが状態＝📷 の ☑ と同じ）
+document.getElementById('ckAsk').onchange = e => {
+  localStorage.setItem(ASK_ON, e.target.checked ? '1' : '0');
+  if (!e.target.checked) { askNewIds.clear(); clearTimeout(askTimer); }
+};
 document.getElementById('btnExport').onclick = () => {
   // r62: 期間はボタン選択（expMode）に。「期間を選ぶ」で開いた時だけ、日付欄の空を今月で埋める
   if (expMode === 'range') {
